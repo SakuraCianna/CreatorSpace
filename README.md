@@ -69,6 +69,16 @@ mvn -f backend/pom.xml test
 npm run build --prefix frontend
 ```
 
+## 快速启动
+
+双击或在项目根目录执行:
+
+```powershell
+.\快速启动.bat
+```
+
+脚本会分别启动前端和后端。
+
 ## CI/CD
 
 GitHub Actions 工作流:
@@ -125,6 +135,10 @@ npm run dev --prefix frontend
 ```text
 5173
 ```
+
+## 配置说明
+
+配置模板见 `.env.example`。后端会通过 `application.yml` 读取数据库、Redis 基础信息、上传限制、CORS、JWT、本地文件存储和 AI 预留配置。前端会通过 Vite 读取 `VITE_` 前缀配置, 包括 API 地址、开发代理和开发服务器端口。
 
 ## 数据库迁移
 
