@@ -48,13 +48,28 @@ class FlywayMigrationTests {
                     "users",
                     "roles",
                     "user_roles",
+                    "user_friendships",
                     "articles",
+                    "article_visibility_users",
                     "portfolio_projects",
                     "theme_configs",
                     "file_resources",
+                    "file_resource_references",
+                    "sensitive_words",
                     "operation_logs"
             );
-            assertThat(extensionNames(connection)).contains("pg_trgm", "pgcrypto");
+            assertThat(extensionNames(connection)).contains("pg_trgm", "pgcrypto", "vector");
+            assertThat(columnNames(connection, "users")).doesNotContain("email");
+            assertThat(nullableColumnNames(connection, "users")).contains("nickname");
+            assertThat(columnNames(connection, "articles"))
+                    .contains("privacy_type")
+                    .doesNotContain("access_password_hash");
+            assertThat(columnNames(connection, "comments"))
+                    .contains("root_id", "reply_to_user_id", "depth", "reply_count")
+                    .doesNotContain("nickname", "email");
+            assertThat(columnNames(connection, "like_records")).doesNotContain("guest_key");
+            assertThat(primaryKeyColumns(connection, "article_visibility_users"))
+                    .containsExactlyInAnyOrder("article_id", "user_id");
             assertThat(singleLong(connection, "select count(*) from roles where code in ('ADMIN', 'USER')")).isEqualTo(2L);
             assertThat(singleLong(connection, "select count(*) from users where username = 'admin'")).isEqualTo(1L);
         }
@@ -72,6 +87,65 @@ class FlywayMigrationTests {
                 names.add(rs.getString("table_name"));
             }
             return names;
+        }
+    }
+
+    private Set<String> columnNames(java.sql.Connection connection, String tableName) throws Exception {
+        try (var statement = connection.prepareStatement("""
+                select column_name
+                from information_schema.columns
+                where table_schema = 'public'
+                  and table_name = ?
+                """)) {
+            statement.setString(1, tableName);
+            try (var rs = statement.executeQuery()) {
+                var names = new java.util.HashSet<String>();
+                while (rs.next()) {
+                    names.add(rs.getString("column_name"));
+                }
+                return names;
+            }
+        }
+    }
+
+    private Set<String> nullableColumnNames(java.sql.Connection connection, String tableName) throws Exception {
+        try (var statement = connection.prepareStatement("""
+                select column_name
+                from information_schema.columns
+                where table_schema = 'public'
+                  and table_name = ?
+                  and is_nullable = 'YES'
+                """)) {
+            statement.setString(1, tableName);
+            try (var rs = statement.executeQuery()) {
+                var names = new java.util.HashSet<String>();
+                while (rs.next()) {
+                    names.add(rs.getString("column_name"));
+                }
+                return names;
+            }
+        }
+    }
+
+    private Set<String> primaryKeyColumns(java.sql.Connection connection, String tableName) throws Exception {
+        try (var statement = connection.prepareStatement("""
+                select kcu.column_name
+                from information_schema.table_constraints tc
+                join information_schema.key_column_usage kcu
+                  on tc.constraint_name = kcu.constraint_name
+                 and tc.table_schema = kcu.table_schema
+                where tc.table_schema = 'public'
+                  and tc.table_name = ?
+                  and tc.constraint_type = 'PRIMARY KEY'
+                """)) {
+            statement.setString(1, tableName);
+            try (var rs = statement.executeQuery()) {
+                var names = new java.util.HashSet<String>();
+                while (rs.next()) {
+                    names.add(rs.getString("column_name"));
+                }
+                return names;
+            }
         }
     }
 

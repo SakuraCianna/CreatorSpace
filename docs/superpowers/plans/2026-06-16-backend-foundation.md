@@ -71,7 +71,6 @@ Expected: PASS.
 **Files:**
 - Create: `backend/src/main/java/com/creatorspace/config/MybatisPlusConfig.java`
 - Create: `backend/src/main/resources/db/migration/V1__initialize_creator_space_schema.sql`
-- Create: `backend/src/main/resources/db/migration/V2__seed_default_roles_and_admin.sql`
 - Create: `backend/src/test/java/com/creatorspace/database/FlywayMigrationTests.java`
 
 - [x] **Step 1: Write the failing migration test**

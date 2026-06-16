@@ -13,6 +13,10 @@ CreatorSpace
 │       │   ├── java/com/creatorspace
 │       │   └── resources/db/migration
 │       └── test
+├── frontend
+│   ├── package.json
+│   ├── vite.config.ts
+│   └── src
 ├── docs
 │   ├── database
 │   ├── product
@@ -31,6 +35,15 @@ CreatorSpace
 - MyBatis-Plus Spring Boot 4 starter
 - Flyway
 - Maven
+
+## 前端技术栈
+
+- Node.js 24
+- Vue 3
+- TypeScript
+- Vite 8
+- Vue Router
+- Pinia
 
 ## 本地配置
 
@@ -51,6 +64,7 @@ CreatorSpace
 
 ```powershell
 mvn -f backend/pom.xml test
+npm run build --prefix frontend
 ```
 
 ## 启动后端
@@ -73,6 +87,26 @@ mvn -f backend/pom.xml spring-boot:run
 Invoke-RestMethod -Uri "http://localhost:8080/api/health"
 ```
 
+## 启动前端
+
+首次安装依赖:
+
+```powershell
+npm install --prefix frontend
+```
+
+启动 Vite 开发服务器:
+
+```powershell
+npm run dev --prefix frontend
+```
+
+前端默认端口:
+
+```text
+5173
+```
+
 ## 数据库迁移
 
 迁移脚本目录:
@@ -85,10 +119,9 @@ backend/src/main/resources/db/migration
 
 ```text
 V1__initialize_creator_space_schema.sql
-V2__seed_default_roles_and_admin.sql
 ```
 
-应用启动时 Flyway 会自动执行未运行的迁移。不要修改已经执行过的迁移脚本，新增结构变更时创建新的 `V版本号__描述.sql`。
+应用启动时 Flyway 会自动执行未运行的迁移。项目正式产生持久数据前，初始化结构可以合并在 `V1` 中维护；一旦有需要保留的真实数据，不要修改已经执行过的迁移脚本，新增结构变更时创建新的 `V版本号__描述.sql`。
 
 数据库变更前备份规则见:
 
