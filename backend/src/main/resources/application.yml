@@ -1,0 +1,45 @@
+spring:
+  application:
+    name: CreatorSpace
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration
+  config:
+    import:
+      - optional:file:../.env[.properties]
+      - optional:file:.env[.properties]
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:127.0.0.1}:${POSTGRES_PORT:5432}/${POSTGRES_DB:creatorspace}
+    username: ${POSTGRES_USERNAME:creatorspace}
+    password: ${POSTGRES_PASSWORD:}
+    driver-class-name: org.postgresql.Driver
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+    placeholders:
+      adminUsername: ${ADMIN_USERNAME:admin}
+      adminPasswordHash: ${ADMIN_PASSWORD_HASH}
+
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+
+app:
+  storage:
+    type: ${FILE_STORAGE_TYPE:local}
+    local-root: ${LOCAL_FILE_STORAGE_ROOT:storage/uploads}
+    public-prefix: ${LOCAL_FILE_PUBLIC_PREFIX:/uploads}
+  security:
+    password-bcrypt-strength: ${PASSWORD_BCRYPT_STRENGTH:12}
+    jwt-access-token-expire-minutes: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:120}
+    jwt-refresh-token-expire-days: ${JWT_REFRESH_TOKEN_EXPIRE_DAYS:14}

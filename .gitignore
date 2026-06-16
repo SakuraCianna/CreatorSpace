@@ -6,6 +6,9 @@
 # 本机上传文件
 storage/
 
+# 本地数据库备份
+backups/
+
 # 构建产物
 dist/
 build/
