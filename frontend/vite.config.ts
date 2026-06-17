@@ -1,5 +1,6 @@
 import { fileURLToPath, URL } from 'node:url'
 
+import vue from '@vitejs/plugin-vue'
 import { defineConfig, loadEnv } from 'vite'
 
 function readNumber(value: string | undefined, fallback: number): number {
@@ -14,6 +15,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     envDir,
+    plugins: [vue()],
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
