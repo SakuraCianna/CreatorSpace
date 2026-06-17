@@ -96,7 +96,7 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                 .andExpect(jsonPath("$.data.status", is("PUBLISHED")));
 
         mockMvc.perform(get("/api/articles")
-                        .param("keyword", "公开文章"))
+                        .param("keyword", "第一篇公开文章"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.records", hasSize(1)))
                 .andExpect(jsonPath("$.data.records[0].title", is("第一篇公开文章")))
@@ -117,7 +117,7 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                         .header("Authorization", bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(Map.of(
-                                "title", "草稿文章",
+                                "title", "不应公开检索哨兵草稿",
                                 "slug", "draft-article",
                                 "summary", "不应出现在前台",
                                 "contentMarkdown", "草稿",
@@ -129,7 +129,7 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                         .header("Authorization", bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(Map.of(
-                                "title", "私密文章",
+                                "title", "不应公开检索哨兵私密文章",
                                 "slug", "private-article",
                                 "summary", "不应出现在前台",
                                 "contentMarkdown", "私密",
@@ -137,7 +137,8 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                         ))))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(get("/api/articles"))
+        mockMvc.perform(get("/api/articles")
+                        .param("keyword", "不应公开检索哨兵"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.records", empty()));
     }
@@ -165,7 +166,8 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                 .andExpect(jsonPath("$.success", is(true)))
                 .andExpect(jsonPath("$.data.status", is("VISIBLE")));
 
-        mockMvc.perform(get("/api/projects"))
+        mockMvc.perform(get("/api/projects")
+                        .param("keyword", "CreatorSpace CMS"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.records", hasSize(1)))
                 .andExpect(jsonPath("$.data.records[0].title", is("CreatorSpace CMS")))
