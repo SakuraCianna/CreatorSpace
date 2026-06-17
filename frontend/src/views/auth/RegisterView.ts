@@ -1,21 +1,39 @@
 import { defineComponent, h, reactive, ref } from 'vue'
 
+import { registerUser } from '@/api/content'
+
 export default defineComponent({
   name: 'RegisterView',
+  // 准备注册页表单状态和提交交互。
   setup() {
     const form = reactive({
       username: '',
       password: '',
     })
     const message = ref('')
+    const isSubmitting = ref(false)
 
-    function submitRegister() {
+    // 提交注册表单。
+    async function submitRegister() {
       if (!form.username.trim() || form.password.length < 6) {
         message.value = '请输入用户名，并保证密码至少 6 位'
         return
       }
 
-      message.value = '注册接口待接入：当前表单只收集用户名和密码'
+      isSubmitting.value = true
+      message.value = ''
+      try {
+        const user = await registerUser({
+          username: form.username.trim(),
+          password: form.password,
+        })
+        message.value = `账号 ${user.username} 创建成功`
+        form.password = ''
+      } catch (error) {
+        message.value = error instanceof Error ? error.message : '注册失败，请稍后重试'
+      } finally {
+        isSubmitting.value = false
+      }
     }
 
     return () =>
@@ -55,7 +73,15 @@ export default defineComponent({
                 },
               }),
             ]),
-            h('button', { class: 'button button-filled', type: 'submit' }, '创建账号'),
+            h(
+              'button',
+              {
+                class: 'button button-filled',
+                disabled: isSubmitting.value,
+                type: 'submit',
+              },
+              isSubmitting.value ? '创建中...' : '创建账号',
+            ),
             message.value ? h('p', { class: 'form-message' }, message.value) : null,
           ],
         ),

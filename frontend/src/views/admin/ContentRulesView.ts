@@ -9,6 +9,7 @@ const rules = [
 
 export default defineComponent({
   name: 'ContentRulesView',
+  // 渲染第一阶段已确认的内容规则。
   setup() {
     return () =>
       h('section', { class: 'workspace-panel' }, [

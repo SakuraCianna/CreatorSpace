@@ -1,6 +1,6 @@
 # CreatorSpace
 
-CreatorSpace 是一个个人主题风格博客与创意作品展示平台。当前仓库处于基础框架阶段，已包含 Spring Boot 后端骨架、Flyway 数据库迁移体系和数据库变更前备份规则。
+CreatorSpace 是一个个人主题风格博客与创意作品展示平台。当前仓库处于第一阶段业务闭环建设阶段，已包含 Spring Boot 后端骨架、Flyway 数据库迁移体系、数据库变更前备份规则、产品主页、注册接口、公开文章/作品列表接口以及基础 CMS 内容管理接口。
 
 ## 当前结构
 
@@ -68,6 +68,27 @@ CreatorSpace
 mvn -f backend/pom.xml test
 npm run build --prefix frontend
 ```
+
+## 当前已实现的第一阶段接口
+
+后端当前已具备以下最小业务闭环:
+
+```text
+POST   /api/auth/register
+POST   /api/admin/auth/login
+POST   /api/admin/categories
+GET    /api/categories
+POST   /api/admin/tags
+GET    /api/tags
+POST   /api/admin/articles
+PUT    /api/admin/articles/{id}/publish
+GET    /api/articles
+GET    /api/articles/slug/{slug}
+POST   /api/admin/projects
+GET    /api/projects
+```
+
+后台接口需要管理员 JWT。前台注册页、文章页和作品页已通过统一 `requestJson` 封装接入对应接口，并提供基础 loading、empty 和 error 状态。
 
 ## 快速启动
 
@@ -139,6 +160,8 @@ npm run dev --prefix frontend
 ## 配置说明
 
 配置模板见 `.env.example`。后端会通过 `application.yml` 读取数据库、Redis 基础信息、上传限制、CORS、JWT、本地文件存储和 AI 预留配置。前端会通过 Vite 读取 `VITE_` 前缀配置, 包括 API 地址、开发代理和开发服务器端口。
+
+后端启动必须显式配置 `JWT_SECRET`，且长度不少于 32 个字符；未配置或过短时服务会拒绝启动，避免默认弱密钥进入本地联调或部署环境。初始化管理员密码哈希仍通过 `ADMIN_PASSWORD_HASH` 写入 `.env`。
 
 ## 数据库迁移
 

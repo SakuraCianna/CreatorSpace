@@ -4,6 +4,7 @@ import { adminMetrics, articleSamples, privacyLabels } from '@/data/sample-conte
 
 export default defineComponent({
   name: 'AdminDashboardView',
+  // 渲染后台首页的阶段性内容指标和规则摘要。
   setup() {
     return () => [
       h(
@@ -24,7 +25,7 @@ export default defineComponent({
             h('article', { key: article.id, class: 'table-row' }, [
               h('div', [
                 h('strong', article.title),
-                h('span', `${privacyLabels[article.privacy]} · ${article.updatedAt}`),
+                h('span', `${privacyLabels[article.privacyType]} · ${article.publishTime ?? '未发布'}`),
               ]),
               h('span', { class: 'status-chip' }, article.status),
             ]),

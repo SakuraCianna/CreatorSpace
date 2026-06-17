@@ -9,6 +9,9 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import java.nio.file.Path;
 import java.util.Arrays;
 
+/**
+ * Web 跨域和本地静态资源映射配置。
+ */
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
@@ -21,6 +24,7 @@ public class WebConfig implements WebMvcConfigurer {
     @Value("${app.storage.public-prefix:/uploads}")
     private String publicPrefix;
 
+    // 注册前后端跨域规则。
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
@@ -30,6 +34,7 @@ public class WebConfig implements WebMvcConfigurer {
                 .allowCredentials(true);
     }
 
+    // 注册本地上传文件的静态访问路径。
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         String prefix = publicPrefix.startsWith("/") ? publicPrefix : "/" + publicPrefix;
@@ -38,6 +43,7 @@ public class WebConfig implements WebMvcConfigurer {
                 .addResourceLocations(root.toUri().toString());
     }
 
+    // 将相对存储路径解析到项目根目录。
     private static Path resolveFromProjectRoot(String value) {
         Path configured = Path.of(value);
         if (configured.isAbsolute()) {
@@ -54,6 +60,7 @@ public class WebConfig implements WebMvcConfigurer {
         return cwd.resolve(configured).normalize();
     }
 
+    // 拆分逗号分隔的配置项。
     private static String[] split(String value) {
         return Arrays.stream(value.split(","))
                 .map(String::trim)

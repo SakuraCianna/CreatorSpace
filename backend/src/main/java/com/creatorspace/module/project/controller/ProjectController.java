@@ -1,0 +1,52 @@
+package com.creatorspace.module.project.controller;
+
+import com.creatorspace.common.result.ApiResponse;
+import com.creatorspace.common.result.PageResponse;
+import com.creatorspace.module.project.dto.ProjectCreateRequest;
+import com.creatorspace.module.project.service.ProjectService;
+import com.creatorspace.module.project.vo.ProjectVO;
+import com.creatorspace.security.LoginUser;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * 作品管理和公开作品读取接口。
+ */
+@Validated
+@RestController
+public class ProjectController {
+
+    private final ProjectService projectService;
+
+    // 通过构造器注入作品服务，Controller 不直接访问数据库。
+    public ProjectController(ProjectService projectService) {
+        this.projectService = projectService;
+    }
+
+    // 管理员创建可见作品。
+    @PostMapping("/api/admin/projects")
+    public ApiResponse<ProjectVO> create(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @Valid @RequestBody ProjectCreateRequest request
+    ) {
+        return ApiResponse.ok(projectService.create(request, loginUser.userId()));
+    }
+
+    // 查询公开作品分页列表。
+    @GetMapping("/api/projects")
+    public ApiResponse<PageResponse<ProjectVO>> listPublic(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "1") @Min(1) long page,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(100) long pageSize
+    ) {
+        return ApiResponse.ok(projectService.listPublic(keyword, page, pageSize));
+    }
+}

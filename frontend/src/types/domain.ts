@@ -15,13 +15,52 @@ export interface UserSummary {
   roles: UserRole[]
 }
 
+export interface CategorySummary {
+  id: number
+  module: 'ARTICLE' | 'PROJECT' | 'INSPIRATION'
+  name: string
+  slug: string
+  description?: string | null
+  sortOrder: number
+}
+
+export interface TagSummary {
+  id: number
+  name: string
+  slug: string
+  color?: string | null
+  weight: number
+}
+
 export interface ArticleSummary {
   id: number
   title: string
   slug: string
-  privacy: ArticlePrivacy
+  summary?: string | null
+  privacyType: ArticlePrivacy
   status: ContentStatus
-  updatedAt: string
+  category?: CategorySummary | null
+  tags: TagSummary[]
+  publishTime?: string | null
+}
+
+export interface ProjectSummary {
+  id: number
+  title: string
+  slug: string
+  description?: string | null
+  projectType: string
+  techStack: string[]
+  status: string
+  recommended: boolean
+  tags: TagSummary[]
+}
+
+export interface PageResponse<T> {
+  records: T[]
+  page: number
+  pageSize: number
+  total: number
 }
 
 export interface AdminMetric {

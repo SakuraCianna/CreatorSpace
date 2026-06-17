@@ -3,6 +3,7 @@ import { useRoute } from 'vue-router'
 
 export default defineComponent({
   name: 'AdminPlaceholderView',
+  // 根据路由参数渲染暂未实现的后台模块占位页。
   setup() {
     const route = useRoute()
     const section = computed(() => route.params.section?.toString() || '模块')

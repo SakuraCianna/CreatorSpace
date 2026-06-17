@@ -1,8 +1,10 @@
+// 读取数字配置并在无效时使用默认值。
 function readNumber(value: string | undefined, fallback: number): number {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
+// 规范化 API 基础地址。
 function normalizeBaseUrl(value: string | undefined): string {
   if (!value) {
     return ''

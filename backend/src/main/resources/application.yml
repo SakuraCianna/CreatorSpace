@@ -56,7 +56,7 @@ app:
     local-root: ${LOCAL_FILE_STORAGE_ROOT:storage/uploads}
     public-prefix: ${LOCAL_FILE_PUBLIC_PREFIX:/uploads}
   security:
-    jwt-secret: ${JWT_SECRET:dev-only-change-me}
+    jwt-secret: ${JWT_SECRET:}
     password-bcrypt-strength: ${PASSWORD_BCRYPT_STRENGTH:12}
     jwt-access-token-expire-minutes: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:120}
     jwt-refresh-token-expire-days: ${JWT_REFRESH_TOKEN_EXPIRE_DAYS:14}

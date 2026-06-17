@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class HealthControllerTests {
 
+    // 验证健康检查接口返回应用状态。
     @Test
     void healthEndpointReturnsCreatorSpaceStatus() throws Exception {
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new HealthController()).build();
