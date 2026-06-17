@@ -26,9 +26,7 @@ export function attachMagnetic(el: HTMLElement, options: MagneticOptions = {}) {
   const setIX = inner ? gsap.quickTo(inner, 'x', { duration: 0.7, ease: 'power3.out' }) : null
   const setIY = inner ? gsap.quickTo(inner, 'y', { duration: 0.7, ease: 'power3.out' }) : null
 
-  /**
-   * 根据指针位置移动光晕。
-   */
+  // 根据指针位置移动卡片和内部元素。
   const onMove = (event: PointerEvent) => {
     const rect = el.getBoundingClientRect()
     const relX = event.clientX - (rect.left + rect.width / 2)
@@ -38,6 +36,8 @@ export function attachMagnetic(el: HTMLElement, options: MagneticOptions = {}) {
     setIX?.(relX * innerStrength)
     setIY?.(relY * innerStrength)
   }
+
+  // 指针离开后复位磁吸偏移。
   const onLeave = () => {
     setX(0)
     setY(0)
@@ -48,6 +48,7 @@ export function attachMagnetic(el: HTMLElement, options: MagneticOptions = {}) {
   el.addEventListener('pointermove', onMove)
   el.addEventListener('pointerleave', onLeave)
 
+  // 解除监听并清理 GSAP 动画。
   return () => {
     el.removeEventListener('pointermove', onMove)
     el.removeEventListener('pointerleave', onLeave)

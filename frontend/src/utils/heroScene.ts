@@ -106,6 +106,8 @@ export interface HeroSceneHandles {
   setPointer: (nx: number, ny: number) => void
   setPaused: (paused: boolean) => void
 }
+
+// 创建首页英雄区 WebGL 场景，并返回外部可控的生命周期句柄。
 export function createHeroScene(container: HTMLElement): HeroSceneHandles {
   const renderer = new WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' })
   renderer.setClearColor(0x000000, 0)
@@ -150,6 +152,8 @@ export function createHeroScene(container: HTMLElement): HeroSceneHandles {
   })
   const halo = new Points(haloGeo, haloMat)
   scene.add(halo)
+
+  // 根据容器尺寸更新渲染器和相机比例。
   const resize = () => {
     const w = container.clientWidth || 1
     const h = container.clientHeight || 1
@@ -166,6 +170,8 @@ export function createHeroScene(container: HTMLElement): HeroSceneHandles {
   ro.observe(container)
   const pointer = { x: 0, y: 0 }
   const target = { x: 0, y: 0 }
+
+  // 保存最新指针位置，渲染循环中会做缓动插值。
   const setPointer = (nx: number, ny: number) => {
     target.x = nx
     target.y = ny
@@ -173,6 +179,8 @@ export function createHeroScene(container: HTMLElement): HeroSceneHandles {
   const clock = new Clock()
   let raf = 0
   let paused = false
+
+  // 渲染一帧并安排下一帧动画。
   const render = () => {
     const dt = clock.getDelta()
     const elapsed = clock.elapsedTime
@@ -190,6 +198,8 @@ export function createHeroScene(container: HTMLElement): HeroSceneHandles {
     raf = requestAnimationFrame(render)
   }
   raf = requestAnimationFrame(render)
+
+  // 根据可见性暂停或恢复动画，减少不可见区域的渲染开销。
   const setPaused = (next: boolean) => {
     if (next === paused) {
       return
@@ -199,10 +209,13 @@ export function createHeroScene(container: HTMLElement): HeroSceneHandles {
       cancelAnimationFrame(raf)
       raf = 0
     } else {
-      clock.getDelta() // discard the long gap so motion doesn't jump
+      // 丢弃暂停期间的长时间差，避免恢复时动画突然跳变。
+      clock.getDelta()
       raf = requestAnimationFrame(render)
     }
   }
+
+  // 释放 Three.js 资源和挂载到容器内的 canvas。
   const dispose = () => {
     if (raf) {
       cancelAnimationFrame(raf)
