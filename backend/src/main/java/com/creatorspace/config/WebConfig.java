@@ -40,7 +40,7 @@ public class WebConfig implements WebMvcConfigurer {
         String prefix = publicPrefix.startsWith("/") ? publicPrefix : "/" + publicPrefix;
         Path root = resolveFromProjectRoot(localStorageRoot);
         registry.addResourceHandler(prefix + "/**")
-                .addResourceLocations(root.toUri().toString());
+                .addResourceLocations(toDirectoryLocation(root));
     }
 
     // 将相对存储路径解析到项目根目录。
@@ -58,6 +58,12 @@ public class WebConfig implements WebMvcConfigurer {
             }
         }
         return cwd.resolve(configured).normalize();
+    }
+
+    // 将本地目录路径转换为 Spring 静态资源需要的目录 URI。
+    static String toDirectoryLocation(Path root) {
+        String location = root.toUri().toString();
+        return location.endsWith("/") ? location : location + "/";
     }
 
     // 拆分逗号分隔的配置项。

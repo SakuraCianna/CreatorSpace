@@ -15,7 +15,8 @@ public abstract class PostgresIntegrationTestSupport {
     protected static final String ADMIN_PASSWORD_HASH =
             "$2a$04$in9e7kWY5HdXRYYeRYd//O2p3R2AJiaeWy8/pgLrirdRdZtxDIG8u";
 
-    // 创建 PostgreSQL 测试容器。
+    // 创建 PostgreSQL 测试容器，容器生命周期由测试类上的 @Container 托管。
+    @SuppressWarnings("resource")
     protected static PostgreSQLContainer createPostgres(String databaseName) {
         return new PostgreSQLContainer(POSTGRES_IMAGE)
                 .withDatabaseName(databaseName)
