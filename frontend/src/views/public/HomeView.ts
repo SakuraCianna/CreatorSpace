@@ -1,36 +1,37 @@
-import { defineComponent, h } from 'vue'
-import { RouterLink } from 'vue-router'
+import { defineComponent, h, onBeforeUnmount, onMounted } from 'vue'
 
-import { articleSamples, privacyLabels } from '@/data/sample-content'
+import HeroUniverse from '@/components/home/HeroUniverse'
+import MarqueeManifesto from '@/components/home/MarqueeManifesto'
+import FeaturedArticles from '@/components/home/FeaturedArticles'
+import PortfolioGallery from '@/components/home/PortfolioGallery'
+import AIAgentShowcase from '@/components/home/AIAgentShowcase'
+import ApproachProcess from '@/components/home/ApproachProcess'
+import CreativeWall from '@/components/home/CreativeWall'
+import ThemeUniverse from '@/components/home/ThemeUniverse'
+import FieldNotes from '@/components/home/FieldNotes'
+import FinalCTA from '@/components/home/FinalCTA'
+import { useLenis } from '@/composables/useLenis'
 
+import '@/styles/home.css'
 export default defineComponent({
   name: 'HomeView',
   setup() {
+    useLenis()
+    onMounted(() => document.body.classList.add('cs-dark-body'))
+    onBeforeUnmount(() => document.body.classList.remove('cs-dark-body'))
+
     return () =>
-      h('section', { class: 'home-hero' }, [
-        h('div', { class: 'home-copy' }, [
-          h('h1', '把博客、作品和灵感整理成一个真正的内容系统'),
-          h(
-            'p',
-            'CreatorSpace 会用一个 Vue 前端承载前台展示和后台 CMS，先把路由、设计语言、权限规则和业务入口搭好。',
-          ),
-          h('div', { class: 'button-row' }, [
-            h(RouterLink, { class: 'button button-filled', to: '/articles' }, { default: () => '查看文章' }),
-            h(RouterLink, { class: 'button button-tonal', to: '/admin' }, { default: () => '进入后台' }),
-          ]),
-        ]),
-        h('div', { class: 'preview-panel', 'aria-label': '内容系统预览' }, [
-          h('div', { class: 'panel-header' }, [h('span', '今日内容'), h('strong', '3 条')]),
-          ...articleSamples.map((article) =>
-            h('article', { key: article.id, class: 'content-row' }, [
-              h('div', [
-                h('h2', article.title),
-                h('p', `${article.updatedAt} · ${privacyLabels[article.privacy]}`),
-              ]),
-              h('span', { class: 'status-chip' }, article.status),
-            ]),
-          ),
-        ]),
+      h('div', { class: 'cs-home' }, [
+        h(HeroUniverse),
+        h(MarqueeManifesto),
+        h(FeaturedArticles),
+        h(PortfolioGallery),
+        h(AIAgentShowcase),
+        h(ApproachProcess),
+        h(CreativeWall),
+        h(ThemeUniverse),
+        h(FieldNotes),
+        h(FinalCTA),
       ])
   },
 })

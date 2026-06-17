@@ -1,12 +1,14 @@
 import { defineComponent, h } from 'vue'
 import { RouterLink } from 'vue-router'
 
+// 渲染导航链接。
 function navLink(to: string, label: string) {
   return h(RouterLink, { to }, { default: () => label })
 }
 
 export default defineComponent({
   name: 'PublicLayout',
+  // 渲染前台公共导航和页面插槽。
   setup(_, { slots }) {
     return () =>
       h('div', { class: 'public-shell' }, [
