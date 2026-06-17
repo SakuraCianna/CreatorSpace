@@ -1,4 +1,6 @@
 import { onBeforeUnmount, ref } from 'vue'
+
+// 监听系统低动效偏好，并在组件卸载时释放监听器。
 export function useReducedMotion() {
   const reduced = ref(false)
 
@@ -17,6 +19,8 @@ export function useReducedMotion() {
 
   return { reduced }
 }
+
+// 即时读取系统低动效偏好，供非响应式流程使用。
 export function prefersReducedMotion(): boolean {
   if (typeof window === 'undefined' || !window.matchMedia) {
     return false

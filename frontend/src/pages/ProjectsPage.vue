@@ -30,8 +30,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 
-import { fetchProjects } from '@/api/content'
-import type { ProjectSummary } from '@/types/domain'
+import { fetchProjects } from '@/services/content'
+import type { ProjectSummary } from '@/shared/domain'
 
 const projects = ref<ProjectSummary[]>([])
 const isLoading = ref(true)

@@ -3,9 +3,11 @@ import Lenis from 'lenis'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
-import { prefersReducedMotion } from '@/composables/useReducedMotion'
+import { prefersReducedMotion } from '@/shared/composables/useReducedMotion'
 
 gsap.registerPlugin(ScrollTrigger)
+
+// 初始化平滑滚动，并把 Lenis 滚动事件同步给 ScrollTrigger。
 export function useLenis() {
   const lenis = shallowRef<Lenis | null>(null)
 

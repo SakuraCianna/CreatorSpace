@@ -1,12 +1,14 @@
 import { gsap } from 'gsap'
 
-import { prefersReducedMotion } from '@/composables/useReducedMotion'
+import { prefersReducedMotion } from '@/shared/composables/useReducedMotion'
 
 interface MagneticOptions {
   strength?: number
   inner?: HTMLElement | null
   innerStrength?: number
 }
+
+// 给元素绑定磁吸跟随效果，并返回清理函数。
 export function attachMagnetic(el: HTMLElement, options: MagneticOptions = {}) {
   const coarse =
     typeof window !== 'undefined' &&

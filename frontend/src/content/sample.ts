@@ -1,4 +1,4 @@
-import type { AdminMetric, ArticleSummary } from '@/types/domain'
+import type { AdminMetric, ArticleSummary } from '@/shared/domain'
 
 export const adminMetrics: AdminMetric[] = [
   { label: '文章', value: '128', trend: '12 篇草稿待整理' },

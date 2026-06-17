@@ -30,8 +30,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 
-import { fetchArticles } from '@/api/content'
-import type { ArticleSummary } from '@/types/domain'
+import { fetchArticles } from '@/services/content'
+import type { ArticleSummary } from '@/shared/domain'
 
 const privacyLabels: Record<ArticleSummary['privacyType'], string> = {
   PUBLIC: '公开',
