@@ -7,7 +7,7 @@ const router = createRouter({
       path: '/',
       name: 'home',
       component: () => import('@/views/public/HomeView'),
-      meta: { layout: 'public' },
+      meta: { layout: 'immersive' },
     },
     {
       path: '/articles',

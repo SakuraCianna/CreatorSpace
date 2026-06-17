@@ -1,0 +1,1761 @@
+/* CreatorSpace AI 沉浸式主页设计系统。 */
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Sora:wght@300;400;600;700&family=Newsreader:ital,opsz,wght@0,16..72,400;0,16..72,600;1,16..72,400&family=Space+Mono:wght@400;700&display=swap');
+
+.cs-shell,
+.cs-home {
+  /* 分层深色底色，避免纯黑。 */
+  --cs-bg: #06070d;
+  --cs-bg-raise: #0b0d18;
+  --cs-bg-veil: #10131f;
+  --cs-ink: #f3f5ff;
+  --cs-ink-dim: rgba(226, 230, 247, 0.66);
+  --cs-ink-faint: rgba(206, 212, 240, 0.4);
+  --cs-line: rgba(150, 165, 220, 0.16);
+  --cs-line-soft: rgba(150, 165, 220, 0.09);
+
+  /* 克制使用的强调色，仅作为视觉标点。 */
+  --cs-accent: #6ea8ff;
+  --cs-accent-2: #b18cff;
+  --cs-accent-3: #54e6c8;
+  --cs-accent-warm: #ff9d6e;
+
+  --cs-edge: clamp(20px, 5vw, 92px);
+  --cs-maxw: 1440px;
+  --cs-font-display: 'Space Grotesk', 'Sora', system-ui, sans-serif;
+  --cs-font-body: 'Sora', system-ui, sans-serif;
+  --cs-font-serif: 'Newsreader', Georgia, serif;
+  --cs-font-mono: 'Space Mono', ui-monospace, monospace;
+}
+
+.cs-home {
+  position: relative;
+  width: 100%;
+  background: var(--cs-bg);
+  color: var(--cs-ink);
+  font-family: var(--cs-font-body);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+}
+
+.cs-home *,
+.cs-home *::before,
+.cs-home *::after {
+  box-sizing: border-box;
+}
+
+/* 细微胶片颗粒和暗角让深色背景更有层次。 */
+.cs-home::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 80% at 50% -10%, rgba(110, 168, 255, 0.08), transparent 60%),
+    radial-gradient(90% 60% at 100% 100%, rgba(177, 140, 255, 0.06), transparent 55%);
+}
+
+.cs-section {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: var(--cs-maxw);
+  margin: 0 auto;
+  padding-inline: var(--cs-edge);
+}
+
+.cs-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-family: var(--cs-font-mono);
+  font-size: 12px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--cs-ink-faint);
+}
+
+.cs-eyebrow::before {
+  content: '';
+  width: 26px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--cs-accent), transparent);
+}
+
+/* 沉浸式首页挂载时切换页面深色背景，离开时恢复。 */
+body.cs-dark-body {
+  background: #06070d;
+}
+
+/* 沉浸式外壳和悬浮导航。 */
+.cs-shell {
+  position: relative;
+  min-height: 100vh;
+  background: var(--cs-bg);
+}
+
+.cs-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: var(--cs-maxw);
+  margin-inline: auto;
+  inset-inline: 0;
+  padding: 22px var(--cs-edge);
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cs-nav__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--cs-font-display);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--cs-ink);
+}
+
+.cs-nav__mark {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  background: linear-gradient(135deg, var(--cs-accent), var(--cs-accent-2));
+  color: #070a16;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 8px 26px rgba(110, 168, 255, 0.35);
+}
+
+.cs-nav__links {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--cs-line);
+  border-radius: 999px;
+  background: rgba(12, 15, 26, 0.5);
+  backdrop-filter: blur(14px);
+}
+
+.cs-nav__links a {
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--cs-ink-dim);
+  transition: color 0.25s ease, background 0.25s ease;
+}
+
+.cs-nav__links a:hover {
+  color: var(--cs-ink);
+  background: rgba(150, 165, 220, 0.12);
+}
+
+@media (max-width: 760px) {
+  .cs-nav__links {
+    display: none;
+  }
+}
+
+/* 首页英雄宇宙区。 */
+.cs-hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 100vh;
+  padding-top: 120px;
+  padding-bottom: 96px;
+  overflow: hidden;
+}
+
+/* 桌面端把 WebGL 放在右侧，避免压住主文案。 */
+.cs-hero__canvas {
+  position: absolute;
+  top: 0;
+  right: -6%;
+  bottom: 0;
+  left: 38%;
+  z-index: 0;
+}
+
+.cs-hero__canvas canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* WebGL 或低动效模式下的静态降级背景。 */
+.cs-hero__canvas--static {
+  background:
+    radial-gradient(55% 55% at 60% 45%, rgba(110, 168, 255, 0.3), transparent 70%),
+    radial-gradient(45% 50% at 55% 55%, rgba(177, 140, 255, 0.24), transparent 72%);
+  filter: blur(8px);
+}
+
+/* 左右渐隐遮罩保证标题可读，并衔接下一段。 */
+.cs-hero__grain {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, var(--cs-bg) 8%, rgba(6, 7, 13, 0.55) 38%, transparent 62%),
+    linear-gradient(180deg, transparent 60%, var(--cs-bg) 100%);
+}
+
+.cs-hero__inner {
+  position: relative;
+  z-index: 2;
+  max-width: min(980px, 100%);
+}
+
+.cs-hero__title {
+  margin: 24px 0 0;
+  font-family: var(--cs-font-display);
+  font-weight: 700;
+  /* 标题尺寸保证 CreatorSpace 不会被裁切。 */
+  font-size: clamp(44px, 8vw, 112px);
+  line-height: 0.92;
+  letter-spacing: -0.035em;
+}
+
+.cs-hero__title .cs-line {
+  display: block;
+  /* 标题揭示只纵向裁切，并保留字形边距。 */
+  overflow: hidden;
+  padding: 0.08em 0.04em;
+  margin: -0.08em -0.04em;
+}
+
+.cs-hero__title .cs-line > span {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  padding-bottom: 0.06em;
+  background: linear-gradient(96deg, var(--cs-ink) 28%, var(--cs-accent) 72%, var(--cs-accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  will-change: transform;
+}
+
+.cs-hero__sub {
+  max-width: 480px;
+  margin: 28px 0 0;
+  font-size: clamp(16px, 1.5vw, 19px);
+  line-height: 1.6;
+  color: var(--cs-ink-dim);
+}
+
+.cs-hero__sub .cs-zh {
+  display: block;
+  margin-top: 10px;
+  font-size: 15px;
+  color: var(--cs-ink-faint);
+}
+
+.cs-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 38px;
+}
+
+.cs-hero__stats {
+  display: flex;
+  gap: clamp(24px, 4vw, 56px);
+  margin-top: 56px;
+  padding-top: 28px;
+  border-top: 1px solid var(--cs-line-soft);
+}
+
+.cs-stat__value {
+  font-family: var(--cs-font-display);
+  font-size: clamp(26px, 3vw, 38px);
+  font-weight: 600;
+  color: var(--cs-ink);
+}
+
+.cs-stat__label {
+  margin-top: 4px;
+  font-family: var(--cs-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--cs-ink-faint);
+}
+
+.cs-hero__scroll {
+  position: absolute;
+  bottom: 28px;
+  left: var(--cs-edge);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--cs-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--cs-ink-faint);
+}
+
+.cs-hero__scroll::after {
+  content: '';
+  width: 46px;
+  height: 1px;
+  background: var(--cs-ink-faint);
+  transform-origin: left;
+  animation: cs-scroll-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes cs-scroll-pulse {
+  0%, 100% { transform: scaleX(0.3); opacity: 0.4; }
+  50% { transform: scaleX(1); opacity: 1; }
+}
+
+/* 高级按钮样式。 */
+.cs-btn {
+  --cs-btn-bg: var(--cs-accent);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 26px;
+  border: 0;
+  border-radius: 999px;
+  font-family: var(--cs-font-display);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  overflow: hidden;
+  isolation: isolate;
+  color: #070a16;
+  background: var(--cs-btn-bg);
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.4s ease;
+}
+
+.cs-btn__fill {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(120deg, var(--cs-accent), var(--cs-accent-2));
+  transform: translateY(101%);
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cs-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 40px rgba(110, 168, 255, 0.36);
+}
+
+.cs-btn:hover .cs-btn__fill {
+  transform: translateY(0);
+}
+
+.cs-btn__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #070a16;
+}
+
+.cs-btn--ghost {
+  color: var(--cs-ink);
+  background: transparent;
+  border: 1px solid var(--cs-line);
+}
+
+.cs-btn--ghost .cs-btn__dot {
+  background: var(--cs-accent-3);
+}
+
+.cs-btn--ghost .cs-btn__fill {
+  background: rgba(150, 165, 220, 0.12);
+}
+
+.cs-btn--ghost:hover {
+  box-shadow: none;
+  border-color: rgba(150, 165, 220, 0.4);
+}
+
+/* 通用区块标题。 */
+.cs-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 32px;
+  padding-block: clamp(80px, 12vh, 150px) 44px;
+}
+
+.cs-head__title {
+  max-width: 16ch;
+  margin: 14px 0 0;
+  font-family: var(--cs-font-display);
+  font-weight: 600;
+  font-size: clamp(32px, 5vw, 66px);
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+}
+
+.cs-head__note {
+  max-width: 34ch;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--cs-ink-dim);
+}
+
+@media (max-width: 900px) {
+  /* 窄屏时让核心图形退到文案后方，并加强遮罩。 */
+  .cs-hero__canvas {
+    left: 0;
+    right: -20%;
+    opacity: 0.7;
+  }
+  .cs-hero__grain {
+    background:
+      linear-gradient(180deg, rgba(6, 7, 13, 0.4) 0%, rgba(6, 7, 13, 0.7) 55%, var(--cs-bg) 100%);
+  }
+  .cs-hero__sub {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 760px) {
+  .cs-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .cs-hero {
+    padding-top: 110px;
+  }
+}
+
+/* 精选文章区。 */
+.cs-articles__grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: clamp(14px, 1.6vw, 22px);
+  padding-bottom: clamp(60px, 10vh, 130px);
+}
+
+.cs-article {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 280px;
+  padding: 26px;
+  border: 1px solid var(--cs-line);
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--cs-bg-raise);
+  /* 本区块使用裁切揭示作为标志性动效。 */
+  clip-path: inset(0 0 100% 0);
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.4s ease;
+}
+
+.cs-article__wash {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.9;
+  background: linear-gradient(155deg, var(--cs-from), var(--cs-to));
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cs-article__wash::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 90% at 80% 0%, rgba(255, 255, 255, 0.12), transparent 60%);
+}
+
+.cs-article__body {
+  position: relative;
+  z-index: 1;
+}
+
+.cs-article--feature {
+  grid-column: span 4;
+  grid-row: span 2;
+  min-height: 560px;
+}
+
+.cs-article--wide {
+  grid-column: span 2;
+}
+
+.cs-article--tall {
+  grid-column: span 2;
+}
+
+.cs-article__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.cs-tag {
+  padding: 5px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  font-family: var(--cs-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(4px);
+}
+
+.cs-article__title {
+  margin: 0;
+  font-family: var(--cs-font-display);
+  font-weight: 600;
+  font-size: clamp(19px, 2vw, 24px);
+  line-height: 1.18;
+  letter-spacing: -0.01em;
+}
+
+.cs-article--feature .cs-article__title {
+  font-size: clamp(28px, 3.4vw, 46px);
+  line-height: 1.04;
+}
+
+.cs-article__excerpt {
+  margin: 12px 0 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: rgba(244, 246, 255, 0.78);
+}
+
+.cs-article--feature .cs-article__excerpt {
+  max-width: 46ch;
+  font-size: 16px;
+}
+
+.cs-article__meta {
+  display: flex;
+  gap: 16px;
+  margin-top: 18px;
+  font-family: var(--cs-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(244, 246, 255, 0.6);
+}
+
+.cs-article:hover {
+  border-color: rgba(255, 255, 255, 0.32);
+}
+
+.cs-article:hover .cs-article__wash {
+  transform: scale(1.06);
+}
+
+@media (max-width: 980px) {
+  .cs-articles__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .cs-article--feature {
+    grid-column: span 2;
+    grid-row: auto;
+    min-height: 420px;
+  }
+  .cs-article--wide,
+  .cs-article--tall {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 560px) {
+  .cs-articles__grid {
+    grid-template-columns: 1fr;
+  }
+  .cs-article--feature,
+  .cs-article--wide,
+  .cs-article--tall {
+    grid-column: span 1;
+  }
+}
+
+/* 作品横向画廊。 */
+.cs-gallery {
+  position: relative;
+}
+
+.cs-gallery__pin {
+  position: relative;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.cs-gallery__track {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  gap: clamp(20px, 2.4vw, 40px);
+  padding-inline: var(--cs-edge);
+  will-change: transform;
+}
+
+.cs-gallery__intro {
+  flex: 0 0 auto;
+  width: min(34vw, 460px);
+}
+
+.cs-gallery__intro h2 {
+  margin: 16px 0 0;
+  font-family: var(--cs-font-display);
+  font-weight: 600;
+  font-size: clamp(34px, 4vw, 60px);
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+}
+
+.cs-gallery__intro p {
+  max-width: 32ch;
+  margin-top: 18px;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--cs-ink-dim);
+}
+
+.cs-gallery__hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 30px;
+  font-family: var(--cs-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--cs-ink-faint);
+}
+
+.cs-poster {
+  position: relative;
+  flex: 0 0 auto;
+  width: clamp(300px, 42vw, 560px);
+  height: clamp(420px, 70vh, 640px);
+  border-radius: 24px;
+  overflow: hidden;
+  border: 1px solid var(--cs-line);
+  background: linear-gradient(160deg, var(--cs-from), var(--cs-to));
+}
+
+.cs-poster__parallax {
+  position: absolute;
+  inset: -12% -18%;
+  z-index: 0;
+  background:
+    radial-gradient(50% 50% at 30% 20%, var(--cs-accent), transparent 60%),
+    radial-gradient(40% 60% at 80% 90%, rgba(255, 255, 255, 0.16), transparent 60%);
+  opacity: 0.55;
+  will-change: transform;
+}
+
+.cs-poster__grain {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(180deg, transparent 40%, rgba(4, 6, 12, 0.82));
+}
+
+.cs-poster__content {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 30px;
+}
+
+.cs-poster__index {
+  font-family: var(--cs-font-mono);
+  font-size: 13px;
+  letter-spacing: 0.2em;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.cs-poster__cat {
+  align-self: flex-start;
+  padding: 6px 13px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  font-family: var(--cs-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: #fff;
+}
+
+.cs-poster__title {
+  margin: 0;
+  font-family: var(--cs-font-display);
+  font-weight: 600;
+  font-size: clamp(30px, 3.4vw, 52px);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.cs-poster__desc {
+  max-width: 38ch;
+  margin: 14px 0 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: rgba(244, 246, 255, 0.82);
+}
+
+.cs-poster__stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.cs-poster__stack span {
+  padding: 5px 10px;
+  border-radius: 7px;
+  background: rgba(7, 10, 22, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  font-family: var(--cs-font-mono);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.cs-gallery__outro {
+  flex: 0 0 auto;
+  width: 40vw;
+  max-width: 360px;
+}
+
+/* 低动效或移动端降级为纵向堆叠。 */
+.cs-gallery--stacked .cs-gallery__pin {
+  height: auto;
+  overflow: visible;
+}
+
+.cs-gallery--stacked .cs-gallery__track {
+  flex-direction: column;
+  align-items: stretch;
+  height: auto;
+  padding-block: 40px 100px;
+}
+
+.cs-gallery--stacked .cs-poster,
+.cs-gallery--stacked .cs-gallery__intro,
+.cs-gallery--stacked .cs-gallery__outro {
+  width: 100%;
+  max-width: none;
+}
+
+.cs-gallery--stacked .cs-gallery__outro {
+  display: none;
+}
+
+/* AI 能力展示区。 */
+.cs-agents {
+  position: relative;
+  padding-bottom: clamp(70px, 11vh, 150px);
+}
+
+.cs-agents__stage {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(16px, 2vw, 30px);
+}
+
+/* 连接线 SVG 层用于表现工具流转路径。 */
+.cs-agents__wires {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.cs-wire {
+  fill: none;
+  stroke: var(--cs-line);
+  stroke-width: 1.5;
+}
+
+.cs-wire--live {
+  stroke: var(--cs-accent);
+  filter: drop-shadow(0 0 6px rgba(110, 168, 255, 0.6));
+}
+
+.cs-wire__pulse {
+  fill: var(--cs-accent-3);
+  filter: drop-shadow(0 0 8px rgba(84, 230, 200, 0.8));
+}
+
+.cs-agent {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 28px;
+  border: 1px solid var(--cs-line);
+  border-radius: 22px;
+  background: linear-gradient(180deg, var(--cs-bg-raise), rgba(11, 13, 24, 0.6));
+  transition: border-color 0.4s ease, transform 0.4s ease;
+}
+
+.cs-agent:hover {
+  border-color: color-mix(in srgb, var(--cs-agent-accent) 60%, transparent);
+  transform: translateY(-4px);
+}
+
+.cs-agent__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.cs-agent__glyph {
+  display: inline-grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--cs-agent-accent) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cs-agent-accent) 40%, transparent);
+}
+
+.cs-agent__glyph i {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  background: var(--cs-agent-accent);
+  box-shadow: 0 0 14px var(--cs-agent-accent);
+}
+
+.cs-agent__role {
+  font-family: var(--cs-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--cs-ink-faint);
+}
+
+.cs-agent__name {
+  margin: 20px 0 0;
+  font-family: var(--cs-font-display);
+  font-weight: 600;
+  font-size: 23px;
+  letter-spacing: -0.01em;
+}
+
+.cs-agent__summary {
+  margin: 12px 0 0;
+  font-size: 14px;
+  line-height: 1.62;
+  color: var(--cs-ink-dim);
+}
+
+/* 每张卡片内部的小型流程线。 */
+.cs-pipe {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 24px 0 0;
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(7, 10, 22, 0.45);
+  border: 1px solid var(--cs-line-soft);
+}
+
+.cs-pipe__node {
+  flex: 1;
+  text-align: center;
+}
+
+.cs-pipe__dot {
+  width: 9px;
+  height: 9px;
+  margin: 0 auto 7px;
+  border-radius: 50%;
+  background: var(--cs-ink-faint);
+  transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.cs-pipe__node.is-active .cs-pipe__dot {
+  background: var(--cs-agent-accent);
+  box-shadow: 0 0 12px var(--cs-agent-accent);
+  transform: scale(1.5);
+}
+
+.cs-pipe__label {
+  font-family: var(--cs-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--cs-ink-faint);
+  transition: color 0.3s ease;
+}
+
+.cs-pipe__node.is-active .cs-pipe__label {
+  color: var(--cs-ink);
+}
+
+.cs-pipe__link {
+  width: 14px;
+  height: 1px;
+  background: var(--cs-line);
+}
+
+.cs-agent__outputs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 20px;
+}
+
+.cs-agent__outputs span {
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--cs-line);
+  font-size: 12px;
+  color: var(--cs-ink-dim);
+}
+
+@media (max-width: 900px) {
+  .cs-agents__stage {
+    grid-template-columns: 1fr;
+  }
+  .cs-agents__wires {
+    display: none;
+  }
+}
+
+/* 创意墙瀑布流。 */
+.cs-wall__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-auto-rows: 150px;
+  gap: clamp(12px, 1.4vw, 18px);
+  padding-bottom: clamp(60px, 10vh, 130px);
+}
+
+.cs-frag {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 20px;
+  border: 1px solid var(--cs-line);
+  border-radius: 18px;
+  background: var(--cs-bg-raise);
+  overflow: hidden;
+  cursor: default;
+  will-change: transform;
+}
+
+.cs-frag__inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  justify-content: space-between;
+  will-change: transform;
+}
+
+.cs-frag__kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--cs-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--cs-ink-faint);
+}
+
+.cs-frag__kind::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  background: var(--cs-accent);
+}
+
+.cs-frag--prompt .cs-frag__kind::before { background: var(--cs-accent); }
+.cs-frag--code .cs-frag__kind::before { background: var(--cs-accent-3); }
+.cs-frag--note .cs-frag__kind::before { background: var(--cs-accent-warm); }
+.cs-frag--image .cs-frag__kind::before { background: var(--cs-accent-2); }
+.cs-frag--link .cs-frag__kind::before { background: #ffd166; }
+
+.cs-frag__body {
+  margin: 12px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--cs-ink);
+}
+
+.cs-frag--prompt .cs-frag__body {
+  font-family: var(--cs-font-serif);
+  font-size: 16px;
+  font-style: italic;
+  line-height: 1.45;
+  color: var(--cs-ink);
+}
+
+.cs-frag--code .cs-frag__body {
+  font-family: var(--cs-font-mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  color: var(--cs-accent-3);
+}
+
+.cs-frag__meta {
+  margin-top: 14px;
+  font-family: var(--cs-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--cs-ink-faint);
+}
+
+.cs-frag--image {
+  border: 1px solid var(--cs-line);
+}
+
+.cs-frag__wash {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(155deg, var(--cs-from), var(--cs-to));
+}
+
+.cs-frag--image .cs-frag__body,
+.cs-frag--image .cs-frag__meta {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.cs-frag__link {
+  align-self: flex-start;
+  margin-top: auto;
+  color: var(--cs-accent);
+  font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .cs-wall__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .cs-wall__grid {
+    grid-template-columns: 1fr;
+    grid-auto-rows: auto;
+  }
+  .cs-frag {
+    min-height: 130px;
+  }
+}
+
+/* 主题宇宙预览区。 */
+.cs-themes__layout {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: clamp(20px, 3vw, 48px);
+  align-items: start;
+  padding-bottom: clamp(70px, 11vh, 150px);
+}
+
+.cs-themes__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cs-theme-btn {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 16px 18px;
+  border: 1px solid var(--cs-line);
+  border-radius: 16px;
+  background: var(--cs-bg-raise);
+  color: var(--cs-ink);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.35s ease, background 0.35s ease;
+}
+
+.cs-theme-btn:hover {
+  border-color: rgba(150, 165, 220, 0.36);
+}
+
+.cs-theme-btn.is-active {
+  border-color: var(--cs-accent);
+  background: rgba(110, 168, 255, 0.08);
+}
+
+.cs-theme-btn__swatch {
+  display: flex;
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.cs-theme-btn__swatch span {
+  flex: 1;
+}
+
+.cs-theme-btn__name {
+  font-family: var(--cs-font-display);
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.cs-theme-btn__tag {
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--cs-ink-faint);
+}
+
+/* 实时预览区域通过 CSS 变量切换主题。 */
+.cs-theme-preview {
+  position: relative;
+  min-height: 440px;
+  padding: 36px;
+  border-radius: 24px;
+  overflow: hidden;
+  border: 1px solid var(--cs-line);
+  background: var(--tp-bg);
+  color: var(--tp-ink);
+  font-family: var(--tp-font);
+  transition: background 0.7s ease, color 0.7s ease;
+}
+
+.cs-theme-preview__eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--tp-accent);
+}
+
+.cs-theme-preview__title {
+  margin: 16px 0 0;
+  font-size: clamp(30px, 4vw, 52px);
+  line-height: 1.04;
+  font-family: var(--tp-font);
+}
+
+.cs-theme-preview__text {
+  max-width: 46ch;
+  margin: 16px 0 0;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--tp-muted);
+}
+
+.cs-theme-preview__cards {
+  display: flex;
+  gap: 14px;
+  margin-top: 30px;
+}
+
+.cs-theme-preview__card {
+  flex: 1;
+  padding: 18px;
+  border-radius: 14px;
+  background: var(--tp-surface);
+  border: 1px solid var(--tp-accent-soft);
+}
+
+.cs-theme-preview__card strong {
+  display: block;
+  font-size: 22px;
+  color: var(--tp-ink);
+}
+
+.cs-theme-preview__card span {
+  font-size: 12px;
+  color: var(--tp-muted);
+}
+
+.cs-theme-preview__chip {
+  display: inline-flex;
+  margin-top: 26px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: var(--tp-accent);
+  color: var(--tp-bg);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+@media (max-width: 860px) {
+  .cs-themes__layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 最终行动召唤区。 */
+.cs-cta-wrap {
+  position: relative;
+  overflow: hidden;
+}
+
+.cs-cta {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+  min-height: 88vh;
+  padding: 130px var(--cs-edge) 90px;
+  text-align: center;
+}
+
+.cs-cta__glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 560px;
+  height: 560px;
+  margin: -280px 0 0 -280px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(110, 168, 255, 0.16), transparent 66%);
+  filter: blur(24px);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.cs-cta__eyebrow {
+  position: relative;
+  z-index: 1;
+}
+
+.cs-cta__line {
+  position: relative;
+  z-index: 1;
+  max-width: 16ch;
+  margin: 0;
+  font-family: var(--cs-font-display);
+  font-weight: 600;
+  font-size: clamp(40px, 8vw, 116px);
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+}
+
+/* 每个字符独立渲染，用于悬停微交互。 */
+.cs-char {
+  display: inline-block;
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), color 0.3s ease;
+  will-change: transform;
+}
+
+.cs-char:hover {
+  transform: translateY(-0.12em);
+  color: var(--cs-accent);
+}
+
+.cs-cta__sub {
+  position: relative;
+  z-index: 1;
+  max-width: 42ch;
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--cs-ink-dim);
+}
+
+.cs-cta__action {
+  position: relative;
+  z-index: 1;
+  margin-top: 12px;
+}
+
+.cs-footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  max-width: var(--cs-maxw);
+  margin: 0 auto;
+  padding: 36px var(--cs-edge) 48px;
+  border-top: 1px solid var(--cs-line-soft);
+  font-family: var(--cs-font-mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--cs-ink-faint);
+}
+
+.cs-footer a {
+  color: var(--cs-ink-dim);
+  transition: color 0.25s ease;
+}
+
+.cs-footer a:hover {
+  color: var(--cs-accent);
+}
+
+.cs-footer__social {
+  display: flex;
+  gap: 22px;
+}
+
+/* 宣言滚动标语区。 */
+.cs-marquee-sec {
+  position: relative;
+  z-index: 1;
+  padding: clamp(40px, 8vh, 90px) 0 clamp(70px, 12vh, 150px);
+}
+
+.cs-marquee {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  user-select: none;
+}
+
+.cs-marquee__row {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.cs-marquee__inner {
+  display: inline-flex;
+  align-items: center;
+  will-change: transform;
+}
+
+.cs-marquee__item {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--cs-font-display);
+  font-weight: 700;
+  font-size: clamp(40px, 8vw, 116px);
+  line-height: 1.04;
+  letter-spacing: -0.03em;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(170, 185, 235, 0.34);
+  text-stroke: 1px rgba(170, 185, 235, 0.34);
+}
+
+.cs-marquee__row.is-reverse .cs-marquee__item {
+  color: var(--cs-ink);
+  -webkit-text-stroke: 0;
+  text-stroke: 0;
+  opacity: 0.94;
+}
+
+.cs-marquee__star {
+  margin: 0 clamp(22px, 3vw, 52px);
+  font-size: 0.4em;
+  font-style: normal;
+  color: var(--cs-accent);
+  -webkit-text-stroke: 0;
+  text-stroke: 0;
+  transform: translateY(-0.2em);
+}
+
+.cs-mani {
+  margin-top: clamp(56px, 9vh, 120px);
+}
+
+.cs-mani__text {
+  max-width: 22ch;
+  margin: 22px 0 0;
+  font-family: var(--cs-font-serif);
+  font-size: clamp(26px, 3.6vw, 52px);
+  line-height: 1.28;
+  letter-spacing: -0.01em;
+  color: var(--cs-ink-faint);
+}
+
+.cs-mani__word {
+  display: inline;
+  transition: color 0.3s ease;
+}
+
+.cs-mani__word.is-accent {
+  color: var(--cs-ink);
+}
+
+/* 方法论滚动步骤区。 */
+.cs-approach__grid {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: clamp(30px, 6vw, 100px);
+}
+
+.cs-rail {
+  position: sticky;
+  top: 18vh;
+  align-self: start;
+  height: max-content;
+}
+
+.cs-rail__num {
+  font-family: var(--cs-font-display);
+  font-weight: 700;
+  font-size: clamp(90px, 12vw, 170px);
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  background: linear-gradient(150deg, var(--cs-ink) 30%, var(--cs-accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.cs-rail__label {
+  margin-top: 8px;
+  font-family: var(--cs-font-mono);
+  font-size: 13px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--cs-ink-faint);
+}
+
+.cs-rail__track {
+  display: flex;
+  gap: 8px;
+  margin-top: 28px;
+}
+
+.cs-rail__tick {
+  width: 40px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--cs-line);
+  transition: background 0.4s ease, transform 0.4s ease;
+  transform-origin: left;
+}
+
+.cs-rail__tick.is-active {
+  background: var(--cs-accent);
+  transform: scaleY(1.8);
+}
+
+.cs-steps {
+  display: flex;
+  flex-direction: column;
+}
+
+.cs-step {
+  padding: clamp(34px, 6vh, 70px) 0;
+  border-top: 1px solid var(--cs-line-soft);
+}
+
+.cs-step:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.cs-step__head {
+  display: flex;
+  align-items: baseline;
+  gap: 18px;
+}
+
+.cs-step__no {
+  font-family: var(--cs-font-mono);
+  font-size: 14px;
+  color: var(--cs-accent);
+}
+
+.cs-step__title {
+  margin: 0;
+  font-family: var(--cs-font-display);
+  font-weight: 600;
+  font-size: clamp(28px, 3.4vw, 46px);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.cs-step__en {
+  margin-left: 14px;
+  font-family: var(--cs-font-mono);
+  font-size: 0.42em;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--cs-ink-faint);
+  vertical-align: middle;
+}
+
+.cs-step__body {
+  max-width: 52ch;
+  margin: 18px 0 0;
+  font-size: clamp(15px, 1.4vw, 17px);
+  line-height: 1.7;
+  color: var(--cs-ink-dim);
+}
+
+.cs-step__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.cs-tag-line {
+  font-family: var(--cs-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--cs-ink-faint);
+  padding-left: 16px;
+  position: relative;
+}
+
+.cs-tag-line::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 8px;
+  height: 1px;
+  background: var(--cs-accent);
+}
+
+.cs-counters {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: clamp(16px, 2vw, 28px);
+  margin-top: clamp(60px, 9vh, 120px);
+  padding-top: 44px;
+  border-top: 1px solid var(--cs-line);
+}
+
+.cs-counter__value {
+  display: block;
+  font-family: var(--cs-font-display);
+  font-weight: 700;
+  font-size: clamp(36px, 5vw, 70px);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--cs-ink);
+}
+
+.cs-counter__label {
+  display: block;
+  margin-top: 10px;
+  font-family: var(--cs-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cs-ink-faint);
+}
+
+@media (max-width: 860px) {
+  .cs-approach__grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  .cs-rail {
+    position: static;
+    display: flex;
+    align-items: baseline;
+    gap: 18px;
+  }
+  .cs-rail__num {
+    font-size: 64px;
+  }
+  .cs-rail__track {
+    display: none;
+  }
+  .cs-counters {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 28px 16px;
+  }
+}
+
+/* 创作记录列表区。 */
+.cs-notes__list {
+  padding-bottom: clamp(50px, 8vh, 110px);
+}
+
+.cs-note {
+  position: relative;
+  padding: clamp(22px, 3vh, 34px) 0;
+  cursor: default;
+}
+
+.cs-note__rule {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: var(--cs-line);
+  transform-origin: left;
+}
+
+.cs-note__row {
+  display: grid;
+  grid-template-columns: 120px 110px minmax(0, 1fr) 40px;
+  align-items: center;
+  gap: 20px;
+}
+
+.cs-note__date {
+  font-family: var(--cs-font-mono);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: var(--cs-ink-faint);
+}
+
+.cs-note__tag {
+  justify-self: start;
+  padding: 4px 12px;
+  border: 1px solid var(--cs-line);
+  border-radius: 999px;
+  font-family: var(--cs-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--cs-ink-dim);
+}
+
+.cs-note__title {
+  margin: 0;
+  font-family: var(--cs-font-display);
+  font-weight: 500;
+  font-size: clamp(18px, 2.2vw, 28px);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--cs-ink);
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), color 0.3s ease;
+}
+
+.cs-note__arrow {
+  justify-self: end;
+  font-size: 20px;
+  color: var(--cs-ink-faint);
+  opacity: 0;
+  transform: translateX(-8px);
+  transition: opacity 0.4s ease, transform 0.4s ease, color 0.3s ease;
+}
+
+.cs-note__detail {
+  max-width: 60ch;
+  margin: 0;
+  padding-left: 250px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--cs-ink-dim);
+  /* 默认折叠详情，悬停时展开。 */
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transform: translateY(-6px);
+  transition: max-height 0.5s ease, opacity 0.4s ease, margin 0.4s ease, transform 0.4s ease;
+}
+
+.cs-note:hover .cs-note__title {
+  transform: translateX(10px);
+  color: var(--cs-accent);
+}
+
+.cs-note:hover .cs-note__arrow {
+  opacity: 1;
+  transform: translateX(0);
+  color: var(--cs-accent);
+}
+
+.cs-note:hover .cs-note__detail {
+  max-height: 120px;
+  opacity: 1;
+  margin-top: 16px;
+  transform: translateY(0);
+}
+
+@media (max-width: 720px) {
+  .cs-note__row {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      'date tag'
+      'title title';
+    gap: 10px;
+  }
+  .cs-note__date { grid-area: date; }
+  .cs-note__tag { grid-area: tag; justify-self: end; }
+  .cs-note__title { grid-area: title; }
+  .cs-note__arrow { display: none; }
+  .cs-note__detail {
+    padding-left: 0;
+  }
+  .cs-note:hover .cs-note__title {
+    transform: none;
+  }
+}
+
+/* 行动区眉标间距。 */
+.cs-cta__eyebrow {
+  margin-bottom: 4px;
+}
+
+/* 后续区块预留位置。 */
+
+/* 低动效模式下保留可读性并关闭重动画。 */
+@media (prefers-reduced-motion: reduce) {
+  .cs-home *,
+  .cs-home *::before,
+  .cs-home *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* 低动效模式下直接显示需要脚本揭示的内容。 */
+  .cs-article {
+    clip-path: none !important;
+  }
+
+  .cs-hero__title .cs-line > span {
+    transform: none !important;
+  }
+
+  .cs-hero__scroll::after {
+    animation: none;
+  }
+
+  /* 低动效模式下保证新区块内容可见。 */
+  .cs-mani__word {
+    color: var(--cs-ink-dim) !important;
+  }
+
+  .cs-mani__word.is-accent {
+    color: var(--cs-ink) !important;
+  }
+
+  /* 低动效模式下直接展开创作记录详情。 */
+  .cs-note__detail {
+    max-height: none !important;
+    opacity: 1 !important;
+    margin-top: 14px !important;
+    transform: none !important;
+  }
+}
