@@ -22,7 +22,7 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 
-import { registerUser } from '@/api/content'
+import { registerUser } from '@/services/content'
 
 const form = reactive({
   username: '',

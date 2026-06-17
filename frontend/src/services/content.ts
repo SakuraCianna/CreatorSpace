@@ -1,5 +1,5 @@
-import { requestJson } from '@/api/http'
-import type { ArticleSummary, PageResponse, ProjectSummary, UserSummary } from '@/types/domain'
+import { requestJson } from '@/services/http'
+import type { ArticleSummary, PageResponse, ProjectSummary, UserSummary } from '@/shared/domain'
 
 interface ApiEnvelope<T> {
   success: boolean

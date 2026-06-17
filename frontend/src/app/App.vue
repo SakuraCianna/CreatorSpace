@@ -8,9 +8,9 @@
 import { computed } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 
-import AdminLayout from '@/layouts/admin/AdminLayout.vue'
-import ImmersiveLayout from '@/layouts/immersive/ImmersiveLayout.vue'
-import PublicLayout from '@/layouts/public/PublicLayout.vue'
+import AdminLayout from '@/app/layouts/AdminLayout.vue'
+import ImmersiveLayout from '@/app/layouts/ImmersiveLayout.vue'
+import PublicLayout from '@/app/layouts/PublicLayout.vue'
 
 const route = useRoute()
 

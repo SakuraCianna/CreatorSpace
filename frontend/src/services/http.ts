@@ -1,4 +1,4 @@
-import { appConfig } from '@/config/app'
+import { appConfig } from '@/app/config'
 
 // 发送 JSON 请求并处理超时、请求头和统一错误信息。
 export async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {

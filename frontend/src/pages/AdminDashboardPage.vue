@@ -36,5 +36,5 @@
 </template>
 
 <script setup lang="ts">
-import { adminMetrics, articleSamples, privacyLabels } from '@/data/sample-content'
+import { adminMetrics, articleSamples, privacyLabels } from '@/content/sample'
 </script>

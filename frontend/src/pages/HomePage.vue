@@ -19,11 +19,11 @@ import { RouterLink } from 'vue-router'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
-import type { HeroSceneHandles } from '@/utils/heroScene'
-import { useGsapContext } from '@/composables/useGsapScroll'
-import { useLenis } from '@/composables/useLenis'
-import { attachMagnetic } from '@/composables/useMagnetic'
-import { prefersReducedMotion } from '@/composables/useReducedMotion'
+import type { HeroSceneHandles } from '@/shared/heroScene'
+import { useGsapContext } from '@/shared/composables/useGsapScroll'
+import { useLenis } from '@/shared/composables/useLenis'
+import { attachMagnetic } from '@/shared/composables/useMagnetic'
+import { prefersReducedMotion } from '@/shared/composables/useReducedMotion'
 import {
   agentCapabilities,
   approachSteps,
@@ -44,7 +44,7 @@ import {
   type FieldNote,
   type PortfolioProject,
   type ThemePreset,
-} from '@/data/home-content'
+} from '@/content/home'
 
 import '@/styles/home.css'
 
@@ -85,7 +85,7 @@ const HeroWebGLScene = defineComponent({
         isStatic.value = true
         return
       }
-      import('@/utils/heroScene')
+      import('@/shared/heroScene')
         .then(({ createHeroScene }) => {
           if (cancelled || !host.value) {
             return

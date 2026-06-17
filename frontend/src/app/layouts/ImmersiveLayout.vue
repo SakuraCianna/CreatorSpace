@@ -20,5 +20,5 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
 
-import { siteConfig } from '@/data/home-content'
+import { siteConfig } from '@/content/home'
 </script>

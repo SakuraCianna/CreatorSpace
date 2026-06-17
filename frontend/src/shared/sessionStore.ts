@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 
-import type { UserSummary } from '@/types/domain'
+import type { UserSummary } from '@/shared/domain'
 
 export const useSessionStore = defineStore('session', () => {
   const currentUser = ref<UserSummary | null>(null)

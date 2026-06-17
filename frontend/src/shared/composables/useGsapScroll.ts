@@ -2,11 +2,13 @@ import { onBeforeUnmount, onMounted, type Ref } from 'vue'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
-import { prefersReducedMotion } from '@/composables/useReducedMotion'
+import { prefersReducedMotion } from '@/shared/composables/useReducedMotion'
 
 gsap.registerPlugin(ScrollTrigger)
 
 type ScopeEl = Ref<HTMLElement | null | undefined>
+
+// 在组件挂载后创建 GSAP 上下文，并在卸载时统一回收动画。
 export function useGsapContext(
   scope: ScopeEl,
   setup: (ctx: { reduced: boolean }) => void,
