@@ -1,0 +1,28 @@
+# 本地敏感配置
+.env
+.env.*
+!.env.example
+
+# 本机上传文件
+storage/
+
+# 本地数据库备份
+backups/
+
+# 构建产物
+dist/
+build/
+target/
+
+# 依赖目录
+node_modules/
+
+# 日志
+*.log
+logs/
+
+# IDE 和系统文件
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
