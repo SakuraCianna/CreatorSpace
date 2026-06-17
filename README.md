@@ -175,9 +175,12 @@ backend/src/main/resources/db/migration
 
 ```text
 V1__initialize_creator_space_schema.sql
+V2__seed_showcase_data.sql
 ```
 
 应用启动时 Flyway 会自动执行未运行的迁移。项目正式产生持久数据前，初始化结构可以合并在 `V1` 中维护；一旦有需要保留的真实数据，不要修改已经执行过的迁移脚本，新增结构变更时创建新的 `V版本号__描述.sql`。
+
+`V2__seed_showcase_data.sql` 是正式迁移，用于写入产品演示和本地联调所需的展示数据。它会随 `classpath:db/migration` 在所有启用 Flyway 的环境执行，数据命名尽量使用 `demo-`、`demo_` 或 `demo.*` 前缀，避免覆盖已有真实配置和内容。生产环境如果不希望内置展示数据，需要在上线前调整迁移策略或使用不包含该迁移的数据库初始化流程。
 
 数据库变更前备份规则见:
 

@@ -67,6 +67,54 @@ class FlywayMigrationTests extends PostgresIntegrationTestSupport {
                     .containsExactlyInAnyOrder("article_id", "user_id");
             assertThat(singleLong(connection, "select count(*) from roles where code in ('ADMIN', 'USER')")).isEqualTo(2L);
             assertThat(singleLong(connection, "select count(*) from users where username = 'admin'")).isEqualTo(1L);
+            assertShowcaseDataSeeded(connection);
+        }
+    }
+
+    // 验证 V2 展示数据覆盖核心业务表和主要关联表。
+    private void assertShowcaseDataSeeded(Connection connection) throws Exception {
+        assertTablesContainRows(
+                connection,
+                "roles",
+                "users",
+                "user_roles",
+                "user_friendships",
+                "categories",
+                "tags",
+                "articles",
+                "article_visibility_users",
+                "article_versions",
+                "article_tags",
+                "portfolio_projects",
+                "project_tags",
+                "project_images",
+                "inspiration_cards",
+                "inspiration_tags",
+                "comments",
+                "sensitive_words",
+                "theme_configs",
+                "site_configs",
+                "file_resources",
+                "file_resource_references",
+                "visit_logs",
+                "like_records",
+                "favorite_records",
+                "friend_links",
+                "operation_logs"
+        );
+        assertThat(countRows(connection, "articles")).isGreaterThanOrEqualTo(18L);
+        assertThat(countRows(connection, "portfolio_projects")).isGreaterThanOrEqualTo(12L);
+        assertThat(countRows(connection, "inspiration_cards")).isGreaterThanOrEqualTo(14L);
+        assertThat(countRows(connection, "visit_logs")).isGreaterThanOrEqualTo(80L);
+        assertThat(countRows(connection, "operation_logs")).isGreaterThanOrEqualTo(36L);
+    }
+
+    // 验证指定表都至少有一条展示数据。
+    private void assertTablesContainRows(Connection connection, String... tableNames) throws Exception {
+        for (String tableName : tableNames) {
+            assertThat(countRows(connection, tableName))
+                    .describedAs(tableName)
+                    .isPositive();
         }
     }
 
@@ -164,6 +212,15 @@ class FlywayMigrationTests extends PostgresIntegrationTestSupport {
     private long singleLong(Connection connection, String sql) throws Exception {
         try (var statement = connection.createStatement();
              var rs = statement.executeQuery(sql)) {
+            rs.next();
+            return rs.getLong(1);
+        }
+    }
+
+    // 读取指定表的数据量。
+    private long countRows(Connection connection, String tableName) throws Exception {
+        try (var statement = connection.createStatement();
+             var rs = statement.executeQuery("select count(*) from " + tableName)) {
             rs.next();
             return rs.getLong(1);
         }
