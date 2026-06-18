@@ -70,9 +70,6 @@ CreatorSpace
 │       │   ├── java/com/creatorspace
 │       │   └── resources/db/migration
 │       └── test
-├── deploy
-│   └── docker
-│       └── production.env.example
 ├── docs
 │   ├── database
 │   ├── deployment
@@ -181,13 +178,15 @@ Docker 部署使用四个服务:
 
 ### 首次部署
 
-1. 复制部署环境模板。
+1. 在项目根目录创建 `.env`。
 
 ```powershell
-Copy-Item .\deploy\docker\production.env.example .\deploy\docker\production.env
+Copy-Item .\.env.example .\.env
 ```
 
-2. 编辑 `deploy/docker/production.env`，替换所有 `replace-with-*` 占位值。
+也可以手动创建 `.env`，Docker Compose 会自动读取项目根目录下的该文件。
+
+2. 编辑根目录 `.env`，替换所有占位值。
 
 必须重点配置:
 
@@ -199,39 +198,33 @@ Copy-Item .\deploy\docker\production.env.example .\deploy\docker\production.env
 - `API_BASE_URL`
 - `CORS_ALLOWED_ORIGINS`
 
-3. 运行生产环境预检，确认没有占位密钥。
+3. 校验 Compose 配置。
 
 ```powershell
-.\deploy\docker\Test-ProductionEnv.ps1 -EnvFile .\deploy\docker\production.env
-```
-
-4. 校验 Compose 配置。
-
-```powershell
-docker compose --env-file .\deploy\docker\production.env config --quiet
+docker compose config --quiet
 ```
 
 不要把 `docker compose config` 的完整输出粘贴到日志、PR 或工单中，它会展开环境变量中的敏感值。
 
-5. 构建镜像。
+4. 构建镜像。
 
 ```powershell
-docker compose --env-file .\deploy\docker\production.env build
+docker compose build
 ```
 
-6. 启动服务。
+5. 启动服务。
 
 ```powershell
-docker compose --env-file .\deploy\docker\production.env up -d
+docker compose up -d
 ```
 
-7. 查看服务状态。
+6. 查看服务状态。
 
 ```powershell
-docker compose --env-file .\deploy\docker\production.env ps
+docker compose ps
 ```
 
-8. 验证入口健康检查。
+7. 验证入口健康检查。
 
 ```powershell
 Invoke-RestMethod -Uri "http://localhost/api/health"
@@ -243,7 +236,7 @@ Invoke-RestMethod -Uri "http://localhost/api/health"
 
 ## 环境变量
 
-根目录 `.env.example` 用于本地开发，`deploy/docker/production.env.example` 用于 Docker 部署。真实环境文件不提交仓库。
+根目录 `.env.example` 是本地开发和 Docker 部署的统一模板。真实 `.env` 由使用者在项目根目录自行创建，不提交仓库。
 
 核心变量:
 
@@ -263,6 +256,8 @@ Invoke-RestMethod -Uri "http://localhost/api/health"
 | `AI_ENABLED` | AI 功能开关 |
 
 `.env` 中不要写入明文管理员密码，只写 BCrypt 哈希。
+
+Docker Compose 会读取根目录 `.env` 做变量插值。BCrypt 哈希包含 `$` 时，建议用单引号包住完整值，例如 `ADMIN_PASSWORD_HASH='$2a$10$...'`；也可以将 `$` 写成 `$$` 来转义。
 
 ## 数据库迁移
 
@@ -351,7 +346,7 @@ PUT    /api/admin/site/settings
 ```powershell
 mvn -f backend/pom.xml test
 npm run build --prefix frontend
-docker compose --env-file .\deploy\docker\production.env.example config --quiet
+docker compose config --quiet
 ```
 
 CI 当前覆盖:
@@ -371,7 +366,7 @@ CI 当前覆盖:
 
 ## 安全与运维约束
 
-- 不提交 `.env`、`deploy/docker/production.env`、密钥、Token、Cookie、私有证书
+- 不提交 `.env`、密钥、Token、Cookie、私有证书
 - 不在 README、PR 描述或 commit message 中写入真实密钥
 - 生产环境更新前先备份 PostgreSQL 和上传文件
 - 不在生产环境执行 `docker compose down -v`，除非确认要删除数据库、Redis 和上传文件
@@ -402,7 +397,7 @@ npm run build --prefix frontend
 解析 Docker Compose:
 
 ```powershell
-docker compose --env-file .\deploy\docker\production.env config
+docker compose config
 ```
 
 完整输出会展开敏感变量，只在本机排查时使用，不要粘贴到日志、PR 或工单中。
@@ -410,19 +405,19 @@ docker compose --env-file .\deploy\docker\production.env config
 启动 Docker 服务:
 
 ```powershell
-docker compose --env-file .\deploy\docker\production.env up -d
+docker compose up -d
 ```
 
 查看 Docker 日志:
 
 ```powershell
-docker compose --env-file .\deploy\docker\production.env logs -f backend
+docker compose logs -f backend
 ```
 
 停止 Docker 服务并保留数据:
 
 ```powershell
-docker compose --env-file .\deploy\docker\production.env down
+docker compose down
 ```
 
 ## 产品方向

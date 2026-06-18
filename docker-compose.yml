@@ -5,9 +5,9 @@ services:
     image: pgvector/pgvector:pg17
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in deploy/docker/production.env}
-      POSTGRES_USER: ${POSTGRES_USERNAME:?Set POSTGRES_USERNAME in deploy/docker/production.env}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/docker/production.env}
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in root .env}
+      POSTGRES_USER: ${POSTGRES_USERNAME:?Set POSTGRES_USERNAME in root .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in root .env}
     volumes:
       - creatorspace_postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -24,7 +24,7 @@ services:
     restart: unless-stopped
     command: ["sh", "-c", "redis-server --appendonly yes --requirepass \"$${REDIS_PASSWORD}\""]
     environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in deploy/docker/production.env}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in root .env}
     volumes:
       - creatorspace_redis_data:/data
     healthcheck:
@@ -51,21 +51,21 @@ services:
       APP_ENV: ${APP_ENV:-production}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-production}
       SERVER_PORT: 8080
-      WEB_BASE_URL: ${WEB_BASE_URL:?Set WEB_BASE_URL in deploy/docker/production.env}
-      API_BASE_URL: ${API_BASE_URL:?Set API_BASE_URL in deploy/docker/production.env}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?Set CORS_ALLOWED_ORIGINS in deploy/docker/production.env}
+      WEB_BASE_URL: ${WEB_BASE_URL:?Set WEB_BASE_URL in root .env}
+      API_BASE_URL: ${API_BASE_URL:?Set API_BASE_URL in root .env}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?Set CORS_ALLOWED_ORIGINS in root .env}
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
-      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in deploy/docker/production.env}
-      POSTGRES_USERNAME: ${POSTGRES_USERNAME:?Set POSTGRES_USERNAME in deploy/docker/production.env}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/docker/production.env}
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in root .env}
+      POSTGRES_USERNAME: ${POSTGRES_USERNAME:?Set POSTGRES_USERNAME in root .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in root .env}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_DATABASE: ${REDIS_DATABASE:-0}
-      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in deploy/docker/production.env}
-      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in deploy/docker/production.env}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in root .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in root .env}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
-      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:?Set ADMIN_PASSWORD_HASH in deploy/docker/production.env}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:?Set ADMIN_PASSWORD_HASH in root .env}
       PASSWORD_BCRYPT_STRENGTH: ${PASSWORD_BCRYPT_STRENGTH:-12}
       JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-120}
       JWT_REFRESH_TOKEN_EXPIRE_DAYS: ${JWT_REFRESH_TOKEN_EXPIRE_DAYS:-14}

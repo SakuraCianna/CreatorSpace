@@ -2,8 +2,6 @@
 .env
 .env.*
 !.env.example
-deploy/docker/production.env
-deploy/docker/*.local.env
 
 # 本机上传文件
 storage/

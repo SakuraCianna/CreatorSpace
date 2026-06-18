@@ -23,21 +23,23 @@ backend
 
 ```text
 docker-compose.yml
+.env.example
 backend/Dockerfile
 frontend/Dockerfile
 frontend/nginx.conf
-deploy/docker/production.env.example
 ```
 
 ## 首次部署
 
-1. 复制部署环境模板。
+1. 在项目根目录创建 `.env`。
 
 ```powershell
-Copy-Item .\deploy\docker\production.env.example .\deploy\docker\production.env
+Copy-Item .\.env.example .\.env
 ```
 
-2. 编辑 `deploy/docker/production.env`。
+也可以手动创建 `.env`，Docker Compose 会自动读取项目根目录下的该文件。
+
+2. 编辑根目录 `.env`。
 
 必须替换:
 
@@ -49,39 +51,35 @@ Copy-Item .\deploy\docker\production.env.example .\deploy\docker\production.env
 - `API_BASE_URL`
 - `CORS_ALLOWED_ORIGINS`
 
-3. 运行生产环境预检，确认没有占位密钥。
+BCrypt 哈希包含 `$` 时，建议用单引号包住完整值，例如 `ADMIN_PASSWORD_HASH='$2a$10$...'`；也可以将 `$` 写成 `$$` 来转义，避免 Docker Compose 把哈希片段当成变量插值。
+
+3. 解析 Compose 配置。
 
 ```powershell
-.\deploy\docker\Test-ProductionEnv.ps1 -EnvFile .\deploy\docker\production.env
-```
-
-4. 解析 Compose 配置。
-
-```powershell
-docker compose --env-file .\deploy\docker\production.env config --quiet
+docker compose config --quiet
 ```
 
 不要把 `docker compose config` 的完整输出粘贴到日志、PR 或工单中，它会展开环境变量中的敏感值。
 
-5. 构建镜像。
+4. 构建镜像。
 
 ```powershell
-docker compose --env-file .\deploy\docker\production.env build
+docker compose build
 ```
 
-6. 启动服务。
+5. 启动服务。
 
 ```powershell
-docker compose --env-file .\deploy\docker\production.env up -d
+docker compose up -d
 ```
 
-7. 查看状态。
+6. 查看状态。
 
 ```powershell
-docker compose --env-file .\deploy\docker\production.env ps
+docker compose ps
 ```
 
-8. 验证健康检查。
+7. 验证健康检查。
 
 ```powershell
 Invoke-RestMethod -Uri "http://localhost/api/health"
@@ -100,13 +98,13 @@ git pull --ff-only origin main
 2. 重新构建镜像。
 
 ```powershell
-docker compose --env-file .\deploy\docker\production.env build
+docker compose build
 ```
 
 3. 增量重启服务。
 
 ```powershell
-docker compose --env-file .\deploy\docker\production.env up -d
+docker compose up -d
 ```
 
 4. 验证健康检查。
@@ -130,16 +128,16 @@ creatorspace_uploads
 备份 PostgreSQL:
 
 ```powershell
-$envValues = Get-Content .\deploy\docker\production.env | Where-Object { $_ -match "^[A-Z0-9_]+=" } | ConvertFrom-StringData
-docker compose --env-file .\deploy\docker\production.env exec postgres pg_dump -U $envValues.POSTGRES_USERNAME -d $envValues.POSTGRES_DB -Fc -f /tmp/creatorspace.dump
-docker compose --env-file .\deploy\docker\production.env cp postgres:/tmp/creatorspace.dump .\backups\creatorspace.dump
+$envValues = Get-Content .\.env | Where-Object { $_ -match "^[A-Z0-9_]+=" } | ConvertFrom-StringData
+docker compose exec postgres pg_dump -U $envValues.POSTGRES_USERNAME -d $envValues.POSTGRES_DB -Fc -f /tmp/creatorspace.dump
+docker compose cp postgres:/tmp/creatorspace.dump .\backups\creatorspace.dump
 ```
 
 备份上传文件:
 
 ```powershell
 New-Item -ItemType Directory -Force .\backups\uploads
-docker compose --env-file .\deploy\docker\production.env cp backend:/app/storage/uploads .\backups\uploads
+docker compose cp backend:/app/storage/uploads .\backups\uploads
 ```
 
 ## 回滚方式
@@ -155,8 +153,8 @@ git revert <commit-sha>
 2. 重新构建并启动。
 
 ```powershell
-docker compose --env-file .\deploy\docker\production.env build
-docker compose --env-file .\deploy\docker\production.env up -d
+docker compose build
+docker compose up -d
 ```
 
 3. 如果数据库迁移已经写入不可逆结构变更，按 `docs/database/backup-and-migration-rules.md` 从备份恢复。
@@ -166,13 +164,13 @@ docker compose --env-file .\deploy\docker\production.env up -d
 仅停止容器，不删除卷:
 
 ```powershell
-docker compose --env-file .\deploy\docker\production.env stop
+docker compose stop
 ```
 
 停止并删除容器和网络，但保留卷:
 
 ```powershell
-docker compose --env-file .\deploy\docker\production.env down
+docker compose down
 ```
 
 不要在生产环境执行 `docker compose down -v`，除非已经确认要删除数据库、Redis 和上传文件。
