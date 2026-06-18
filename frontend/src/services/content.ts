@@ -2,8 +2,11 @@ import { requestJson } from '@/services/http'
 import type {
   ArticleSummary,
   AuthToken,
+  CommentSummary,
   DashboardOverview,
+  FileResource,
   InspirationCard,
+  InspirationPayload,
   InspirationType,
   PageResponse,
   ProjectSummary,
@@ -31,6 +34,15 @@ interface LoginPayload {
 // 调用注册接口创建用户。
 export async function registerUser(payload: RegisterPayload): Promise<UserSummary> {
   const response = await requestJson<ApiEnvelope<UserSummary>>('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return response.data
+}
+
+// 调用普通用户登录接口。
+export async function loginUser(payload: LoginPayload): Promise<AuthToken> {
+  const response = await requestJson<ApiEnvelope<AuthToken>>('/api/auth/login', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
@@ -108,6 +120,161 @@ export async function fetchInspirations(options: {
   const response = await requestJson<ApiEnvelope<PageResponse<InspirationCard>>>(
     query ? `/api/inspirations?${query}` : '/api/inspirations',
   )
+  return response.data
+}
+
+// 管理员查询灵感卡片。
+export async function fetchAdminInspirations(options: {
+  keyword?: string
+  type?: InspirationType | 'ALL'
+  page?: number
+  pageSize?: number
+} = {}): Promise<PageResponse<InspirationCard>> {
+  const params = new URLSearchParams()
+  if (options.keyword?.trim()) {
+    params.set('keyword', options.keyword.trim())
+  }
+  if (options.type && options.type !== 'ALL') {
+    params.set('type', options.type)
+  }
+  if (options.page) {
+    params.set('page', String(options.page))
+  }
+  if (options.pageSize) {
+    params.set('pageSize', String(options.pageSize))
+  }
+  const query = params.toString()
+  const response = await requestJson<ApiEnvelope<PageResponse<InspirationCard>>>(
+    query ? `/api/admin/inspirations?${query}` : '/api/admin/inspirations',
+  )
+  return response.data
+}
+
+// 管理员创建灵感卡片。
+export async function createInspiration(payload: InspirationPayload): Promise<InspirationCard> {
+  const response = await requestJson<ApiEnvelope<InspirationCard>>('/api/admin/inspirations', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return response.data
+}
+
+// 管理员更新灵感卡片。
+export async function updateInspiration(id: number, payload: InspirationPayload): Promise<InspirationCard> {
+  const response = await requestJson<ApiEnvelope<InspirationCard>>(`/api/admin/inspirations/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+  return response.data
+}
+
+// 管理员删除灵感卡片。
+export async function deleteInspiration(id: number): Promise<void> {
+  await requestJson<ApiEnvelope<null>>(`/api/admin/inspirations/${id}`, { method: 'DELETE' })
+}
+
+// 查询公开评论。
+export async function fetchComments(options: {
+  targetType: 'ARTICLE' | 'PROJECT' | 'MESSAGE'
+  targetId: number
+  page?: number
+  pageSize?: number
+}): Promise<PageResponse<CommentSummary>> {
+  const params = new URLSearchParams({
+    targetType: options.targetType,
+    targetId: String(options.targetId),
+  })
+  if (options.page) {
+    params.set('page', String(options.page))
+  }
+  if (options.pageSize) {
+    params.set('pageSize', String(options.pageSize))
+  }
+  const response = await requestJson<ApiEnvelope<PageResponse<CommentSummary>>>(`/api/comments?${params.toString()}`)
+  return response.data
+}
+
+// 登录用户提交评论。
+export async function submitComment(payload: {
+  targetType: 'ARTICLE' | 'PROJECT' | 'MESSAGE'
+  targetId: number
+  parentId?: number | null
+  content: string
+}): Promise<CommentSummary> {
+  const response = await requestJson<ApiEnvelope<CommentSummary>>('/api/comments', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return response.data
+}
+
+// 管理员查询评论审核队列。
+export async function fetchAdminComments(options: {
+  status?: CommentSummary['status'] | 'ALL'
+  targetType?: CommentSummary['targetType'] | 'ALL'
+  page?: number
+  pageSize?: number
+} = {}): Promise<PageResponse<CommentSummary>> {
+  const params = new URLSearchParams()
+  if (options.status && options.status !== 'ALL') {
+    params.set('status', options.status)
+  }
+  if (options.targetType && options.targetType !== 'ALL') {
+    params.set('targetType', options.targetType)
+  }
+  if (options.page) {
+    params.set('page', String(options.page))
+  }
+  if (options.pageSize) {
+    params.set('pageSize', String(options.pageSize))
+  }
+  const query = params.toString()
+  const response = await requestJson<ApiEnvelope<PageResponse<CommentSummary>>>(
+    query ? `/api/admin/comments?${query}` : '/api/admin/comments',
+  )
+  return response.data
+}
+
+// 管理员审核评论。
+export async function reviewComment(id: number, action: 'approve' | 'reject'): Promise<CommentSummary> {
+  const response = await requestJson<ApiEnvelope<CommentSummary>>(`/api/admin/comments/${id}/${action}`, {
+    method: 'PUT',
+  })
+  return response.data
+}
+
+// 管理员查询文件资源。
+export async function fetchAdminFiles(options: {
+  module?: string
+  page?: number
+  pageSize?: number
+} = {}): Promise<PageResponse<FileResource>> {
+  const params = new URLSearchParams()
+  if (options.module && options.module !== 'ALL') {
+    params.set('module', options.module)
+  }
+  if (options.page) {
+    params.set('page', String(options.page))
+  }
+  if (options.pageSize) {
+    params.set('pageSize', String(options.pageSize))
+  }
+  const query = params.toString()
+  const response = await requestJson<ApiEnvelope<PageResponse<FileResource>>>(
+    query ? `/api/admin/files?${query}` : '/api/admin/files',
+  )
+  return response.data
+}
+
+// 管理员上传文件资源。
+export async function uploadAdminFile(file: File, module: string): Promise<FileResource> {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('module', module)
+  const response = await requestJson<ApiEnvelope<FileResource>>('/api/admin/files/upload', {
+    method: 'POST',
+    body: formData,
+  })
   return response.data
 }
 

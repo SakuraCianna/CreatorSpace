@@ -78,9 +78,51 @@ export interface InspirationCard {
   cardType: InspirationType
   sourceUrl?: string | null
   color?: string | null
+  isPublic?: boolean | null
   sortOrder: number
   createdAt?: string | null
   tags: TagSummary[]
+}
+
+export interface InspirationPayload {
+  title: string
+  content?: string | null
+  imageUrl?: string | null
+  cardType: InspirationType
+  sourceUrl?: string | null
+  color?: string | null
+  isPublic: boolean
+  sortOrder: number
+  tagIds: number[]
+}
+
+export interface CommentSummary {
+  id: number
+  targetType: 'ARTICLE' | 'PROJECT' | 'MESSAGE'
+  targetId: number
+  parentId?: number | null
+  rootId?: number | null
+  userId: number
+  username: string
+  content: string
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SPAM'
+  depth: number
+  replyCount: number
+  likeCount: number
+  createdAt?: string | null
+}
+
+export interface FileResource {
+  id: number
+  fileName: string
+  originalName: string
+  relativePath: string
+  publicUrl: string
+  fileType: string
+  fileSize: number
+  storageType: string
+  module: string
+  createdAt?: string | null
 }
 
 export interface SearchResult {

@@ -52,6 +52,22 @@
             <p>{{ item.body }}</p>
           </li>
         </ol>
+        <div class="comments-card">
+          <p class="page-kicker">Comments</p>
+          <form class="comment-form" @submit.prevent="postComment">
+            <textarea v-model="commentDraft" rows="4" placeholder="对这个作品留下反馈，审核后公开展示。" />
+            <button class="button button-filled button-compact" :disabled="!canComment" type="submit">
+              {{ canComment ? '提交评论' : '登录后评论' }}
+            </button>
+          </form>
+          <article v-for="comment in comments" :key="comment.id" class="comment-item">
+            <strong>{{ comment.username }}</strong>
+            <p>{{ comment.content }}</p>
+            <span>{{ comment.createdAt ?? '刚刚' }}</span>
+          </article>
+          <span v-if="comments.length === 0">还没有公开评论。</span>
+          <p v-if="commentNotice" class="inline-notice">{{ commentNotice }}</p>
+        </div>
         <p v-if="notice" class="inline-notice">{{ notice }}</p>
       </aside>
     </div>
@@ -75,20 +91,26 @@ import {
 } from '@lucide/vue'
 
 import { fallbackProjects } from '@/content/studio'
-import { fetchProjectBySlug } from '@/services/content'
+import { fetchComments, fetchProjectBySlug, submitComment } from '@/services/content'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
-import type { ProjectSummary } from '@/shared/domain'
+import type { CommentSummary, ProjectSummary } from '@/shared/domain'
 import { renderSafeMarkdown } from '@/shared/markdown'
+import { useSessionStore } from '@/shared/sessionStore'
 
 const route = useRoute()
 const root = ref<HTMLElement | null>(null)
 const project = ref<ProjectSummary | null>(null)
+const comments = ref<CommentSummary[]>([])
+const commentDraft = ref('')
+const commentNotice = ref('')
 const isLoading = ref(true)
 const notice = ref('')
 const slug = computed(() => readRouteParam(route.params.slug))
+const session = useSessionStore()
 
 usePageReveal(root)
 
+const canComment = computed(() => Boolean(session.accessToken))
 const htmlContent = computed(() => renderSafeMarkdown(project.value?.contentMarkdown ?? project.value?.description))
 const safeDemoUrl = computed(() => safeExternalUrl(project.value?.demoUrl))
 const safeGithubUrl = computed(() => safeExternalUrl(project.value?.githubUrl))
@@ -114,11 +136,50 @@ async function loadProject() {
   notice.value = ''
   try {
     project.value = await fetchProjectBySlug(slug.value)
+    await loadComments()
   } catch (error) {
     project.value = fallbackProjects.find((item) => item.slug === slug.value) ?? null
     notice.value = error instanceof Error ? `后端暂不可用，已尝试本地样例：${error.message}` : '后端暂不可用，已尝试本地样例。'
   } finally {
     isLoading.value = false
+  }
+}
+
+async function loadComments() {
+  if (!project.value?.id) {
+    comments.value = []
+    return
+  }
+  try {
+    const page = await fetchComments({ targetType: 'PROJECT', targetId: project.value.id, pageSize: 20 })
+    comments.value = page.records
+    commentNotice.value = ''
+  } catch {
+    comments.value = []
+    commentNotice.value = '评论暂时不可用'
+  }
+}
+
+async function postComment() {
+  if (!canComment.value) {
+    commentNotice.value = '请先登录账号再评论'
+    return
+  }
+  if (!project.value?.id || !commentDraft.value.trim()) {
+    commentNotice.value = '请填写评论内容'
+    return
+  }
+  try {
+    await submitComment({
+      targetType: 'PROJECT',
+      targetId: project.value.id,
+      content: commentDraft.value.trim(),
+    })
+    commentDraft.value = ''
+    commentNotice.value = '评论已提交，审核通过后会公开展示'
+    await loadComments()
+  } catch (error) {
+    commentNotice.value = error instanceof Error ? error.message : '评论提交失败'
   }
 }
 

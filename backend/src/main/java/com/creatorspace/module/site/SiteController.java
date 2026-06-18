@@ -111,7 +111,7 @@ public class SiteController {
                     profile.put("contactEmail", rs.getString("contact_email"));
                     profile.put("location", rs.getString("location"));
                     profile.put("profileJson", readJson(rs.getString("profile_json")));
-                    return objectMapper.valueToTree(profile);
+                    return (JsonNode) objectMapper.valueToTree(profile);
                 }).stream().findFirst().orElse(objectMapper.createObjectNode());
     }
 
@@ -157,7 +157,7 @@ public class SiteController {
                     page.put("contentJson", readJson(rs.getString("content_json")));
                     page.put("layoutJson", readJson(rs.getString("layout_json")));
                     page.put("status", rs.getString("status"));
-                    return objectMapper.valueToTree(page);
+                    return (JsonNode) objectMapper.valueToTree(page);
                 },
                 pageKey).stream().findFirst().orElse(objectMapper.createObjectNode());
     }

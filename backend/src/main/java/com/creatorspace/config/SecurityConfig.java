@@ -38,9 +38,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/health", "/actuator/health").permitAll()
                         .requestMatchers("/uploads/**").permitAll()
-                        .requestMatchers("/api/auth/register", "/api/admin/auth/login").permitAll()
+                        .requestMatchers("/api/auth/register", "/api/auth/login", "/api/admin/auth/login").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/articles/**", "/api/projects/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/inspirations/**", "/api/search").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/comments").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/site/config", "/api/theme/current").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/categories", "/api/tags").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")

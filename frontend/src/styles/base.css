@@ -1029,6 +1029,31 @@ img {
   padding: 32px;
 }
 
+.auth-mode-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 4px;
+  border-radius: 8px;
+  background: rgba(16, 19, 31, 0.06);
+}
+
+.auth-mode-switch button {
+  min-height: 38px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tone-muted);
+  font: inherit;
+  font-weight: 760;
+  cursor: pointer;
+}
+
+.auth-mode-switch button.is-active {
+  background: var(--tone-ink);
+  color: #fff;
+}
+
 .auth-card__visual {
   align-content: end;
   min-height: 420px;
@@ -1214,6 +1239,70 @@ img {
   padding: 20px;
 }
 
+.admin-form {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-form label,
+.comment-form {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-form input,
+.admin-form select,
+.admin-form textarea,
+.filter-bar select,
+.comment-form textarea {
+  width: 100%;
+  border: 1px solid rgba(17, 24, 39, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--tone-strong);
+  font: inherit;
+}
+
+.admin-form input,
+.admin-form select,
+.filter-bar select {
+  min-height: 42px;
+  padding: 0 12px;
+}
+
+.admin-form textarea,
+.comment-form textarea {
+  resize: vertical;
+  padding: 12px;
+}
+
+.form-line,
+.filter-bar,
+.form-actions,
+.row-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.form-line > * {
+  flex: 1;
+  min-width: 160px;
+}
+
+.check-line {
+  display: flex !important;
+  grid-template-columns: none;
+  align-items: center;
+  gap: 10px;
+}
+
+.check-line input {
+  width: 18px;
+  min-height: 18px;
+}
+
 .panel-title {
   display: flex;
   align-items: center;
@@ -1257,6 +1346,48 @@ img {
   font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
+}
+
+.icon-text-button {
+  border: 0;
+  background: transparent;
+  color: #315bff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.icon-text-button.danger {
+  color: #b91c1c;
+}
+
+.comments-card {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--tone-line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.comment-item {
+  display: grid;
+  gap: 4px;
+  padding: 12px 0;
+  border-top: 1px solid var(--tone-line);
+}
+
+.comment-item p {
+  margin: 0;
+}
+
+.comment-item span,
+.comments-card > span {
+  color: var(--tone-muted);
+  font-size: 13px;
 }
 
 .trend-bars {

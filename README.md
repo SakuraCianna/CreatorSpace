@@ -81,6 +81,7 @@ npm run build --prefix frontend
 
 ```text
 POST   /api/auth/register
+POST   /api/auth/login
 POST   /api/admin/auth/login
 GET    /api/site/config
 GET    /api/theme/current
@@ -97,10 +98,21 @@ POST   /api/admin/projects
 GET    /api/projects
 GET    /api/projects/slug/{slug}
 GET    /api/inspirations
+GET    /api/admin/inspirations
+POST   /api/admin/inspirations
+PUT    /api/admin/inspirations/{id}
+DELETE /api/admin/inspirations/{id}
+GET    /api/comments
+POST   /api/comments
+GET    /api/admin/comments
+PUT    /api/admin/comments/{id}/approve
+PUT    /api/admin/comments/{id}/reject
+POST   /api/admin/files/upload
+GET    /api/admin/files
 GET    /api/admin/dashboard/overview
 ```
 
-后台接口需要管理员 JWT。前台注册、登录、文章、文章详情、作品、作品详情、灵感墙、搜索和关于页已通过统一 `requestJson` 封装接入对应接口，并提供 loading、empty、error 和本地展示数据兜底状态。
+后台接口需要管理员 JWT。前台注册、访客登录、管理员登录、文章、文章详情、作品、作品详情、公开评论、灵感墙、搜索和关于页已通过统一 `requestJson` 封装接入对应接口，并提供 loading、empty、error 和本地展示数据兜底状态。后台灵感、评论审核和文件资源模块已接入真实接口；其他后台模块仍处于工作台骨架阶段。
 
 ## 当前前端页面
 
@@ -113,7 +125,7 @@ GET    /api/admin/dashboard/overview
 /inspirations     灵感墙
 /search           站内搜索
 /about            关于作者与平台
-/login            管理员登录
+/login            访客登录 / 管理员登录
 /register         访客注册
 /admin            CMS 概览
 /admin/*          CMS 模块工作台

@@ -9,6 +9,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -16,6 +17,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -24,6 +26,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.empty;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -34,6 +37,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Testcontainers
 class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
 
+    private static final byte[] PNG_BYTES = new byte[]{
+            (byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+            0x00, 0x00, 0x00, 0x00
+    };
+
     @Container
     private static final PostgreSQLContainer POSTGRES = createPostgres("creatorspace_content_test");
 
@@ -41,6 +49,7 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
     @DynamicPropertySource
     static void registerProperties(DynamicPropertyRegistry registry) {
         registerPostgresProperties(registry, POSTGRES);
+        registry.add("app.storage.local-root", () -> "target/test-uploads");
     }
 
     @Autowired
@@ -343,6 +352,297 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
         }
     }
 
+    // 验证普通用户登录、评论提交和管理员审核后公开展示的完整链路。
+    @Test
+    void registeredUserCanLoginAndCommentAfterAdminApproval() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "username", "commenter",
+                                "password", "commenter-secret"
+                        ))))
+                .andExpect(status().isOk());
+        String userToken = loginAsUser("commenter", "commenter-secret");
+        String adminToken = loginAsAdmin();
+
+        String createArticleResponse = mockMvc.perform(post("/api/admin/articles")
+                        .header("Authorization", bearer(adminToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "title", "评论闭环文章",
+                                "slug", "comment-flow-article",
+                                "summary", "用于验证评论审核",
+                                "contentMarkdown", "## 评论\n等待读者反馈。",
+                                "privacyType", "PUBLIC"
+                        ))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        long articleId = dataId(createArticleResponse);
+        mockMvc.perform(put("/api/admin/articles/{id}/publish", articleId)
+                        .header("Authorization", bearer(adminToken)))
+                .andExpect(status().isOk());
+
+        String commentResponse = mockMvc.perform(post("/api/comments")
+                        .header("Authorization", bearer(userToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "targetType", "ARTICLE",
+                                "targetId", articleId,
+                                "content", "这篇文章的结构很清楚。"
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("PENDING")))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        long commentId = dataId(commentResponse);
+
+        mockMvc.perform(get("/api/comments")
+                        .param("targetType", "ARTICLE")
+                        .param("targetId", String.valueOf(articleId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.records", empty()));
+
+        mockMvc.perform(put("/api/admin/comments/{id}/approve", commentId)
+                        .header("Authorization", bearer(adminToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("APPROVED")));
+
+        mockMvc.perform(get("/api/comments")
+                        .param("targetType", "ARTICLE")
+                        .param("targetId", String.valueOf(articleId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.records", hasSize(1)))
+                .andExpect(jsonPath("$.data.records[0].content", is("这篇文章的结构很清楚。")));
+    }
+
+    // 验证回复只有审核通过后才进入公开回复数，驳回已通过回复会回退计数。
+    @Test
+    void replyCountOnlyIncludesApprovedReplies() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "username", "reply-reader",
+                                "password", "reply-reader-secret"
+                        ))))
+                .andExpect(status().isOk());
+        String userToken = loginAsUser("reply-reader", "reply-reader-secret");
+        String adminToken = loginAsAdmin();
+
+        String createArticleResponse = mockMvc.perform(post("/api/admin/articles")
+                        .header("Authorization", bearer(adminToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "title", "回复计数文章",
+                                "slug", "reply-count-article",
+                                "summary", "用于验证评论回复计数",
+                                "contentMarkdown", "## 回复计数\n只统计通过审核的回复。",
+                                "privacyType", "PUBLIC"
+                        ))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        long articleId = dataId(createArticleResponse);
+        mockMvc.perform(put("/api/admin/articles/{id}/publish", articleId)
+                        .header("Authorization", bearer(adminToken)))
+                .andExpect(status().isOk());
+
+        String parentResponse = mockMvc.perform(post("/api/comments")
+                        .header("Authorization", bearer(userToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "targetType", "ARTICLE",
+                                "targetId", articleId,
+                                "content", "这是一条主评论。"
+                        ))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        long parentId = dataId(parentResponse);
+        mockMvc.perform(put("/api/admin/comments/{id}/approve", parentId)
+                        .header("Authorization", bearer(adminToken)))
+                .andExpect(status().isOk());
+
+        String replyResponse = mockMvc.perform(post("/api/comments")
+                        .header("Authorization", bearer(userToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "targetType", "ARTICLE",
+                                "targetId", articleId,
+                                "parentId", parentId,
+                                "content", "这是一条等待审核的回复。"
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("PENDING")))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        long replyId = dataId(replyResponse);
+
+        mockMvc.perform(get("/api/comments")
+                        .param("targetType", "ARTICLE")
+                        .param("targetId", String.valueOf(articleId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.records", hasSize(1)))
+                .andExpect(jsonPath("$.data.records[0].replyCount", is(0)));
+
+        mockMvc.perform(put("/api/admin/comments/{id}/approve", replyId)
+                        .header("Authorization", bearer(adminToken)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/comments")
+                        .param("targetType", "ARTICLE")
+                        .param("targetId", String.valueOf(articleId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.records", hasSize(2)))
+                .andExpect(jsonPath("$.data.records[0].replyCount", is(1)));
+
+        mockMvc.perform(put("/api/admin/comments/{id}/reject", parentId)
+                        .header("Authorization", bearer(adminToken)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/comments")
+                        .param("targetType", "ARTICLE")
+                        .param("targetId", String.valueOf(articleId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.records", empty()));
+
+        mockMvc.perform(put("/api/admin/comments/{id}/approve", parentId)
+                        .header("Authorization", bearer(adminToken)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/comments")
+                        .param("targetType", "ARTICLE")
+                        .param("targetId", String.valueOf(articleId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.records", hasSize(2)))
+                .andExpect(jsonPath("$.data.records[0].replyCount", is(1)));
+
+        mockMvc.perform(put("/api/admin/comments/{id}/reject", replyId)
+                        .header("Authorization", bearer(adminToken)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/comments")
+                        .param("targetType", "ARTICLE")
+                        .param("targetId", String.valueOf(articleId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.records", hasSize(1)))
+                .andExpect(jsonPath("$.data.records[0].replyCount", is(0)));
+    }
+
+    // 验证后台灵感 CRUD 与本地文件上传资源列表。
+    @Test
+    void adminCanManageInspirationsAndUploadFiles() throws Exception {
+        String token = loginAsAdmin();
+        long tagId = createTag(token, "灵感测试标签", "inspiration-test-tag");
+
+        String createResponse = mockMvc.perform(post("/api/admin/inspirations")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "title", "后台灵感卡片",
+                                "content", "一条来自后台的灵感。",
+                                "cardType", "TEXT",
+                                "sourceUrl", "https://example.com/inspiration",
+                                "color", "#6ea8ff",
+                                "isPublic", false,
+                                "sortOrder", 12,
+                                "tagIds", new long[]{tagId}
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.isPublic", is(false)))
+                .andExpect(jsonPath("$.data.tags[0].name", is("灵感测试标签")))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        long inspirationId = dataId(createResponse);
+
+        mockMvc.perform(put("/api/admin/inspirations/{id}", inspirationId)
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "title", "后台灵感卡片",
+                                "content", "公开后的灵感。",
+                                "cardType", "TEXT",
+                                "sourceUrl", "https://example.com/inspiration",
+                                "color", "#6ea8ff",
+                                "isPublic", true,
+                                "sortOrder", 12,
+                                "tagIds", new long[]{tagId}
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.isPublic", is(true)));
+
+        mockMvc.perform(get("/api/inspirations")
+                        .param("keyword", "inspiration-test-tag"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.records[0].title", is("后台灵感卡片")));
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "cover.png",
+                "image/png",
+                PNG_BYTES
+        );
+        mockMvc.perform(multipart("/api/admin/files/upload")
+                        .file(file)
+                        .param("module", "INSPIRATION")
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.module", is("INSPIRATION")))
+                .andExpect(jsonPath("$.data.publicUrl", not("")));
+
+        mockMvc.perform(get("/api/admin/files")
+                        .header("Authorization", bearer(token))
+                        .param("module", "INSPIRATION"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.records[0].originalName", is("cover.png")));
+    }
+
+    // 验证上传接口拒绝伪造 Content-Type 的可执行扩展名。
+    @Test
+    void adminFileUploadRejectsSpoofedExecutableExtension() throws Exception {
+        String token = loginAsAdmin();
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "evil.html",
+                "image/png",
+                "<script>alert(1)</script>".getBytes(StandardCharsets.UTF_8)
+        );
+
+        mockMvc.perform(multipart("/api/admin/files/upload")
+                        .file(file)
+                        .param("module", "OTHER")
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.message", is("文件扩展名与类型不匹配")));
+    }
+
+    // 验证上传接口拒绝扩展名和 MIME 合法但文件头不匹配的伪造图片。
+    @Test
+    void adminFileUploadRejectsMismatchedFileSignature() throws Exception {
+        String token = loginAsAdmin();
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "fake.png",
+                "image/png",
+                "not a real png".getBytes(StandardCharsets.UTF_8)
+        );
+
+        mockMvc.perform(multipart("/api/admin/files/upload")
+                        .file(file)
+                        .param("module", "OTHER")
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.message", is("文件内容与类型不匹配")));
+    }
+
     // 登录管理员并返回访问令牌。
     private String loginAsAdmin() throws Exception {
         String response = mockMvc.perform(post("/api/admin/auth/login")
@@ -355,6 +655,23 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                 .andExpect(jsonPath("$.success", is(true)))
                 .andExpect(jsonPath("$.data.accessToken", not("")))
                 .andExpect(jsonPath("$.data.user.roles[0]", is("ADMIN")))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readTree(response).path("data").path("accessToken").asText();
+    }
+
+    // 登录普通用户并返回访问令牌。
+    private String loginAsUser(String username, String password) throws Exception {
+        String response = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "username", username,
+                                "password", password
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.accessToken", not("")))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();

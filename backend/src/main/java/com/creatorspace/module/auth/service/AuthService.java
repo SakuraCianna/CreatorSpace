@@ -13,6 +13,9 @@ public interface AuthService {
     // 注册普通用户并返回安全用户信息。
     UserSummaryVO register(RegisterRequest request);
 
+    // 校验用户身份并签发访问令牌。
+    AuthTokenVO login(LoginRequest request);
+
     // 校验管理员身份并签发访问令牌。
     AuthTokenVO loginAdmin(LoginRequest request);
 }
