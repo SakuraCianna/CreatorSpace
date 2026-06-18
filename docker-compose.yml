@@ -1,0 +1,127 @@
+name: creatorspace
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in deploy/docker/production.env}
+      POSTGRES_USER: ${POSTGRES_USERNAME:?Set POSTGRES_USERNAME in deploy/docker/production.env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/docker/production.env}
+    volumes:
+      - creatorspace_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - creatorspace_internal
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["sh", "-c", "redis-server --appendonly yes --requirepass \"$${REDIS_PASSWORD}\""]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in deploy/docker/production.env}
+    volumes:
+      - creatorspace_redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - creatorspace_internal
+
+  backend:
+    image: creatorspace/backend:local
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-production}
+      SERVER_PORT: 8080
+      WEB_BASE_URL: ${WEB_BASE_URL:?Set WEB_BASE_URL in deploy/docker/production.env}
+      API_BASE_URL: ${API_BASE_URL:?Set API_BASE_URL in deploy/docker/production.env}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?Set CORS_ALLOWED_ORIGINS in deploy/docker/production.env}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in deploy/docker/production.env}
+      POSTGRES_USERNAME: ${POSTGRES_USERNAME:?Set POSTGRES_USERNAME in deploy/docker/production.env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/docker/production.env}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DATABASE: ${REDIS_DATABASE:-0}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in deploy/docker/production.env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in deploy/docker/production.env}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:?Set ADMIN_PASSWORD_HASH in deploy/docker/production.env}
+      PASSWORD_BCRYPT_STRENGTH: ${PASSWORD_BCRYPT_STRENGTH:-12}
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-120}
+      JWT_REFRESH_TOKEN_EXPIRE_DAYS: ${JWT_REFRESH_TOKEN_EXPIRE_DAYS:-14}
+      FILE_STORAGE_TYPE: local
+      LOCAL_FILE_STORAGE_ROOT: /app/storage/uploads
+      LOCAL_FILE_PUBLIC_PREFIX: /uploads
+      UPLOAD_MAX_FILE_SIZE: ${UPLOAD_MAX_FILE_SIZE:-20MB}
+      UPLOAD_MAX_REQUEST_SIZE: ${UPLOAD_MAX_REQUEST_SIZE:-50MB}
+      UPLOAD_MAX_FILE_SIZE_MB: ${UPLOAD_MAX_FILE_SIZE_MB:-20}
+      UPLOAD_MAX_REQUEST_SIZE_MB: ${UPLOAD_MAX_REQUEST_SIZE_MB:-50}
+      AI_ENABLED: ${AI_ENABLED:-false}
+      AI_PROVIDER: ${AI_PROVIDER:-zhipu}
+      ZHIPU_API_BASE_URL: ${ZHIPU_API_BASE_URL:-https://open.bigmodel.cn/api/paas/v4}
+      ZHIPU_API_KEY: ${ZHIPU_API_KEY:-}
+      ZHIPU_MULTIMODAL_MODEL: ${ZHIPU_MULTIMODAL_MODEL:-glm-4.6v-flash}
+      ZHIPU_TEXT_MODEL: ${ZHIPU_TEXT_MODEL:-glm-4.7-flash}
+      ZHIPU_REQUEST_TIMEOUT_SECONDS: ${ZHIPU_REQUEST_TIMEOUT_SECONDS:-60}
+      ZHIPU_MAX_OUTPUT_TOKENS: ${ZHIPU_MAX_OUTPUT_TOKENS:-4096}
+      ZHIPU_THINKING_ENABLED: ${ZHIPU_THINKING_ENABLED:-false}
+      JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=75 -XX:+UseContainerSupport}
+    volumes:
+      - creatorspace_uploads:/app/storage/uploads
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/api/health > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    networks:
+      - creatorspace_internal
+
+  frontend:
+    image: creatorspace/frontend:local
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+        VITE_API_TIMEOUT_MS: ${VITE_API_TIMEOUT_MS:-15000}
+        VITE_UPLOAD_MAX_FILE_SIZE_MB: ${VITE_UPLOAD_MAX_FILE_SIZE_MB:-20}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    networks:
+      - creatorspace_internal
+
+networks:
+  creatorspace_internal:
+    driver: bridge
+
+volumes:
+  creatorspace_postgres_data:
+  creatorspace_redis_data:
+  creatorspace_uploads:

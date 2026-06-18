@@ -11,9 +11,11 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -39,6 +41,60 @@ public class ProjectController {
             @Valid @RequestBody ProjectCreateRequest request
     ) {
         return ApiResponse.ok(projectService.create(request, loginUser.userId()));
+    }
+
+    // 管理员查询全部作品。
+    @GetMapping("/api/admin/projects")
+    public ApiResponse<PageResponse<ProjectVO>> listAdmin(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "1") @Min(1) long page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) long pageSize
+    ) {
+        return ApiResponse.ok(projectService.listAdmin(keyword, status, page, pageSize));
+    }
+
+    // 管理员读取单个作品，包含 Markdown 正文。
+    @GetMapping("/api/admin/projects/{id}")
+    public ApiResponse<ProjectVO> getAdmin(@PathVariable Long id) {
+        return ApiResponse.ok(projectService.getAdminById(id));
+    }
+
+    // 管理员更新作品。
+    @PutMapping("/api/admin/projects/{id}")
+    public ApiResponse<ProjectVO> update(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable Long id,
+            @Valid @RequestBody ProjectCreateRequest request
+    ) {
+        return ApiResponse.ok(projectService.update(id, request, loginUser.userId()));
+    }
+
+    // 管理员切换作品展示状态。
+    @PutMapping("/api/admin/projects/{id}/status")
+    public ApiResponse<ProjectVO> setStatus(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable Long id,
+            @RequestParam String status
+    ) {
+        return ApiResponse.ok(projectService.setStatus(id, status, loginUser.userId()));
+    }
+
+    // 管理员切换推荐状态。
+    @PutMapping("/api/admin/projects/{id}/recommend")
+    public ApiResponse<ProjectVO> setRecommend(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "true") boolean enabled
+    ) {
+        return ApiResponse.ok(projectService.setRecommend(id, enabled, loginUser.userId()));
+    }
+
+    // 管理员删除作品。
+    @DeleteMapping("/api/admin/projects/{id}")
+    public ApiResponse<Void> delete(@PathVariable Long id) {
+        projectService.delete(id);
+        return ApiResponse.ok(null);
     }
 
     // 查询公开作品分页列表。

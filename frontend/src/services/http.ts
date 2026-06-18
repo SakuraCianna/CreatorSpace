@@ -18,13 +18,14 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
   const timeoutId = window.setTimeout(() => controller.abort(), appConfig.apiTimeoutMs)
   const requestPath = path.startsWith('/') ? path : `/${path}`
   const token = window.localStorage.getItem(ACCESS_TOKEN_KEY)
+  const isFormData = init?.body instanceof FormData
 
   try {
     const response = await fetch(`${appConfig.apiBaseUrl}${requestPath}`, {
       ...init,
       headers: {
         Accept: 'application/json',
-        'Content-Type': 'application/json',
+        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...init?.headers,
       },

@@ -1,19 +1,30 @@
 <template>
-  <section ref="root" class="auth-page">
-    <form class="auth-card auth-card--wide" data-reveal @submit.prevent="submitRegister">
-      <div class="auth-card__visual auth-card__visual--warm">
-        <UserPlus :size="28" />
+  <section ref="root" class="auth-page auth-page--material">
+    <form class="auth-card auth-card--material" data-reveal @submit.prevent="submitRegister">
+      <div class="auth-card__visual auth-card__visual--material auth-card__visual--warm">
+        <span class="material-icon-badge">
+          <UserPlus :size="24" />
+        </span>
         <p class="page-kicker">Join as Reader</p>
         <h1>注册读者身份</h1>
         <p>普通用户可以为后续评论、点赞、收藏和好友可见内容预留身份。第一阶段只需要用户名和密码。</p>
+        <div class="material-benefits" aria-label="注册能力">
+          <span>Reader</span>
+          <span>Comment</span>
+          <span>Favorite</span>
+        </div>
       </div>
       <div class="auth-card__form">
-        <label>
-          用户名
+        <div>
+          <p class="page-kicker">Create account</p>
+          <h2>普通用户注册</h2>
+        </div>
+        <label class="md-field">
+          <span>用户名</span>
           <input v-model="form.username" autocomplete="username" name="username" />
         </label>
-        <label>
-          密码
+        <label class="md-field">
+          <span>密码</span>
           <input v-model="form.password" autocomplete="new-password" name="password" type="password" />
         </label>
         <button class="button button-filled" :disabled="isSubmitting" type="submit">

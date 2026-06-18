@@ -24,7 +24,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
- * 认证业务实现，负责用户注册和管理员登录令牌签发。
+ * 认证业务实现，负责用户注册、用户登录和管理员登录令牌签发。
  */
 @Service
 public class AuthServiceImpl implements AuthService {
@@ -69,10 +69,22 @@ public class AuthServiceImpl implements AuthService {
         return new UserSummaryVO(user.getId(), user.getUsername(), List.of(ContentConstants.ROLE_USER));
     }
 
+    // 校验普通用户身份并签发访问令牌。
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public AuthTokenVO login(LoginRequest request) {
+        return loginAndIssueToken(request, false);
+    }
+
     // 校验管理员身份并签发访问令牌。
     @Override
     @Transactional(rollbackFor = Exception.class)
     public AuthTokenVO loginAdmin(LoginRequest request) {
+        return loginAndIssueToken(request, true);
+    }
+
+    // 校验账号密码、状态和角色要求，然后签发访问令牌。
+    private AuthTokenVO loginAndIssueToken(LoginRequest request, boolean adminRequired) {
         UserEntity user = userMapper.selectOne(new LambdaQueryWrapper<UserEntity>()
                 .eq(UserEntity::getUsername, request.username().trim()));
         if (user == null || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
@@ -82,7 +94,7 @@ public class AuthServiceImpl implements AuthService {
             throw BusinessException.forbidden("当前用户已被禁用");
         }
         List<String> roles = userMapper.selectRoleCodesByUserId(user.getId());
-        if (!roles.contains(ContentConstants.ROLE_ADMIN)) {
+        if (adminRequired && !roles.contains(ContentConstants.ROLE_ADMIN)) {
             throw BusinessException.forbidden("当前用户没有后台权限");
         }
 

@@ -11,6 +11,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -42,6 +43,33 @@ public class ArticleController {
         return ApiResponse.ok(articleService.create(request, loginUser.userId()));
     }
 
+    // 管理员查询全部文章。
+    @GetMapping("/api/admin/articles")
+    public ApiResponse<PageResponse<ArticleVO>> listAdmin(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "1") @Min(1) long page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) long pageSize
+    ) {
+        return ApiResponse.ok(articleService.listAdmin(keyword, status, page, pageSize));
+    }
+
+    // 管理员读取单篇文章，包含 Markdown 正文。
+    @GetMapping("/api/admin/articles/{id}")
+    public ApiResponse<ArticleVO> getAdmin(@PathVariable Long id) {
+        return ApiResponse.ok(articleService.getAdminById(id));
+    }
+
+    // 管理员更新文章内容。
+    @PutMapping("/api/admin/articles/{id}")
+    public ApiResponse<ArticleVO> update(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable Long id,
+            @Valid @RequestBody ArticleCreateRequest request
+    ) {
+        return ApiResponse.ok(articleService.update(id, request, loginUser.userId()));
+    }
+
     // 管理员发布指定文章。
     @PutMapping("/api/admin/articles/{id}/publish")
     public ApiResponse<ArticleVO> publish(
@@ -49,6 +77,42 @@ public class ArticleController {
             @PathVariable Long id
     ) {
         return ApiResponse.ok(articleService.publish(id, loginUser.userId()));
+    }
+
+    // 管理员撤回文章到草稿。
+    @PutMapping("/api/admin/articles/{id}/unpublish")
+    public ApiResponse<ArticleVO> unpublish(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable Long id
+    ) {
+        return ApiResponse.ok(articleService.unpublish(id, loginUser.userId()));
+    }
+
+    // 管理员切换文章置顶状态。
+    @PutMapping("/api/admin/articles/{id}/top")
+    public ApiResponse<ArticleVO> setTop(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "true") boolean enabled
+    ) {
+        return ApiResponse.ok(articleService.setTop(id, enabled, loginUser.userId()));
+    }
+
+    // 管理员切换文章推荐状态。
+    @PutMapping("/api/admin/articles/{id}/recommend")
+    public ApiResponse<ArticleVO> setRecommend(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "true") boolean enabled
+    ) {
+        return ApiResponse.ok(articleService.setRecommend(id, enabled, loginUser.userId()));
+    }
+
+    // 管理员删除文章。
+    @DeleteMapping("/api/admin/articles/{id}")
+    public ApiResponse<Void> delete(@PathVariable Long id) {
+        articleService.delete(id);
+        return ApiResponse.ok(null);
     }
 
     // 查询公开文章分页列表。

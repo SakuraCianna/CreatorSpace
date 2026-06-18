@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 import { ACCESS_TOKEN_KEY } from '@/services/http'
+import { USER_SUMMARY_KEY } from '@/shared/sessionStore'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -89,16 +90,59 @@ const router = createRouter({
 router.beforeEach((to) => {
   const requiresAdmin = to.matched.some((record) => record.meta.requiresAdmin)
   const hasToken = Boolean(window.localStorage.getItem(ACCESS_TOKEN_KEY))
+  const roles = readStoredRoles()
+
+  if (hasToken && roles.length === 0) {
+    window.localStorage.removeItem(ACCESS_TOKEN_KEY)
+    window.localStorage.removeItem(USER_SUMMARY_KEY)
+    if (requiresAdmin) {
+      return { name: 'login', query: { redirect: to.fullPath, mode: 'admin' } }
+    }
+    return true
+  }
 
   if (requiresAdmin && !hasToken) {
     return { name: 'login', query: { redirect: to.fullPath } }
   }
 
+  if (requiresAdmin && !roles.includes('ADMIN')) {
+    return { name: 'login', query: { redirect: to.fullPath, mode: 'admin' } }
+  }
+
   if (to.name === 'login' && hasToken) {
+    const redirect = readRedirect(to.query.redirect)
+    if (redirect.startsWith('/admin') && !roles.includes('ADMIN')) {
+      return true
+    }
+    if (!roles.includes('ADMIN')) {
+      return { name: 'articles' }
+    }
     return { name: 'admin-dashboard' }
   }
 
   return true
 })
+
+function readStoredRoles(): string[] {
+  try {
+    const raw = window.localStorage.getItem(USER_SUMMARY_KEY)
+    if (!raw) {
+      return []
+    }
+    const parsed = JSON.parse(raw) as { roles?: unknown }
+    return Array.isArray(parsed.roles)
+      ? parsed.roles.filter((role): role is string => role === 'ADMIN' || role === 'USER')
+      : []
+  } catch {
+    return []
+  }
+}
+
+function readRedirect(value: unknown): string {
+  if (Array.isArray(value)) {
+    return typeof value[0] === 'string' ? value[0] : ''
+  }
+  return typeof value === 'string' ? value : ''
+}
 
 export default router

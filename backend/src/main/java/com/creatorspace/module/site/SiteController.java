@@ -1,7 +1,6 @@
 package com.creatorspace.module.site;
 
 import com.creatorspace.common.result.ApiResponse;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,8 +26,8 @@ public class SiteController {
 
     // 返回站点身份、导航、首页推荐和关于页内容。
     @GetMapping("/api/site/config")
-    public ApiResponse<Map<String, JsonNode>> config() {
-        Map<String, JsonNode> configs = new LinkedHashMap<>();
+    public ApiResponse<Map<String, Object>> config() {
+        Map<String, Object> configs = new LinkedHashMap<>();
         jdbcTemplate.query("""
                         select config_key, config_value::text
                         from site_configs
@@ -40,8 +39,9 @@ public class SiteController {
                         """,
                 rs -> {
                     configs.put(rs.getString("config_key"), readJson(rs.getString("config_value")));
-                });
+        });
         configs.put("site.profile.active", activeProfile());
+        configs.put("site.navigationItems", navigationItems());
         configs.put("site.socialLinks", socialLinks());
         configs.put("page.about", pageConfig("about"));
         return ApiResponse.ok(configs);
@@ -80,15 +80,15 @@ public class SiteController {
     }
 
     // 安全解析 JSONB 文本。
-    private JsonNode readJson(String value) {
+    private Object readJson(String value) {
         try {
-            return objectMapper.readTree(value == null ? "{}" : value);
+            return objectMapper.readValue(value == null ? "{}" : value, Object.class);
         } catch (Exception exception) {
-            return objectMapper.createObjectNode();
+            return Map.of();
         }
     }
 
-    private JsonNode activeProfile() {
+    private Object activeProfile() {
         return jdbcTemplate.query("""
                         select display_name,
                                headline,
@@ -111,11 +111,11 @@ public class SiteController {
                     profile.put("contactEmail", rs.getString("contact_email"));
                     profile.put("location", rs.getString("location"));
                     profile.put("profileJson", readJson(rs.getString("profile_json")));
-                    return objectMapper.valueToTree(profile);
-                }).stream().findFirst().orElse(objectMapper.createObjectNode());
+                    return profile;
+                }).stream().findFirst().orElse(Map.of());
     }
 
-    private JsonNode socialLinks() {
+    private Object socialLinks() {
         List<Map<String, Object>> links = jdbcTemplate.query("""
                         select platform, label, url, icon, sort_order
                         from social_links
@@ -131,10 +131,29 @@ public class SiteController {
                     link.put("sortOrder", rs.getInt("sort_order"));
                     return link;
                 });
-        return objectMapper.valueToTree(links);
+        return links;
     }
 
-    private JsonNode pageConfig(String pageKey) {
+    private Object navigationItems() {
+        List<Map<String, Object>> items = jdbcTemplate.query("""
+                        select label, path, icon, group_name, sort_order
+                        from navigation_items
+                        where visible = true
+                        order by sort_order, id
+                        """,
+                (rs, rowNum) -> {
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("label", rs.getString("label"));
+                    item.put("path", rs.getString("path"));
+                    item.put("icon", rs.getString("icon"));
+                    item.put("groupName", rs.getString("group_name"));
+                    item.put("sortOrder", rs.getInt("sort_order"));
+                    return item;
+                });
+        return items;
+    }
+
+    private Object pageConfig(String pageKey) {
         return jdbcTemplate.query("""
                         select title,
                                slug,
@@ -157,9 +176,9 @@ public class SiteController {
                     page.put("contentJson", readJson(rs.getString("content_json")));
                     page.put("layoutJson", readJson(rs.getString("layout_json")));
                     page.put("status", rs.getString("status"));
-                    return objectMapper.valueToTree(page);
+                    return page;
                 },
-                pageKey).stream().findFirst().orElse(objectMapper.createObjectNode());
+                pageKey).stream().findFirst().orElse(Map.of());
     }
 
     public record ThemeConfigVO(
@@ -171,7 +190,7 @@ public class SiteController {
             String fontFamily,
             String cardStyle,
             String layoutType,
-            JsonNode config
+            Object config
     ) {
     }
 }

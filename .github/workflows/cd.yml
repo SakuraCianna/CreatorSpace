@@ -104,8 +104,8 @@ jobs:
             echo "- Backend artifact: creatorspace-backend-jar"
             echo "- Frontend artifact: creatorspace-frontend-dist"
             echo ""
-            echo "Remote deployment is intentionally not configured yet."
-            echo "Add Docker or server deployment after the deployment architecture is confirmed."
+            echo "Docker deployment assets are available in docker-compose.yml and docs/deployment/docker.md."
+            echo "Remote server auto-deployment is intentionally not configured yet."
           } | tee deployment-summary.md
 
       - name: Upload delivery summary

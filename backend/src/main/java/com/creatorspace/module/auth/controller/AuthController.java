@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 处理用户注册和后台管理员登录接口。
+ * 处理用户注册、用户登录和后台管理员登录接口。
  */
 @RestController
 public class AuthController {
@@ -28,6 +28,12 @@ public class AuthController {
     @PostMapping("/api/auth/register")
     public ApiResponse<UserSummaryVO> register(@Valid @RequestBody RegisterRequest request) {
         return ApiResponse.ok(authService.register(request));
+    }
+
+    // 校验普通用户身份并签发访问令牌。
+    @PostMapping("/api/auth/login")
+    public ApiResponse<AuthTokenVO> login(@Valid @RequestBody LoginRequest request) {
+        return ApiResponse.ok(authService.login(request));
     }
 
     // 校验管理员身份并签发访问令牌。
