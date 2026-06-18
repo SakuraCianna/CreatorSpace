@@ -15,6 +15,11 @@ export interface UserSummary {
   roles: UserRole[]
 }
 
+export interface AuthToken {
+  accessToken: string
+  user: UserSummary
+}
+
 export interface CategorySummary {
   id: number
   module: 'ARTICLE' | 'PROJECT' | 'INSPIRATION'
@@ -61,6 +66,75 @@ export interface ProjectSummary {
   status: string
   recommended: boolean
   tags: TagSummary[]
+}
+
+export type InspirationType = 'IMAGE' | 'TEXT' | 'PROMPT' | 'CODE' | 'LINK'
+
+export interface InspirationCard {
+  id: number
+  title: string
+  content?: string | null
+  imageUrl?: string | null
+  cardType: InspirationType
+  sourceUrl?: string | null
+  color?: string | null
+  sortOrder: number
+  createdAt?: string | null
+  tags: TagSummary[]
+}
+
+export interface SearchResult {
+  type: 'ARTICLE' | 'PROJECT' | 'INSPIRATION'
+  title: string
+  slug: string
+  description?: string | null
+  coverUrl?: string | null
+  occurredAt?: string | null
+  score: number
+}
+
+export interface ThemeConfig {
+  themeName: string
+  displayName: string
+  primaryColor: string
+  backgroundType: string
+  backgroundImage?: string | null
+  fontFamily?: string | null
+  cardStyle: string
+  layoutType: string
+  config: Record<string, unknown>
+}
+
+export interface DashboardMetric {
+  label: string
+  value: string
+  note: string
+}
+
+export interface DashboardRank {
+  title: string
+  slug: string
+  views: number
+  likes: number
+}
+
+export interface DashboardTrendPoint {
+  date: string
+  pv: number
+}
+
+export interface DashboardActivity {
+  operation: string
+  module: string
+  createdAt: string
+}
+
+export interface DashboardOverview {
+  metrics: DashboardMetric[]
+  hotArticles: DashboardRank[]
+  hotProjects: DashboardRank[]
+  visitTrend: DashboardTrendPoint[]
+  recentActivities: DashboardActivity[]
 }
 
 export interface PageResponse<T> {

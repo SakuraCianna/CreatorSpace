@@ -1,10 +1,23 @@
 import { appConfig } from '@/app/config'
 
+export const ACCESS_TOKEN_KEY = 'creatorspace.accessToken'
+
+export class HttpError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message)
+    this.name = 'HttpError'
+  }
+}
+
 // 发送 JSON 请求并处理超时、请求头和统一错误信息。
 export async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const controller = new AbortController()
   const timeoutId = window.setTimeout(() => controller.abort(), appConfig.apiTimeoutMs)
   const requestPath = path.startsWith('/') ? path : `/${path}`
+  const token = window.localStorage.getItem(ACCESS_TOKEN_KEY)
 
   try {
     const response = await fetch(`${appConfig.apiBaseUrl}${requestPath}`, {
@@ -12,6 +25,7 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...init?.headers,
       },
       signal: init?.signal ?? controller.signal,
@@ -19,7 +33,7 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
 
     if (!response.ok) {
       const message = await readErrorMessage(response)
-      throw new Error(message || `Request failed with status ${response.status}`)
+      throw new HttpError(message || `Request failed with status ${response.status}`, response.status)
     }
 
     return response.json() as Promise<T>

@@ -1,6 +1,6 @@
 # CreatorSpace
 
-CreatorSpace 是一个个人主题风格博客与创意作品展示平台。当前仓库处于第一阶段业务闭环建设阶段，已包含 Spring Boot 后端骨架、Flyway 数据库迁移体系、数据库变更前备份规则、产品主页、注册接口、公开文章/作品列表接口以及基础 CMS 内容管理接口。
+CreatorSpace 是一个个人主题风格博客与创意作品展示平台。当前仓库已围绕“个人博客 + 作品展厅 + 灵感墙 + 主题化 CMS”的终极目标扩展到完整内容骨架，包含 Spring Boot 后端、Flyway 数据库迁移体系、数据库变更前备份规则、产品主页、公开内容浏览、站内搜索、灵感展示、主题配置、注册登录以及基础 CMS 内容管理接口。
 
 ## 当前结构
 
@@ -46,6 +46,12 @@ CreatorSpace
 - Vite 8
 - Vue Router
 - Pinia
+- GSAP
+- Three.js
+- anime.js
+- markdown-it
+- highlight.js
+- @lucide/vue
 
 ## 本地配置
 
@@ -69,13 +75,16 @@ mvn -f backend/pom.xml test
 npm run build --prefix frontend
 ```
 
-## 当前已实现的第一阶段接口
+## 当前已实现的核心接口
 
-后端当前已具备以下最小业务闭环:
+后端当前已具备以下核心业务闭环:
 
 ```text
 POST   /api/auth/register
 POST   /api/admin/auth/login
+GET    /api/site/config
+GET    /api/theme/current
+GET    /api/search
 POST   /api/admin/categories
 GET    /api/categories
 POST   /api/admin/tags
@@ -86,9 +95,29 @@ GET    /api/articles
 GET    /api/articles/slug/{slug}
 POST   /api/admin/projects
 GET    /api/projects
+GET    /api/projects/slug/{slug}
+GET    /api/inspirations
+GET    /api/admin/dashboard/overview
 ```
 
-后台接口需要管理员 JWT。前台注册页、文章页和作品页已通过统一 `requestJson` 封装接入对应接口，并提供基础 loading、empty 和 error 状态。
+后台接口需要管理员 JWT。前台注册、登录、文章、文章详情、作品、作品详情、灵感墙、搜索和关于页已通过统一 `requestJson` 封装接入对应接口，并提供 loading、empty、error 和本地展示数据兜底状态。
+
+## 当前前端页面
+
+```text
+/                 产品主界面
+/articles         文章档案
+/articles/:slug   文章详情
+/projects         作品展厅
+/projects/:slug   作品详情
+/inspirations     灵感墙
+/search           站内搜索
+/about            关于作者与平台
+/login            管理员登录
+/register         访客注册
+/admin            CMS 概览
+/admin/*          CMS 模块工作台
+```
 
 ## 快速启动
 
@@ -178,7 +207,7 @@ V1__initialize_creator_space_schema.sql
 V2__seed_showcase_data.sql
 ```
 
-应用启动时 Flyway 会自动执行未运行的迁移。项目正式产生持久数据前，初始化结构可以合并在 `V1` 中维护；一旦有需要保留的真实数据，不要修改已经执行过的迁移脚本，新增结构变更时创建新的 `V版本号__描述.sql`。
+应用启动时 Flyway 会自动执行未运行的迁移。`V1` 当前覆盖用户、资料、文章、作品、灵感、评论、留言、主题、导航、内容块、统计、搜索日志、AI 任务和后台审计等终极目标所需的基础表结构。项目正式产生持久数据前，初始化结构可以合并在 `V1` 中维护；一旦有需要保留的真实数据，不要修改已经执行过的迁移脚本，新增结构变更时创建新的 `V版本号__描述.sql`。
 
 `V2__seed_showcase_data.sql` 是正式迁移，用于写入产品演示和本地联调所需的展示数据。它会随 `classpath:db/migration` 在所有启用 Flyway 的环境执行，数据命名尽量使用 `demo-`、`demo_` 或 `demo.*` 前缀，避免覆盖已有真实配置和内容。生产环境如果不希望内置展示数据，需要在上线前调整迁移策略或使用不包含该迁移的数据库初始化流程。
 

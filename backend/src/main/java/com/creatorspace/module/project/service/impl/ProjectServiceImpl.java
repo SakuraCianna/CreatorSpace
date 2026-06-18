@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URI;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -58,12 +59,12 @@ public class ProjectServiceImpl implements ProjectService {
         project.setTitle(request.title().trim());
         project.setSlug(slug);
         project.setDescription(request.description());
-        project.setCoverUrl(request.coverUrl());
+        project.setCoverUrl(normalizeOptionalUrl(request.coverUrl(), "作品封面", true));
         project.setProjectType(request.projectType().trim());
         project.setTechStackJson(toJson(request.techStack()));
-        project.setGithubUrl(request.githubUrl());
-        project.setDemoUrl(request.demoUrl());
-        project.setVideoUrl(request.videoUrl());
+        project.setGithubUrl(normalizeOptionalUrl(request.githubUrl(), "GitHub 链接", false));
+        project.setDemoUrl(normalizeOptionalUrl(request.demoUrl(), "演示链接", false));
+        project.setVideoUrl(normalizeOptionalUrl(request.videoUrl(), "视频链接", true));
         project.setContentMarkdown(request.contentMarkdown() == null ? "" : request.contentMarkdown());
         project.setStatus(ContentConstants.PROJECT_VISIBLE);
         project.setRecommend(Boolean.TRUE.equals(request.recommended()));
@@ -190,6 +191,27 @@ public class ProjectServiceImpl implements ProjectService {
         } catch (Exception exception) {
             return Collections.emptyList();
         }
+    }
+
+    // 外部链接只允许 http/https；封面和视频允许引用站内上传资源。
+    private String normalizeOptionalUrl(String value, String fieldName, boolean allowUploadedResource) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String trimmed = value.trim();
+        if (allowUploadedResource && trimmed.startsWith("/uploads/")) {
+            return trimmed;
+        }
+        try {
+            URI uri = URI.create(trimmed);
+            String scheme = uri.getScheme();
+            if (uri.getHost() != null && ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))) {
+                return trimmed;
+            }
+        } catch (IllegalArgumentException exception) {
+            throw BusinessException.badRequest(fieldName + "格式不合法");
+        }
+        throw BusinessException.badRequest(fieldName + "只允许 http 或 https 地址");
     }
 
     // 规范化 URL 标识。

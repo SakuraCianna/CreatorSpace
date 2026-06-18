@@ -40,6 +40,8 @@ public class SecurityConfig {
                         .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers("/api/auth/register", "/api/admin/auth/login").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/articles/**", "/api/projects/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/inspirations/**", "/api/search").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/site/config", "/api/theme/current").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/categories", "/api/tags").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()

@@ -695,3 +695,362 @@ select demo_operator.id,
        now() - (series.value || ' hours')::interval
 from generate_series(1, 36) as series(value)
 join users demo_operator on demo_operator.username = 'demo_engineer';
+
+insert into user_profiles (user_id, display_name, headline, location, website_url, profile_json)
+select id,
+       nickname,
+       'CreatorSpace 展示用户',
+       'Shanghai',
+       'https://example.com/demo-profile',
+       jsonb_build_object('demo', true, 'interests', array['writing', 'portfolio', 'cms'])
+from users
+where username in ('demo_creator', 'demo_designer', 'demo_engineer', 'demo_curator')
+on conflict (user_id) do update
+set display_name = excluded.display_name,
+    headline = excluded.headline,
+    location = excluded.location,
+    website_url = excluded.website_url,
+    profile_json = excluded.profile_json,
+    updated_at = now();
+
+insert into site_profiles (profile_key, display_name, headline, avatar_url, bio, contact_email, location, profile_json, is_active)
+values (
+    'demo-owner',
+    '林星野',
+    '把个人博客、作品展厅和灵感写作桌放进同一个空间',
+    '/uploads/demo/avatar-lin.webp',
+    '独立开发者，长期整理内容系统、AI 工作流和创作者工具。',
+    'demo@example.com',
+    'Shanghai',
+    '{"tone": "warm technical", "focus": ["writing", "portfolio", "creative system"]}'::jsonb,
+    true
+)
+on conflict (profile_key) do update
+set display_name = excluded.display_name,
+    headline = excluded.headline,
+    avatar_url = excluded.avatar_url,
+    bio = excluded.bio,
+    contact_email = excluded.contact_email,
+    location = excluded.location,
+    profile_json = excluded.profile_json,
+    is_active = excluded.is_active,
+    updated_at = now();
+
+insert into navigation_items (label, path, icon, group_name, sort_order, visible, extra_json)
+values
+    ('首页', '/', 'home', 'primary', 10, true, '{}'::jsonb),
+    ('文章', '/articles', 'book-open', 'primary', 20, true, '{}'::jsonb),
+    ('作品', '/projects', 'images', 'primary', 30, true, '{}'::jsonb),
+    ('灵感', '/inspirations', 'lightbulb', 'primary', 40, true, '{}'::jsonb),
+    ('关于', '/about', 'info', 'primary', 50, true, '{}'::jsonb);
+
+insert into social_links (platform, label, url, icon, sort_order, visible)
+values
+    ('github', 'GitHub', 'https://github.com/SakuraCianna/CreatorSpace', 'github', 10, true),
+    ('mail', 'Mail', 'mailto:demo@example.com', 'mail', 20, true),
+    ('portfolio', 'Portfolio', 'https://example.com/creatorspace', 'sparkles', 30, true);
+
+insert into page_configs (page_key, title, slug, seo_title, seo_description, content_json, layout_json, status)
+values
+    ('home', 'CreatorSpace 首页', 'home', 'CreatorSpace - 个人主题空间', '个人主题风格博客与创意作品展示平台', '{"modules": ["hero", "articles", "projects", "inspirations", "themes"]}'::jsonb, '{"density": "immersive"}'::jsonb, 'PUBLISHED'),
+    ('about', '关于创作者', 'about', '关于 CreatorSpace', '了解站点主人、技能和创作方向', '{"sections": ["bio", "skills", "contact"]}'::jsonb, '{"density": "editorial"}'::jsonb, 'PUBLISHED'),
+    ('search', '站内搜索', 'search', 'CreatorSpace 搜索', '搜索文章、作品和灵感卡片', '{"scope": ["articles", "projects", "inspirations"]}'::jsonb, '{"density": "utility"}'::jsonb, 'PUBLISHED')
+on conflict (page_key) do update
+set title = excluded.title,
+    seo_title = excluded.seo_title,
+    seo_description = excluded.seo_description,
+    content_json = excluded.content_json,
+    layout_json = excluded.layout_json,
+    status = excluded.status,
+    updated_at = now();
+
+insert into theme_variants (theme_id, variant_name, density, color_tokens, font_tokens, motion_tokens, card_tokens)
+select theme.id,
+       seed.variant_name,
+       seed.density,
+       seed.color_tokens::jsonb,
+       seed.font_tokens::jsonb,
+       seed.motion_tokens::jsonb,
+       seed.card_tokens::jsonb
+from (
+    values
+        ('glass-space', 'Default Gallery', 'comfortable', '{"primary": "#7c3aed", "accent": "#54e6c8"}', '{"display": "Space Grotesk"}', '{"level": "rich"}', '{"radius": 8, "style": "glass"}'),
+        ('demo-editor-focus', 'Reading Focus', 'compact', '{"primary": "#0f766e", "accent": "#f59e0b"}', '{"display": "Newsreader"}', '{"level": "calm"}', '{"radius": 8, "style": "outline"}')
+) as seed(theme_name, variant_name, density, color_tokens, font_tokens, motion_tokens, card_tokens)
+join theme_configs theme on theme.theme_name = seed.theme_name
+on conflict (theme_id, variant_name) do update
+set density = excluded.density,
+    color_tokens = excluded.color_tokens,
+    font_tokens = excluded.font_tokens,
+    motion_tokens = excluded.motion_tokens,
+    card_tokens = excluded.card_tokens,
+    updated_at = now();
+
+insert into theme_assets (theme_id, file_id, asset_type, asset_url, sort_order)
+select theme.id, file.id, 'BACKGROUND', file.public_url, 10
+from theme_configs theme
+join file_resources file on file.file_name = 'demo-theme-gallery-night.webp'
+where theme.theme_name = 'demo-gallery-night';
+
+insert into theme_versions (theme_id, version_no, snapshot_json, created_by)
+select theme.id,
+       1,
+       jsonb_build_object('themeName', theme.theme_name, 'primaryColor', theme.primary_color, 'seed', true),
+       demo_user.id
+from theme_configs theme
+join users demo_user on demo_user.username = 'demo_designer'
+where theme.theme_name in ('glass-space', 'demo-gallery-night')
+on conflict (theme_id, version_no) do update
+set snapshot_json = excluded.snapshot_json;
+
+insert into tag_aliases (tag_id, alias)
+select tag.id, seed.alias
+from (
+    values
+        ('demo-tag-ai-workflow', 'AI 创作'),
+        ('demo-tag-product-design', '产品体验'),
+        ('demo-tag-motion', '页面动效'),
+        ('demo-tag-cms', '内容工作台')
+) as seed(slug, alias)
+join tags tag on tag.slug = seed.slug
+on conflict (tag_id, alias) do nothing;
+
+insert into article_series (title, slug, description, cover_url, sort_order, status, created_by)
+select seed.title,
+       seed.slug,
+       seed.description,
+       seed.cover_url,
+       seed.sort_order,
+       'ACTIVE',
+       demo_user.id
+from (
+    values
+        ('个人主题空间建设手记', 'demo-series-personal-theme-space', '从首页气质到后台工作台的完整建设记录。', '/uploads/demo/article-creator-hub.webp', 10),
+        ('内容系统工程札记', 'demo-series-content-system-engineering', '数据库、接口、迁移和后台能力的工程记录。', '/uploads/demo/article-postgres.webp', 20)
+) as seed(title, slug, description, cover_url, sort_order)
+join users demo_user on demo_user.username = 'demo_creator'
+on conflict (slug) do update
+set title = excluded.title,
+    description = excluded.description,
+    cover_url = excluded.cover_url,
+    sort_order = excluded.sort_order,
+    updated_at = now();
+
+insert into article_series_items (series_id, article_id, sort_order, note)
+select series.id, article.id, seed.sort_order, seed.note
+from (
+    values
+        ('demo-series-personal-theme-space', 'demo-article-creator-hub', 10, '系列入口文章'),
+        ('demo-series-personal-theme-space', 'demo-article-homepage-motion-budget', 20, '动效预算说明'),
+        ('demo-series-content-system-engineering', 'demo-article-postgres-content-library', 10, '数据库基础设施'),
+        ('demo-series-content-system-engineering', 'demo-article-testcontainers-migration', 20, '迁移测试验证')
+) as seed(series_slug, article_slug, sort_order, note)
+join article_series series on series.slug = seed.series_slug
+join articles article on article.slug = seed.article_slug
+on conflict (series_id, article_id) do update
+set sort_order = excluded.sort_order,
+    note = excluded.note;
+
+insert into article_relations (source_article_id, target_article_id, relation_type, sort_order)
+select source.id, target.id, seed.relation_type, seed.sort_order
+from (
+    values
+        ('demo-article-creator-hub', 'demo-article-homepage-motion-budget', 'NEXT_READ', 10),
+        ('demo-article-creator-hub', 'demo-article-category-strategy', 'RELATED', 20),
+        ('demo-article-postgres-content-library', 'demo-article-testcontainers-migration', 'FOLLOW_UP', 10)
+) as seed(source_slug, target_slug, relation_type, sort_order)
+join articles source on source.slug = seed.source_slug
+join articles target on target.slug = seed.target_slug
+on conflict (source_article_id, target_article_id, relation_type) do update
+set sort_order = excluded.sort_order;
+
+insert into project_milestones (project_id, title, description, milestone_date, sort_order)
+select project.id, seed.title, seed.description, current_date - seed.days_ago, seed.sort_order
+from (
+    values
+        ('demo-project-content-console', '内容模型定稿', '确认文章、作品、灵感和主题配置边界。', 30, 10),
+        ('demo-project-content-console', '后台工作台原型', '把 Dashboard、队列和规则页整理成 CMS 工作流。', 12, 20),
+        ('demo-project-immersive-homepage', '沉浸式首页完成', 'WebGL、GSAP 和主题化内容模块完成第一版。', 8, 10)
+) as seed(project_slug, title, description, days_ago, sort_order)
+join portfolio_projects project on project.slug = seed.project_slug;
+
+insert into project_links (project_id, link_type, label, url, safe_status, sort_order)
+select project.id, seed.link_type, seed.label, seed.url, 'SAFE', seed.sort_order
+from (
+    values
+        ('demo-project-content-console', 'DOC', '产品需求文档', 'https://example.com/creatorspace/spec', 10),
+        ('demo-project-content-console', 'GITHUB', '源代码', 'https://github.com/SakuraCianna/CreatorSpace', 20),
+        ('demo-project-immersive-homepage', 'DEMO', '前台演示', 'https://example.com/creatorspace', 10)
+) as seed(project_slug, link_type, label, url, sort_order)
+join portfolio_projects project on project.slug = seed.project_slug;
+
+insert into project_process_notes (project_id, phase, title, body, sort_order)
+select project.id, seed.phase, seed.title, seed.body, seed.sort_order
+from (
+    values
+        ('demo-project-content-console', 'Research', '确认内容边界', '先把文章、作品、灵感和互动拆成稳定模块。', 10),
+        ('demo-project-content-console', 'Design', '后台密度控制', '管理页优先服务扫描、比较和重复操作。', 20),
+        ('demo-project-immersive-homepage', 'Motion', '一屏一个动效记忆点', '首页每个 section 只保留一种主要动效语言。', 10)
+) as seed(project_slug, phase, title, body, sort_order)
+join portfolio_projects project on project.slug = seed.project_slug;
+
+insert into inspiration_sources (inspiration_id, source_type, title, url, author, captured_at)
+select inspiration.id, seed.source_type, seed.title, seed.url, seed.author, now() - interval '3 days'
+from (
+    values
+        ('玻璃质感不是透明度', 'URL', 'Awwwards Portfolio', 'https://www.awwwards.com/websites/portfolio/', 'Awwwards'),
+        ('Prompt：把想法拆成任务卡', 'PROMPT', '内部 Prompt 模板', null, 'demo_creator'),
+        ('后台列表的三层信息密度', 'QUOTE', '后台设计笔记', null, 'demo_designer')
+) as seed(inspiration_title, source_type, title, url, author)
+join inspiration_cards inspiration on inspiration.title = seed.inspiration_title;
+
+insert into inspiration_relations (inspiration_id, target_type, target_id, relation_type)
+select inspiration.id, seed.target_type, target.id, seed.relation_type
+from (
+    select 'Prompt：把想法拆成任务卡' as inspiration_title, 'ARTICLE' as target_type, id as target_id, 'SEED' as relation_type
+    from articles where slug = 'demo-article-ai-writing-flow'
+    union all
+    select '后台列表的三层信息密度', 'PROJECT', id, 'REFERENCE'
+    from portfolio_projects where slug = 'demo-project-content-console'
+) seed
+join inspiration_cards inspiration on inspiration.title = seed.inspiration_title
+join lateral (select seed.target_id as id) target on true;
+
+insert into content_blocks (owner_type, owner_id, block_key, block_type, title, body, config_json, sort_order, visible)
+values
+    ('HOME', null, 'home.hero', 'HERO', 'CreatorSpace 创作主页', '一个有主题风格的个人博客与作品展示平台。', '{"links": ["articles", "projects", "inspirations"]}'::jsonb, 10, true),
+    ('HOME', null, 'home.featuredArticles', 'GALLERY', '精选文章', '按主题而不是时间线组织文章。', '{"source": "articles", "limit": 6}'::jsonb, 20, true),
+    ('ABOUT', null, 'about.bio', 'TEXT', '关于创作者', '独立开发者，关注内容系统、AI 工作流和创作者工具。', '{"tone": "personal"}'::jsonb, 10, true);
+
+insert into content_block_assets (block_id, file_id, usage_type, sort_order)
+select block.id, file.id, 'CONTENT', 10
+from content_blocks block
+join file_resources file on file.file_name = 'demo-article-cover-creator-hub.webp'
+where block.block_key = 'home.hero'
+on conflict (block_id, file_id, usage_type) do nothing;
+
+insert into comment_reactions (comment_id, user_id, reaction_type)
+select comment.id, demo_user.id, 'LIKE'
+from comments comment
+join users demo_user on demo_user.username in ('demo_reader_02', 'demo_reader_03')
+where comment.content = '展示评论：这篇创作中枢的拆解很适合做产品介绍页。'
+on conflict (comment_id, user_id, reaction_type) do nothing;
+
+insert into guestbook_entries (user_id, display_name, content, status, like_count, ip_address, user_agent)
+select demo_user.id,
+       demo_user.nickname,
+       seed.content,
+       seed.status,
+       seed.like_count,
+       seed.ip_address::inet,
+       'CreatorSpace Demo Browser'
+from (
+    values
+        ('demo_reader_01', '这个站点像一间可以慢慢逛的工作室。', 'APPROVED', 12, '127.0.2.10'),
+        ('demo_reader_02', '希望之后看到完整的主题配置后台。', 'PENDING', 2, '127.0.2.11')
+) as seed(username, content, status, like_count, ip_address)
+join users demo_user on demo_user.username = seed.username;
+
+insert into content_statistics (target_type, target_id, view_count, like_count, favorite_count, comment_count, last_viewed_at)
+select 'ARTICLE', id, view_count, like_count, 18, comment_count, now() - interval '2 hours'
+from articles
+where slug in ('demo-article-creator-hub', 'demo-article-ai-writing-flow')
+on conflict (target_type, target_id) do update
+set view_count = excluded.view_count,
+    like_count = excluded.like_count,
+    favorite_count = excluded.favorite_count,
+    comment_count = excluded.comment_count,
+    last_viewed_at = excluded.last_viewed_at,
+    updated_at = now();
+
+insert into content_statistics (target_type, target_id, view_count, like_count, favorite_count, comment_count, last_viewed_at)
+select 'PROJECT', id, 860, 52, 20, 3, now() - interval '4 hours'
+from portfolio_projects
+where slug in ('demo-project-content-console', 'demo-project-immersive-homepage')
+on conflict (target_type, target_id) do update
+set view_count = excluded.view_count,
+    like_count = excluded.like_count,
+    favorite_count = excluded.favorite_count,
+    comment_count = excluded.comment_count,
+    last_viewed_at = excluded.last_viewed_at,
+    updated_at = now();
+
+insert into search_logs (keyword, result_count, user_id, ip_address, user_agent, created_at)
+select seed.keyword,
+       seed.result_count,
+       demo_user.id,
+       seed.ip_address::inet,
+       'CreatorSpace Demo Browser',
+       now() - (seed.hours_ago || ' hours')::interval
+from (
+    values
+        ('内容系统', 9, 'demo_reader_01', '127.0.3.10', 6),
+        ('动效', 5, 'demo_reader_02', '127.0.3.11', 12),
+        ('Prompt', 4, 'demo_reader_03', '127.0.3.12', 18)
+) as seed(keyword, result_count, username, ip_address, hours_ago)
+join users demo_user on demo_user.username = seed.username;
+
+insert into daily_metrics (metric_date, metric_key, metric_value, detail_json)
+select current_date - day_offset,
+       metric_key,
+       metric_value,
+       jsonb_build_object('seed', true)
+from (
+    values
+        (0, 'pv', 128),
+        (1, 'pv', 112),
+        (2, 'pv', 96),
+        (0, 'article_published', 3),
+        (0, 'comment_pending', 6)
+) as seed(day_offset, metric_key, metric_value)
+on conflict (metric_date, metric_key) do update
+set metric_value = excluded.metric_value,
+    detail_json = excluded.detail_json,
+    updated_at = now();
+
+insert into admin_audit_snapshots (target_type, target_id, snapshot_json, created_by)
+select 'THEME',
+       theme.id,
+       jsonb_build_object('themeName', theme.theme_name, 'primaryColor', theme.primary_color, 'snapshot', 'before-demo-update'),
+       demo_user.id
+from theme_configs theme
+join users demo_user on demo_user.username = 'demo_designer'
+where theme.theme_name = 'glass-space';
+
+insert into ai_agent_tasks (task_type, target_type, target_id, prompt, status, provider, model_name, created_by)
+select 'ARTICLE_SUMMARY',
+       'ARTICLE',
+       article.id,
+       '请为这篇文章生成更适合前台卡片展示的摘要。',
+       'SUCCEEDED',
+       'zhipu',
+       'glm-4.6v-flash',
+       demo_user.id
+from articles article
+join users demo_user on demo_user.username = 'demo_creator'
+where article.slug = 'demo-article-creator-hub';
+
+insert into ai_agent_messages (task_id, role, content, token_count)
+select task.id, 'USER', task.prompt, 36
+from ai_agent_tasks task
+where task.task_type = 'ARTICLE_SUMMARY'
+  and task.target_type = 'ARTICLE';
+
+insert into ai_agent_messages (task_id, role, content, token_count)
+select task.id, 'ASSISTANT', '这篇文章说明如何把个人站点整理成可长期维护的主题空间。', 48
+from ai_agent_tasks task
+where task.task_type = 'ARTICLE_SUMMARY'
+  and task.target_type = 'ARTICLE';
+
+insert into ai_suggestions (task_id, target_type, target_id, suggestion_type, content, status, adopted_by, adopted_at)
+select task.id,
+       task.target_type,
+       task.target_id,
+       'SUMMARY',
+       '把个人站点整理成主题空间，让文章、作品和灵感都能被长期维护。',
+       'ADOPTED',
+       task.created_by,
+       now() - interval '1 hour'
+from ai_agent_tasks task
+where task.task_type = 'ARTICLE_SUMMARY'
+  and task.target_type = 'ARTICLE';

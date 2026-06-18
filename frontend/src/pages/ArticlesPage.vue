@@ -1,45 +1,76 @@
 <template>
-  <section class="journal-page">
-    <aside class="journal-profile">
-      <p class="page-kicker">Creator Journal</p>
-      <h1>Sakura 的主题笔记</h1>
-      <p>把工程复盘、产品观察和创意灵感放进同一个长期档案，用清晰的标签和封面让每篇文章都有自己的气质。</p>
-      <dl class="profile-stats">
-        <div>
-          <dt>{{ articles.length }}</dt>
-          <dd>公开文章</dd>
-        </div>
-        <div>
-          <dt>{{ categoryCount }}</dt>
-          <dd>主题栏目</dd>
-        </div>
-      </dl>
-    </aside>
+  <section ref="root" class="archive-page">
+    <header class="archive-hero" data-reveal>
+      <div>
+        <p class="page-kicker">Creator Journal</p>
+        <h1>文章像主题档案，而不是时间倒序的堆叠</h1>
+        <p>
+          用分类、标签、封面和阅读路径整理长期写作，让访客能从一个主题自然走到下一篇。
+        </p>
+      </div>
+      <form class="archive-search" @submit.prevent="loadArticles">
+        <Search :size="18" />
+        <input v-model="keyword" placeholder="搜索文章、摘要或正文" aria-label="搜索文章" />
+        <button class="button button-filled button-compact" type="submit">检索</button>
+      </form>
+    </header>
 
-    <div class="journal-feed">
-      <div v-if="isLoading" class="empty-state journal-state">
-        <h2>文章加载中</h2>
-      </div>
-      <div v-else-if="errorMessage" class="empty-state journal-state">
-        <h2>文章暂时不可用</h2>
-        <p>{{ errorMessage }}</p>
-      </div>
-      <div v-else-if="articles.length === 0" class="empty-state journal-state">
-        <h2>暂无公开文章</h2>
-      </div>
-      <template v-else>
+    <div class="topic-strip" data-reveal>
+      <button
+        v-for="topic in topics"
+        :key="topic"
+        class="topic-chip"
+        :class="{ 'is-active': activeTopic === topic }"
+        type="button"
+        @click="activeTopic = topic"
+      >
+        {{ topic }}
+      </button>
+    </div>
+
+    <div v-if="isLoading" class="empty-state journal-state" data-reveal>
+      <LoaderCircle class="spin" :size="24" />
+      <h2>正在整理文章档案</h2>
+    </div>
+    <div v-else class="journal-layout">
+      <aside class="journal-profile" data-reveal>
+        <span class="profile-orbit" aria-hidden="true" />
+        <p class="page-kicker">Reading Map</p>
+        <h2>从主题进入，而不是从日期翻找</h2>
+        <p>当前展示 {{ visibleArticles.length }} 篇公开文章，覆盖 {{ categoryCount }} 个主题栏目。</p>
+        <dl class="profile-stats">
+          <div>
+            <dt>{{ articles.length }}</dt>
+            <dd>公开文章</dd>
+          </div>
+          <div>
+            <dt>{{ allTags.length }}</dt>
+            <dd>标签节点</dd>
+          </div>
+        </dl>
+        <p v-if="notice" class="inline-notice">{{ notice }}</p>
+      </aside>
+
+      <div class="journal-feed">
+        <div v-if="visibleArticles.length === 0" class="empty-state journal-state" data-reveal>
+          <h2>没有匹配的公开文章</h2>
+          <p>换一个关键词或主题试试。</p>
+        </div>
+
         <RouterLink
           v-if="featuredArticle"
           class="journal-featured"
           :style="articleCoverStyle(featuredArticle, 0)"
           :to="{ name: 'article-detail', params: { slug: featuredArticle.slug } }"
+          data-reveal
         >
-          <span class="article-label">精选笔记</span>
+          <span class="article-label">精选档案</span>
           <h2>{{ featuredArticle.title }}</h2>
           <p>{{ featuredArticle.summary }}</p>
           <footer>
             <span>{{ formatDate(featuredArticle.publishTime) }}</span>
             <span>{{ featuredArticle.category?.name ?? '未分类' }}</span>
+            <span>{{ featuredArticle.tags.length }} tags</span>
           </footer>
         </RouterLink>
 
@@ -50,61 +81,80 @@
             class="journal-card"
             :style="articleCoverStyle(article, index + 1)"
             :to="{ name: 'article-detail', params: { slug: article.slug } }"
+            data-reveal
           >
-            <span class="article-date">{{ formatDate(article.publishTime) }}</span>
-            <h2>{{ article.title }}</h2>
-            <p>{{ article.summary }}</p>
-            <div class="tag-row">
-              <span v-for="tag in article.tags.slice(0, 3)" :key="tag.id">#{{ tag.name }}</span>
+            <img v-if="article.coverUrl" :src="article.coverUrl" alt="" loading="lazy" />
+            <div>
+              <span class="article-date">{{ formatDate(article.publishTime) }}</span>
+              <h2>{{ article.title }}</h2>
+              <p>{{ article.summary }}</p>
+              <div class="tag-row">
+                <span v-for="tag in article.tags.slice(0, 3)" :key="tag.id">#{{ tag.name }}</span>
+              </div>
             </div>
           </RouterLink>
         </div>
-      </template>
+      </div>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
-/**
- * 公开文章页以个人主题博客的方式展示内容，避免后台列表感。
- */
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
+import { LoaderCircle, Search } from '@lucide/vue'
 
+import { fallbackArticles } from '@/content/studio'
 import { fetchArticles } from '@/services/content'
+import { usePageReveal } from '@/shared/composables/usePageReveal'
 import type { ArticleSummary } from '@/shared/domain'
 
 const coverPalettes = [
-  ['#0f172a', '#20c997', '#f8fafc'],
-  ['#231942', '#ff7a59', '#fff7ed'],
-  ['#132a13', '#8bd450', '#f7fee7'],
-  ['#2f2504', '#f6c453', '#fff8db'],
+  ['#111827', '#6ea8ff', '#f8fafc'],
+  ['#2f163f', '#b18cff', '#fff7ed'],
+  ['#10312e', '#54e6c8', '#f7fee7'],
+  ['#3a2508', '#ff9d6e', '#fff8db'],
   ['#172554', '#60a5fa', '#eef6ff'],
 ] as const
 
+const root = ref<HTMLElement | null>(null)
 const articles = ref<ArticleSummary[]>([])
+const keyword = ref('')
+const activeTopic = ref('全部')
 const isLoading = ref(true)
-const errorMessage = ref('')
+const notice = ref('')
 
-const featuredArticle = computed(() => articles.value[0] ?? null)
-const regularArticles = computed(() => articles.value.slice(1))
+usePageReveal(root)
+
+const topics = computed(() => ['全部', ...new Set(articles.value.map((article) => article.category?.name).filter(Boolean) as string[])])
+const allTags = computed(() => [...new Map(articles.value.flatMap((article) => article.tags).map((tag) => [tag.id, tag])).values()])
 const categoryCount = computed(() => new Set(articles.value.map((article) => article.category?.id).filter(Boolean)).size)
+const visibleArticles = computed(() => {
+  if (activeTopic.value === '全部') {
+    return articles.value
+  }
+  return articles.value.filter((article) => article.category?.name === activeTopic.value)
+})
+const featuredArticle = computed(() => visibleArticles.value[0] ?? null)
+const regularArticles = computed(() => visibleArticles.value.slice(1))
 
-// 加载公开文章列表。
 async function loadArticles() {
   isLoading.value = true
-  errorMessage.value = ''
+  notice.value = ''
   try {
-    const page = await fetchArticles()
-    articles.value = page.records
+    const page = await fetchArticles(keyword.value)
+    articles.value = page.records.length ? page.records : fallbackArticles
+    if (!page.records.length) {
+      notice.value = '接口暂无公开文章，已展示本地主题样例。'
+    }
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '文章加载失败'
+    articles.value = fallbackArticles
+    notice.value = error instanceof Error ? `后端暂不可用，已展示本地样例：${error.message}` : '后端暂不可用，已展示本地样例。'
   } finally {
     isLoading.value = false
   }
 }
 
-// 格式化发布时间，缺失时保持界面干净。
 function formatDate(value?: string | null): string {
   if (!value) {
     return '未定档'
@@ -115,7 +165,6 @@ function formatDate(value?: string | null): string {
   }).format(new Date(value))
 }
 
-// 生成稳定的主题封面色，让缺图文章也有独立识别度。
 function articleCoverStyle(article: ArticleSummary, index: number) {
   const palette = coverPalettes[index % coverPalettes.length]
   return {

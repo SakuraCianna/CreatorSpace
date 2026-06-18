@@ -1,31 +1,46 @@
 <template>
-  <section class="studio-page">
-    <div class="studio-intro">
+  <section ref="root" class="studio-page">
+    <header class="studio-intro gallery-hero" data-reveal>
       <p class="page-kicker">Creative Works</p>
-      <h1>创意作品橱窗</h1>
-      <p>这里放能被看见的创作成果：页面、工具、视觉实验和长期打磨过的小作品。</p>
+      <h1>作品像展品，应该能看到背景、过程和完成状态</h1>
+      <p>这里展示个人项目、视觉实验和创意工具。每个作品都带有封面、技术栈、外链和创作说明。</p>
+    </header>
+
+    <div class="topic-strip" data-reveal>
+      <button
+        v-for="type in projectTypes"
+        :key="type"
+        class="topic-chip"
+        :class="{ 'is-active': activeType === type }"
+        type="button"
+        @click="activeType = type"
+      >
+        {{ type }}
+      </button>
     </div>
 
-    <div v-if="isLoading" class="empty-state showcase-state">
-      <h2>作品加载中</h2>
+    <div v-if="isLoading" class="empty-state showcase-state" data-reveal>
+      <LoaderCircle class="spin" :size="24" />
+      <h2>正在点亮作品展厅</h2>
     </div>
-    <div v-else-if="errorMessage" class="empty-state showcase-state">
-      <h2>作品暂时不可用</h2>
-      <p>{{ errorMessage }}</p>
-    </div>
-    <div v-else-if="projects.length === 0" class="empty-state showcase-state">
-      <h2>暂无公开作品</h2>
+    <div v-else-if="visibleProjects.length === 0" class="empty-state showcase-state" data-reveal>
+      <h2>暂无匹配作品</h2>
+      <p>换一个类型或稍后再来。</p>
     </div>
     <div v-else class="showcase-grid">
       <RouterLink
-        v-for="(project, index) in projects"
+        v-for="(project, index) in visibleProjects"
         :key="project.id"
         class="showcase-card"
         :class="{ 'showcase-card--feature': index === 0 }"
         :style="projectCoverStyle(project, index)"
         :to="{ name: 'project-detail', params: { slug: project.slug } }"
+        @pointermove="tiltCard"
+        @pointerleave="resetTilt"
+        data-reveal
       >
         <div class="showcase-card__visual">
+          <img v-if="project.coverUrl" :src="project.coverUrl" alt="" loading="lazy" />
           <span>{{ String(index + 1).padStart(2, '0') }}</span>
         </div>
         <div class="showcase-card__body">
@@ -41,17 +56,19 @@
         </div>
       </RouterLink>
     </div>
+
+    <p v-if="notice" class="inline-notice">{{ notice }}</p>
   </section>
 </template>
 
 <script setup lang="ts">
-/**
- * 公开作品页用作品集橱窗结构展示内容，强调个性主题和视觉识别。
- */
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
+import { LoaderCircle } from '@lucide/vue'
 
+import { fallbackProjects } from '@/content/studio'
 import { fetchProjects } from '@/services/content'
+import { usePageReveal } from '@/shared/composables/usePageReveal'
 import type { ProjectSummary } from '@/shared/domain'
 
 const coverPalettes = [
@@ -62,31 +79,60 @@ const coverPalettes = [
   ['#111827', '#a3e635'],
 ] as const
 
+const root = ref<HTMLElement | null>(null)
 const projects = ref<ProjectSummary[]>([])
+const activeType = ref('全部')
 const isLoading = ref(true)
-const errorMessage = ref('')
+const notice = ref('')
 
-// 加载公开作品列表。
+usePageReveal(root)
+
+const projectTypes = computed(() => ['全部', ...new Set(projects.value.map((project) => project.projectType))])
+const visibleProjects = computed(() => {
+  if (activeType.value === '全部') {
+    return projects.value
+  }
+  return projects.value.filter((project) => project.projectType === activeType.value)
+})
+
 async function loadProjects() {
   isLoading.value = true
-  errorMessage.value = ''
+  notice.value = ''
   try {
     const page = await fetchProjects()
-    projects.value = page.records
+    projects.value = page.records.length ? page.records : fallbackProjects
+    if (!page.records.length) {
+      notice.value = '接口暂无公开作品，已展示本地作品样例。'
+    }
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '作品加载失败'
+    projects.value = fallbackProjects
+    notice.value = error instanceof Error ? `后端暂不可用，已展示本地样例：${error.message}` : '后端暂不可用，已展示本地样例。'
   } finally {
     isLoading.value = false
   }
 }
 
-// 生成稳定的作品封面色，作为真实封面资源加载前的视觉底板。
 function projectCoverStyle(project: ProjectSummary, index: number) {
   const palette = coverPalettes[index % coverPalettes.length]
   return {
     '--cover-from': palette[0],
     '--cover-accent': project.tags[0]?.color ?? palette[1],
   }
+}
+
+function tiltCard(event: PointerEvent) {
+  const card = event.currentTarget as HTMLElement
+  const rect = card.getBoundingClientRect()
+  const x = (event.clientX - rect.left) / rect.width - 0.5
+  const y = (event.clientY - rect.top) / rect.height - 0.5
+  card.style.setProperty('--tilt-x', `${-y * 4}deg`)
+  card.style.setProperty('--tilt-y', `${x * 5}deg`)
+}
+
+function resetTilt(event: PointerEvent) {
+  const card = event.currentTarget as HTMLElement
+  card.style.setProperty('--tilt-x', '0deg')
+  card.style.setProperty('--tilt-y', '0deg')
 }
 
 onMounted(loadProjects)

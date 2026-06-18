@@ -106,6 +106,12 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
         mockMvc.perform(get("/api/articles/slug/{slug}", "first-public-article"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.contentMarkdown", is("## 正文\nCreatorSpace 第一阶段内容闭环。")));
+
+        mockMvc.perform(get("/api/search")
+                        .param("keyword", "tech-notes"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.records[0].type", is("ARTICLE")))
+                .andExpect(jsonPath("$.data.records[0].title", is("第一篇公开文章")));
     }
 
     // 验证公开文章列表不会泄露草稿或私密文章。
@@ -147,7 +153,7 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
     @Test
     void adminCanCreateProjectAndVisitorCanReadVisibleProjectList() throws Exception {
         String token = loginAsAdmin();
-        long tagId = createTag(token, "Vue", "vue");
+        long tagId = createTag(token, "唯一展厅标签", "unique-gallery-tag");
 
         mockMvc.perform(post("/api/admin/projects")
                         .header("Authorization", bearer(token))
@@ -171,13 +177,40 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.records", hasSize(1)))
                 .andExpect(jsonPath("$.data.records[0].title", is("CreatorSpace CMS")))
-                .andExpect(jsonPath("$.data.records[0].tags[0].name", is("Vue")))
+                .andExpect(jsonPath("$.data.records[0].tags[0].name", is("唯一展厅标签")))
                 .andExpect(jsonPath("$.data.records[0].techStack[0]", is("Vue 3")));
 
         mockMvc.perform(get("/api/projects/slug/{slug}", "creatorspace-cms"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.title", is("CreatorSpace CMS")))
                 .andExpect(jsonPath("$.data.contentMarkdown", is("项目说明")));
+
+        mockMvc.perform(get("/api/search")
+                        .param("keyword", "unique-gallery-tag"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.records[0].type", is("PROJECT")))
+                .andExpect(jsonPath("$.data.records[0].title", is("CreatorSpace CMS")));
+    }
+
+    // 验证后台创建作品时拒绝不安全外链。
+    @Test
+    void adminProjectApiRejectsUnsafeExternalUrls() throws Exception {
+        String token = loginAsAdmin();
+
+        mockMvc.perform(post("/api/admin/projects")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "title", "不安全外链作品",
+                                "slug", "unsafe-link-project",
+                                "description", "应拒绝 javascript scheme",
+                                "projectType", "WEB_APP",
+                                "techStack", new String[]{"Vue 3"},
+                                "githubUrl", "javascript:alert(1)"
+                        ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.message", is("GitHub 链接只允许 http 或 https 地址")));
     }
 
     // 验证公开作品详情不会泄露隐藏作品。
