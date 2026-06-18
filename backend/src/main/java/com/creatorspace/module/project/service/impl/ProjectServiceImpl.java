@@ -78,8 +78,7 @@ public class ProjectServiceImpl implements ProjectService {
     // 查询可公开展示的作品列表。
     @Override
     public PageResponse<ProjectVO> listPublic(String keyword, long page, long pageSize) {
-        LambdaQueryWrapper<ProjectEntity> query = new LambdaQueryWrapper<ProjectEntity>()
-                .eq(ProjectEntity::getStatus, ContentConstants.PROJECT_VISIBLE);
+        LambdaQueryWrapper<ProjectEntity> query = publicProjectQuery();
         String normalizedKeyword = keyword == null ? "" : keyword.trim();
         if (!normalizedKeyword.isEmpty()) {
             query.and(wrapper -> wrapper
@@ -96,6 +95,23 @@ public class ProjectServiceImpl implements ProjectService {
                 .map(project -> toVO(project, false))
                 .toList();
         return new PageResponse<>(records, result.getCurrent(), result.getSize(), result.getTotal());
+    }
+
+    // 按 URL 标识读取公开作品详情。
+    @Override
+    public ProjectVO getPublicBySlug(String slug) {
+        ProjectEntity project = projectMapper.selectOne(publicProjectQuery()
+                .eq(ProjectEntity::getSlug, normalizeSlug(slug)));
+        if (project == null) {
+            throw BusinessException.notFound("作品不存在或不可见");
+        }
+        return toVO(project, true);
+    }
+
+    // 构造公开作品基础查询条件，列表和详情共用可见性规则。
+    private LambdaQueryWrapper<ProjectEntity> publicProjectQuery() {
+        return new LambdaQueryWrapper<ProjectEntity>()
+                .eq(ProjectEntity::getStatus, ContentConstants.PROJECT_VISIBLE);
     }
 
     // 确认内容标识未被占用。

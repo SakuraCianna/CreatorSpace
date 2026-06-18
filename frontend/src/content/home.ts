@@ -1,5 +1,16 @@
 
 
+import articleContentIndexCover from '../assets/showcase/article-content-index.svg'
+import articleReadingMapCover from '../assets/showcase/article-reading-map.svg'
+import articleThemeArchiveCover from '../assets/showcase/article-theme-archive.svg'
+import articleVisualLanguageCover from '../assets/showcase/article-visual-language.svg'
+import articleWritingVoiceCover from '../assets/showcase/article-writing-voice.svg'
+import workBlogFrontstagePoster from '../assets/showcase/work-blog-frontstage.svg'
+import workContentDeskPoster from '../assets/showcase/work-content-desk.svg'
+import workContentIndexPoster from '../assets/showcase/work-content-index.svg'
+import workIdeaBoxPoster from '../assets/showcase/work-idea-box.svg'
+import workReadingMotionPoster from '../assets/showcase/work-reading-motion.svg'
+
 export type ArticleKind = 'feature' | 'standard'
 
 export interface FeaturedArticle {
@@ -11,6 +22,7 @@ export interface FeaturedArticle {
   readingMinutes: number
   publishedAt: string
   cover: [string, string]
+  coverImage: string
 }
 
 export interface PortfolioProject {
@@ -22,6 +34,7 @@ export interface PortfolioProject {
   description: string
   stack: string[]
   palette: { from: string; to: string; accent: string }
+  posterImage: string
 }
 
 export type AgentStage = 'route' | 'retrieve' | 'generate'
@@ -83,6 +96,7 @@ export const featuredArticles: FeaturedArticle[] = [
     readingMinutes: 11,
     publishedAt: '2026-06-16',
     cover: ['#1b2b4d', '#0a1326'],
+    coverImage: articleThemeArchiveCover,
   },
   {
     id: 'a-design-language',
@@ -93,6 +107,7 @@ export const featuredArticles: FeaturedArticle[] = [
     readingMinutes: 7,
     publishedAt: '2026-06-12',
     cover: ['#3a1d4d', '#160a26'],
+    coverImage: articleVisualLanguageCover,
   },
   {
     id: 'a-spring-pipeline',
@@ -103,6 +118,7 @@ export const featuredArticles: FeaturedArticle[] = [
     readingMinutes: 9,
     publishedAt: '2026-06-08',
     cover: ['#123a37', '#08201f'],
+    coverImage: articleContentIndexCover,
   },
   {
     id: 'a-voice-notes',
@@ -113,6 +129,7 @@ export const featuredArticles: FeaturedArticle[] = [
     readingMinutes: 6,
     publishedAt: '2026-06-03',
     cover: ['#4d3312', '#261707'],
+    coverImage: articleWritingVoiceCover,
   },
   {
     id: 'a-reading-map',
@@ -123,6 +140,7 @@ export const featuredArticles: FeaturedArticle[] = [
     readingMinutes: 5,
     publishedAt: '2026-06-01',
     cover: ['#2f2a57', '#121028'],
+    coverImage: articleReadingMapCover,
   },
 ]
 
@@ -174,67 +192,69 @@ export const creativeFragments: CreativeFragment[] = [
     kind: 'prompt',
     span: { col: 2, row: 2 },
     label: '摘句',
-    body: '“不要把个人网站做成简历扩展页。它应该像一间房间，能看出主人最近在想什么。”',
-    meta: 'writing · voice sample',
+    body: '“个人博客不是简历扩展页。它应该像一间房间，能看出主人最近在读什么、写什么、反复想什么。”',
+    meta: '写作语气 · 开场样本',
     palette: ['#1d2c52', '#0b1428'],
   },
   {
-    id: 'f-code-shader',
-    kind: 'code',
+    id: 'f-cover-sketch',
+    kind: 'image',
     span: { col: 2, row: 1 },
-    label: 'GLSL',
-    body: 'float n = noise(p * 1.7 + time * 0.2);\ncol = mix(deep, glow, smoothstep(0.2, 0.8, n));',
-    meta: 'hero · energy core',
+    label: '封面草图',
+    body: '深蓝底、手写线、两张半透明纸片。用来表达“主题档案馆”的第一眼气质。',
+    meta: 'cover study · 01',
+    palette: ['#263e70', '#0b1226'],
   },
   {
     id: 'f-note-archive',
     kind: 'note',
     span: { col: 1, row: 1 },
-    label: 'Note',
+    label: '手记',
     body: '博客不是时间线，是一个可以回来的主题空间。',
-    meta: 'first principle',
+    meta: '站点原则',
   },
   {
-    id: 'f-image-gradient',
-    kind: 'image',
+    id: 'f-reading-map',
+    kind: 'note',
     span: { col: 1, row: 2 },
-    label: 'Study',
-    body: '夜空蓝 → 深空黑的双色渐变研究，用作文章封面的底色。',
-    meta: 'palette · 02',
+    label: '阅读路径',
+    body: '先读“主题档案馆”，再读“视觉语言”，最后走到“阅读地图”。三篇文章应该能互相引路。',
+    meta: 'reader journey',
     palette: ['#3a1d4d', '#0a0f1f'],
   },
   {
     id: 'f-link-awwwards',
     kind: 'link',
     span: { col: 1, row: 1 },
-    label: 'Reference',
-    body: 'awwwards.com — editorial motion 收藏夹',
-    meta: 'inspiration',
+    label: '收藏',
+    body: '长文章页面的滚动节奏收藏夹：标题先出现，卡片再像展品一样慢慢展开。',
+    meta: 'editorial motion',
   },
   {
-    id: 'f-prompt-readme',
+    id: 'f-title-seed',
     kind: 'prompt',
     span: { col: 1, row: 1 },
     label: '选题',
-    body: '“写一篇关于注册页为什么不该放解释性文案的短文。”',
-    meta: 'article seed',
+    body: '“为什么个人博客应该先有气质，再有功能列表？”',
+    meta: 'article seed · title',
   },
   {
-    id: 'f-note-motion',
+    id: 'f-note-tone',
     kind: 'note',
     span: { col: 2, row: 1 },
-    label: 'Rule',
-    body: '一种核心动效只出现一次。粒子、横向滚动、clip-path、字符扰动——各归其位。',
-    meta: 'motion budget',
+    label: '语气规则',
+    body: '少解释功能，多写感受；少讲系统，多讲读者怎样进入、停留、再回来。',
+    meta: 'copy rule',
     palette: ['#123a37', '#07201e'],
   },
   {
-    id: 'f-code-route',
-    kind: 'code',
+    id: 'f-cover-palette',
+    kind: 'image',
     span: { col: 1, row: 1 },
-    label: 'TS',
-    body: 'meta: { layout: "immersive" }',
-    meta: 'router',
+    label: '色票',
+    body: '夜蓝、纸白、青绿和一点点暖橙；不把整站做成单一蓝紫色。',
+    meta: 'palette · blog mood',
+    palette: ['#2c4a7a', '#18111c'],
   },
 ]
 
@@ -248,6 +268,7 @@ export const portfolioProjects: PortfolioProject[] = [
     description: '把文章、作品和灵感用同一套视觉语言展示出来，本站首页就是第一版样张。',
     stack: ['Vue 3', 'Spring Boot', 'PostgreSQL'],
     palette: { from: '#1f3b6e', to: '#0a1226', accent: '#6ea8ff' },
+    posterImage: workBlogFrontstagePoster,
   },
   {
     id: 'p-content-index',
@@ -258,6 +279,7 @@ export const portfolioProjects: PortfolioProject[] = [
     description: '让分类、标签、封面和摘要一起工作，帮助读者从一个主题找到下一篇文章。',
     stack: ['Java', 'Category', 'Tag'],
     palette: { from: '#3c1f63', to: '#120825', accent: '#b18cff' },
+    posterImage: workContentIndexPoster,
   },
   {
     id: 'p-motion-kit',
@@ -268,6 +290,7 @@ export const portfolioProjects: PortfolioProject[] = [
     description: '用滚动、显隐和横向画廊给长页面分段，让读者知道自己正逛到哪里。',
     stack: ['GSAP', 'Three.js', 'Lenis'],
     palette: { from: '#0f4a44', to: '#08201d', accent: '#54e6c8' },
+    posterImage: workReadingMotionPoster,
   },
   {
     id: 'p-studio-cms',
@@ -278,6 +301,7 @@ export const portfolioProjects: PortfolioProject[] = [
     description: '面向单一创作者的整理台：草稿、公开、私密、分类和标签先保持稳定。',
     stack: ['TypeScript', 'Pinia', 'REST'],
     palette: { from: '#5c2f12', to: '#241206', accent: '#ff9d5c' },
+    posterImage: workContentDeskPoster,
   },
   {
     id: 'p-topic-box',
@@ -288,6 +312,7 @@ export const portfolioProjects: PortfolioProject[] = [
     description: '把还没成文的标题、摘句、链接和参考图先收起来，留给之后的文章继续发芽。',
     stack: ['Notes', 'Links', 'Images'],
     palette: { from: '#5a1d3a', to: '#220b16', accent: '#ff7eb0' },
+    posterImage: workIdeaBoxPoster,
   },
 ]
 

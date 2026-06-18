@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1120" role="img" aria-label="主题博客前台作品海报">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#315f9e"/><stop offset=".55" stop-color="#10213f"/><stop offset="1" stop-color="#050913"/></linearGradient></defs>
+  <rect width="900" height="1120" fill="url(#bg)"/>
+  <circle cx="678" cy="198" r="178" fill="#72b7ff" opacity=".18"/>
+  <g transform="translate(94 154)">
+    <rect width="706" height="506" rx="44" fill="#ffffff" opacity=".08" stroke="#dbe9ff" stroke-opacity=".16"/>
+    <rect x="64" y="72" width="216" height="38" rx="19" fill="#8db9ff" opacity=".66"/>
+    <path d="M64 164h500M64 228h420M64 292h540" stroke="#fff" stroke-opacity=".22" stroke-width="20" stroke-linecap="round"/>
+    <rect x="64" y="382" width="188" height="74" rx="18" fill="#091326" opacity=".54"/>
+  </g>
+  <g transform="translate(122 724)" opacity=".7">
+    <rect width="170" height="170" rx="28" fill="#fff" opacity=".11"/>
+    <rect x="208" y="0" width="170" height="170" rx="28" fill="#fff" opacity=".08"/>
+    <rect x="416" y="0" width="170" height="170" rx="28" fill="#fff" opacity=".1"/>
+  </g>
+</svg>

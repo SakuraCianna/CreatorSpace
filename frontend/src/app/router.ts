@@ -16,9 +16,21 @@ const router = createRouter({
       meta: { layout: 'public' },
     },
     {
+      path: '/articles/:slug',
+      name: 'article-detail',
+      component: () => import('@/pages/ArticleDetailPage.vue'),
+      meta: { layout: 'public' },
+    },
+    {
       path: '/projects',
       name: 'projects',
       component: () => import('@/pages/ProjectsPage.vue'),
+      meta: { layout: 'public' },
+    },
+    {
+      path: '/projects/:slug',
+      name: 'project-detail',
+      component: () => import('@/pages/ProjectDetailPage.vue'),
       meta: { layout: 'public' },
     },
     {

@@ -32,6 +32,14 @@ export async function fetchArticles(keyword = ''): Promise<PageResponse<ArticleS
   return response.data
 }
 
+// 按 URL 标识读取公开文章详情。
+export async function fetchArticleBySlug(slug: string): Promise<ArticleSummary> {
+  const response = await requestJson<ApiEnvelope<ArticleSummary>>(
+    `/api/articles/slug/${encodeURIComponent(slug)}`,
+  )
+  return response.data
+}
+
 // 调用公开作品列表接口。
 export async function fetchProjects(keyword = ''): Promise<PageResponse<ProjectSummary>> {
   const params = new URLSearchParams()
@@ -40,5 +48,13 @@ export async function fetchProjects(keyword = ''): Promise<PageResponse<ProjectS
   }
   const path = params.toString() ? `/api/projects?${params.toString()}` : '/api/projects'
   const response = await requestJson<ApiEnvelope<PageResponse<ProjectSummary>>>(path)
+  return response.data
+}
+
+// 按 URL 标识读取公开作品详情。
+export async function fetchProjectBySlug(slug: string): Promise<ProjectSummary> {
+  const response = await requestJson<ApiEnvelope<ProjectSummary>>(
+    `/api/projects/slug/${encodeURIComponent(slug)}`,
+  )
   return response.data
 }

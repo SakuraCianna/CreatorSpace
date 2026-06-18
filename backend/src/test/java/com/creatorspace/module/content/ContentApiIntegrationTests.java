@@ -173,6 +173,39 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                 .andExpect(jsonPath("$.data.records[0].title", is("CreatorSpace CMS")))
                 .andExpect(jsonPath("$.data.records[0].tags[0].name", is("Vue")))
                 .andExpect(jsonPath("$.data.records[0].techStack[0]", is("Vue 3")));
+
+        mockMvc.perform(get("/api/projects/slug/{slug}", "creatorspace-cms"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.title", is("CreatorSpace CMS")))
+                .andExpect(jsonPath("$.data.contentMarkdown", is("项目说明")));
+    }
+
+    // 验证公开作品详情不会泄露隐藏作品。
+    @Test
+    void publicProjectDetailDoesNotExposeHiddenProject() throws Exception {
+        jdbcTemplate.update("""
+                insert into portfolio_projects (
+                    title,
+                    slug,
+                    description,
+                    project_type,
+                    tech_stack,
+                    content_markdown,
+                    status
+                )
+                values (?, ?, ?, ?, cast(? as jsonb), ?, ?)
+                """,
+                "隐藏作品",
+                "hidden-project",
+                "不应公开",
+                "WEB_APP",
+                "[]",
+                "隐藏内容",
+                "HIDDEN");
+
+        mockMvc.perform(get("/api/projects/slug/{slug}", "hidden-project"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success", is(false)));
     }
 
     // 验证匿名用户不能访问后台内容接口。

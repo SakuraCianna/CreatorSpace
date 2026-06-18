@@ -397,7 +397,11 @@ const FeaturedArticles = defineComponent({
         [
           h('span', {
             class: 'cs-article__wash',
-            style: { '--cs-from': article.cover[0], '--cs-to': article.cover[1] },
+            style: {
+              '--cs-from': article.cover[0],
+              '--cs-to': article.cover[1],
+              '--cs-cover': `url(${article.coverImage})`,
+            },
           }),
           h('div', { class: 'cs-article__body' }, [
             h(
@@ -528,6 +532,7 @@ const PortfolioGallery = defineComponent({
             '--cs-from': project.palette.from,
             '--cs-to': project.palette.to,
             '--cs-accent': project.palette.accent,
+            '--cs-poster': `url(${project.posterImage})`,
           },
         },
         [
@@ -955,13 +960,13 @@ const CreativeWall = defineComponent({
       h('section', { ref: root, class: 'cs-wall cs-section', id: 'wall' }, [
         h('div', { class: 'cs-head' }, [
           h('div', [
-            h('p', { class: 'cs-eyebrow' }, 'Creative Wall'),
-            h('h2', { class: 'cs-head__title' }, '灵感碎片，尚未成文的思考'),
+            h('p', { class: 'cs-eyebrow' }, 'Writing Desk'),
+            h('h2', { class: 'cs-head__title' }, '灵感碎片，先放在写作桌上'),
           ]),
           h(
             'p',
             { class: 'cs-head__note' },
-            'Prompts、片段、笔记与参考——创作开始之前的原材料。',
+            '摘句、封面草图、阅读路径和语气规则，都是文章长出来之前的原材料。',
           ),
         ]),
         h('div', { class: 'cs-wall__grid' }, creativeFragments.map(renderFragment)),

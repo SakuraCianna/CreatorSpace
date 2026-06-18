@@ -65,6 +65,8 @@ class FlywayMigrationTests extends PostgresIntegrationTestSupport {
             assertThat(columnNames(connection, "like_records")).doesNotContain("guest_key");
             assertThat(primaryKeyColumns(connection, "article_visibility_users"))
                     .containsExactlyInAnyOrder("article_id", "user_id");
+            assertThat(tableNamesWithoutComments(connection)).isEmpty();
+            assertThat(columnNamesWithoutComments(connection)).isEmpty();
             assertThat(singleLong(connection, "select count(*) from roles where code in ('ADMIN', 'USER')")).isEqualTo(2L);
             assertThat(singleLong(connection, "select count(*) from users where username = 'admin'")).isEqualTo(1L);
             assertShowcaseDataSeeded(connection);
@@ -203,6 +205,51 @@ class FlywayMigrationTests extends PostgresIntegrationTestSupport {
             Set<String> names = new HashSet<>();
             while (rs.next()) {
                 names.add(rs.getString("extname"));
+            }
+            return names;
+        }
+    }
+
+    // 读取缺少表注释的业务表集合。
+    private Set<String> tableNamesWithoutComments(Connection connection) throws Exception {
+        try (var statement = connection.createStatement();
+             var rs = statement.executeQuery("""
+                     select c.relname
+                     from pg_class c
+                     join pg_namespace n on n.oid = c.relnamespace
+                     left join pg_description d on d.objoid = c.oid and d.objsubid = 0
+                     where n.nspname = 'public'
+                       and c.relkind = 'r'
+                       and c.relname <> 'flyway_schema_history'
+                       and d.description is null
+                     """)) {
+            Set<String> names = new HashSet<>();
+            while (rs.next()) {
+                names.add(rs.getString("relname"));
+            }
+            return names;
+        }
+    }
+
+    // 读取缺少字段注释的业务字段集合。
+    private Set<String> columnNamesWithoutComments(Connection connection) throws Exception {
+        try (var statement = connection.createStatement();
+             var rs = statement.executeQuery("""
+                     select c.relname || '.' || a.attname as column_name
+                     from pg_class c
+                     join pg_namespace n on n.oid = c.relnamespace
+                     join pg_attribute a on a.attrelid = c.oid
+                     left join pg_description d on d.objoid = c.oid and d.objsubid = a.attnum
+                     where n.nspname = 'public'
+                       and c.relkind = 'r'
+                       and c.relname <> 'flyway_schema_history'
+                       and a.attnum > 0
+                       and not a.attisdropped
+                       and d.description is null
+                     """)) {
+            Set<String> names = new HashSet<>();
+            while (rs.next()) {
+                names.add(rs.getString("column_name"));
             }
             return names;
         }
