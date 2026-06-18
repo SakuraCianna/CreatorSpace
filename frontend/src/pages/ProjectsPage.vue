@@ -17,12 +17,13 @@
       <h2>暂无公开作品</h2>
     </div>
     <div v-else class="showcase-grid">
-      <article
+      <RouterLink
         v-for="(project, index) in projects"
         :key="project.id"
         class="showcase-card"
         :class="{ 'showcase-card--feature': index === 0 }"
         :style="projectCoverStyle(project, index)"
+        :to="{ name: 'project-detail', params: { slug: project.slug } }"
       >
         <div class="showcase-card__visual">
           <span>{{ String(index + 1).padStart(2, '0') }}</span>
@@ -38,7 +39,7 @@
             <span v-for="tech in project.techStack.slice(0, 4)" :key="tech">{{ tech }}</span>
           </div>
         </div>
-      </article>
+      </RouterLink>
     </div>
   </section>
 </template>
@@ -48,6 +49,7 @@
  * 公开作品页用作品集橱窗结构展示内容，强调个性主题和视觉识别。
  */
 import { onMounted, ref } from 'vue'
+import { RouterLink } from 'vue-router'
 
 import { fetchProjects } from '@/services/content'
 import type { ProjectSummary } from '@/shared/domain'

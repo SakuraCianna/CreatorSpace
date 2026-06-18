@@ -3,6 +3,7 @@
 import articleContentIndexCover from '../assets/showcase/article-content-index.svg'
 import articleReadingMapCover from '../assets/showcase/article-reading-map.svg'
 import articleThemeArchiveCover from '../assets/showcase/article-theme-archive.svg'
+import articleVisitEntryCover from '../assets/showcase/article-visit-entry.svg'
 import articleVisualLanguageCover from '../assets/showcase/article-visual-language.svg'
 import articleWritingVoiceCover from '../assets/showcase/article-writing-voice.svg'
 import workBlogFrontstagePoster from '../assets/showcase/work-blog-frontstage.svg'
@@ -141,6 +142,17 @@ export const featuredArticles: FeaturedArticle[] = [
     publishedAt: '2026-06-01',
     cover: ['#2f2a57', '#121028'],
     coverImage: articleReadingMapCover,
+  },
+  {
+    id: 'a-visit-entry',
+    kind: 'standard',
+    title: '从入口开始设计一次访问',
+    excerpt: '游客先看到什么、点击哪里、在哪里停留，决定了这个个人站点是被匆匆扫过，还是被认真读完。',
+    tags: ['入口动线', '访客视角'],
+    readingMinutes: 4,
+    publishedAt: '2026-05-28',
+    cover: ['#24334b', '#07111f'],
+    coverImage: articleVisitEntryCover,
   },
 ]
 

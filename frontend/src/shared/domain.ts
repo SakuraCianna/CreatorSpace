@@ -38,6 +38,7 @@ export interface ArticleSummary {
   slug: string
   summary?: string | null
   coverUrl?: string | null
+  contentMarkdown?: string | null
   privacyType: ArticlePrivacy
   status: ContentStatus
   category?: CategorySummary | null

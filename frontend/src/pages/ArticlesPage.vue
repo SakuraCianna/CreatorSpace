@@ -28,7 +28,12 @@
         <h2>暂无公开文章</h2>
       </div>
       <template v-else>
-        <article v-if="featuredArticle" class="journal-featured" :style="articleCoverStyle(featuredArticle, 0)">
+        <RouterLink
+          v-if="featuredArticle"
+          class="journal-featured"
+          :style="articleCoverStyle(featuredArticle, 0)"
+          :to="{ name: 'article-detail', params: { slug: featuredArticle.slug } }"
+        >
           <span class="article-label">精选笔记</span>
           <h2>{{ featuredArticle.title }}</h2>
           <p>{{ featuredArticle.summary }}</p>
@@ -36,14 +41,15 @@
             <span>{{ formatDate(featuredArticle.publishTime) }}</span>
             <span>{{ featuredArticle.category?.name ?? '未分类' }}</span>
           </footer>
-        </article>
+        </RouterLink>
 
         <div class="journal-grid">
-          <article
+          <RouterLink
             v-for="(article, index) in regularArticles"
             :key="article.id"
             class="journal-card"
             :style="articleCoverStyle(article, index + 1)"
+            :to="{ name: 'article-detail', params: { slug: article.slug } }"
           >
             <span class="article-date">{{ formatDate(article.publishTime) }}</span>
             <h2>{{ article.title }}</h2>
@@ -51,7 +57,7 @@
             <div class="tag-row">
               <span v-for="tag in article.tags.slice(0, 3)" :key="tag.id">#{{ tag.name }}</span>
             </div>
-          </article>
+          </RouterLink>
         </div>
       </template>
     </div>
@@ -63,6 +69,7 @@
  * 公开文章页以个人主题博客的方式展示内容，避免后台列表感。
  */
 import { computed, onMounted, ref } from 'vue'
+import { RouterLink } from 'vue-router'
 
 import { fetchArticles } from '@/services/content'
 import type { ArticleSummary } from '@/shared/domain'
