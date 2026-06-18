@@ -2,7 +2,6 @@
   <section class="auth-page">
     <form class="auth-card" @submit.prevent="submitRegister">
       <h1>注册 CreatorSpace</h1>
-      <p>注册默认开放，只需要用户名和密码。邮箱字段不会进入第一阶段。</p>
       <label>
         用户名
         <input v-model="form.username" autocomplete="username" name="username" />
@@ -14,6 +13,7 @@
       <button class="button button-filled" :disabled="isSubmitting" type="submit">
         {{ isSubmitting ? '创建中...' : '创建账号' }}
       </button>
+      <RouterLink class="auth-switch" to="/login">已有账号，去登录</RouterLink>
       <p v-if="message" class="form-message">{{ message }}</p>
     </form>
   </section>
@@ -21,6 +21,7 @@
 
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
+import { RouterLink } from 'vue-router'
 
 import { registerUser } from '@/services/content'
 

@@ -1,4 +1,4 @@
-/* CreatorSpace AI 沉浸式主页设计系统。 */
+/* CreatorSpace 沉浸式主页设计系统。 */
 
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Sora:wght@300;400;600;700&family=Newsreader:ital,opsz,wght@0,16..72,400;0,16..72,600;1,16..72,400&family=Space+Mono:wght@400;700&display=swap');
 
@@ -171,10 +171,33 @@ body.cs-dark-body {
   position: relative;
   display: flex;
   align-items: center;
+  width: 100%;
+  max-width: none;
   min-height: 100vh;
+  margin: 0;
+  padding-left: max(var(--cs-edge), calc((100vw - var(--cs-maxw)) / 2 + var(--cs-edge)));
+  padding-right: max(var(--cs-edge), calc((100vw - var(--cs-maxw)) / 2 + var(--cs-edge)));
   padding-top: 120px;
   padding-bottom: 96px;
   overflow: hidden;
+}
+
+/* 全屏星点不再依赖右侧 WebGL 画布，避免边缘像被黑幕截断。 */
+.cs-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 9% 18%, rgba(166, 196, 255, 0.75) 0 1px, transparent 1.7px),
+    radial-gradient(circle at 16% 66%, rgba(166, 196, 255, 0.38) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 28% 34%, rgba(166, 196, 255, 0.48) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 43% 76%, rgba(166, 196, 255, 0.34) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 64% 22%, rgba(166, 196, 255, 0.52) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 82% 58%, rgba(166, 196, 255, 0.42) 0 1px, transparent 1.8px);
+  background-size: 360px 260px, 420px 330px, 520px 370px, 460px 300px, 560px 420px, 380px 290px;
+  opacity: 0.54;
 }
 
 /* 桌面端把 WebGL 放在右侧，避免压住主文案。 */
@@ -201,14 +224,15 @@ body.cs-dark-body {
   filter: blur(8px);
 }
 
-/* 左右渐隐遮罩保证标题可读，并衔接下一段。 */
+/* 只在文字后方柔和压暗，避免左右边缘出现硬遮罩。 */
 .cs-hero__grain {
   position: absolute;
   inset: 0;
   z-index: 1;
   pointer-events: none;
   background:
-    linear-gradient(90deg, var(--cs-bg) 8%, rgba(6, 7, 13, 0.55) 38%, transparent 62%),
+    radial-gradient(52% 72% at 20% 48%, rgba(6, 7, 13, 0.76), rgba(6, 7, 13, 0.18) 58%, transparent 76%),
+    linear-gradient(90deg, rgba(6, 7, 13, 0.24), transparent 38%, rgba(6, 7, 13, 0.08) 100%),
     linear-gradient(180deg, transparent 60%, var(--cs-bg) 100%);
 }
 
@@ -297,7 +321,7 @@ body.cs-dark-body {
 .cs-hero__scroll {
   position: absolute;
   bottom: 28px;
-  left: var(--cs-edge);
+  left: max(var(--cs-edge), calc((100vw - var(--cs-maxw)) / 2 + var(--cs-edge)));
   z-index: 2;
   display: inline-flex;
   align-items: center;
@@ -695,6 +719,8 @@ body.cs-dark-body {
 
 .cs-poster__cat {
   align-self: flex-start;
+  display: inline-flex;
+  margin-bottom: 18px;
   padding: 6px 13px;
   border: 1px solid rgba(255, 255, 255, 0.24);
   border-radius: 999px;
@@ -768,7 +794,7 @@ body.cs-dark-body {
   display: none;
 }
 
-/* AI 能力展示区。 */
+/* 站点能力展示区。 */
 .cs-agents {
   position: relative;
   padding-bottom: clamp(70px, 11vh, 150px);
@@ -1128,13 +1154,15 @@ body.cs-dark-body {
 }
 
 .cs-theme-btn__name {
+  display: block;
   font-family: var(--cs-font-display);
   font-weight: 600;
   font-size: 16px;
 }
 
 .cs-theme-btn__tag {
-  margin-top: 3px;
+  display: block;
+  margin-top: 6px;
   font-size: 12px;
   color: var(--cs-ink-faint);
 }
@@ -1229,8 +1257,8 @@ body.cs-dark-body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 26px;
-  min-height: 88vh;
+  gap: 22px;
+  min-height: 82vh;
   padding: 130px var(--cs-edge) 90px;
   text-align: center;
 }
@@ -1257,13 +1285,13 @@ body.cs-dark-body {
 .cs-cta__line {
   position: relative;
   z-index: 1;
-  max-width: 16ch;
+  max-width: 12ch;
   margin: 0;
   font-family: var(--cs-font-display);
   font-weight: 600;
-  font-size: clamp(40px, 8vw, 116px);
-  line-height: 1.02;
-  letter-spacing: -0.035em;
+  font-size: clamp(36px, 6vw, 86px);
+  line-height: 1.12;
+  letter-spacing: 0;
 }
 
 /* 每个字符独立渲染，用于悬停微交互。 */
@@ -1291,7 +1319,7 @@ body.cs-dark-body {
 .cs-cta__action {
   position: relative;
   z-index: 1;
-  margin-top: 12px;
+  margin-top: 4px;
 }
 
 .cs-footer {
@@ -1383,13 +1411,17 @@ body.cs-dark-body {
 
 .cs-mani {
   margin-top: clamp(56px, 9vh, 120px);
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.8fr);
+  gap: clamp(28px, 6vw, 96px);
+  align-items: start;
 }
 
 .cs-mani__text {
-  max-width: 22ch;
+  max-width: 18ch;
   margin: 22px 0 0;
   font-family: var(--cs-font-serif);
-  font-size: clamp(26px, 3.6vw, 52px);
+  font-size: clamp(28px, 4vw, 58px);
   line-height: 1.28;
   letter-spacing: -0.01em;
   color: var(--cs-ink-faint);
@@ -1402,6 +1434,60 @@ body.cs-dark-body {
 
 .cs-mani__word.is-accent {
   color: var(--cs-ink);
+}
+
+.cs-mani__cards {
+  display: grid;
+  gap: 14px;
+  padding-top: clamp(18px, 5vh, 72px);
+}
+
+.cs-mani-card {
+  padding: 20px;
+  border: 1px solid var(--cs-line);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(150, 165, 220, 0.08), rgba(150, 165, 220, 0.03)),
+    rgba(11, 13, 24, 0.62);
+}
+
+.cs-mani-card span {
+  display: block;
+  font-family: var(--cs-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--cs-accent);
+}
+
+.cs-mani-card strong {
+  display: block;
+  margin-top: 10px;
+  font-family: var(--cs-font-display);
+  font-size: clamp(20px, 2vw, 28px);
+  line-height: 1.16;
+  color: var(--cs-ink);
+}
+
+.cs-mani-card p {
+  margin: 10px 0 0;
+  color: var(--cs-ink-dim);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+@media (max-width: 900px) {
+  .cs-mani {
+    grid-template-columns: 1fr;
+  }
+
+  .cs-mani__text {
+    max-width: 100%;
+  }
+
+  .cs-mani__cards {
+    padding-top: 0;
+  }
 }
 
 /* 方法论滚动步骤区。 */

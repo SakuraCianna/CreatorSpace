@@ -37,6 +37,7 @@ export interface ArticleSummary {
   title: string
   slug: string
   summary?: string | null
+  coverUrl?: string | null
   privacyType: ArticlePrivacy
   status: ContentStatus
   category?: CategorySummary | null
@@ -49,8 +50,13 @@ export interface ProjectSummary {
   title: string
   slug: string
   description?: string | null
+  coverUrl?: string | null
   projectType: string
   techStack: string[]
+  githubUrl?: string | null
+  demoUrl?: string | null
+  videoUrl?: string | null
+  contentMarkdown?: string | null
   status: string
   recommended: boolean
   tags: TagSummary[]

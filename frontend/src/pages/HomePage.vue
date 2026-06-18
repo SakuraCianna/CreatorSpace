@@ -4,7 +4,7 @@
     <MarqueeManifesto />
     <FeaturedArticles />
     <PortfolioGallery />
-    <AIAgentShowcase />
+    <SiteStructureShowcase />
     <ApproachProcess />
     <CreativeWall />
     <ThemeUniverse />
@@ -28,6 +28,7 @@ import {
   agentCapabilities,
   approachSteps,
   counters,
+  closing,
   creativeFragments,
   featuredArticles,
   fieldNotes,
@@ -172,7 +173,7 @@ const HeroUniverse = defineComponent({
         h('div', { class: 'cs-hero__grain' }),
         h('div', { class: 'cs-hero__inner' }, [
           h('p', { class: 'cs-eyebrow cs-hero__kicker' }, heroContent.kicker),
-          h('h1', { class: 'cs-hero__title' }, [titleLine('CreatorSpace'), titleLine('AI')]),
+          h('h1', { class: 'cs-hero__title' }, heroContent.titleLines.map(titleLine)),
           h('p', { class: 'cs-hero__sub' }, [
             heroContent.subtitle,
             h('span', { class: 'cs-zh' }, heroContent.description),
@@ -273,24 +274,37 @@ const MarqueeManifesto = defineComponent({
     }
 
     return () =>
-      h('section', { ref: root, class: 'cs-marquee-sec' }, [
+      h('section', { ref: root, id: 'manifesto', class: 'cs-marquee-sec' }, [
         h('div', { class: 'cs-marquee' }, [marqueeRow(false), marqueeRow(true)]),
         h('div', { class: 'cs-mani cs-section' }, [
-          h('p', { class: 'cs-eyebrow' }, manifesto.lead),
-          h(
-            'p',
-            { class: 'cs-mani__text' },
-            manifesto.segments.flatMap((segment) =>
-              segment.text.split(' ').filter(Boolean).map((word, wordIndex) =>
-                h(
-                  'span',
-                  {
-                    key: `${word}-${wordIndex}-${segment.accent}`,
-                    class: ['cs-mani__word', { 'is-accent': segment.accent }],
-                  },
-                  `${word} `,
+          h('div', { class: 'cs-mani__copy' }, [
+            h('p', { class: 'cs-eyebrow' }, manifesto.lead),
+            h(
+              'p',
+              { class: 'cs-mani__text' },
+              manifesto.segments.flatMap((segment) =>
+                segment.text.split(' ').filter(Boolean).map((word, wordIndex) =>
+                  h(
+                    'span',
+                    {
+                      key: `${word}-${wordIndex}-${segment.accent}`,
+                      class: ['cs-mani__word', { 'is-accent': segment.accent }],
+                    },
+                    `${word} `,
+                  ),
                 ),
               ),
+            ),
+          ]),
+          h(
+            'div',
+            { class: 'cs-mani__cards' },
+            manifesto.cards.map((card) =>
+              h('article', { key: card.label, class: 'cs-mani-card' }, [
+                h('span', card.label),
+                h('strong', card.value),
+                h('p', card.detail),
+              ]),
             ),
           ),
         ]),
@@ -394,7 +408,7 @@ const FeaturedArticles = defineComponent({
             h('h3', { class: 'cs-article__title' }, article.title),
             h('p', { class: 'cs-article__excerpt' }, article.excerpt),
             h('div', { class: 'cs-article__meta' }, [
-              h('span', `${article.readingMinutes} min read`),
+              h('span', `${article.readingMinutes} 分钟阅读`),
               h('span', article.publishedAt),
             ]),
           ]),
@@ -406,12 +420,12 @@ const FeaturedArticles = defineComponent({
         h('div', { class: 'cs-head' }, [
           h('div', [
             h('p', { class: 'cs-eyebrow' }, 'Featured Writing'),
-            h('h2', { class: 'cs-head__title' }, '博客不是时间线，是一个思想的宇宙'),
+            h('h2', { class: 'cs-head__title' }, '让文章像主题房间，而不是普通列表'),
           ]),
           h(
             'p',
             { class: 'cs-head__note' },
-            'Selected articles — 每一篇都被切片、连接，并可被站内智能体追问。',
+            '精选文章会带着封面、标签和摘要出现，读者能先感受到这篇内容的气质。',
           ),
         ]),
         h(
@@ -549,13 +563,13 @@ const PortfolioGallery = defineComponent({
           h('div', { class: 'cs-gallery__pin' }, [
             h('div', { class: 'cs-gallery__track' }, [
               h('div', { class: 'cs-gallery__intro' }, [
-                h('p', { class: 'cs-eyebrow' }, 'Selected Works'),
-                h('h2', '每个项目，都是一次学习与表达的轨迹'),
+                h('p', { class: 'cs-eyebrow' }, '作品橱窗'),
+                h('h2', '作品是博客之外的另一种表达'),
                 h(
                   'p',
-                  'A digital exhibition of full-stack platforms, AI tooling and creative front-end experiments.',
+                  '这里展示能看见形状的创作：页面、工具、视觉实验和长期打磨过的小作品。',
                 ),
-                h('span', { class: 'cs-gallery__hint' }, stacked.value ? 'Scroll ↓' : 'Scroll to walk the gallery →'),
+                h('span', { class: 'cs-gallery__hint' }, stacked.value ? '继续往下' : '横向浏览作品 →'),
               ]),
               ...portfolioProjects.map(renderPoster),
               h('div', { class: 'cs-gallery__outro' }, [
@@ -569,8 +583,8 @@ const PortfolioGallery = defineComponent({
   },
 })
 
-const AIAgentShowcase = defineComponent({
-  name: 'AIAgentShowcase',
+const SiteStructureShowcase = defineComponent({
+  name: 'SiteStructureShowcase',
   setup() {
     const root = ref<HTMLElement | null>(null)
     const stage = ref<HTMLElement | null>(null)
@@ -685,7 +699,7 @@ const AIAgentShowcase = defineComponent({
       resizeObserver = null
     })
 
-    // 渲染 AI 能力卡片。
+    // 渲染站点能力卡片。
     const renderAgent = (agent: AgentCapability) =>
       h(
         'article',
@@ -726,13 +740,13 @@ const AIAgentShowcase = defineComponent({
       h('section', { ref: root, class: 'cs-agents cs-section', id: 'agents' }, [
         h('div', { class: 'cs-head' }, [
           h('div', [
-            h('p', { class: 'cs-eyebrow' }, 'AI Native System'),
-            h('h2', { class: 'cs-head__title' }, '不是聊天机器人，是创作助手控制台'),
+            h('p', { class: 'cs-eyebrow' }, 'Site Structure'),
+            h('h2', { class: 'cs-head__title' }, '一个个人博客，需要自己的整理方式'),
           ]),
           h(
             'p',
             { class: 'cs-head__note' },
-            '三个智能体在站内文章与作品之上协作：路由意图、检索上下文、生成结果。',
+            '主题索引、作品橱窗和灵感卡片一起工作，让内容不只是被发布，而是被安放。',
           ),
         ]),
         h('div', { ref: stage, class: 'cs-agents__stage' }, [
@@ -1057,19 +1071,19 @@ const ThemeUniverse = defineComponent({
             h(
               'p',
               { class: 'cs-theme-preview__text cs-tp-fade' },
-              'The quick brown fox writes a thoughtful post. 文章、作品与灵感，在同一套设计语言下被重新呈现。',
+              '文章、作品与灵感会跟着主题重新着色，读起来像同一个人慢慢整理出的空间。',
             ),
             h('div', { class: 'cs-theme-preview__cards cs-tp-fade' }, [
               h('div', { class: 'cs-theme-preview__card' }, [
                 h('strong', '128'),
-                h('span', 'Articles'),
+                h('span', '文章'),
               ]),
               h('div', { class: 'cs-theme-preview__card' }, [
                 h('strong', '36'),
-                h('span', 'Works'),
+                h('span', '作品'),
               ]),
             ]),
-            h('span', { class: 'cs-theme-preview__chip cs-tp-fade' }, 'Apply this theme'),
+            h('span', { class: 'cs-theme-preview__chip cs-tp-fade' }, '应用主题'),
           ]),
         ]),
       ])
@@ -1125,13 +1139,13 @@ const FieldNotes = defineComponent({
       h('section', { ref: root, class: 'cs-notes cs-section', id: 'notes' }, [
         h('div', { class: 'cs-head' }, [
           h('div', [
-            h('p', { class: 'cs-eyebrow' }, 'Field Notes / Changelog'),
-            h('h2', { class: 'cs-head__title' }, '一个持续生长的空间'),
+            h('p', { class: 'cs-eyebrow' }, 'Development Log'),
+            h('h2', { class: 'cs-head__title' }, '按模块记录开发历程'),
           ]),
           h(
             'p',
             { class: 'cs-head__note' },
-            'Recent moves — 这个创作宇宙在记录它自己的演化。',
+            '这里只记录模块级进展，方便回看这个个人博客与作品平台是怎样一步步搭起来的。',
           ),
         ]),
         h('div', { class: 'cs-notes__list' }, fieldNotes.map(renderNote)),
@@ -1139,7 +1153,7 @@ const FieldNotes = defineComponent({
   },
 })
 
-const CLOSING_LINE = 'Enter the universe.'
+const CLOSING_LINE = '从一篇文章开始'
 
 const FinalCTA = defineComponent({
   name: 'FinalCTA',
@@ -1153,12 +1167,11 @@ const FinalCTA = defineComponent({
       if (reduced) {
         return
       }
-      gsap.from('.cs-cta__line .cs-char', {
-        yPercent: 120,
+      gsap.from('.cs-cta__line', {
+        y: 16,
         opacity: 0,
         duration: 0.8,
         ease: 'expo.out',
-        stagger: 0.02,
         scrollTrigger: { trigger: root.value as Element, start: 'top 75%' },
       })
       if (glow.value) {
@@ -1208,12 +1221,12 @@ const FinalCTA = defineComponent({
       h('section', { ref: root, class: 'cs-cta-wrap', id: 'enter', onPointermove: onMove }, [
         h('div', { class: 'cs-cta' }, [
           h('div', { ref: glow, class: 'cs-cta__glow' }),
-          h('p', { class: 'cs-eyebrow cs-cta__eyebrow' }, 'The Exit / Or The Beginning'),
+          h('p', { class: 'cs-eyebrow cs-cta__eyebrow' }, closing.eyebrow),
           h('h2', { class: 'cs-cta__line', onPointerover: onCharOver }, chars()),
           h(
             'p',
             { class: 'cs-cta__sub' },
-            '用系统记录思考，用作品证明成长。欢迎来到我的个人创作宇宙。',
+            '先随便读一篇，再决定要不要留下来逛作品和灵感卡片。',
           ),
           h('div', { class: 'cs-cta__action' }, [
             h(
@@ -1223,7 +1236,7 @@ const FinalCTA = defineComponent({
                 default: () => [
                   h('span', { class: 'cs-btn__fill' }),
                   h('span', { class: 'cs-btn__dot' }),
-                  h('span', 'Start Exploring'),
+                  h('span', '进入博客'),
                 ],
               },
             ),
@@ -1236,16 +1249,27 @@ const FinalCTA = defineComponent({
 
 // 渲染首页页脚。
 function renderFooter() {
+  const github = siteConfig.social.find((item) => item.label === 'GitHub')
+  const mail = siteConfig.social.find((item) => item.label === 'Mail')
+
   return h('footer', { class: 'cs-footer' }, [
     h('span', `© ${new Date().getFullYear()} ${siteConfig.wordmark}`),
     h(
-      'div',
-      { class: 'cs-footer__social' },
-      siteConfig.social.map((item) =>
-        h('span', { key: item.label }, `${item.label} · ${item.handle}`),
-      ),
+      'a',
+      {
+        href: 'https://github.com/SakuraCianna/CreatorSpace',
+        target: '_blank',
+        rel: 'noreferrer',
+      },
+      `GitHub · ${github?.handle ?? 'github.com/SakuraCianna/CreatorSpace'}`,
     ),
-    h('span', 'Built with Vue · Three.js · GSAP'),
+    h(
+      'a',
+      {
+        href: 'mailto:754515922@qq.com',
+      },
+      `Mail · ${mail?.handle ?? '754515922@qq.com'}`,
+    ),
   ])
 }
 </script>

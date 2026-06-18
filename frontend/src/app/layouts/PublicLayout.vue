@@ -9,7 +9,7 @@
         <RouterLink to="/articles">文章</RouterLink>
         <RouterLink to="/projects">作品</RouterLink>
         <RouterLink to="/register">注册</RouterLink>
-        <RouterLink to="/admin">后台</RouterLink>
+        <RouterLink to="/login">登录</RouterLink>
       </nav>
     </header>
     <main class="public-main">

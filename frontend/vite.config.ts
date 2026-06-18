@@ -33,6 +33,27 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       target: 'es2022',
+      chunkSizeWarningLimit: 520,
+      rolldownOptions: {
+        output: {
+          codeSplitting: {
+            groups: [
+              {
+                name: 'vendor-three',
+                test: /node_modules[\\/]three[\\/]/,
+              },
+              {
+                name: 'vendor-motion',
+                test: /node_modules[\\/](gsap|lenis)[\\/]/,
+              },
+              {
+                name: 'vendor-vue',
+                test: /node_modules[\\/](@vue|vue|vue-router|pinia)[\\/]/,
+              },
+            ],
+          },
+        },
+      },
     },
   }
 })
