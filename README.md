@@ -91,10 +91,23 @@ GET    /api/categories
 POST   /api/admin/tags
 GET    /api/tags
 POST   /api/admin/articles
+GET    /api/admin/articles
+GET    /api/admin/articles/{id}
+PUT    /api/admin/articles/{id}
 PUT    /api/admin/articles/{id}/publish
+PUT    /api/admin/articles/{id}/unpublish
+PUT    /api/admin/articles/{id}/top
+PUT    /api/admin/articles/{id}/recommend
+DELETE /api/admin/articles/{id}
 GET    /api/articles
 GET    /api/articles/slug/{slug}
 POST   /api/admin/projects
+GET    /api/admin/projects
+GET    /api/admin/projects/{id}
+PUT    /api/admin/projects/{id}
+PUT    /api/admin/projects/{id}/status
+PUT    /api/admin/projects/{id}/recommend
+DELETE /api/admin/projects/{id}
 GET    /api/projects
 GET    /api/projects/slug/{slug}
 GET    /api/inspirations
@@ -112,7 +125,7 @@ GET    /api/admin/files
 GET    /api/admin/dashboard/overview
 ```
 
-后台接口需要管理员 JWT。前台注册、访客登录、管理员登录、文章、文章详情、作品、作品详情、公开评论、灵感墙、搜索和关于页已通过统一 `requestJson` 封装接入对应接口，并提供 loading、empty、error 和本地展示数据兜底状态。后台灵感、评论审核和文件资源模块已接入真实接口；其他后台模块仍处于工作台骨架阶段。
+后台接口需要管理员 JWT。前台注册、访客登录、管理员登录、文章、文章详情、作品、作品详情、公开评论、灵感墙、搜索和关于页已通过统一 `requestJson` 封装接入对应接口，并提供 loading、empty、error 和本地展示数据兜底状态。后台文章、作品、灵感、评论审核和文件资源模块已接入真实接口；主题与站点设置仍处于工作台骨架阶段。
 
 ## 当前前端页面
 

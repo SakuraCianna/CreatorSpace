@@ -52,28 +52,99 @@ public class ProjectServiceImpl implements ProjectService {
     @Transactional(rollbackFor = Exception.class)
     public ProjectVO create(ProjectCreateRequest request, Long operatorId) {
         String slug = normalizeSlug(request.slug());
-        ensureSlugAvailable(slug);
+        ensureSlugAvailable(slug, null);
         validateTagIds(request.tagIds());
 
         ProjectEntity project = new ProjectEntity();
-        project.setTitle(request.title().trim());
-        project.setSlug(slug);
-        project.setDescription(request.description());
-        project.setCoverUrl(normalizeOptionalUrl(request.coverUrl(), "作品封面", true));
-        project.setProjectType(request.projectType().trim());
-        project.setTechStackJson(toJson(request.techStack()));
-        project.setGithubUrl(normalizeOptionalUrl(request.githubUrl(), "GitHub 链接", false));
-        project.setDemoUrl(normalizeOptionalUrl(request.demoUrl(), "演示链接", false));
-        project.setVideoUrl(normalizeOptionalUrl(request.videoUrl(), "视频链接", true));
-        project.setContentMarkdown(request.contentMarkdown() == null ? "" : request.contentMarkdown());
+        applyEditableFields(project, request, slug);
         project.setStatus(ContentConstants.PROJECT_VISIBLE);
-        project.setRecommend(Boolean.TRUE.equals(request.recommended()));
         project.setSortOrder(0);
         project.setCreatedBy(operatorId);
         project.setUpdatedBy(operatorId);
         projectMapper.insertProject(project);
         replaceTags(project.getId(), request.tagIds());
         return toVO(project, true);
+    }
+
+    // 更新作品主体信息和标签绑定。
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ProjectVO update(Long id, ProjectCreateRequest request, Long operatorId) {
+        ProjectEntity project = requiredProject(id);
+        String slug = normalizeSlug(request.slug());
+        ensureSlugAvailable(slug, id);
+        validateTagIds(request.tagIds());
+
+        applyEditableFields(project, request, slug);
+        project.setUpdatedBy(operatorId);
+        projectMapper.updateProject(project);
+        replaceTags(project.getId(), request.tagIds());
+        return toVO(project, true);
+    }
+
+    // 删除作品及标签绑定。
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void delete(Long id) {
+        ProjectEntity project = requiredProject(id);
+        projectTagMapper.deleteByProjectId(project.getId());
+        projectMapper.deleteById(project.getId());
+    }
+
+    // 设置作品展示状态。
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ProjectVO setStatus(Long id, String status, Long operatorId) {
+        ProjectEntity project = requiredProject(id);
+        project.setStatus(normalizeProjectStatus(status));
+        project.setUpdatedBy(operatorId);
+        projectMapper.updateProject(project);
+        return toVO(project, true);
+    }
+
+    // 切换推荐状态。
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ProjectVO setRecommend(Long id, boolean enabled, Long operatorId) {
+        ProjectEntity project = requiredProject(id);
+        project.setRecommend(enabled);
+        project.setUpdatedBy(operatorId);
+        projectMapper.updateProject(project);
+        return toVO(project, true);
+    }
+
+    // 管理员查询全部作品。
+    @Override
+    public PageResponse<ProjectVO> listAdmin(String keyword, String status, long page, long pageSize) {
+        LambdaQueryWrapper<ProjectEntity> query = new LambdaQueryWrapper<>();
+        String normalizedKeyword = keyword == null ? "" : keyword.trim();
+        if (!normalizedKeyword.isEmpty()) {
+            query.and(wrapper -> wrapper
+                    .like(ProjectEntity::getTitle, normalizedKeyword)
+                    .or()
+                    .like(ProjectEntity::getDescription, normalizedKeyword)
+                    .or()
+                    .like(ProjectEntity::getContentMarkdown, normalizedKeyword));
+        }
+        String normalizedStatus = normalizeOptionalStatus(status);
+        if (!normalizedStatus.isEmpty()) {
+            query.eq(ProjectEntity::getStatus, normalizedStatus);
+        }
+        query.orderByDesc(ProjectEntity::getRecommend)
+                .orderByAsc(ProjectEntity::getSortOrder)
+                .orderByDesc(ProjectEntity::getId);
+        Page<ProjectEntity> result = projectMapper.selectPage(new Page<>(page, pageSize), query);
+        List<ProjectVO> records = result.getRecords()
+                .stream()
+                .map(project -> toVO(project, false))
+                .toList();
+        return new PageResponse<>(records, result.getCurrent(), result.getSize(), result.getTotal());
+    }
+
+    // 管理员按主键读取作品。
+    @Override
+    public ProjectVO getAdminById(Long id) {
+        return toVO(requiredProject(id), true);
     }
 
     // 查询可公开展示的作品列表。
@@ -116,11 +187,24 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     // 确认内容标识未被占用。
-    private void ensureSlugAvailable(String slug) {
-        Long count = projectMapper.selectCount(new LambdaQueryWrapper<ProjectEntity>().eq(ProjectEntity::getSlug, slug));
+    private void ensureSlugAvailable(String slug, Long ignoredId) {
+        LambdaQueryWrapper<ProjectEntity> query = new LambdaQueryWrapper<ProjectEntity>().eq(ProjectEntity::getSlug, slug);
+        if (ignoredId != null) {
+            query.ne(ProjectEntity::getId, ignoredId);
+        }
+        Long count = projectMapper.selectCount(query);
         if (count > 0) {
             throw BusinessException.conflict("作品标识已存在");
         }
+    }
+
+    // 查询必须存在的作品。
+    private ProjectEntity requiredProject(Long id) {
+        ProjectEntity project = projectMapper.selectById(id);
+        if (project == null) {
+            throw BusinessException.notFound("作品不存在");
+        }
+        return project;
     }
 
     // 校验标签集合存在，避免作品创建依赖数据库外键异常表达业务错误。
@@ -150,6 +234,21 @@ public class ProjectServiceImpl implements ProjectService {
         for (Long tagId : tagIds) {
             projectTagMapper.insertIgnore(projectId, tagId);
         }
+    }
+
+    // 将请求中可编辑字段写回实体。
+    private void applyEditableFields(ProjectEntity project, ProjectCreateRequest request, String slug) {
+        project.setTitle(request.title().trim());
+        project.setSlug(slug);
+        project.setDescription(blankToNull(request.description()));
+        project.setCoverUrl(normalizeOptionalUrl(request.coverUrl(), "作品封面", true));
+        project.setProjectType(request.projectType().trim());
+        project.setTechStackJson(toJson(request.techStack()));
+        project.setGithubUrl(normalizeOptionalUrl(request.githubUrl(), "GitHub 链接", false));
+        project.setDemoUrl(normalizeOptionalUrl(request.demoUrl(), "演示链接", false));
+        project.setVideoUrl(normalizeOptionalUrl(request.videoUrl(), "视频链接", true));
+        project.setContentMarkdown(request.contentMarkdown() == null ? "" : request.contentMarkdown().trim());
+        project.setRecommend(Boolean.TRUE.equals(request.recommended()));
     }
 
     // 转换为前端可用的视图对象。
@@ -193,6 +292,24 @@ public class ProjectServiceImpl implements ProjectService {
         }
     }
 
+    // 规范化作品状态。
+    private String normalizeProjectStatus(String status) {
+        String normalized = status == null ? "" : status.trim().toUpperCase();
+        if (!ContentConstants.PROJECT_STATUSES.contains(normalized)) {
+            throw BusinessException.badRequest("作品状态不合法");
+        }
+        return normalized;
+    }
+
+    // 规范化可选作品状态筛选。
+    private String normalizeOptionalStatus(String status) {
+        String normalized = status == null || status.isBlank() ? "" : status.trim().toUpperCase();
+        if (!normalized.isEmpty() && !ContentConstants.PROJECT_STATUSES.contains(normalized)) {
+            throw BusinessException.badRequest("作品状态不合法");
+        }
+        return normalized;
+    }
+
     // 外部链接只允许 http/https；封面和视频允许引用站内上传资源。
     private String normalizeOptionalUrl(String value, String fieldName, boolean allowUploadedResource) {
         if (value == null || value.isBlank()) {
@@ -216,6 +333,14 @@ public class ProjectServiceImpl implements ProjectService {
 
     // 规范化 URL 标识。
     private String normalizeSlug(String slug) {
-        return slug.trim().toLowerCase();
+        String normalized = slug.trim().toLowerCase();
+        if (!normalized.matches("[a-z0-9]+(?:-[a-z0-9]+)*")) {
+            throw BusinessException.badRequest("作品标识只允许小写字母、数字和短横线");
+        }
+        return normalized;
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 }

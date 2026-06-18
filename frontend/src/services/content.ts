@@ -1,7 +1,9 @@
 import { requestJson } from '@/services/http'
 import type {
   ArticleSummary,
+  ArticlePayload,
   AuthToken,
+  CategorySummary,
   CommentSummary,
   DashboardOverview,
   FileResource,
@@ -9,8 +11,10 @@ import type {
   InspirationPayload,
   InspirationType,
   PageResponse,
+  ProjectPayload,
   ProjectSummary,
   SearchResult,
+  TagSummary,
   ThemeConfig,
   UserSummary,
 } from '@/shared/domain'
@@ -20,6 +24,9 @@ interface ApiEnvelope<T> {
   data: T
   message: string
 }
+
+type ArticleStatusFilter = ArticleSummary['status'] | 'ALL'
+type ProjectStatusFilter = ProjectSummary['status'] | 'ALL'
 
 interface RegisterPayload {
   username: string
@@ -77,6 +84,89 @@ export async function fetchArticleBySlug(slug: string): Promise<ArticleSummary> 
   return response.data
 }
 
+// 管理员查询全部文章。
+export async function fetchAdminArticles(options: {
+  keyword?: string
+  status?: ArticleStatusFilter
+  page?: number
+  pageSize?: number
+} = {}): Promise<PageResponse<ArticleSummary>> {
+  const params = new URLSearchParams()
+  if (options.keyword?.trim()) {
+    params.set('keyword', options.keyword.trim())
+  }
+  if (options.status && options.status !== 'ALL') {
+    params.set('status', options.status)
+  }
+  if (options.page) {
+    params.set('page', String(options.page))
+  }
+  if (options.pageSize) {
+    params.set('pageSize', String(options.pageSize))
+  }
+  const query = params.toString()
+  const response = await requestJson<ApiEnvelope<PageResponse<ArticleSummary>>>(
+    query ? `/api/admin/articles?${query}` : '/api/admin/articles',
+  )
+  return response.data
+}
+
+// 管理员读取文章详情。
+export async function fetchAdminArticle(id: number): Promise<ArticleSummary> {
+  const response = await requestJson<ApiEnvelope<ArticleSummary>>(`/api/admin/articles/${id}`)
+  return response.data
+}
+
+// 管理员创建文章。
+export async function createArticle(payload: ArticlePayload): Promise<ArticleSummary> {
+  const response = await requestJson<ApiEnvelope<ArticleSummary>>('/api/admin/articles', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return response.data
+}
+
+// 管理员更新文章。
+export async function updateArticle(id: number, payload: ArticlePayload): Promise<ArticleSummary> {
+  const response = await requestJson<ApiEnvelope<ArticleSummary>>(`/api/admin/articles/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+  return response.data
+}
+
+// 管理员删除文章。
+export async function deleteArticle(id: number): Promise<void> {
+  await requestJson<ApiEnvelope<null>>(`/api/admin/articles/${id}`, { method: 'DELETE' })
+}
+
+// 管理员发布或撤回文章。
+export async function changeArticlePublishState(id: number, action: 'publish' | 'unpublish'): Promise<ArticleSummary> {
+  const response = await requestJson<ApiEnvelope<ArticleSummary>>(`/api/admin/articles/${id}/${action}`, {
+    method: 'PUT',
+  })
+  return response.data
+}
+
+// 管理员切换文章置顶。
+export async function setArticleTop(id: number, enabled: boolean): Promise<ArticleSummary> {
+  const params = new URLSearchParams({ enabled: String(enabled) })
+  const response = await requestJson<ApiEnvelope<ArticleSummary>>(`/api/admin/articles/${id}/top?${params.toString()}`, {
+    method: 'PUT',
+  })
+  return response.data
+}
+
+// 管理员切换文章推荐。
+export async function setArticleRecommend(id: number, enabled: boolean): Promise<ArticleSummary> {
+  const params = new URLSearchParams({ enabled: String(enabled) })
+  const response = await requestJson<ApiEnvelope<ArticleSummary>>(
+    `/api/admin/articles/${id}/recommend?${params.toString()}`,
+    { method: 'PUT' },
+  )
+  return response.data
+}
+
 // 调用公开作品列表接口。
 export async function fetchProjects(keyword = ''): Promise<PageResponse<ProjectSummary>> {
   const params = new URLSearchParams()
@@ -93,6 +183,94 @@ export async function fetchProjectBySlug(slug: string): Promise<ProjectSummary> 
   const response = await requestJson<ApiEnvelope<ProjectSummary>>(
     `/api/projects/slug/${encodeURIComponent(slug)}`,
   )
+  return response.data
+}
+
+// 管理员查询全部作品。
+export async function fetchAdminProjects(options: {
+  keyword?: string
+  status?: ProjectStatusFilter
+  page?: number
+  pageSize?: number
+} = {}): Promise<PageResponse<ProjectSummary>> {
+  const params = new URLSearchParams()
+  if (options.keyword?.trim()) {
+    params.set('keyword', options.keyword.trim())
+  }
+  if (options.status && options.status !== 'ALL') {
+    params.set('status', options.status)
+  }
+  if (options.page) {
+    params.set('page', String(options.page))
+  }
+  if (options.pageSize) {
+    params.set('pageSize', String(options.pageSize))
+  }
+  const query = params.toString()
+  const response = await requestJson<ApiEnvelope<PageResponse<ProjectSummary>>>(
+    query ? `/api/admin/projects?${query}` : '/api/admin/projects',
+  )
+  return response.data
+}
+
+// 管理员读取作品详情。
+export async function fetchAdminProject(id: number): Promise<ProjectSummary> {
+  const response = await requestJson<ApiEnvelope<ProjectSummary>>(`/api/admin/projects/${id}`)
+  return response.data
+}
+
+// 管理员创建作品。
+export async function createProject(payload: ProjectPayload): Promise<ProjectSummary> {
+  const response = await requestJson<ApiEnvelope<ProjectSummary>>('/api/admin/projects', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return response.data
+}
+
+// 管理员更新作品。
+export async function updateProject(id: number, payload: ProjectPayload): Promise<ProjectSummary> {
+  const response = await requestJson<ApiEnvelope<ProjectSummary>>(`/api/admin/projects/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+  return response.data
+}
+
+// 管理员删除作品。
+export async function deleteProject(id: number): Promise<void> {
+  await requestJson<ApiEnvelope<null>>(`/api/admin/projects/${id}`, { method: 'DELETE' })
+}
+
+// 管理员切换作品状态。
+export async function setProjectStatus(id: number, status: string): Promise<ProjectSummary> {
+  const params = new URLSearchParams({ status })
+  const response = await requestJson<ApiEnvelope<ProjectSummary>>(`/api/admin/projects/${id}/status?${params.toString()}`, {
+    method: 'PUT',
+  })
+  return response.data
+}
+
+// 管理员切换作品推荐。
+export async function setProjectRecommend(id: number, enabled: boolean): Promise<ProjectSummary> {
+  const params = new URLSearchParams({ enabled: String(enabled) })
+  const response = await requestJson<ApiEnvelope<ProjectSummary>>(
+    `/api/admin/projects/${id}/recommend?${params.toString()}`,
+    { method: 'PUT' },
+  )
+  return response.data
+}
+
+// 查询指定模块分类。
+export async function fetchCategories(module: CategorySummary['module']): Promise<CategorySummary[]> {
+  const params = new URLSearchParams({ module })
+  const response = await requestJson<ApiEnvelope<CategorySummary[]>>(`/api/categories?${params.toString()}`)
+  return response.data
+}
+
+// 查询标签列表。
+export async function fetchTags(): Promise<TagSummary[]> {
+  const response = await requestJson<ApiEnvelope<TagSummary[]>>('/api/tags')
   return response.data
 }
 

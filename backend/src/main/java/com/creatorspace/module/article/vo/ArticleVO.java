@@ -18,6 +18,8 @@ public record ArticleVO(
         String coverUrl,
         String status,
         String privacyType,
+        Boolean top,
+        Boolean recommended,
         CategoryVO category,
         List<TagVO> tags,
         OffsetDateTime publishTime

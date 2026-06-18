@@ -20,6 +20,12 @@
           <component :is="item.icon" :size="16" />
           <span>{{ item.label }}</span>
         </RouterLink>
+        <RouterLink class="mobile-auth-action mobile-auth-action--tonal" to="/login" @click="navOpen = false">
+          登录
+        </RouterLink>
+        <RouterLink class="mobile-auth-action mobile-auth-action--filled" to="/register" @click="navOpen = false">
+          注册
+        </RouterLink>
       </nav>
 
       <div class="public-actions">

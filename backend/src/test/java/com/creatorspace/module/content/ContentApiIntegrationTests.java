@@ -25,6 +25,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.empty;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -158,6 +159,99 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                 .andExpect(jsonPath("$.data.records", empty()));
     }
 
+    // 验证后台文章列表、更新、发布、撤回、推荐置顶和删除闭环。
+    @Test
+    void adminCanManageArticleLifecycle() throws Exception {
+        String token = loginAsAdmin();
+        long categoryId = createCategory(token, "ARTICLE", "后台文章分类", "admin-article-category");
+        long tagId = createTag(token, "后台文章标签", "admin-article-tag");
+
+        String createResponse = mockMvc.perform(post("/api/admin/articles")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "title", "后台文章生命周期",
+                                "slug", "admin-article-lifecycle",
+                                "summary", "创建后会被更新",
+                                "contentMarkdown", "草稿正文",
+                                "categoryId", categoryId,
+                                "tagIds", new long[]{tagId},
+                                "privacyType", "PUBLIC"
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("DRAFT")))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        long articleId = dataId(createResponse);
+
+        mockMvc.perform(put("/api/admin/articles/{id}", articleId)
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "title", "后台文章生命周期已更新",
+                                "slug", "admin-article-lifecycle-updated",
+                                "summary", "更新后的摘要",
+                                "contentMarkdown", "更新后的 Markdown",
+                                "categoryId", categoryId,
+                                "tagIds", new long[]{tagId},
+                                "privacyType", "PUBLIC"
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.slug", is("admin-article-lifecycle-updated")))
+                .andExpect(jsonPath("$.data.tags[0].name", is("后台文章标签")));
+
+        mockMvc.perform(get("/api/admin/articles/{id}", articleId)
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.contentMarkdown", is("更新后的 Markdown")));
+
+        mockMvc.perform(get("/api/admin/articles")
+                        .header("Authorization", bearer(token))
+                        .param("keyword", "生命周期已更新")
+                        .param("status", "DRAFT"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.records", hasSize(1)))
+                .andExpect(jsonPath("$.data.records[0].title", is("后台文章生命周期已更新")));
+
+        mockMvc.perform(put("/api/admin/articles/{id}/top", articleId)
+                        .header("Authorization", bearer(token))
+                        .param("enabled", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.top", is(true)));
+
+        mockMvc.perform(put("/api/admin/articles/{id}/recommend", articleId)
+                        .header("Authorization", bearer(token))
+                        .param("enabled", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.recommended", is(true)));
+
+        mockMvc.perform(put("/api/admin/articles/{id}/publish", articleId)
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("PUBLISHED")));
+
+        mockMvc.perform(get("/api/articles/slug/{slug}", "admin-article-lifecycle-updated"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.title", is("后台文章生命周期已更新")));
+
+        mockMvc.perform(put("/api/admin/articles/{id}/unpublish", articleId)
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("DRAFT")));
+
+        mockMvc.perform(get("/api/articles/slug/{slug}", "admin-article-lifecycle-updated"))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(delete("/api/admin/articles/{id}", articleId)
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/admin/articles/{id}", articleId)
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isNotFound());
+    }
+
     // 验证管理员创建作品后游客可读取公开作品列表。
     @Test
     void adminCanCreateProjectAndVisitorCanReadVisibleProjectList() throws Exception {
@@ -199,6 +293,88 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.records[0].type", is("PROJECT")))
                 .andExpect(jsonPath("$.data.records[0].title", is("CreatorSpace CMS")));
+    }
+
+    // 验证后台作品列表、更新、展示状态、推荐和删除闭环。
+    @Test
+    void adminCanManageProjectLifecycle() throws Exception {
+        String token = loginAsAdmin();
+        long tagId = createTag(token, "后台作品标签", "admin-project-tag");
+
+        String createResponse = mockMvc.perform(post("/api/admin/projects")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "title", "后台作品生命周期",
+                                "slug", "admin-project-lifecycle",
+                                "description", "创建后会被更新",
+                                "projectType", "WEB_APP",
+                                "techStack", new String[]{"Vue 3"},
+                                "contentMarkdown", "作品草稿",
+                                "tagIds", new long[]{tagId},
+                                "recommended", true
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("VISIBLE")))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        long projectId = dataId(createResponse);
+
+        mockMvc.perform(put("/api/admin/projects/{id}", projectId)
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "title", "后台作品生命周期已更新",
+                                "slug", "admin-project-lifecycle-updated",
+                                "description", "更新后的作品描述",
+                                "projectType", "WEB_APP",
+                                "techStack", new String[]{"Vue 3", "Spring Boot"},
+                                "contentMarkdown", "更新后的作品详情",
+                                "tagIds", new long[]{tagId},
+                                "recommended", false
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.slug", is("admin-project-lifecycle-updated")))
+                .andExpect(jsonPath("$.data.techStack[1]", is("Spring Boot")))
+                .andExpect(jsonPath("$.data.recommended", is(false)));
+
+        mockMvc.perform(get("/api/admin/projects")
+                        .header("Authorization", bearer(token))
+                        .param("keyword", "生命周期已更新")
+                        .param("status", "VISIBLE"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.records", hasSize(1)))
+                .andExpect(jsonPath("$.data.records[0].title", is("后台作品生命周期已更新")));
+
+        mockMvc.perform(put("/api/admin/projects/{id}/status", projectId)
+                        .header("Authorization", bearer(token))
+                        .param("status", "HIDDEN"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("HIDDEN")));
+
+        mockMvc.perform(get("/api/projects/slug/{slug}", "admin-project-lifecycle-updated"))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(put("/api/admin/projects/{id}/status", projectId)
+                        .header("Authorization", bearer(token))
+                        .param("status", "VISIBLE"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("VISIBLE")));
+
+        mockMvc.perform(put("/api/admin/projects/{id}/recommend", projectId)
+                        .header("Authorization", bearer(token))
+                        .param("enabled", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.recommended", is(true)));
+
+        mockMvc.perform(delete("/api/admin/projects/{id}", projectId)
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/admin/projects/{id}", projectId)
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isNotFound());
     }
 
     // 验证后台创建作品时拒绝不安全外链。
@@ -332,6 +508,61 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success", is(false)))
                 .andExpect(jsonPath("$.message", is("标签不存在")));
+    }
+
+    // 验证文章封面和内容 URL 标识会提前拒绝不安全输入。
+    @Test
+    void adminArticleApiRejectsUnsafeCoverUrlAndInvalidSlug() throws Exception {
+        String token = loginAsAdmin();
+
+        mockMvc.perform(post("/api/admin/articles")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "title", "不安全封面文章",
+                                "slug", "unsafe-cover-article",
+                                "summary", "应拒绝 javascript scheme",
+                                "contentMarkdown", "正文",
+                                "coverUrl", "javascript:alert(1)",
+                                "privacyType", "PUBLIC"
+                        ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.message", is("文章封面只允许 http、https 或站内上传地址")));
+
+        mockMvc.perform(post("/api/admin/articles")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "title", "错误标识文章",
+                                "slug", "bad/slug",
+                                "summary", "应拒绝斜杠",
+                                "contentMarkdown", "正文",
+                                "privacyType", "PUBLIC"
+                        ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.message", is("文章标识只允许小写字母、数字和短横线")));
+    }
+
+    // 验证作品 URL 标识拒绝会破坏路由的特殊字符。
+    @Test
+    void adminProjectApiRejectsInvalidSlug() throws Exception {
+        String token = loginAsAdmin();
+
+        mockMvc.perform(post("/api/admin/projects")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "title", "错误标识作品",
+                                "slug", "bad project",
+                                "description", "应拒绝空格",
+                                "projectType", "WEB_APP",
+                                "techStack", new String[]{"Vue 3"}
+                        ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.message", is("作品标识只允许小写字母、数字和短横线")));
     }
 
     // 验证禁用管理员不会获得后台访问令牌。

@@ -1,23 +1,34 @@
 <template>
-  <section ref="root" class="auth-page">
-    <form class="auth-card auth-card--wide" data-reveal @submit.prevent="submitLogin">
-      <div class="auth-card__visual">
-        <ShieldCheck :size="28" />
-        <p class="page-kicker">Creator Login</p>
-        <h1>{{ loginMode === 'ADMIN' ? '进入内容工作台' : '登录后参与创作互动' }}</h1>
-        <p>{{ loginMode === 'ADMIN' ? '管理员登录后可以进入 CMS，管理文章、作品、灵感、评论和主题配置。' : '普通用户登录后可以评论、回复和收藏公开内容。' }}</p>
+  <section ref="root" class="auth-page auth-page--material">
+    <form class="auth-card auth-card--material" data-reveal @submit.prevent="submitLogin">
+      <div class="auth-card__visual auth-card__visual--material">
+        <span class="material-icon-badge">
+          <ShieldCheck :size="24" />
+        </span>
+        <p class="page-kicker">CreatorSpace Account</p>
+        <h1>{{ loginMode === 'ADMIN' ? '进入内容工作台' : '进入创作社区' }}</h1>
+        <p>{{ loginMode === 'ADMIN' ? '使用管理员身份管理文章、作品、灵感墙、评论审核与主题配置。' : '登录后参与评论、回复、收藏，并为后续好友可见内容保留身份。' }}</p>
+        <div class="material-benefits" aria-label="登录能力">
+          <span>CMS</span>
+          <span>Gallery</span>
+          <span>Comments</span>
+        </div>
       </div>
       <div class="auth-card__form">
+        <div>
+          <p class="page-kicker">Sign in</p>
+          <h2>{{ loginMode === 'ADMIN' ? '管理员登录' : '访客登录' }}</h2>
+        </div>
         <div class="auth-mode-switch">
           <button type="button" :class="{ 'is-active': loginMode === 'USER' }" @click="loginMode = 'USER'">访客登录</button>
           <button type="button" :class="{ 'is-active': loginMode === 'ADMIN' }" @click="loginMode = 'ADMIN'">管理员登录</button>
         </div>
-        <label>
-          用户名
+        <label class="md-field">
+          <span>用户名</span>
           <input v-model="form.username" autocomplete="username" name="username" />
         </label>
-        <label>
-          密码
+        <label class="md-field">
+          <span>密码</span>
           <input v-model="form.password" autocomplete="current-password" name="password" type="password" />
         </label>
         <button class="button button-filled" :disabled="isSubmitting" type="submit">

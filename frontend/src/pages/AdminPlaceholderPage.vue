@@ -12,7 +12,205 @@
       </button>
     </header>
 
-    <section v-if="activeSection === 'inspirations'" class="workspace-grid">
+    <section v-if="activeSection === 'articles'" class="workspace-grid">
+      <form class="workspace-panel admin-form" data-reveal @submit.prevent="saveArticle">
+        <div class="panel-title">
+          <h2>{{ editingArticleId ? '编辑文章' : '新建文章' }}</h2>
+          <span>{{ articleForm.privacyType }}</span>
+        </div>
+        <div class="form-line">
+          <label>
+            标题
+            <input v-model="articleForm.title" maxlength="200" />
+          </label>
+          <label>
+            URL 标识
+            <input v-model="articleForm.slug" maxlength="220" />
+          </label>
+        </div>
+        <div class="form-line">
+          <label>
+            分类
+            <select v-model="articleForm.categoryId">
+              <option :value="null">不绑定分类</option>
+              <option v-for="category in articleCategories" :key="category.id" :value="category.id">
+                {{ category.name }}
+              </option>
+            </select>
+          </label>
+          <label>
+            可见性
+            <select v-model="articleForm.privacyType">
+              <option v-for="privacy in articlePrivacies" :key="privacy" :value="privacy">{{ privacy }}</option>
+            </select>
+          </label>
+        </div>
+        <label>
+          摘要
+          <textarea v-model="articleForm.summary" rows="3" maxlength="1200" />
+        </label>
+        <label>
+          封面地址
+          <input v-model="articleForm.coverUrl" placeholder="/uploads/article/cover.png" />
+        </label>
+        <label>
+          Markdown 正文
+          <textarea v-model="articleForm.contentMarkdown" rows="8" />
+        </label>
+        <div class="tag-picker">
+          <label v-for="tag in tags" :key="tag.id" class="check-line">
+            <input v-model="articleForm.tagIds" type="checkbox" :value="tag.id" />
+            {{ tag.name }}
+          </label>
+        </div>
+        <div class="form-actions">
+          <button class="button button-filled" type="submit">{{ editingArticleId ? '保存文章' : '创建草稿' }}</button>
+          <button v-if="editingArticleId" class="button button-tonal" type="button" @click="resetArticleForm">取消编辑</button>
+        </div>
+      </form>
+
+      <div class="workspace-panel" data-reveal>
+        <div class="panel-title">
+          <h2>文章队列</h2>
+          <span>{{ articles.length }} items</span>
+        </div>
+        <div class="filter-bar">
+          <input v-model="articleKeyword" placeholder="搜索文章" @keyup.enter="loadArticles" />
+          <select v-model="articleStatus" @change="loadArticles">
+            <option value="ALL">全部状态</option>
+            <option value="DRAFT">草稿</option>
+            <option value="PUBLISHED">公开</option>
+            <option value="PRIVATE">私密</option>
+            <option value="ARCHIVED">归档</option>
+          </select>
+          <button class="icon-text-button" type="button" @click="loadArticles">刷新</button>
+        </div>
+        <article v-for="article in articles" :key="article.id" class="table-row table-row--rich">
+          <div>
+            <strong>{{ article.title }}</strong>
+            <span>
+              {{ article.category?.name ?? '未分类' }} · {{ article.privacyType }} · {{ article.slug }}
+            </span>
+          </div>
+          <div class="row-actions">
+            <span class="status-chip">{{ article.status }}</span>
+            <button class="icon-text-button" type="button" @click="editArticle(article.id)">编辑</button>
+            <button class="icon-text-button" type="button" @click="toggleArticlePublish(article)">
+              {{ article.status === 'DRAFT' ? '发布' : '撤回' }}
+            </button>
+            <button class="icon-text-button" type="button" @click="toggleArticleTop(article)">
+              {{ article.top ? '取消置顶' : '置顶' }}
+            </button>
+            <button class="icon-text-button" type="button" @click="toggleArticleRecommend(article)">
+              {{ article.recommended ? '取消推荐' : '推荐' }}
+            </button>
+            <button class="icon-text-button danger" type="button" @click="removeArticle(article.id)">删除</button>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section v-else-if="activeSection === 'projects'" class="workspace-grid">
+      <form class="workspace-panel admin-form" data-reveal @submit.prevent="saveProject">
+        <div class="panel-title">
+          <h2>{{ editingProjectId ? '编辑作品' : '新增作品' }}</h2>
+          <span>{{ projectForm.projectType || 'PROJECT' }}</span>
+        </div>
+        <div class="form-line">
+          <label>
+            标题
+            <input v-model="projectForm.title" maxlength="200" />
+          </label>
+          <label>
+            URL 标识
+            <input v-model="projectForm.slug" maxlength="220" />
+          </label>
+        </div>
+        <div class="form-line">
+          <label>
+            类型
+            <input v-model="projectForm.projectType" maxlength="60" placeholder="WEB_APP" />
+          </label>
+          <label>
+            技术栈
+            <input v-model="projectTechStack" placeholder="Vue 3, Spring Boot" />
+          </label>
+        </div>
+        <label>
+          描述
+          <textarea v-model="projectForm.description" rows="3" maxlength="2000" />
+        </label>
+        <label>
+          封面地址
+          <input v-model="projectForm.coverUrl" placeholder="/uploads/project/cover.png" />
+        </label>
+        <div class="form-line">
+          <label>
+            GitHub
+            <input v-model="projectForm.githubUrl" placeholder="https://github.com/..." />
+          </label>
+          <label>
+            Demo
+            <input v-model="projectForm.demoUrl" placeholder="https://demo.example.com" />
+          </label>
+        </div>
+        <label>
+          Markdown 详情
+          <textarea v-model="projectForm.contentMarkdown" rows="8" />
+        </label>
+        <div class="tag-picker">
+          <label v-for="tag in tags" :key="tag.id" class="check-line">
+            <input v-model="projectForm.tagIds" type="checkbox" :value="tag.id" />
+            {{ tag.name }}
+          </label>
+        </div>
+        <label class="check-line">
+          <input v-model="projectForm.recommended" type="checkbox" />
+          推荐展示
+        </label>
+        <div class="form-actions">
+          <button class="button button-filled" type="submit">{{ editingProjectId ? '保存作品' : '创建作品' }}</button>
+          <button v-if="editingProjectId" class="button button-tonal" type="button" @click="resetProjectForm">取消编辑</button>
+        </div>
+      </form>
+
+      <div class="workspace-panel" data-reveal>
+        <div class="panel-title">
+          <h2>作品队列</h2>
+          <span>{{ projects.length }} items</span>
+        </div>
+        <div class="filter-bar">
+          <input v-model="projectKeyword" placeholder="搜索作品" @keyup.enter="loadProjects" />
+          <select v-model="projectStatus" @change="loadProjects">
+            <option value="ALL">全部状态</option>
+            <option value="VISIBLE">展示</option>
+            <option value="HIDDEN">隐藏</option>
+            <option value="DRAFT">草稿</option>
+            <option value="ARCHIVED">归档</option>
+          </select>
+          <button class="icon-text-button" type="button" @click="loadProjects">刷新</button>
+        </div>
+        <article v-for="project in projects" :key="project.id" class="table-row table-row--rich">
+          <div>
+            <strong>{{ project.title }}</strong>
+            <span>{{ project.projectType }} · {{ project.techStack.join(' / ') || '未维护技术栈' }} · {{ project.slug }}</span>
+          </div>
+          <div class="row-actions">
+            <span class="status-chip">{{ project.status }}</span>
+            <button class="icon-text-button" type="button" @click="editProject(project.id)">编辑</button>
+            <button class="icon-text-button" type="button" @click="toggleProjectVisible(project)">
+              {{ project.status === 'VISIBLE' ? '隐藏' : '展示' }}
+            </button>
+            <button class="icon-text-button" type="button" @click="toggleProjectRecommend(project)">
+              {{ project.recommended ? '取消推荐' : '推荐' }}
+            </button>
+            <button class="icon-text-button danger" type="button" @click="removeProject(project.id)">删除</button>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section v-else-if="activeSection === 'inspirations'" class="workspace-grid">
       <form class="workspace-panel admin-form" data-reveal @submit.prevent="saveInspiration">
         <div class="panel-title">
           <h2>{{ editingInspirationId ? '编辑灵感卡片' : '添加灵感卡片' }}</h2>
@@ -188,17 +386,48 @@ import { useRoute } from 'vue-router'
 import { Plus } from '@lucide/vue'
 
 import {
+  changeArticlePublishState,
+  createArticle,
   createInspiration,
+  createProject,
+  deleteArticle,
   deleteInspiration,
+  deleteProject,
+  fetchAdminArticle,
+  fetchAdminArticles,
   fetchAdminComments,
   fetchAdminFiles,
   fetchAdminInspirations,
+  fetchAdminProject,
+  fetchAdminProjects,
+  fetchCategories,
+  fetchTags,
   reviewComment,
+  setArticleRecommend,
+  setArticleTop,
+  setProjectRecommend,
+  setProjectStatus,
+  updateArticle,
   updateInspiration,
+  updateProject,
   uploadAdminFile,
 } from '@/services/content'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
-import type { CommentSummary, FileResource, InspirationCard, InspirationPayload, InspirationType } from '@/shared/domain'
+import type {
+  ArticlePayload,
+  ArticlePrivacy,
+  ArticleSummary,
+  CategorySummary,
+  CommentSummary,
+  ContentStatus,
+  FileResource,
+  InspirationCard,
+  InspirationPayload,
+  InspirationType,
+  ProjectPayload,
+  ProjectSummary,
+  TagSummary,
+} from '@/shared/domain'
 
 interface ModuleConfig {
   eyebrow: string
@@ -212,17 +441,53 @@ interface ModuleConfig {
 const route = useRoute()
 const root = ref<HTMLElement | null>(null)
 const notice = ref('')
+const articles = ref<ArticleSummary[]>([])
+const projects = ref<ProjectSummary[]>([])
+const articleCategories = ref<CategorySummary[]>([])
+const tags = ref<TagSummary[]>([])
 const inspirations = ref<InspirationCard[]>([])
 const comments = ref<CommentSummary[]>([])
 const files = ref<FileResource[]>([])
+const articleKeyword = ref('')
+const projectKeyword = ref('')
+const articleStatus = ref<ContentStatus | 'ALL'>('ALL')
+const projectStatus = ref<ProjectSummary['status'] | 'ALL'>('ALL')
 const commentStatus = ref<CommentSummary['status'] | 'ALL'>('PENDING')
 const commentTargetType = ref<CommentSummary['targetType'] | 'ALL'>('ALL')
 const fileModule = ref('OTHER')
 const selectedFile = ref<File | null>(null)
+const editingArticleId = ref<number | null>(null)
+const editingProjectId = ref<number | null>(null)
 const editingInspirationId = ref<number | null>(null)
+const projectTechStack = ref('')
 
+const articlePrivacies: ArticlePrivacy[] = ['PUBLIC', 'SELF', 'FRIENDS', 'SELECTED_FRIENDS', 'EXCLUDED_FRIENDS']
 const inspirationTypes: InspirationType[] = ['TEXT', 'PROMPT', 'IMAGE', 'CODE', 'LINK']
 const fileModules = ['AVATAR', 'COVER', 'ARTICLE', 'PROJECT', 'INSPIRATION', 'OTHER']
+const articleForm = reactive<ArticlePayload>({
+  title: '',
+  slug: '',
+  summary: '',
+  contentMarkdown: '',
+  coverUrl: '',
+  categoryId: null,
+  tagIds: [],
+  privacyType: 'PUBLIC',
+})
+const projectForm = reactive<ProjectPayload>({
+  title: '',
+  slug: '',
+  description: '',
+  coverUrl: '',
+  projectType: 'WEB_APP',
+  techStack: [],
+  githubUrl: '',
+  demoUrl: '',
+  videoUrl: '',
+  contentMarkdown: '',
+  tagIds: [],
+  recommended: false,
+})
 const inspirationForm = reactive<InspirationPayload>({
   title: '',
   content: '',
@@ -248,13 +513,239 @@ watch(activeSection, () => {
 onMounted(loadActiveModule)
 
 async function loadActiveModule() {
-  if (activeSection.value === 'inspirations') {
+  if (activeSection.value === 'articles') {
+    await loadArticles()
+  } else if (activeSection.value === 'projects') {
+    await loadProjects()
+  } else if (activeSection.value === 'inspirations') {
     await loadInspirations()
   } else if (activeSection.value === 'comments') {
     await loadComments()
   } else if (activeSection.value === 'files') {
     await loadFiles()
   }
+}
+
+async function ensureTaxonomies() {
+  if (articleCategories.value.length === 0) {
+    articleCategories.value = await fetchCategories('ARTICLE')
+  }
+  if (tags.value.length === 0) {
+    tags.value = await fetchTags()
+  }
+}
+
+async function loadArticles() {
+  try {
+    await ensureTaxonomies()
+    const page = await fetchAdminArticles({
+      keyword: articleKeyword.value,
+      status: articleStatus.value,
+      pageSize: 50,
+    })
+    articles.value = page.records
+  } catch (error) {
+    notice.value = readError(error, '文章队列加载失败')
+  }
+}
+
+async function saveArticle() {
+  if (!articleForm.title.trim() || !articleForm.slug.trim() || !articleForm.contentMarkdown.trim()) {
+    notice.value = '请填写文章标题、URL 标识和正文'
+    return
+  }
+  try {
+    if (editingArticleId.value) {
+      await updateArticle(editingArticleId.value, { ...articleForm })
+      notice.value = '文章已更新'
+    } else {
+      await createArticle({ ...articleForm })
+      notice.value = '文章草稿已创建'
+    }
+    resetArticleForm()
+    await loadArticles()
+  } catch (error) {
+    notice.value = readError(error, '文章保存失败')
+  }
+}
+
+async function editArticle(id: number) {
+  try {
+    const article = await fetchAdminArticle(id)
+    editingArticleId.value = article.id
+    articleForm.title = article.title
+    articleForm.slug = article.slug
+    articleForm.summary = article.summary ?? ''
+    articleForm.contentMarkdown = article.contentMarkdown ?? ''
+    articleForm.coverUrl = article.coverUrl ?? ''
+    articleForm.categoryId = article.category?.id ?? null
+    articleForm.tagIds = article.tags.map((tag) => tag.id)
+    articleForm.privacyType = article.privacyType
+  } catch (error) {
+    notice.value = readError(error, '文章读取失败')
+  }
+}
+
+async function toggleArticlePublish(article: ArticleSummary) {
+  try {
+    await changeArticlePublishState(article.id, article.status === 'DRAFT' ? 'publish' : 'unpublish')
+    notice.value = article.status === 'DRAFT' ? '文章已发布' : '文章已撤回'
+    await loadArticles()
+  } catch (error) {
+    notice.value = readError(error, '文章状态更新失败')
+  }
+}
+
+async function toggleArticleTop(article: ArticleSummary) {
+  try {
+    await setArticleTop(article.id, !article.top)
+    notice.value = article.top ? '已取消置顶' : '文章已置顶'
+    await loadArticles()
+  } catch (error) {
+    notice.value = readError(error, '置顶状态更新失败')
+  }
+}
+
+async function toggleArticleRecommend(article: ArticleSummary) {
+  try {
+    await setArticleRecommend(article.id, !article.recommended)
+    notice.value = article.recommended ? '已取消推荐' : '文章已推荐'
+    await loadArticles()
+  } catch (error) {
+    notice.value = readError(error, '推荐状态更新失败')
+  }
+}
+
+async function removeArticle(id: number) {
+  try {
+    await deleteArticle(id)
+    notice.value = '文章已删除'
+    if (editingArticleId.value === id) {
+      resetArticleForm()
+    }
+    await loadArticles()
+  } catch (error) {
+    notice.value = readError(error, '文章删除失败')
+  }
+}
+
+function resetArticleForm() {
+  editingArticleId.value = null
+  articleForm.title = ''
+  articleForm.slug = ''
+  articleForm.summary = ''
+  articleForm.contentMarkdown = ''
+  articleForm.coverUrl = ''
+  articleForm.categoryId = null
+  articleForm.tagIds = []
+  articleForm.privacyType = 'PUBLIC'
+}
+
+async function loadProjects() {
+  try {
+    await ensureTaxonomies()
+    const page = await fetchAdminProjects({
+      keyword: projectKeyword.value,
+      status: projectStatus.value,
+      pageSize: 50,
+    })
+    projects.value = page.records
+  } catch (error) {
+    notice.value = readError(error, '作品队列加载失败')
+  }
+}
+
+async function saveProject() {
+  if (!projectForm.title.trim() || !projectForm.slug.trim() || !projectForm.projectType.trim()) {
+    notice.value = '请填写作品标题、URL 标识和类型'
+    return
+  }
+  const payload = { ...projectForm, techStack: splitTechStack(projectTechStack.value) }
+  try {
+    if (editingProjectId.value) {
+      await updateProject(editingProjectId.value, payload)
+      notice.value = '作品已更新'
+    } else {
+      await createProject(payload)
+      notice.value = '作品已创建'
+    }
+    resetProjectForm()
+    await loadProjects()
+  } catch (error) {
+    notice.value = readError(error, '作品保存失败')
+  }
+}
+
+async function editProject(id: number) {
+  try {
+    const project = await fetchAdminProject(id)
+    editingProjectId.value = project.id
+    projectForm.title = project.title
+    projectForm.slug = project.slug
+    projectForm.description = project.description ?? ''
+    projectForm.coverUrl = project.coverUrl ?? ''
+    projectForm.projectType = project.projectType
+    projectForm.techStack = project.techStack
+    projectForm.githubUrl = project.githubUrl ?? ''
+    projectForm.demoUrl = project.demoUrl ?? ''
+    projectForm.videoUrl = project.videoUrl ?? ''
+    projectForm.contentMarkdown = project.contentMarkdown ?? ''
+    projectForm.tagIds = project.tags.map((tag) => tag.id)
+    projectForm.recommended = project.recommended
+    projectTechStack.value = project.techStack.join(', ')
+  } catch (error) {
+    notice.value = readError(error, '作品读取失败')
+  }
+}
+
+async function toggleProjectVisible(project: ProjectSummary) {
+  try {
+    await setProjectStatus(project.id, project.status === 'VISIBLE' ? 'HIDDEN' : 'VISIBLE')
+    notice.value = project.status === 'VISIBLE' ? '作品已隐藏' : '作品已展示'
+    await loadProjects()
+  } catch (error) {
+    notice.value = readError(error, '作品状态更新失败')
+  }
+}
+
+async function toggleProjectRecommend(project: ProjectSummary) {
+  try {
+    await setProjectRecommend(project.id, !project.recommended)
+    notice.value = project.recommended ? '已取消推荐' : '作品已推荐'
+    await loadProjects()
+  } catch (error) {
+    notice.value = readError(error, '作品推荐状态更新失败')
+  }
+}
+
+async function removeProject(id: number) {
+  try {
+    await deleteProject(id)
+    notice.value = '作品已删除'
+    if (editingProjectId.value === id) {
+      resetProjectForm()
+    }
+    await loadProjects()
+  } catch (error) {
+    notice.value = readError(error, '作品删除失败')
+  }
+}
+
+function resetProjectForm() {
+  editingProjectId.value = null
+  projectForm.title = ''
+  projectForm.slug = ''
+  projectForm.description = ''
+  projectForm.coverUrl = ''
+  projectForm.projectType = 'WEB_APP'
+  projectForm.techStack = []
+  projectForm.githubUrl = ''
+  projectForm.demoUrl = ''
+  projectForm.videoUrl = ''
+  projectForm.contentMarkdown = ''
+  projectForm.tagIds = []
+  projectForm.recommended = false
+  projectTechStack.value = ''
 }
 
 async function loadInspirations() {
@@ -374,7 +865,11 @@ async function uploadFile() {
 }
 
 function handlePrimaryAction() {
-  if (activeSection.value === 'inspirations') {
+  if (activeSection.value === 'articles') {
+    resetArticleForm()
+  } else if (activeSection.value === 'projects') {
+    resetProjectForm()
+  } else if (activeSection.value === 'inspirations') {
     resetInspirationForm()
   } else if (activeSection.value === 'comments') {
     commentStatus.value = 'PENDING'
@@ -392,6 +887,13 @@ function formatSize(value: number) {
     return `${(value / 1024).toFixed(1)} KB`
   }
   return `${(value / 1024 / 1024).toFixed(1)} MB`
+}
+
+function splitTechStack(value: string) {
+  return value
+    .split(/[,，\n]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
 }
 
 function readError(error: unknown, fallback: string) {

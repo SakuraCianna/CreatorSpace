@@ -19,7 +19,11 @@ public final class ContentConstants {
     public static final String STATUS_DRAFT = "DRAFT";
     public static final String STATUS_PUBLISHED = "PUBLISHED";
     public static final String STATUS_PRIVATE = "PRIVATE";
+    public static final String STATUS_ARCHIVED = "ARCHIVED";
     public static final String PROJECT_VISIBLE = "VISIBLE";
+    public static final String PROJECT_HIDDEN = "HIDDEN";
+    public static final String PROJECT_DRAFT = "DRAFT";
+    public static final String PROJECT_ARCHIVED = "ARCHIVED";
 
     public static final String PRIVACY_PUBLIC = "PUBLIC";
 
@@ -30,6 +34,19 @@ public final class ContentConstants {
             "FRIENDS",
             "SELECTED_FRIENDS",
             "EXCLUDED_FRIENDS"
+    );
+    public static final Set<String> ARTICLE_STATUSES = Set.of(
+            STATUS_DRAFT,
+            STATUS_PUBLISHED,
+            STATUS_PRIVATE,
+            "SCHEDULED",
+            STATUS_ARCHIVED
+    );
+    public static final Set<String> PROJECT_STATUSES = Set.of(
+            PROJECT_VISIBLE,
+            PROJECT_HIDDEN,
+            PROJECT_DRAFT,
+            PROJECT_ARCHIVED
     );
 
     // 工具类不允许被实例化。

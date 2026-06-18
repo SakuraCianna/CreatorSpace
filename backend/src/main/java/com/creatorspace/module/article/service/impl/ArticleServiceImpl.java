@@ -18,6 +18,7 @@ import com.creatorspace.module.tag.vo.TagVO;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URI;
 import java.time.OffsetDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -54,20 +55,14 @@ public class ArticleServiceImpl implements ArticleService {
     @Transactional(rollbackFor = Exception.class)
     public ArticleVO create(ArticleCreateRequest request, Long operatorId) {
         String slug = normalizeSlug(request.slug());
-        ensureSlugAvailable(slug);
+        ensureSlugAvailable(slug, null);
         String privacyType = normalizePrivacyType(request.privacyType());
         validateCategoryForArticle(request.categoryId());
         validateTagIds(request.tagIds());
 
         ArticleEntity article = new ArticleEntity();
-        article.setTitle(request.title().trim());
-        article.setSlug(slug);
-        article.setSummary(request.summary());
-        article.setContentMarkdown(request.contentMarkdown());
-        article.setCoverUrl(request.coverUrl());
-        article.setCategoryId(request.categoryId());
+        applyEditableFields(article, request, slug, privacyType);
         article.setStatus(ContentConstants.STATUS_DRAFT);
-        article.setPrivacyType(privacyType);
         article.setTop(false);
         article.setRecommend(false);
         article.setCreatedBy(operatorId);
@@ -77,18 +72,115 @@ public class ArticleServiceImpl implements ArticleService {
         return toVO(article, true);
     }
 
+    // 更新文章主体内容，已发布文章会根据可见性同步公开/私密状态。
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ArticleVO update(Long id, ArticleCreateRequest request, Long operatorId) {
+        ArticleEntity article = requiredArticle(id);
+        String slug = normalizeSlug(request.slug());
+        ensureSlugAvailable(slug, id);
+        String privacyType = normalizePrivacyType(request.privacyType());
+        validateCategoryForArticle(request.categoryId());
+        validateTagIds(request.tagIds());
+
+        applyEditableFields(article, request, slug, privacyType);
+        if (Set.of(ContentConstants.STATUS_PUBLISHED, ContentConstants.STATUS_PRIVATE).contains(article.getStatus())) {
+            article.setStatus(publishedStatusFor(privacyType));
+        }
+        article.setUpdatedBy(operatorId);
+        articleMapper.updateEditableArticle(article);
+        replaceTags(article.getId(), request.tagIds());
+        return toVO(article, true);
+    }
+
     // 发布文章时根据可见性计算最终状态，私密内容不会进入公开列表。
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ArticleVO publish(Long id, Long operatorId) {
         ArticleEntity article = requiredArticle(id);
-        article.setStatus(ContentConstants.PRIVACY_PUBLIC.equals(article.getPrivacyType())
-                ? ContentConstants.STATUS_PUBLISHED
-                : ContentConstants.STATUS_PRIVATE);
-        article.setPublishTime(OffsetDateTime.now());
+        String status = publishedStatusFor(article.getPrivacyType());
+        OffsetDateTime publishTime = OffsetDateTime.now();
+        articleMapper.updatePublishState(id, status, publishTime, operatorId);
+        article.setStatus(status);
+        article.setPublishTime(publishTime);
+        return toVO(article, true);
+    }
+
+    // 撤回文章到草稿状态。
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ArticleVO unpublish(Long id, Long operatorId) {
+        ArticleEntity article = requiredArticle(id);
+        articleMapper.updatePublishState(id, ContentConstants.STATUS_DRAFT, null, operatorId);
+        article.setStatus(ContentConstants.STATUS_DRAFT);
+        article.setPublishTime(null);
+        return toVO(article, true);
+    }
+
+    // 删除文章及其标签绑定。
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void delete(Long id) {
+        ArticleEntity article = requiredArticle(id);
+        articleTagMapper.deleteByArticleId(article.getId());
+        articleMapper.deleteById(article.getId());
+    }
+
+    // 切换置顶状态。
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ArticleVO setTop(Long id, boolean enabled, Long operatorId) {
+        ArticleEntity article = requiredArticle(id);
+        article.setTop(enabled);
         article.setUpdatedBy(operatorId);
         articleMapper.updateById(article);
         return toVO(article, true);
+    }
+
+    // 切换推荐状态。
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ArticleVO setRecommend(Long id, boolean enabled, Long operatorId) {
+        ArticleEntity article = requiredArticle(id);
+        article.setRecommend(enabled);
+        article.setUpdatedBy(operatorId);
+        articleMapper.updateById(article);
+        return toVO(article, true);
+    }
+
+    // 管理员查询全部文章，支持关键字和状态筛选。
+    @Override
+    public PageResponse<ArticleVO> listAdmin(String keyword, String status, long page, long pageSize) {
+        LambdaQueryWrapper<ArticleEntity> query = new LambdaQueryWrapper<>();
+        String normalizedKeyword = keyword == null ? "" : keyword.trim();
+        if (!normalizedKeyword.isEmpty()) {
+            query.and(wrapper -> wrapper
+                    .like(ArticleEntity::getTitle, normalizedKeyword)
+                    .or()
+                    .like(ArticleEntity::getSummary, normalizedKeyword)
+                    .or()
+                    .like(ArticleEntity::getContentMarkdown, normalizedKeyword));
+        }
+        String normalizedStatus = normalizeOptionalStatus(status);
+        if (!normalizedStatus.isEmpty()) {
+            query.eq(ArticleEntity::getStatus, normalizedStatus);
+        }
+        query.orderByDesc(ArticleEntity::getTop)
+                .orderByDesc(ArticleEntity::getPublishTime)
+                .orderByDesc(ArticleEntity::getId);
+
+        Page<ArticleEntity> result = articleMapper.selectPage(new Page<>(page, pageSize), query);
+        List<ArticleVO> records = result.getRecords()
+                .stream()
+                .map(article -> toVO(article, false))
+                .toList();
+        return new PageResponse<>(records, result.getCurrent(), result.getSize(), result.getTotal());
+    }
+
+    // 管理员按主键读取文章，包含正文。
+    @Override
+    public ArticleVO getAdminById(Long id) {
+        return toVO(requiredArticle(id), true);
     }
 
     // 查询公开文章列表，只暴露已发布且公开可见的内容。
@@ -135,8 +227,12 @@ public class ArticleServiceImpl implements ArticleService {
     }
 
     // 确认内容标识未被占用。
-    private void ensureSlugAvailable(String slug) {
-        Long count = articleMapper.selectCount(new LambdaQueryWrapper<ArticleEntity>().eq(ArticleEntity::getSlug, slug));
+    private void ensureSlugAvailable(String slug, Long ignoredId) {
+        LambdaQueryWrapper<ArticleEntity> query = new LambdaQueryWrapper<ArticleEntity>().eq(ArticleEntity::getSlug, slug);
+        if (ignoredId != null) {
+            query.ne(ArticleEntity::getId, ignoredId);
+        }
+        Long count = articleMapper.selectCount(query);
         if (count > 0) {
             throw BusinessException.conflict("文章标识已存在");
         }
@@ -191,6 +287,24 @@ public class ArticleServiceImpl implements ArticleService {
         }
     }
 
+    // 将请求中可编辑字段写回实体。
+    private void applyEditableFields(ArticleEntity article, ArticleCreateRequest request, String slug, String privacyType) {
+        article.setTitle(request.title().trim());
+        article.setSlug(slug);
+        article.setSummary(blankToNull(request.summary()));
+        article.setContentMarkdown(request.contentMarkdown().trim());
+        article.setCoverUrl(normalizeCoverUrl(request.coverUrl()));
+        article.setCategoryId(request.categoryId());
+        article.setPrivacyType(privacyType);
+    }
+
+    // 根据可见性推导已发布内容的真实状态。
+    private String publishedStatusFor(String privacyType) {
+        return ContentConstants.PRIVACY_PUBLIC.equals(privacyType)
+                ? ContentConstants.STATUS_PUBLISHED
+                : ContentConstants.STATUS_PRIVATE;
+    }
+
     // 转换为前端可用的视图对象。
     private ArticleVO toVO(ArticleEntity entity, boolean includeContent) {
         CategoryVO category = entity.getCategoryId() == null ? null : categoryService.findById(entity.getCategoryId());
@@ -205,6 +319,8 @@ public class ArticleServiceImpl implements ArticleService {
                 entity.getCoverUrl(),
                 entity.getStatus(),
                 entity.getPrivacyType(),
+                entity.getTop(),
+                entity.getRecommend(),
                 category,
                 tags,
                 entity.getPublishTime()
@@ -220,8 +336,46 @@ public class ArticleServiceImpl implements ArticleService {
         return normalized;
     }
 
+    // 规范化可选文章状态筛选。
+    private String normalizeOptionalStatus(String status) {
+        String normalized = status == null || status.isBlank() ? "" : status.trim().toUpperCase();
+        if (!normalized.isEmpty() && !ContentConstants.ARTICLE_STATUSES.contains(normalized)) {
+            throw BusinessException.badRequest("文章状态不合法");
+        }
+        return normalized;
+    }
+
     // 规范化 URL 标识。
     private String normalizeSlug(String slug) {
-        return slug.trim().toLowerCase();
+        String normalized = slug.trim().toLowerCase();
+        if (!normalized.matches("[a-z0-9]+(?:-[a-z0-9]+)*")) {
+            throw BusinessException.badRequest("文章标识只允许小写字母、数字和短横线");
+        }
+        return normalized;
+    }
+
+    // 文章封面只允许安全外链或站内上传资源。
+    private String normalizeCoverUrl(String value) {
+        String normalized = blankToNull(value);
+        if (normalized == null) {
+            return null;
+        }
+        if (normalized.startsWith("/uploads/")) {
+            return normalized;
+        }
+        try {
+            URI uri = URI.create(normalized);
+            String scheme = uri.getScheme();
+            if (uri.getHost() != null && ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))) {
+                return normalized;
+            }
+        } catch (IllegalArgumentException exception) {
+            throw BusinessException.badRequest("文章封面格式不合法");
+        }
+        throw BusinessException.badRequest("文章封面只允许 http、https 或站内上传地址");
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 }

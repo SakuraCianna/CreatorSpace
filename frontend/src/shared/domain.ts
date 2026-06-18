@@ -46,6 +46,8 @@ export interface ArticleSummary {
   contentMarkdown?: string | null
   privacyType: ArticlePrivacy
   status: ContentStatus
+  top?: boolean | null
+  recommended?: boolean | null
   category?: CategorySummary | null
   tags: TagSummary[]
   publishTime?: string | null
@@ -94,6 +96,32 @@ export interface InspirationPayload {
   isPublic: boolean
   sortOrder: number
   tagIds: number[]
+}
+
+export interface ArticlePayload {
+  title: string
+  slug: string
+  summary?: string | null
+  contentMarkdown: string
+  coverUrl?: string | null
+  categoryId?: number | null
+  tagIds: number[]
+  privacyType: ArticlePrivacy
+}
+
+export interface ProjectPayload {
+  title: string
+  slug: string
+  description?: string | null
+  coverUrl?: string | null
+  projectType: string
+  techStack: string[]
+  githubUrl?: string | null
+  demoUrl?: string | null
+  videoUrl?: string | null
+  contentMarkdown?: string | null
+  tagIds: number[]
+  recommended: boolean
 }
 
 export interface CommentSummary {
