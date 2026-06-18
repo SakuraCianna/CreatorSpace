@@ -1,44 +1,38 @@
 # CreatorSpace
 
-CreatorSpace 是一个个人主题风格博客与创意作品展示平台。当前仓库已围绕“个人博客 + 作品展厅 + 灵感墙 + 主题化 CMS”的终极目标扩展到完整内容骨架，包含 Spring Boot 后端、Flyway 数据库迁移体系、数据库变更前备份规则、产品主页、公开内容浏览、站内搜索、灵感展示、主题配置、注册登录以及基础 CMS 内容管理接口。
+CreatorSpace 是一个个人主题风格博客与创意作品展示平台，定位为“有艺术感的个人博客 + 像作品展厅一样展示个人项目和创意成果的平台”。项目同时覆盖公开浏览体验、内容管理后台、主题配置、站点设置、文件资产、评论审核、搜索与基础部署链路。
 
-## 当前结构
+## 项目状态
 
-```text
-CreatorSpace
-├── .github
-│   └── workflows
-├── backend
-│   ├── pom.xml
-│   └── src
-│       ├── main
-│       │   ├── java/com/creatorspace
-│       │   └── resources/db/migration
-│       └── test
-├── frontend
-│   ├── package.json
-│   ├── vite.config.ts
-│   └── src
-├── docs
-│   ├── database
-│   ├── product
-│   └── superpowers
-├── .env.example
-├── .gitignore
-└── 需求文档.md
-```
+| 模块 | 状态 | 说明 |
+| --- | --- | --- |
+| 产品主界面 | 已实现 | 沉浸式首页，使用 GSAP、Lenis、Three.js 等动效能力 |
+| 公开内容页 | 已接入 API | 文章、作品、灵感、搜索、关于页、评论 |
+| 认证体系 | 已接入 API | 普通用户注册/登录，管理员登录 |
+| CMS 后台 | 持续完善 | 文章、作品、灵感、评论、文件、主题、站点设置已接入真实接口 |
+| 数据库迁移 | 已接入 | Flyway 管理 PostgreSQL schema 和演示数据 |
+| Docker 部署 | 已配置 | Compose 编排前端、后端、PostgreSQL pgvector、Redis |
+| CI/CD | 已配置基础链路 | CI 运行后端测试、前端审计和构建，CD 生成交付产物 |
 
-## 后端技术栈
+仍在推进的能力包括内容规则、主题预览、高级运营辅助和更完整的生产级可观测性。
+
+## 技术栈
+
+### 后端
 
 - Java 21
-- Spring Boot 4.0.7
-- PostgreSQL 17
-- Redis 7
-- MyBatis-Plus Spring Boot 4 starter
+- Spring Boot 4
+- Spring Security
+- Spring Web MVC
+- Spring Actuator
+- MyBatis-Plus
 - Flyway
+- PostgreSQL 17 / pgvector
+- Redis 7
 - Maven
+- Testcontainers
 
-## 前端技术栈
+### 前端
 
 - Node.js 24
 - Vue 3
@@ -47,184 +41,232 @@ CreatorSpace
 - Vue Router
 - Pinia
 - GSAP
+- Lenis
 - Three.js
 - anime.js
 - markdown-it
 - highlight.js
 - @lucide/vue
 
-## 本地配置
+### 部署
 
-真实配置写在项目根目录 `.env`，该文件不会提交仓库。模板见 `.env.example`。
+- Docker
+- Docker Compose
+- Nginx
+- PostgreSQL pgvector
+- Redis AOF
 
-后端 `application.yml` 会尝试读取:
+## 目录结构
 
 ```text
-../.env
-.env
+CreatorSpace
+├── .github
+│   └── workflows
+├── backend
+│   ├── Dockerfile
+│   ├── pom.xml
+│   └── src
+│       ├── main
+│       │   ├── java/com/creatorspace
+│       │   └── resources/db/migration
+│       └── test
+├── deploy
+│   └── docker
+│       └── production.env.example
+├── docs
+│   ├── database
+│   ├── deployment
+│   ├── product
+│   └── superpowers
+├── frontend
+│   ├── Dockerfile
+│   ├── nginx.conf
+│   ├── package.json
+│   ├── vite.config.ts
+│   └── src
+├── docker-compose.yml
+├── .env.example
+├── .gitignore
+├── README.md
+└── 需求文档.md
 ```
 
-这样无论在项目根目录执行 Maven，还是进入 `backend` 目录执行，都可以读取本地配置。
+## 架构概览
 
-## 运行检查
+```text
+Browser
+  |
+  v
+Nginx frontend container
+  |-- /             -> Vue static files
+  |-- /api/**       -> Spring Boot backend
+  |-- /uploads/**   -> Spring Boot local upload mapping
 
-在项目根目录执行:
+Spring Boot backend
+  |-- PostgreSQL pgvector
+  |-- Redis
+  |-- Docker volume for uploaded assets
+```
+
+前端生产构建默认使用同源 `/api`，Docker 部署时由 Nginx 统一反向代理到后端，避免浏览器跨域配置漂移。后端不直接暴露到公网端口，数据库、Redis 和上传文件均使用 Docker 卷持久化。
+
+## 快速开始
+
+### 环境要求
+
+| 工具 | 推荐版本 |
+| --- | --- |
+| JDK | 21 |
+| Maven | 3.9+ |
+| Node.js | 24 |
+| npm | 11+ |
+| Docker Desktop | 26+ |
+| Docker Compose | v2 |
+| PostgreSQL | 17 |
+| Redis | 7 |
+
+### 本地开发
+
+1. 创建本地环境文件。
 
 ```powershell
-mvn -f backend/pom.xml test
-npm run build --prefix frontend
+Copy-Item .\.env.example .\.env
 ```
 
-## 当前已实现的核心接口
+2. 编辑 `.env`，至少配置:
 
-后端当前已具备以下核心业务闭环:
+- `JWT_SECRET`
+- `ADMIN_PASSWORD_HASH`
+- `POSTGRES_PASSWORD`
+- `REDIS_PASSWORD`
 
-```text
-POST   /api/auth/register
-POST   /api/auth/login
-POST   /api/admin/auth/login
-GET    /api/site/config
-GET    /api/theme/current
-GET    /api/admin/themes
-PUT    /api/admin/themes/{id}
-PUT    /api/admin/themes/{id}/switch
-GET    /api/admin/site/settings
-PUT    /api/admin/site/settings
-GET    /api/search
-POST   /api/admin/categories
-GET    /api/categories
-POST   /api/admin/tags
-GET    /api/tags
-POST   /api/admin/articles
-GET    /api/admin/articles
-GET    /api/admin/articles/{id}
-PUT    /api/admin/articles/{id}
-PUT    /api/admin/articles/{id}/publish
-PUT    /api/admin/articles/{id}/unpublish
-PUT    /api/admin/articles/{id}/top
-PUT    /api/admin/articles/{id}/recommend
-DELETE /api/admin/articles/{id}
-GET    /api/articles
-GET    /api/articles/slug/{slug}
-POST   /api/admin/projects
-GET    /api/admin/projects
-GET    /api/admin/projects/{id}
-PUT    /api/admin/projects/{id}
-PUT    /api/admin/projects/{id}/status
-PUT    /api/admin/projects/{id}/recommend
-DELETE /api/admin/projects/{id}
-GET    /api/projects
-GET    /api/projects/slug/{slug}
-GET    /api/inspirations
-GET    /api/admin/inspirations
-POST   /api/admin/inspirations
-PUT    /api/admin/inspirations/{id}
-DELETE /api/admin/inspirations/{id}
-GET    /api/comments
-POST   /api/comments
-GET    /api/admin/comments
-PUT    /api/admin/comments/{id}/approve
-PUT    /api/admin/comments/{id}/reject
-POST   /api/admin/files/upload
-GET    /api/admin/files
-GET    /api/admin/dashboard/overview
-```
-
-后台接口需要管理员 JWT。前台注册、访客登录、管理员登录、文章、文章详情、作品、作品详情、公开评论、灵感墙、搜索和关于页已通过统一 `requestJson` 封装接入对应接口，并提供 loading、empty、error 和本地展示数据兜底状态。后台文章、作品、灵感、评论审核、文件资源、主题配置和站点设置模块已接入真实接口；内容规则、主题预览和更高级的运营辅助仍处于工作台骨架阶段。
-
-## 当前前端页面
-
-```text
-/                 产品主界面
-/articles         文章档案
-/articles/:slug   文章详情
-/projects         作品展厅
-/projects/:slug   作品详情
-/inspirations     灵感墙
-/search           站内搜索
-/about            关于作者与平台
-/login            访客登录 / 管理员登录
-/register         访客注册
-/admin            CMS 概览
-/admin/*          CMS 模块工作台
-```
-
-## 快速启动
-
-双击或在项目根目录执行:
-
-```powershell
-.\快速启动.bat
-```
-
-脚本会分别启动前端和后端。
-
-## CI/CD
-
-GitHub Actions 工作流:
-
-```text
-.github/workflows/ci.yml
-.github/workflows/cd.yml
-```
-
-CI 会在 Pull Request、`main` 和 `codex/CreatorSpace` 分支推送时运行后端测试、前端依赖审计和前端构建。CD 会在 `main` 或 `v*` 标签推送时生成后端 jar、前端静态产物和交付摘要。
-
-详细规则见:
-
-```text
-docs/ci-cd.md
-```
-
-## 启动后端
-
-启动前确认 `.env` 中 PostgreSQL 配置可用。
-
-```powershell
-mvn -f backend/pom.xml spring-boot:run
-```
-
-后端默认端口:
-
-```text
-8080
-```
-
-健康检查:
-
-```powershell
-Invoke-RestMethod -Uri "http://localhost:8080/api/health"
-```
-
-## 启动前端
-
-首次安装依赖:
+3. 安装前端依赖。
 
 ```powershell
 npm install --prefix frontend
 ```
 
-启动 Vite 开发服务器:
+4. 启动后端。
+
+```powershell
+mvn -f backend/pom.xml spring-boot:run
+```
+
+5. 启动前端。
 
 ```powershell
 npm run dev --prefix frontend
 ```
 
-前端默认端口:
+6. 验证健康检查。
 
-```text
-5173
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8080/api/health"
 ```
 
-## 配置说明
+也可以在项目根目录执行:
 
-配置模板见 `.env.example`。后端会通过 `application.yml` 读取数据库、Redis 基础信息、上传限制、CORS、JWT、本地文件存储和 AI 预留配置。前端会通过 Vite 读取 `VITE_` 前缀配置, 包括 API 地址、开发代理和开发服务器端口。
+```powershell
+.\快速启动.bat
+```
 
-后端启动必须显式配置 `JWT_SECRET`，且长度不少于 32 个字符；未配置或过短时服务会拒绝启动，避免默认弱密钥进入本地联调或部署环境。初始化管理员密码哈希仍通过 `ADMIN_PASSWORD_HASH` 写入 `.env`。
+## Docker 部署
+
+Docker 部署使用四个服务:
+
+- `frontend`: Nginx + Vue 静态资源
+- `backend`: Spring Boot API
+- `postgres`: PostgreSQL pgvector
+- `redis`: Redis AOF
+
+### 首次部署
+
+1. 复制部署环境模板。
+
+```powershell
+Copy-Item .\deploy\docker\production.env.example .\deploy\docker\production.env
+```
+
+2. 编辑 `deploy/docker/production.env`，替换所有 `replace-with-*` 占位值。
+
+必须重点配置:
+
+- `JWT_SECRET`
+- `ADMIN_PASSWORD_HASH`
+- `POSTGRES_PASSWORD`
+- `REDIS_PASSWORD`
+- `WEB_BASE_URL`
+- `API_BASE_URL`
+- `CORS_ALLOWED_ORIGINS`
+
+3. 运行生产环境预检，确认没有占位密钥。
+
+```powershell
+.\deploy\docker\Test-ProductionEnv.ps1 -EnvFile .\deploy\docker\production.env
+```
+
+4. 校验 Compose 配置。
+
+```powershell
+docker compose --env-file .\deploy\docker\production.env config --quiet
+```
+
+不要把 `docker compose config` 的完整输出粘贴到日志、PR 或工单中，它会展开环境变量中的敏感值。
+
+5. 构建镜像。
+
+```powershell
+docker compose --env-file .\deploy\docker\production.env build
+```
+
+6. 启动服务。
+
+```powershell
+docker compose --env-file .\deploy\docker\production.env up -d
+```
+
+7. 查看服务状态。
+
+```powershell
+docker compose --env-file .\deploy\docker\production.env ps
+```
+
+8. 验证入口健康检查。
+
+```powershell
+Invoke-RestMethod -Uri "http://localhost/api/health"
+```
+
+如果 `HTTP_PORT` 不是 `80`，请改为对应端口。
+
+详细部署、备份、回滚和停止服务说明见 [Docker 部署手册](docs/deployment/docker.md)。
+
+## 环境变量
+
+根目录 `.env.example` 用于本地开发，`deploy/docker/production.env.example` 用于 Docker 部署。真实环境文件不提交仓库。
+
+核心变量:
+
+| 变量 | 说明 |
+| --- | --- |
+| `JWT_SECRET` | JWT 签名密钥，必须使用强随机字符串 |
+| `ADMIN_USERNAME` | 初始化管理员用户名 |
+| `ADMIN_PASSWORD_HASH` | 初始化管理员 BCrypt 密码哈希 |
+| `POSTGRES_DB` | PostgreSQL 数据库名 |
+| `POSTGRES_USERNAME` | PostgreSQL 用户名 |
+| `POSTGRES_PASSWORD` | PostgreSQL 密码 |
+| `REDIS_PASSWORD` | Redis 密码 |
+| `WEB_BASE_URL` | 站点公网地址 |
+| `API_BASE_URL` | API 公网地址 |
+| `CORS_ALLOWED_ORIGINS` | 允许跨域来源 |
+| `LOCAL_FILE_STORAGE_ROOT` | 后端上传文件存储目录 |
+| `AI_ENABLED` | AI 功能开关 |
+
+`.env` 中不要写入明文管理员密码，只写 BCrypt 哈希。
 
 ## 数据库迁移
 
-迁移脚本目录:
+迁移脚本位于:
 
 ```text
 backend/src/main/resources/db/migration
@@ -237,20 +279,161 @@ V1__initialize_creator_space_schema.sql
 V2__seed_showcase_data.sql
 ```
 
-应用启动时 Flyway 会自动执行未运行的迁移。`V1` 当前覆盖用户、资料、文章、作品、灵感、评论、留言、主题、导航、内容块、统计、搜索日志、AI 任务和后台审计等终极目标所需的基础表结构。项目正式产生持久数据前，初始化结构可以合并在 `V1` 中维护；一旦有需要保留的真实数据，不要修改已经执行过的迁移脚本，新增结构变更时创建新的 `V版本号__描述.sql`。
+后端启动时 Flyway 会自动执行未应用迁移。项目产生真实持久数据后，不要修改已经执行过的迁移脚本；任何结构变更都应新增 `V版本号__描述.sql`。
 
-`V2__seed_showcase_data.sql` 是正式迁移，用于写入产品演示和本地联调所需的展示数据。它会随 `classpath:db/migration` 在所有启用 Flyway 的环境执行，数据命名尽量使用 `demo-`、`demo_` 或 `demo.*` 前缀，避免覆盖已有真实配置和内容。生产环境如果不希望内置展示数据，需要在上线前调整迁移策略或使用不包含该迁移的数据库初始化流程。
+数据库变更前备份规则见 [数据库备份与迁移规则](docs/database/backup-and-migration-rules.md)。
 
-数据库变更前备份规则见:
+## 核心 API
 
-```text
-docs/database/backup-and-migration-rules.md
-```
-
-## 业务细节待确认
-
-第一阶段接口设计前需要继续确认的业务细节见:
+### 公开接口
 
 ```text
-docs/product/business-details-to-confirm.md
+POST   /api/auth/register
+POST   /api/auth/login
+GET    /api/site/config
+GET    /api/theme/current
+GET    /api/search
+GET    /api/categories
+GET    /api/tags
+GET    /api/articles
+GET    /api/articles/slug/{slug}
+GET    /api/projects
+GET    /api/projects/slug/{slug}
+GET    /api/inspirations
+GET    /api/comments
+POST   /api/comments
+GET    /api/health
 ```
+
+### 管理接口
+
+```text
+POST   /api/admin/auth/login
+GET    /api/admin/dashboard/overview
+GET    /api/admin/articles
+POST   /api/admin/articles
+GET    /api/admin/articles/{id}
+PUT    /api/admin/articles/{id}
+PUT    /api/admin/articles/{id}/publish
+PUT    /api/admin/articles/{id}/unpublish
+PUT    /api/admin/articles/{id}/top
+PUT    /api/admin/articles/{id}/recommend
+DELETE /api/admin/articles/{id}
+GET    /api/admin/projects
+POST   /api/admin/projects
+GET    /api/admin/projects/{id}
+PUT    /api/admin/projects/{id}
+PUT    /api/admin/projects/{id}/status
+PUT    /api/admin/projects/{id}/recommend
+DELETE /api/admin/projects/{id}
+GET    /api/admin/inspirations
+POST   /api/admin/inspirations
+PUT    /api/admin/inspirations/{id}
+DELETE /api/admin/inspirations/{id}
+GET    /api/admin/comments
+PUT    /api/admin/comments/{id}/approve
+PUT    /api/admin/comments/{id}/reject
+GET    /api/admin/files
+POST   /api/admin/files/upload
+GET    /api/admin/themes
+PUT    /api/admin/themes/{id}
+PUT    /api/admin/themes/{id}/switch
+GET    /api/admin/site/settings
+PUT    /api/admin/site/settings
+```
+
+管理接口需要管理员 JWT。
+
+## 质量门禁
+
+本地提交前建议执行:
+
+```powershell
+mvn -f backend/pom.xml test
+npm run build --prefix frontend
+docker compose --env-file .\deploy\docker\production.env.example config --quiet
+```
+
+CI 当前覆盖:
+
+- 后端 Maven 测试
+- 前端 npm audit
+- 前端 TypeScript 检查和生产构建
+- 后端 Jar 产物
+- 前端 dist 产物
+
+工作流文件:
+
+```text
+.github/workflows/ci.yml
+.github/workflows/cd.yml
+```
+
+## 安全与运维约束
+
+- 不提交 `.env`、`deploy/docker/production.env`、密钥、Token、Cookie、私有证书
+- 不在 README、PR 描述或 commit message 中写入真实密钥
+- 生产环境更新前先备份 PostgreSQL 和上传文件
+- 不在生产环境执行 `docker compose down -v`，除非确认要删除数据库、Redis 和上传文件
+- 后端启动必须配置不少于 32 位的 `JWT_SECRET`
+- 管理员密码只以 BCrypt 哈希形式进入配置
+- 已运行过的 Flyway 迁移不要原地修改
+
+## 常用命令
+
+查看 Git 状态:
+
+```powershell
+git status --short --branch
+```
+
+运行后端测试:
+
+```powershell
+mvn -f backend/pom.xml test
+```
+
+运行前端构建:
+
+```powershell
+npm run build --prefix frontend
+```
+
+解析 Docker Compose:
+
+```powershell
+docker compose --env-file .\deploy\docker\production.env config
+```
+
+完整输出会展开敏感变量，只在本机排查时使用，不要粘贴到日志、PR 或工单中。
+
+启动 Docker 服务:
+
+```powershell
+docker compose --env-file .\deploy\docker\production.env up -d
+```
+
+查看 Docker 日志:
+
+```powershell
+docker compose --env-file .\deploy\docker\production.env logs -f backend
+```
+
+停止 Docker 服务并保留数据:
+
+```powershell
+docker compose --env-file .\deploy\docker\production.env down
+```
+
+## 产品方向
+
+CreatorSpace 后续继续围绕以下方向演进:
+
+- 更完整的主题编辑、预览和应用链路
+- 更成熟的内容规则与审核策略
+- 更有艺术感的作品展厅交互
+- 更完整的 AI 辅助创作工作流
+- 更细的权限模型和后台操作审计
+- 更完整的可观测性、备份和发布流水线
+
+当前未完成能力会明确标注为规划或待完善，不会写成已完成能力。
