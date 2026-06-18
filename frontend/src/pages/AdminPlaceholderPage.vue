@@ -350,6 +350,160 @@
       </div>
     </section>
 
+    <section v-else-if="activeSection === 'themes'" class="workspace-grid">
+      <form class="workspace-panel admin-form" data-reveal @submit.prevent="saveTheme">
+        <div class="panel-title">
+          <h2>{{ editingThemeId ? '编辑主题' : '选择主题' }}</h2>
+          <span>{{ themeForm.primaryColor || 'M3' }}</span>
+        </div>
+        <div class="form-line">
+          <label>
+            主题标识
+            <input v-model="themeForm.themeName" maxlength="80" />
+          </label>
+          <label>
+            显示名称
+            <input v-model="themeForm.displayName" maxlength="120" />
+          </label>
+        </div>
+        <div class="form-line">
+          <label>
+            主色
+            <input v-model="themeForm.primaryColor" type="color" />
+          </label>
+          <label>
+            背景类型
+            <select v-model="themeForm.backgroundType">
+              <option value="color">color</option>
+              <option value="solid">solid</option>
+              <option value="image">image</option>
+              <option value="gradient">gradient</option>
+              <option value="star">star</option>
+              <option value="webgl">webgl</option>
+            </select>
+          </label>
+        </div>
+        <label>
+          背景资源
+          <input v-model="themeForm.backgroundImage" placeholder="/uploads/demo/theme.webp" />
+        </label>
+        <div class="form-line">
+          <label>
+            字体
+            <input v-model="themeForm.fontFamily" maxlength="120" placeholder="Inter, system-ui, sans-serif" />
+          </label>
+          <label>
+            卡片样式
+            <input v-model="themeForm.cardStyle" maxlength="40" />
+          </label>
+        </div>
+        <label>
+          布局类型
+          <input v-model="themeForm.layoutType" maxlength="40" />
+        </label>
+        <label>
+          主题变量 JSON
+          <textarea v-model="themeConfigText" rows="9" spellcheck="false" />
+        </label>
+        <div class="form-actions">
+          <button class="button button-filled" type="submit">保存主题</button>
+          <button v-if="editingThemeId" class="button button-tonal" type="button" @click="switchCurrentTheme()">
+            设为当前主题
+          </button>
+        </div>
+      </form>
+
+      <div class="workspace-panel" data-reveal>
+        <div class="panel-title">
+          <h2>主题库</h2>
+          <span>{{ themes.length }} themes</span>
+        </div>
+        <article v-for="theme in themes" :key="theme.id" class="table-row table-row--rich">
+          <div>
+            <strong>
+              <span class="theme-dot" :style="{ backgroundColor: theme.primaryColor }" />
+              {{ theme.displayName }}
+            </strong>
+            <span>{{ theme.themeName }} · {{ theme.layoutType }} · {{ theme.cardStyle }}</span>
+          </div>
+          <div class="row-actions">
+            <span class="status-chip">{{ theme.active ? 'ACTIVE' : 'PRESET' }}</span>
+            <button class="icon-text-button" type="button" @click="editTheme(theme)">编辑</button>
+            <button class="icon-text-button" type="button" @click="switchCurrentTheme(theme.id)">启用</button>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section v-else-if="activeSection === 'settings'" class="workspace-grid">
+      <form class="workspace-panel admin-form" data-reveal @submit.prevent="saveSiteSettings">
+        <div class="panel-title">
+          <h2>站点身份</h2>
+          <span>{{ siteProfileForm.profileKey }}</span>
+        </div>
+        <div class="form-line">
+          <label>
+            配置标识
+            <input v-model="siteProfileForm.profileKey" maxlength="80" />
+          </label>
+          <label>
+            显示名称
+            <input v-model="siteProfileForm.displayName" maxlength="120" />
+          </label>
+        </div>
+        <label>
+          标语
+          <input v-model="siteProfileForm.headline" maxlength="180" />
+        </label>
+        <label>
+          头像地址
+          <input v-model="siteProfileForm.avatarUrl" placeholder="/uploads/demo/avatar.webp" />
+        </label>
+        <label>
+          简介
+          <textarea v-model="siteProfileForm.bio" rows="4" maxlength="5000" />
+        </label>
+        <div class="form-line">
+          <label>
+            联系邮箱
+            <input v-model="siteProfileForm.contactEmail" maxlength="180" />
+          </label>
+          <label>
+            位置
+            <input v-model="siteProfileForm.location" maxlength="120" />
+          </label>
+        </div>
+        <label>
+          资料扩展 JSON
+          <textarea v-model="profileJsonText" rows="5" spellcheck="false" />
+        </label>
+        <button class="button button-filled" type="submit">保存站点设置</button>
+      </form>
+
+      <div class="workspace-panel admin-form" data-reveal>
+        <div class="panel-title">
+          <h2>导航 / 社交 / 页面</h2>
+          <span>JSON Editor</span>
+        </div>
+        <label>
+          导航项 JSON
+          <textarea v-model="navigationText" rows="7" spellcheck="false" />
+        </label>
+        <label>
+          社交链接 JSON
+          <textarea v-model="socialLinksText" rows="7" spellcheck="false" />
+        </label>
+        <label>
+          页面配置 JSON
+          <textarea v-model="pagesText" rows="7" spellcheck="false" />
+        </label>
+        <label>
+          站点配置 JSON
+          <textarea v-model="siteConfigsText" rows="7" spellcheck="false" />
+        </label>
+      </div>
+    </section>
+
     <section v-else class="workspace-grid">
       <div class="workspace-panel" data-reveal>
         <div class="panel-title">
@@ -393,6 +547,8 @@ import {
   deleteArticle,
   deleteInspiration,
   deleteProject,
+  fetchAdminSiteSettings,
+  fetchAdminThemes,
   fetchAdminArticle,
   fetchAdminArticles,
   fetchAdminComments,
@@ -407,13 +563,17 @@ import {
   setArticleTop,
   setProjectRecommend,
   setProjectStatus,
+  switchTheme,
   updateArticle,
   updateInspiration,
   updateProject,
+  updateSiteSettings,
+  updateTheme,
   uploadAdminFile,
 } from '@/services/content'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import type {
+  AdminThemeConfig,
   ArticlePayload,
   ArticlePrivacy,
   ArticleSummary,
@@ -424,9 +584,16 @@ import type {
   InspirationCard,
   InspirationPayload,
   InspirationType,
+  NavigationItem,
+  PageConfig,
   ProjectPayload,
   ProjectSummary,
+  SiteConfigEntry,
+  SiteProfile,
+  SiteSettings,
+  SocialLink,
   TagSummary,
+  ThemePayload,
 } from '@/shared/domain'
 
 interface ModuleConfig {
@@ -448,6 +615,7 @@ const tags = ref<TagSummary[]>([])
 const inspirations = ref<InspirationCard[]>([])
 const comments = ref<CommentSummary[]>([])
 const files = ref<FileResource[]>([])
+const themes = ref<AdminThemeConfig[]>([])
 const articleKeyword = ref('')
 const projectKeyword = ref('')
 const articleStatus = ref<ContentStatus | 'ALL'>('ALL')
@@ -459,7 +627,14 @@ const selectedFile = ref<File | null>(null)
 const editingArticleId = ref<number | null>(null)
 const editingProjectId = ref<number | null>(null)
 const editingInspirationId = ref<number | null>(null)
+const editingThemeId = ref<number | null>(null)
 const projectTechStack = ref('')
+const themeConfigText = ref('{}')
+const profileJsonText = ref('{}')
+const navigationText = ref('[]')
+const socialLinksText = ref('[]')
+const pagesText = ref('[]')
+const siteConfigsText = ref('[]')
 
 const articlePrivacies: ArticlePrivacy[] = ['PUBLIC', 'SELF', 'FRIENDS', 'SELECTED_FRIENDS', 'EXCLUDED_FRIENDS']
 const inspirationTypes: InspirationType[] = ['TEXT', 'PROMPT', 'IMAGE', 'CODE', 'LINK']
@@ -499,6 +674,27 @@ const inspirationForm = reactive<InspirationPayload>({
   sortOrder: 0,
   tagIds: [],
 })
+const themeForm = reactive<ThemePayload>({
+  themeName: '',
+  displayName: '',
+  primaryColor: '#1a73e8',
+  backgroundType: 'color',
+  backgroundImage: '',
+  fontFamily: 'Inter, system-ui, sans-serif',
+  cardStyle: 'material',
+  layoutType: 'editorial',
+  config: {},
+})
+const siteProfileForm = reactive<SiteProfile>({
+  profileKey: 'default',
+  displayName: '',
+  headline: '',
+  avatarUrl: '',
+  bio: '',
+  contactEmail: '',
+  location: '',
+  profileJson: {},
+})
 
 usePageReveal(root)
 
@@ -523,6 +719,10 @@ async function loadActiveModule() {
     await loadComments()
   } else if (activeSection.value === 'files') {
     await loadFiles()
+  } else if (activeSection.value === 'themes') {
+    await loadThemes()
+  } else if (activeSection.value === 'settings') {
+    await loadSiteSettings()
   }
 }
 
@@ -864,6 +1064,130 @@ async function uploadFile() {
   }
 }
 
+async function loadThemes() {
+  try {
+    themes.value = await fetchAdminThemes()
+    const selected = themes.value.find((theme) => theme.id === editingThemeId.value)
+      ?? themes.value.find((theme) => theme.active)
+      ?? themes.value[0]
+    if (selected) {
+      editTheme(selected)
+    }
+  } catch (error) {
+    notice.value = readError(error, '主题配置加载失败')
+  }
+}
+
+function editTheme(theme: AdminThemeConfig) {
+  editingThemeId.value = theme.id
+  themeForm.themeName = theme.themeName
+  themeForm.displayName = theme.displayName
+  themeForm.primaryColor = theme.primaryColor
+  themeForm.backgroundType = theme.backgroundType
+  themeForm.backgroundImage = theme.backgroundImage ?? ''
+  themeForm.fontFamily = theme.fontFamily ?? ''
+  themeForm.cardStyle = theme.cardStyle
+  themeForm.layoutType = theme.layoutType
+  themeForm.config = normalizeRecord(theme.config)
+  themeConfigText.value = prettyJson(themeForm.config)
+}
+
+async function saveTheme() {
+  if (!editingThemeId.value) {
+    notice.value = '请先从主题库选择一个主题'
+    return
+  }
+  const config = parseRecord(themeConfigText.value, '主题变量 JSON')
+  if (!config) {
+    return
+  }
+  try {
+    const saved = await updateTheme(editingThemeId.value, {
+      ...themeForm,
+      backgroundImage: themeForm.backgroundImage || null,
+      fontFamily: themeForm.fontFamily || null,
+      config,
+    })
+    notice.value = '主题已保存'
+    await loadThemes()
+    editTheme(saved)
+  } catch (error) {
+    notice.value = readError(error, '主题保存失败')
+  }
+}
+
+async function switchCurrentTheme(id = editingThemeId.value) {
+  if (!id) {
+    notice.value = '请先选择主题'
+    return
+  }
+  try {
+    const switched = await switchTheme(id)
+    notice.value = '当前主题已切换'
+    await loadThemes()
+    editTheme(switched)
+  } catch (error) {
+    notice.value = readError(error, '主题切换失败')
+  }
+}
+
+async function loadSiteSettings() {
+  try {
+    applySiteSettings(await fetchAdminSiteSettings())
+  } catch (error) {
+    notice.value = readError(error, '站点设置加载失败')
+  }
+}
+
+function applySiteSettings(settings: SiteSettings) {
+  const profile = settings.profile
+  siteProfileForm.profileKey = profile?.profileKey ?? 'default'
+  siteProfileForm.displayName = profile?.displayName ?? ''
+  siteProfileForm.headline = profile?.headline ?? ''
+  siteProfileForm.avatarUrl = profile?.avatarUrl ?? ''
+  siteProfileForm.bio = profile?.bio ?? ''
+  siteProfileForm.contactEmail = profile?.contactEmail ?? ''
+  siteProfileForm.location = profile?.location ?? ''
+  siteProfileForm.profileJson = normalizeRecord(profile?.profileJson)
+  profileJsonText.value = prettyJson(siteProfileForm.profileJson)
+  navigationText.value = prettyJson(settings.navigationItems)
+  socialLinksText.value = prettyJson(settings.socialLinks)
+  pagesText.value = prettyJson(settings.pages)
+  siteConfigsText.value = prettyJson(settings.configs)
+}
+
+async function saveSiteSettings() {
+  const profileJson = parseRecord(profileJsonText.value, '资料扩展 JSON')
+  const navigationItems = parseArray<NavigationItem>(navigationText.value, '导航项 JSON')
+  const socialLinks = parseArray<SocialLink>(socialLinksText.value, '社交链接 JSON')
+  const pages = parseArray<PageConfig>(pagesText.value, '页面配置 JSON')
+  const configs = parseArray<SiteConfigEntry>(siteConfigsText.value, '站点配置 JSON')
+  if (!profileJson || !navigationItems || !socialLinks || !pages || !configs) {
+    return
+  }
+  try {
+    const settings = await updateSiteSettings({
+      profile: {
+        ...siteProfileForm,
+        avatarUrl: siteProfileForm.avatarUrl || null,
+        headline: siteProfileForm.headline || null,
+        bio: siteProfileForm.bio || null,
+        contactEmail: siteProfileForm.contactEmail || null,
+        location: siteProfileForm.location || null,
+        profileJson,
+      },
+      navigationItems,
+      socialLinks,
+      pages,
+      configs,
+    })
+    notice.value = '站点设置已保存'
+    applySiteSettings(settings)
+  } catch (error) {
+    notice.value = readError(error, '站点设置保存失败')
+  }
+}
+
 function handlePrimaryAction() {
   if (activeSection.value === 'articles') {
     resetArticleForm()
@@ -876,6 +1200,10 @@ function handlePrimaryAction() {
     loadComments()
   } else if (activeSection.value === 'files') {
     loadFiles()
+  } else if (activeSection.value === 'themes') {
+    saveTheme()
+  } else if (activeSection.value === 'settings') {
+    saveSiteSettings()
   }
 }
 
@@ -894,6 +1222,46 @@ function splitTechStack(value: string) {
     .split(/[,，\n]/)
     .map((item) => item.trim())
     .filter(Boolean)
+}
+
+function prettyJson(value: unknown) {
+  return JSON.stringify(value ?? {}, null, 2)
+}
+
+function parseRecord(value: string, label: string): Record<string, unknown> | null {
+  try {
+    const parsed: unknown = JSON.parse(value)
+    if (isRecord(parsed)) {
+      return parsed
+    }
+    notice.value = `${label} 必须是 JSON 对象`
+    return null
+  } catch {
+    notice.value = `${label} 不是合法 JSON`
+    return null
+  }
+}
+
+function parseArray<T>(value: string, label: string): T[] | null {
+  try {
+    const parsed: unknown = JSON.parse(value)
+    if (Array.isArray(parsed)) {
+      return parsed as T[]
+    }
+    notice.value = `${label} 必须是 JSON 数组`
+    return null
+  } catch {
+    notice.value = `${label} 不是合法 JSON`
+    return null
+  }
+}
+
+function normalizeRecord(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {}
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
 
 function readError(error: unknown, fallback: string) {

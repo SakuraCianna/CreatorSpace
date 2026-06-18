@@ -175,6 +175,95 @@ export interface ThemeConfig {
   config: Record<string, unknown>
 }
 
+export interface AdminThemeConfig extends ThemeConfig {
+  id: number
+  active: boolean
+  createdAt?: string | null
+  updatedAt?: string | null
+}
+
+export interface ThemePayload {
+  themeName: string
+  displayName: string
+  primaryColor: string
+  backgroundType: string
+  backgroundImage?: string | null
+  fontFamily?: string | null
+  cardStyle: string
+  layoutType: string
+  config: Record<string, unknown>
+}
+
+export interface SiteProfile {
+  id?: number | null
+  profileKey: string
+  displayName: string
+  headline?: string | null
+  avatarUrl?: string | null
+  bio?: string | null
+  contactEmail?: string | null
+  location?: string | null
+  profileJson: Record<string, unknown>
+  active?: boolean | null
+  updatedAt?: string | null
+}
+
+export interface NavigationItem {
+  id?: number | null
+  label: string
+  path: string
+  icon?: string | null
+  groupName: string
+  sortOrder: number
+  visible: boolean
+  extraJson?: Record<string, unknown>
+}
+
+export interface SocialLink {
+  id?: number | null
+  platform: string
+  label: string
+  url: string
+  icon?: string | null
+  sortOrder: number
+  visible: boolean
+}
+
+export interface PageConfig {
+  id?: number | null
+  pageKey: string
+  title: string
+  slug: string
+  seoTitle?: string | null
+  seoDescription?: string | null
+  contentJson: Record<string, unknown>
+  layoutJson: Record<string, unknown>
+  status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
+}
+
+export interface SiteConfigEntry {
+  id?: number | null
+  configKey: string
+  configValue: Record<string, unknown>
+  description?: string | null
+}
+
+export interface SiteSettings {
+  profile: SiteProfile | null
+  navigationItems: NavigationItem[]
+  socialLinks: SocialLink[]
+  pages: PageConfig[]
+  configs: SiteConfigEntry[]
+}
+
+export interface SiteSettingsPayload {
+  profile?: SiteProfile | null
+  navigationItems?: NavigationItem[]
+  socialLinks?: SocialLink[]
+  pages?: PageConfig[]
+  configs?: SiteConfigEntry[]
+}
+
 export interface DashboardMetric {
   label: string
   value: string

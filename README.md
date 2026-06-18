@@ -85,6 +85,11 @@ POST   /api/auth/login
 POST   /api/admin/auth/login
 GET    /api/site/config
 GET    /api/theme/current
+GET    /api/admin/themes
+PUT    /api/admin/themes/{id}
+PUT    /api/admin/themes/{id}/switch
+GET    /api/admin/site/settings
+PUT    /api/admin/site/settings
 GET    /api/search
 POST   /api/admin/categories
 GET    /api/categories
@@ -125,7 +130,7 @@ GET    /api/admin/files
 GET    /api/admin/dashboard/overview
 ```
 
-后台接口需要管理员 JWT。前台注册、访客登录、管理员登录、文章、文章详情、作品、作品详情、公开评论、灵感墙、搜索和关于页已通过统一 `requestJson` 封装接入对应接口，并提供 loading、empty、error 和本地展示数据兜底状态。后台文章、作品、灵感、评论审核和文件资源模块已接入真实接口；主题与站点设置仍处于工作台骨架阶段。
+后台接口需要管理员 JWT。前台注册、访客登录、管理员登录、文章、文章详情、作品、作品详情、公开评论、灵感墙、搜索和关于页已通过统一 `requestJson` 封装接入对应接口，并提供 loading、empty、error 和本地展示数据兜底状态。后台文章、作品、灵感、评论审核、文件资源、主题配置和站点设置模块已接入真实接口；内容规则、主题预览和更高级的运营辅助仍处于工作台骨架阶段。
 
 ## 当前前端页面
 

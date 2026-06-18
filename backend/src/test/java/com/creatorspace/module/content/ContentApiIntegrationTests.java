@@ -874,6 +874,184 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                 .andExpect(jsonPath("$.message", is("文件内容与类型不匹配")));
     }
 
+    // 验证管理员可以更新并切换主题，公开当前主题接口同步返回最新配置。
+    @Test
+    void adminCanUpdateAndSwitchCurrentTheme() throws Exception {
+        String token = loginAsAdmin();
+        long themeId = firstThemeId(token);
+
+        mockMvc.perform(put("/api/admin/themes/{id}", themeId)
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "themeName", "test-material-blue",
+                                "displayName", "Test Material Blue",
+                                "primaryColor", "#1a73e8",
+                                "backgroundType", "color",
+                                "backgroundImage", "/uploads/demo/theme-gallery-night.webp",
+                                "fontFamily", "Inter, system-ui, sans-serif",
+                                "cardStyle", "material",
+                                "layoutType", "editorial",
+                                "config", Map.of(
+                                        "density", "focused",
+                                        "motion", "soft"
+                                )
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.themeName", is("test-material-blue")))
+                .andExpect(jsonPath("$.data.primaryColor", is("#1a73e8")))
+                .andExpect(jsonPath("$.data.config.density", is("focused")));
+
+        mockMvc.perform(put("/api/admin/themes/{id}/switch", themeId)
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.active", is(true)));
+
+        mockMvc.perform(get("/api/theme/current"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.themeName", is("test-material-blue")))
+                .andExpect(jsonPath("$.data.config.motion", is("soft")));
+    }
+
+    // 验证主题后台拒绝 javascript 等不安全资源地址。
+    @Test
+    void adminThemeApiRejectsUnsafeBackgroundUrl() throws Exception {
+        String token = loginAsAdmin();
+        long themeId = firstThemeId(token);
+
+        mockMvc.perform(put("/api/admin/themes/{id}", themeId)
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "themeName", "unsafe-theme",
+                                "displayName", "Unsafe Theme",
+                                "primaryColor", "#1a73e8",
+                                "backgroundType", "image",
+                                "backgroundImage", "javascript:alert(1)",
+                                "fontFamily", "Inter, system-ui, sans-serif",
+                                "cardStyle", "material",
+                                "layoutType", "editorial",
+                                "config", Map.of("density", "focused")
+                        ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.message", is("主题背景地址只允许 http、https 或 /uploads/ 路径")));
+    }
+
+    // 验证管理员保存站点设置后，公开站点配置接口能读取最新身份、导航、页面和 JSON 配置。
+    @Test
+    void adminCanUpdateSiteSettingsAndPublicConfigReflectsChanges() throws Exception {
+        String token = loginAsAdmin();
+        String settingsResponse = mockMvc.perform(get("/api/admin/site/settings")
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.navigationItems", not(empty())))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        JsonNode settings = objectMapper.readTree(settingsResponse).path("data");
+        JsonNode firstNavigation = settings.path("navigationItems").get(0);
+
+        mockMvc.perform(put("/api/admin/site/settings")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "profile", Map.of(
+                                        "profileKey", "test-profile",
+                                        "displayName", "CreatorSpace Test Lab",
+                                        "headline", "主题博客与创意展厅",
+                                        "avatarUrl", "/uploads/demo/avatar.webp",
+                                        "bio", "测试公开站点资料会从后台同步。",
+                                        "contactEmail", "creator@example.com",
+                                        "location", "Shanghai",
+                                        "profileJson", Map.of("signature", "material-cms")
+                                ),
+                                "configs", new Object[]{
+                                        Map.of(
+                                                "configKey", "site.identity",
+                                                "configValue", Map.of(
+                                                        "name", "CreatorSpace Test Lab",
+                                                        "slogan", "后台可配置的个人主题空间"
+                                                ),
+                                                "description", "站点身份配置"
+                                        )
+                                },
+                                "navigationItems", new Object[]{
+                                        Map.of(
+                                                "id", firstNavigation.path("id").asLong(),
+                                                "label", "实验室",
+                                                "path", "/lab",
+                                                "icon", "flask",
+                                                "groupName", "primary",
+                                                "sortOrder", 1,
+                                                "visible", true,
+                                                "extraJson", Map.of("source", "test")
+                                        )
+                                },
+                                "socialLinks", new Object[]{
+                                        Map.of(
+                                                "platform", "GitHub",
+                                                "label", "Code Lab",
+                                                "url", "https://github.com/example/creator-space",
+                                                "icon", "github",
+                                                "sortOrder", 1,
+                                                "visible", true
+                                        )
+                                },
+                                "pages", new Object[]{
+                                        Map.of(
+                                                "pageKey", "about",
+                                                "title", "关于测试创作者",
+                                                "slug", "about",
+                                                "seoTitle", "关于 CreatorSpace Test Lab",
+                                                "seoDescription", "从后台维护关于页 SEO。",
+                                                "contentJson", Map.of("sections", new String[]{"bio", "contact"}),
+                                                "layoutJson", Map.of("density", "editorial"),
+                                                "status", "PUBLISHED"
+                                        )
+                                }
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.profile.displayName", is("CreatorSpace Test Lab")))
+                .andExpect(jsonPath("$.data.navigationItems[0].label", is("实验室")))
+                .andExpect(jsonPath("$.data.navigationItems[0].extraJson.source", is("test")));
+
+        mockMvc.perform(get("/api/site/config"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data['site.profile.active'].displayName", is("CreatorSpace Test Lab")))
+                .andExpect(jsonPath("$.data['site.identity'].name", is("CreatorSpace Test Lab")))
+                .andExpect(jsonPath("$.data['site.navigationItems'][0].label", is("实验室")))
+                .andExpect(jsonPath("$.data['site.navigationItems'][0].path", is("/lab")))
+                .andExpect(jsonPath("$.data['site.socialLinks'][0].label", is("Code Lab")))
+                .andExpect(jsonPath("$.data['page.about'].title", is("关于测试创作者")));
+    }
+
+    // 验证后台导航配置拒绝协议相对 URL，避免把 //evil.example 当作站内路径。
+    @Test
+    void adminSiteSettingsRejectsProtocolRelativeNavigationPath() throws Exception {
+        String token = loginAsAdmin();
+
+        mockMvc.perform(put("/api/admin/site/settings")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "navigationItems", new Object[]{
+                                        Map.of(
+                                                "label", "外部陷阱",
+                                                "path", "//evil.example",
+                                                "icon", "info",
+                                                "groupName", "primary",
+                                                "sortOrder", 99,
+                                                "visible", true,
+                                                "extraJson", Map.of("source", "test")
+                                        )
+                                }
+                        ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.message", is("导航地址只允许站内路径或 http/https 地址")));
+    }
+
     // 登录管理员并返回访问令牌。
     private String loginAsAdmin() throws Exception {
         String response = mockMvc.perform(post("/api/admin/auth/login")
@@ -943,6 +1121,20 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                 .getResponse()
                 .getContentAsString();
         return dataId(response);
+    }
+
+    // 读取第一条主题 ID。
+    private long firstThemeId(String token) throws Exception {
+        String response = mockMvc.perform(get("/api/admin/themes")
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", not(empty())))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        JsonNode first = objectMapper.readTree(response).path("data").get(0);
+        assertThat(first.path("id").isNumber()).isTrue();
+        return first.path("id").asLong();
     }
 
     // 从接口响应中读取 data.id。

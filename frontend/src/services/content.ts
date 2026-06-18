@@ -1,5 +1,6 @@
 import { requestJson } from '@/services/http'
 import type {
+  AdminThemeConfig,
   ArticleSummary,
   ArticlePayload,
   AuthToken,
@@ -14,8 +15,11 @@ import type {
   ProjectPayload,
   ProjectSummary,
   SearchResult,
+  SiteSettings,
+  SiteSettingsPayload,
   TagSummary,
   ThemeConfig,
+  ThemePayload,
   UserSummary,
 } from '@/shared/domain'
 
@@ -478,5 +482,43 @@ export async function fetchSiteConfig(): Promise<Record<string, unknown>> {
 // 读取当前主题配置。
 export async function fetchCurrentTheme(): Promise<ThemeConfig | null> {
   const response = await requestJson<ApiEnvelope<ThemeConfig | null>>('/api/theme/current')
+  return response.data
+}
+
+// 管理员查询全部主题配置。
+export async function fetchAdminThemes(): Promise<AdminThemeConfig[]> {
+  const response = await requestJson<ApiEnvelope<AdminThemeConfig[]>>('/api/admin/themes')
+  return response.data
+}
+
+// 管理员更新主题基础信息和扩展配置。
+export async function updateTheme(id: number, payload: ThemePayload): Promise<AdminThemeConfig> {
+  const response = await requestJson<ApiEnvelope<AdminThemeConfig>>(`/api/admin/themes/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+  return response.data
+}
+
+// 管理员切换当前启用主题。
+export async function switchTheme(id: number): Promise<AdminThemeConfig> {
+  const response = await requestJson<ApiEnvelope<AdminThemeConfig>>(`/api/admin/themes/${id}/switch`, {
+    method: 'PUT',
+  })
+  return response.data
+}
+
+// 管理员读取站点设置工作台数据。
+export async function fetchAdminSiteSettings(): Promise<SiteSettings> {
+  const response = await requestJson<ApiEnvelope<SiteSettings>>('/api/admin/site/settings')
+  return response.data
+}
+
+// 管理员保存站点身份、导航、社交链接、页面和 JSON 配置。
+export async function updateSiteSettings(payload: SiteSettingsPayload): Promise<SiteSettings> {
+  const response = await requestJson<ApiEnvelope<SiteSettings>>('/api/admin/site/settings', {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
   return response.data
 }
