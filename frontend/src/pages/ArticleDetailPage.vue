@@ -85,7 +85,9 @@ import {
 
 import { fallbackArticles } from '@/content/studio'
 import { fetchArticleBySlug, fetchComments, submitComment } from '@/services/content'
+import { useCinematicPageMotion } from '@/shared/composables/useCinematicPageMotion'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
+import { toCssImageUrl } from '@/shared/cssImage'
 import type { ArticleSummary, CommentSummary } from '@/shared/domain'
 import { renderSafeMarkdown } from '@/shared/markdown'
 import { useSessionStore } from '@/shared/sessionStore'
@@ -101,6 +103,7 @@ const notice = ref('')
 const liked = ref(false)
 const slug = computed(() => readRouteParam(route.params.slug))
 const session = useSessionStore()
+const cinematic = useCinematicPageMotion(root)
 
 usePageReveal(root)
 
@@ -116,7 +119,7 @@ const toc = computed(() =>
 )
 const articleCoverStyle = computed(() => ({
   '--detail-accent': article.value?.tags[0]?.color ?? '#6ea8ff',
-  '--detail-cover': article.value?.coverUrl ? `url(${article.value.coverUrl})` : 'none',
+  '--detail-cover': toCssImageUrl(article.value?.coverUrl),
 }))
 
 async function loadArticle() {
@@ -129,6 +132,8 @@ async function loadArticle() {
 
   isLoading.value = true
   notice.value = ''
+  comments.value = []
+  commentNotice.value = ''
   try {
     article.value = await fetchArticleBySlug(slug.value)
     await loadComments()
@@ -137,6 +142,7 @@ async function loadArticle() {
     notice.value = error instanceof Error ? `后端暂不可用，已尝试本地样例：${error.message}` : '后端暂不可用，已尝试本地样例。'
   } finally {
     isLoading.value = false
+    void cinematic.play()
   }
 }
 

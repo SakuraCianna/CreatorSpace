@@ -2,6 +2,42 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Sora:wght@300;400;600;700&family=Newsreader:ital,opsz,wght@0,16..72,400;0,16..72,600;1,16..72,400&family=Space+Mono:wght@400;700&display=swap');
 
+@property --tp-bg {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #070b18;
+}
+
+@property --tp-surface {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: rgba(120, 170, 255, 0.08);
+}
+
+@property --tp-ink {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #eaf1ff;
+}
+
+@property --tp-muted {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: rgba(200, 214, 255, 0.6);
+}
+
+@property --tp-accent {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #6ea8ff;
+}
+
+@property --tp-accent-soft {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: rgba(110, 168, 255, 0.22);
+}
+
 .cs-shell,
 .cs-home {
   /* 分层深色底色，避免纯黑。 */
@@ -128,11 +164,17 @@ body.cs-dark-body {
   width: 34px;
   height: 34px;
   border-radius: 11px;
-  background: linear-gradient(135deg, var(--cs-accent), var(--cs-accent-2));
-  color: #070a16;
-  font-size: 13px;
-  font-weight: 700;
-  box-shadow: 0 8px 26px rgba(110, 168, 255, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.92), rgba(232, 240, 255, 0.72)),
+    rgba(255, 255, 255, 0.76);
+  box-shadow: 0 8px 26px rgba(110, 168, 255, 0.24);
+}
+
+.cs-nav__mark img {
+  width: 72%;
+  height: 72%;
+  object-fit: contain;
 }
 
 .cs-nav__links {
@@ -855,13 +897,13 @@ body.cs-dark-body {
 }
 
 .cs-wire--live {
-  stroke: var(--cs-accent);
-  filter: drop-shadow(0 0 6px rgba(110, 168, 255, 0.6));
+  stroke: url(#cs-flow-gradient);
+  filter: drop-shadow(0 0 8px rgba(110, 168, 255, 0.7));
 }
 
 .cs-wire__pulse {
-  fill: var(--cs-accent-3);
-  filter: drop-shadow(0 0 8px rgba(84, 230, 200, 0.8));
+  fill: url(#cs-flow-gradient);
+  filter: drop-shadow(0 0 10px rgba(84, 230, 200, 0.9));
 }
 
 .cs-agent {
@@ -1208,7 +1250,35 @@ body.cs-dark-body {
   background: var(--tp-bg);
   color: var(--tp-ink);
   font-family: var(--tp-font);
-  transition: background 0.7s ease, color 0.7s ease;
+  transition:
+    --tp-bg 0.72s ease,
+    --tp-surface 0.72s ease,
+    --tp-ink 0.72s ease,
+    --tp-muted 0.72s ease,
+    --tp-accent 0.72s ease,
+    --tp-accent-soft 0.72s ease,
+    background 0.72s ease,
+    color 0.72s ease,
+    border-color 0.72s ease;
+}
+
+.cs-theme-preview::before {
+  content: '';
+  position: absolute;
+  inset: -40% -20% auto;
+  height: 62%;
+  background:
+    radial-gradient(circle at 20% 30%, var(--tp-accent-soft), transparent 34%),
+    linear-gradient(90deg, transparent, var(--tp-accent-soft), transparent);
+  filter: blur(18px);
+  transform: translateY(-10%);
+  transition: background 0.72s ease, opacity 0.72s ease;
+  opacity: 0.88;
+}
+
+.cs-theme-preview > * {
+  position: relative;
+  z-index: 1;
 }
 
 .cs-theme-preview__eyebrow {

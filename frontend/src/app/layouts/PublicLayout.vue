@@ -1,8 +1,20 @@
 <template>
   <div class="public-shell">
+    <div ref="sceneHost" class="frontstage-webgl" aria-hidden="true" />
+    <div class="public-frame" aria-hidden="true">
+      <span class="public-frame__line public-frame__line--top" />
+      <span class="public-frame__line public-frame__line--right" />
+      <span class="public-frame__line public-frame__line--bottom" />
+      <span class="public-frame__line public-frame__line--left" />
+    </div>
+    <div class="scroll-rail" aria-hidden="true">
+      <span :style="{ transform: `scaleY(${scrollProgress})` }" />
+    </div>
     <header class="public-header">
       <RouterLink class="brand" to="/" aria-label="返回 CreatorSpace 首页">
-        <span class="brand-mark">CS</span>
+        <span class="brand-mark">
+          <img src="/public.svg" alt="" aria-hidden="true" />
+        </span>
         <span class="brand-copy">
           <strong>CreatorSpace</strong>
           <small>Personal Theme Archive</small>
@@ -41,13 +53,21 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, type Component } from 'vue'
-import { RouterLink } from 'vue-router'
+import { nextTick, onBeforeUnmount, onMounted, ref, watch, type Component } from 'vue'
+import { RouterLink, useRoute } from 'vue-router'
 import { BookOpen, Home, Images, Info, Lightbulb, Menu, Search, X } from '@lucide/vue'
 
 import { fetchSiteConfig } from '@/services/content'
+import { prefersReducedMotion } from '@/shared/composables/useReducedMotion'
 
 const navOpen = ref(false)
+const sceneHost = ref<HTMLElement | null>(null)
+const scrollProgress = ref(0)
+const route = useRoute()
+let disposeScene: (() => void) | null = null
+let setScenePaused: ((paused: boolean) => void) | null = null
+let setScenePointer: ((nx: number, ny: number) => void) | null = null
+let progressRaf = 0
 
 interface PublicNavItem {
   to: string
@@ -74,6 +94,13 @@ const fallbackNavItems: PublicNavItem[] = [
 
 const navItems = ref<PublicNavItem[]>(fallbackNavItems)
 
+onMounted(() => {
+  mountFrontstageScene()
+  requestScrollProgressUpdate()
+  window.addEventListener('scroll', requestScrollProgressUpdate, { passive: true })
+  window.addEventListener('resize', requestScrollProgressUpdate, { passive: true })
+})
+
 onMounted(async () => {
   try {
     const config = await fetchSiteConfig()
@@ -85,6 +112,78 @@ onMounted(async () => {
     navItems.value = fallbackNavItems
   }
 })
+
+onBeforeUnmount(() => {
+  window.removeEventListener('pointermove', handlePointerMove)
+  window.removeEventListener('scroll', requestScrollProgressUpdate)
+  window.removeEventListener('resize', requestScrollProgressUpdate)
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+  if (progressRaf) {
+    cancelAnimationFrame(progressRaf)
+  }
+  disposeScene?.()
+  disposeScene = null
+  setScenePaused = null
+  setScenePointer = null
+})
+
+watch(
+  () => route.fullPath,
+  async () => {
+    navOpen.value = false
+    await nextTick()
+    requestScrollProgressUpdate()
+  },
+)
+
+function requestScrollProgressUpdate() {
+  if (progressRaf) {
+    return
+  }
+  progressRaf = window.requestAnimationFrame(() => {
+    progressRaf = 0
+    const doc = document.documentElement
+    const max = Math.max(0, doc.scrollHeight - window.innerHeight)
+    scrollProgress.value = max > 0 ? Math.min(Math.max(window.scrollY / max, 0), 1) : 0
+  })
+}
+
+async function mountFrontstageScene() {
+  const host = sceneHost.value
+  if (!host || prefersReducedMotion() || !hasWebGL()) {
+    return
+  }
+  try {
+    const { createFrontstageScene } = await import('@/shared/frontstageScene')
+    if (!sceneHost.value) {
+      return
+    }
+    const scene = createFrontstageScene(sceneHost.value)
+    disposeScene = scene.dispose
+    setScenePaused = scene.setPaused
+    setScenePointer = scene.setPointer
+    window.addEventListener('pointermove', handlePointerMove, { passive: true })
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+  } catch {
+    disposeScene?.()
+    disposeScene = null
+  }
+}
+
+function handlePointerMove(event: PointerEvent) {
+  const nx = (event.clientX / window.innerWidth) * 2 - 1
+  const ny = -((event.clientY / window.innerHeight) * 2 - 1)
+  setScenePointer?.(nx, ny)
+}
+
+function handleVisibilityChange() {
+  setScenePaused?.(document.visibilityState !== 'visible')
+}
+
+function hasWebGL(): boolean {
+  const canvas = document.createElement('canvas')
+  return Boolean(canvas.getContext('webgl2') || canvas.getContext('webgl'))
+}
 
 function readConfiguredNavigation(value: unknown): PublicNavItem[] {
   if (!Array.isArray(value)) {

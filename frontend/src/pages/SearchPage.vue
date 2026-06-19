@@ -1,10 +1,8 @@
 <template>
   <section ref="root" class="search-page">
-    <header class="archive-hero" data-reveal>
+    <header class="archive-hero page-hero page-hero--search" data-reveal>
       <div>
-        <p class="page-kicker">Site Search</p>
-        <h1>在文章、作品和灵感之间找到关联</h1>
-        <p>第一阶段使用 PostgreSQL 原生搜索能力，后续可以继续演进到全文排序和 AI 问答。</p>
+        <h1>站内搜索</h1>
       </div>
       <form class="archive-search archive-search--large" @submit.prevent="runSearch">
         <Search :size="18" />
@@ -79,7 +77,7 @@ async function runSearch() {
     results.value = fallbackSearchResults.filter((item) =>
       `${item.title} ${item.description ?? ''}`.toLowerCase().includes(value.toLowerCase()),
     )
-    notice.value = error instanceof Error ? `后端暂不可用，已展示本地样例：${error.message}` : '后端暂不可用，已展示本地样例。'
+    notice.value = '已显示本地精选内容。'
   } finally {
     isLoading.value = false
   }

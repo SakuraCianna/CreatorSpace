@@ -1,10 +1,8 @@
 <template>
   <section ref="root" class="wall-page">
-    <header class="archive-hero" data-reveal>
+    <header class="archive-hero page-hero page-hero--inspirations" data-reveal>
       <div>
-        <p class="page-kicker">Inspiration Wall</p>
-        <h1>灵感墙是写作桌，不是代码片段仓库</h1>
-        <p>摘句、Prompt、链接、视觉参考和短代码先被收进卡片，之后再慢慢长成文章或作品。</p>
+        <h1>灵感墙</h1>
       </div>
       <form class="archive-search" @submit.prevent="loadInspirations">
         <Search :size="18" />
@@ -27,7 +25,7 @@
       </button>
     </div>
 
-    <div v-if="isLoading" class="empty-state showcase-state" data-reveal>
+    <div v-if="isLoading && !hasLoaded" class="empty-state showcase-state" data-reveal>
       <LoaderCircle class="spin" :size="24" />
       <h2>正在铺开灵感卡片</h2>
     </div>
@@ -78,6 +76,7 @@ import {
 
 import { fallbackInspirations } from '@/content/studio'
 import { fetchInspirations } from '@/services/content'
+import { useCinematicPageMotion } from '@/shared/composables/useCinematicPageMotion'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import type { InspirationCard, InspirationType } from '@/shared/domain'
 
@@ -88,7 +87,10 @@ const cards = ref<InspirationCard[]>([])
 const keyword = ref('')
 const activeType = ref<InspirationFilter>('ALL')
 const isLoading = ref(true)
+const hasLoaded = ref(false)
 const notice = ref('')
+const cinematic = useCinematicPageMotion(root)
+let hasPlayedIntro = false
 
 usePageReveal(root)
 
@@ -102,6 +104,9 @@ const filters = [
 ]
 
 function selectType(type: InspirationFilter) {
+  if (activeType.value === type) {
+    return
+  }
   activeType.value = type
   loadInspirations()
 }
@@ -113,13 +118,18 @@ async function loadInspirations() {
     const page = await fetchInspirations({ keyword: keyword.value, type: activeType.value, pageSize: 30 })
     cards.value = page.records.length ? page.records : filterFallback()
     if (!page.records.length) {
-      notice.value = '接口暂无匹配灵感，已展示本地样例。'
+      notice.value = '已显示精选灵感。'
     }
   } catch (error) {
     cards.value = filterFallback()
-    notice.value = error instanceof Error ? `后端暂不可用，已展示本地样例：${error.message}` : '后端暂不可用，已展示本地样例。'
+    notice.value = '已显示精选灵感。'
   } finally {
     isLoading.value = false
+    hasLoaded.value = true
+    if (!hasPlayedIntro) {
+      hasPlayedIntro = true
+      void cinematic.play()
+    }
   }
 }
 

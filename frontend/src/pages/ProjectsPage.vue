@@ -1,9 +1,7 @@
 <template>
   <section ref="root" class="studio-page">
-    <header class="studio-intro gallery-hero" data-reveal>
-      <p class="page-kicker">Creative Works</p>
-      <h1>作品像展品，应该能看到背景、过程和完成状态</h1>
-      <p>这里展示个人项目、视觉实验和创意工具。每个作品都带有封面、技术栈、外链和创作说明。</p>
+    <header class="studio-intro gallery-hero page-hero page-hero--projects" data-reveal>
+      <h1>作品展厅</h1>
     </header>
 
     <div class="topic-strip" data-reveal>
@@ -102,11 +100,11 @@ async function loadProjects() {
     const page = await fetchProjects()
     projects.value = page.records.length ? page.records : fallbackProjects
     if (!page.records.length) {
-      notice.value = '接口暂无公开作品，已展示本地作品样例。'
+      notice.value = '已显示精选作品。'
     }
   } catch (error) {
     projects.value = fallbackProjects
-    notice.value = error instanceof Error ? `后端暂不可用，已展示本地样例：${error.message}` : '后端暂不可用，已展示本地样例。'
+    notice.value = '已显示精选作品。'
   } finally {
     isLoading.value = false
   }

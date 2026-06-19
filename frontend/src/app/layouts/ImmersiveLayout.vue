@@ -2,7 +2,9 @@
   <div class="cs-shell">
     <nav class="cs-nav" aria-label="主导航">
       <RouterLink to="/" class="cs-nav__brand">
-        <span class="cs-nav__mark">CS</span>
+        <span class="cs-nav__mark">
+          <img src="/public.svg" alt="" aria-hidden="true" />
+        </span>
         <span>{{ siteConfig.brand }}</span>
       </RouterLink>
       <div class="cs-nav__links">
