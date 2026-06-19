@@ -3,7 +3,6 @@ import {
   AdditiveBlending,
   BufferAttribute,
   BufferGeometry,
-  Clock,
   Color,
   IcosahedronGeometry,
   Mesh,
@@ -176,14 +175,17 @@ export function createHeroScene(container: HTMLElement): HeroSceneHandles {
     target.x = nx
     target.y = ny
   }
-  const clock = new Clock()
+  let lastTime = performance.now()
+  let elapsed = 0
   let raf = 0
   let paused = false
 
   // 渲染一帧并安排下一帧动画。
   const render = () => {
-    const dt = clock.getDelta()
-    const elapsed = clock.elapsedTime
+    const now = performance.now()
+    const dt = Math.min((now - lastTime) / 1000, 0.05)
+    lastTime = now
+    elapsed += dt
     coreMat.uniforms.uTime!.value = elapsed
     core.rotation.y += dt * 0.12
     core.rotation.z += dt * 0.03
@@ -210,7 +212,7 @@ export function createHeroScene(container: HTMLElement): HeroSceneHandles {
       raf = 0
     } else {
       // 丢弃暂停期间的长时间差，避免恢复时动画突然跳变。
-      clock.getDelta()
+      lastTime = performance.now()
       raf = requestAnimationFrame(render)
     }
   }

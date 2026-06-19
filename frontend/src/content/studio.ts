@@ -1,8 +1,11 @@
 import articleContentIndexCover from '../assets/showcase/article-content-index.svg'
 import articleReadingMapCover from '../assets/showcase/article-reading-map.svg'
 import articleThemeArchiveCover from '../assets/showcase/article-theme-archive.svg'
+import articleVisitEntryCover from '../assets/showcase/article-visit-entry.svg'
 import articleVisualLanguageCover from '../assets/showcase/article-visual-language.svg'
+import articleWritingVoiceCover from '../assets/showcase/article-writing-voice.svg'
 import workBlogFrontstagePoster from '../assets/showcase/work-blog-frontstage.svg'
+import workContentIndexPoster from '../assets/showcase/work-content-index.svg'
 import workContentDeskPoster from '../assets/showcase/work-content-desk.svg'
 import workIdeaBoxPoster from '../assets/showcase/work-idea-box.svg'
 import workReadingMotionPoster from '../assets/showcase/work-reading-motion.svg'
@@ -61,6 +64,48 @@ export const fallbackArticles: ArticleSummary[] = [
     tags: [commonTags.design, commonTags.motion],
     publishTime: '2026-06-08T10:00:00+08:00',
   },
+  {
+    id: 4,
+    title: '写作语气样本如何整理',
+    slug: 'demo-article-writing-voice',
+    summary: '把常用开场、句子长度、标题习惯和内容语气整理出来，让站点保留稳定的作者感。',
+    coverUrl: articleWritingVoiceCover,
+    contentMarkdown:
+      '## 语气样本\n内容系统可以管理标题、摘要和标签，但真正让读者记住作者的是持续一致的表达方式。\n\n## 整理方法\n- 收集常用开场\n- 标记句子节奏\n- 保留个人判断\n- 删除模板化空话',
+    privacyType: 'PUBLIC',
+    status: 'PUBLISHED',
+    category: { id: 1, module: 'ARTICLE', name: '产品设计', slug: 'product-design', sortOrder: 1 },
+    tags: [commonTags.design],
+    publishTime: '2026-06-03T10:00:00+08:00',
+  },
+  {
+    id: 5,
+    title: '给文章做一张阅读地图',
+    slug: 'demo-article-reading-map',
+    summary: '把相邻主题串成路径，让读者从一篇文章自然走向下一篇。',
+    coverUrl: articleReadingMapCover,
+    contentMarkdown:
+      '## 阅读路径\n文章详情页不应该只负责显示正文，也要给读者下一步方向。\n\n## 地图结构\n- 当前主题\n- 关联标签\n- 推荐下一篇\n- 可回到作品或灵感墙的入口',
+    privacyType: 'PUBLIC',
+    status: 'PUBLISHED',
+    category: { id: 2, module: 'ARTICLE', name: '工程札记', slug: 'engineering', sortOrder: 2 },
+    tags: [commonTags.content],
+    publishTime: '2026-06-01T10:00:00+08:00',
+  },
+  {
+    id: 6,
+    title: '从入口开始设计一次访问',
+    slug: 'demo-article-visit-entry',
+    summary: '游客先看到什么、点击哪里、在哪里停留，决定了个人站点会不会被继续浏览。',
+    coverUrl: articleVisitEntryCover,
+    contentMarkdown:
+      '## 访问入口\n首页是主题入口，不是功能清单。第一屏需要同时交代作者气质、内容入口和下一步动作。\n\n## 入口判断\n- 文章入口是否足够清楚\n- 作品入口是否有展示欲\n- 登录注册是否容易找到\n- 移动端是否能快速理解站点',
+    privacyType: 'PUBLIC',
+    status: 'PUBLISHED',
+    category: { id: 1, module: 'ARTICLE', name: '产品设计', slug: 'product-design', sortOrder: 1 },
+    tags: [commonTags.design, commonTags.motion],
+    publishTime: '2026-05-28T10:00:00+08:00',
+  },
 ]
 
 export const fallbackProjects: ProjectSummary[] = [
@@ -112,6 +157,38 @@ export const fallbackProjects: ProjectSummary[] = [
     status: 'VISIBLE',
     recommended: false,
     tags: [commonTags.motion],
+  },
+  {
+    id: 4,
+    title: '内容索引',
+    slug: 'demo-project-content-index',
+    description: '让分类、标签、封面和摘要一起工作，帮助读者从一个主题找到下一篇文章。',
+    coverUrl: workContentIndexPoster,
+    projectType: 'Content Index',
+    techStack: ['Category', 'Tag', 'Reading Path'],
+    githubUrl: null,
+    demoUrl: null,
+    videoUrl: null,
+    contentMarkdown: '## 展示目标\n内容索引把文章从时间线里捞出来，重新放回主题、标签和阅读路径里。',
+    status: 'VISIBLE',
+    recommended: false,
+    tags: [commonTags.content],
+  },
+  {
+    id: 5,
+    title: '选题卡片盒',
+    slug: 'demo-project-idea-box',
+    description: '把还没成文的标题、摘句、链接和参考图先收起来，留给之后的文章继续生长。',
+    coverUrl: workIdeaBoxPoster,
+    projectType: 'Idea Box',
+    techStack: ['Notes', 'Links', 'Images'],
+    githubUrl: null,
+    demoUrl: null,
+    videoUrl: null,
+    contentMarkdown: '## 创作过程\n灵感墙先保存碎片，等主题足够清晰时再沉淀成文章或作品档案。',
+    status: 'VISIBLE',
+    recommended: false,
+    tags: [commonTags.design],
   },
 ]
 

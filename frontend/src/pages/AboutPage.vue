@@ -1,9 +1,7 @@
 <template>
   <section ref="root" class="about-page">
-    <header class="about-hero" data-reveal>
-      <p class="page-kicker">About Creator</p>
-      <h1>{{ profile.headline }}</h1>
-      <p>{{ profile.bio }}</p>
+    <header class="about-hero page-hero page-hero--about" data-reveal>
+      <h1>关于我</h1>
     </header>
 
     <div class="about-grid">
@@ -59,6 +57,7 @@ import { onMounted, ref } from 'vue'
 import { Mail, PenTool, Sparkles, UserRound } from '@lucide/vue'
 
 import { fetchSiteConfig } from '@/services/content'
+import { useCinematicPageMotion } from '@/shared/composables/useCinematicPageMotion'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 
 interface AboutProfile {
@@ -74,9 +73,10 @@ interface ContactLink {
 }
 
 const root = ref<HTMLElement | null>(null)
+const cinematic = useCinematicPageMotion(root)
 const profile = ref<AboutProfile>({
   displayName: '个人介绍',
-  headline: '这里展示的不是模板站点，而是一个长期整理创作的个人空间',
+  headline: '关于我',
   bio: 'CreatorSpace 把文章、作品、灵感和后台工作台放在同一套内容系统里。前台负责表达气质，后台负责让它持续可维护。',
 })
 const contactLinks = ref<ContactLink[]>([
@@ -122,6 +122,8 @@ async function loadSiteProfile() {
     }
   } catch {
     // 站点配置不可用时保留本地兜底文案。
+  } finally {
+    void cinematic.play()
   }
 }
 

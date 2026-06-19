@@ -16,6 +16,7 @@ export type ArticleKind = 'feature' | 'standard'
 
 export interface FeaturedArticle {
   id: string
+  slug: string
   kind: ArticleKind
   title: string
   excerpt: string
@@ -28,6 +29,7 @@ export interface FeaturedArticle {
 
 export interface PortfolioProject {
   id: string
+  slug: string
   index: string
   title: string
   category: string
@@ -89,6 +91,7 @@ export interface SiteConfig {
 export const featuredArticles: FeaturedArticle[] = [
   {
     id: 'a-theme-archive',
+    slug: 'demo-article-creator-hub',
     kind: 'feature',
     title: '把个人站点做成主题档案馆',
     excerpt:
@@ -101,6 +104,7 @@ export const featuredArticles: FeaturedArticle[] = [
   },
   {
     id: 'a-design-language',
+    slug: 'demo-article-homepage-motion-budget',
     kind: 'standard',
     title: '为个人博客设计一套不像模板的视觉语言',
     excerpt: '封面色、字号层级、卡片密度和滚动节奏一起决定这个站点像谁，而不是像哪个模板。',
@@ -112,6 +116,7 @@ export const featuredArticles: FeaturedArticle[] = [
   },
   {
     id: 'a-spring-pipeline',
+    slug: 'demo-article-admin-crud-phase-one',
     kind: 'standard',
     title: '内容后台如何服务前台阅读',
     excerpt: '草稿、公开、私密、分类和标签都不是后台术语，它们最后会变成前台读者看到的秩序。',
@@ -123,6 +128,7 @@ export const featuredArticles: FeaturedArticle[] = [
   },
   {
     id: 'a-voice-notes',
+    slug: 'demo-article-writing-voice',
     kind: 'standard',
     title: '写作语气样本如何整理',
     excerpt: '把常用开场、句子长度、标题习惯和常见比喻整理出来，站点才不会变成无主语的内容仓库。',
@@ -134,6 +140,7 @@ export const featuredArticles: FeaturedArticle[] = [
   },
   {
     id: 'a-reading-map',
+    slug: 'demo-article-reading-map',
     kind: 'standard',
     title: '给文章做一张阅读地图',
     excerpt: '把相邻主题串成路径，让读者从一篇文章自然走到下一篇，而不是只看一张时间倒序表。',
@@ -145,6 +152,7 @@ export const featuredArticles: FeaturedArticle[] = [
   },
   {
     id: 'a-visit-entry',
+    slug: 'demo-article-visit-entry',
     kind: 'standard',
     title: '从入口开始设计一次访问',
     excerpt: '游客先看到什么、点击哪里、在哪里停留，决定了这个个人站点是被匆匆扫过，还是被认真读完。',
@@ -273,6 +281,7 @@ export const creativeFragments: CreativeFragment[] = [
 export const portfolioProjects: PortfolioProject[] = [
   {
     id: 'p-creatorspace',
+    slug: 'demo-project-immersive-homepage',
     index: '01',
     title: '主题博客前台',
     category: 'Blog Frontstage',
@@ -284,6 +293,7 @@ export const portfolioProjects: PortfolioProject[] = [
   },
   {
     id: 'p-content-index',
+    slug: 'demo-project-content-index',
     index: '02',
     title: '内容索引',
     category: 'Content Index',
@@ -295,6 +305,7 @@ export const portfolioProjects: PortfolioProject[] = [
   },
   {
     id: 'p-motion-kit',
+    slug: 'demo-project-reading-motion',
     index: '03',
     title: '阅读动效实验',
     category: 'Reading Motion',
@@ -306,6 +317,7 @@ export const portfolioProjects: PortfolioProject[] = [
   },
   {
     id: 'p-studio-cms',
+    slug: 'demo-project-content-console',
     index: '04',
     title: '内容整理后台',
     category: 'Content Desk',
@@ -317,6 +329,7 @@ export const portfolioProjects: PortfolioProject[] = [
   },
   {
     id: 'p-topic-box',
+    slug: 'demo-project-idea-box',
     index: '05',
     title: '选题卡片盒',
     category: 'Idea Box',

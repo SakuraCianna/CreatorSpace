@@ -2,7 +2,9 @@
   <div class="admin-shell">
     <aside class="admin-rail" aria-label="后台导航">
       <RouterLink class="admin-brand" to="/admin">
-        <span class="brand-mark">CS</span>
+        <span class="brand-mark">
+          <img src="/public.svg" alt="" aria-hidden="true" />
+        </span>
         <span>
           <strong>CreatorSpace CMS</strong>
           <small>Content Operating Desk</small>

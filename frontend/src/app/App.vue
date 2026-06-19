@@ -5,12 +5,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 
 import AdminLayout from '@/app/layouts/AdminLayout.vue'
 import ImmersiveLayout from '@/app/layouts/ImmersiveLayout.vue'
 import PublicLayout from '@/app/layouts/PublicLayout.vue'
+import { fetchCurrentTheme } from '@/services/content'
+import { applyThemeConfig } from '@/shared/theme'
 
 const route = useRoute()
 
@@ -23,5 +25,14 @@ const layout = computed(() => {
     return ImmersiveLayout
   }
   return PublicLayout
+})
+
+onMounted(async () => {
+  try {
+    const theme = await fetchCurrentTheme()
+    applyThemeConfig(theme)
+  } catch {
+    applyThemeConfig(null)
+  }
 })
 </script>

@@ -1,12 +1,8 @@
 <template>
   <section ref="root" class="archive-page">
-    <header class="archive-hero" data-reveal>
+    <header class="archive-hero page-hero page-hero--articles" data-reveal>
       <div>
-        <p class="page-kicker">Creator Journal</p>
-        <h1>文章像主题档案，而不是时间倒序的堆叠</h1>
-        <p>
-          用分类、标签、封面和阅读路径整理长期写作，让访客能从一个主题自然走到下一篇。
-        </p>
+        <h1>文章归档</h1>
       </div>
       <form class="archive-search" @submit.prevent="loadArticles">
         <Search :size="18" />
@@ -145,11 +141,11 @@ async function loadArticles() {
     const page = await fetchArticles(keyword.value)
     articles.value = page.records.length ? page.records : fallbackArticles
     if (!page.records.length) {
-      notice.value = '接口暂无公开文章，已展示本地主题样例。'
+      notice.value = '已显示精选文章。'
     }
   } catch (error) {
     articles.value = fallbackArticles
-    notice.value = error instanceof Error ? `后端暂不可用，已展示本地样例：${error.message}` : '后端暂不可用，已展示本地样例。'
+    notice.value = '已显示精选文章。'
   } finally {
     isLoading.value = false
   }

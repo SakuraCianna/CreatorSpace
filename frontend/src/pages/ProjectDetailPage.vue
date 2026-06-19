@@ -92,7 +92,9 @@ import {
 
 import { fallbackProjects } from '@/content/studio'
 import { fetchComments, fetchProjectBySlug, submitComment } from '@/services/content'
+import { useCinematicPageMotion } from '@/shared/composables/useCinematicPageMotion'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
+import { toCssImageUrl } from '@/shared/cssImage'
 import type { CommentSummary, ProjectSummary } from '@/shared/domain'
 import { renderSafeMarkdown } from '@/shared/markdown'
 import { useSessionStore } from '@/shared/sessionStore'
@@ -107,6 +109,7 @@ const isLoading = ref(true)
 const notice = ref('')
 const slug = computed(() => readRouteParam(route.params.slug))
 const session = useSessionStore()
+const cinematic = useCinematicPageMotion(root)
 
 usePageReveal(root)
 
@@ -116,7 +119,7 @@ const safeDemoUrl = computed(() => safeExternalUrl(project.value?.demoUrl))
 const safeGithubUrl = computed(() => safeExternalUrl(project.value?.githubUrl))
 const projectCoverStyle = computed(() => ({
   '--detail-accent': project.value?.tags[0]?.color ?? '#b18cff',
-  '--detail-cover': project.value?.coverUrl ? `url(${project.value.coverUrl})` : 'none',
+  '--detail-cover': toCssImageUrl(project.value?.coverUrl),
 }))
 const timeline = computed(() => [
   { phase: '01', title: '问题定义', body: `${project.value?.title ?? '作品'} 先明确展示对象、读者和维护边界。` },
@@ -134,6 +137,8 @@ async function loadProject() {
 
   isLoading.value = true
   notice.value = ''
+  comments.value = []
+  commentNotice.value = ''
   try {
     project.value = await fetchProjectBySlug(slug.value)
     await loadComments()
@@ -142,6 +147,7 @@ async function loadProject() {
     notice.value = error instanceof Error ? `后端暂不可用，已尝试本地样例：${error.message}` : '后端暂不可用，已尝试本地样例。'
   } finally {
     isLoading.value = false
+    void cinematic.play()
   }
 }
 

@@ -14,16 +14,18 @@
 </template>
 
 <script setup lang="ts">
-import { defineComponent, h, onBeforeUnmount, onMounted, ref } from 'vue'
+import { defineComponent, h, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
 import type { HeroSceneHandles } from '@/shared/heroScene'
+import { fetchArticles, fetchCurrentTheme, fetchInspirations, fetchProjects } from '@/services/content'
 import { useGsapContext } from '@/shared/composables/useGsapScroll'
 import { useLenis } from '@/shared/composables/useLenis'
 import { attachMagnetic } from '@/shared/composables/useMagnetic'
 import { prefersReducedMotion } from '@/shared/composables/useReducedMotion'
+import { toCssImageUrl } from '@/shared/cssImage'
 import {
   agentCapabilities,
   approachSteps,
@@ -46,6 +48,7 @@ import {
   type PortfolioProject,
   type ThemePreset,
 } from '@/content/home'
+import type { ArticleSummary, InspirationCard, ProjectSummary, TagSummary } from '@/shared/domain'
 
 import '@/styles/home.css'
 
@@ -140,6 +143,107 @@ function heroButton(to: string, label: string, ghost = false) {
       ],
     },
   )
+}
+
+const validHexColorPattern = /^#(?:[\da-f]{3,4}|[\da-f]{6}|[\da-f]{8})$/i
+const fragmentKindMap = {
+  IMAGE: 'image',
+  TEXT: 'note',
+  PROMPT: 'prompt',
+  CODE: 'code',
+  LINK: 'link',
+} as const satisfies Record<InspirationCard['cardType'], CreativeFragment['kind']>
+
+function safeHexColor(value: string | null | undefined, fallback: string) {
+  const color = value?.trim()
+  return color && validHexColorPattern.test(color) ? color : fallback
+}
+
+function firstTagColor(tags: TagSummary[], fallback: string) {
+  return safeHexColor(tags.find((tag) => tag.color)?.color, fallback)
+}
+
+function formatHomeDate(value: string | null | undefined, fallback = '未定档') {
+  if (!value) {
+    return fallback
+  }
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return fallback
+  }
+  return date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).replaceAll('/', '-')
+}
+
+function plainExcerpt(value: string | null | undefined, fallback: string) {
+  const text = value
+    ?.replace(/```[\s\S]*?```/g, '')
+    .replace(/[#>*_`[\]()~-]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return text ? text.slice(0, 96) : fallback
+}
+
+function articleToFeatured(article: ArticleSummary, index: number): FeaturedArticle {
+  const fallback = featuredArticles[index % featuredArticles.length] ?? featuredArticles[0]
+  const palette: [string, string] = [
+    firstTagColor(article.tags, fallback?.cover[0] ?? '#1b2b4d'),
+    fallback?.cover[1] ?? '#0a1326',
+  ]
+  return {
+    id: `article-${article.id}`,
+    slug: article.slug,
+    kind: index === 0 ? 'feature' : 'standard',
+    title: article.title,
+    excerpt: article.summary ?? plainExcerpt(article.contentMarkdown, fallback?.excerpt ?? '这篇文章还在整理摘要。'),
+    tags: article.tags.length > 0
+      ? article.tags.slice(0, 3).map((tag) => tag.name)
+      : [article.category?.name ?? '主题文章'],
+    readingMinutes: Math.max(1, Math.ceil((article.contentMarkdown?.length ?? article.summary?.length ?? 420) / 420)),
+    publishedAt: formatHomeDate(article.publishTime, fallback?.publishedAt),
+    cover: palette,
+    coverImage: article.coverUrl ?? fallback?.coverImage ?? '',
+  }
+}
+
+function projectToPortfolio(project: ProjectSummary, index: number): PortfolioProject {
+  const fallback = portfolioProjects[index % portfolioProjects.length] ?? portfolioProjects[0]
+  const accent = firstTagColor(project.tags, fallback?.palette.accent ?? '#6ea8ff')
+  return {
+    id: `project-${project.id}`,
+    slug: project.slug,
+    index: String(index + 1).padStart(2, '0'),
+    title: project.title,
+    category: project.projectType || fallback?.category || 'PROJECT',
+    year: fallback?.year ?? '2026',
+    description: project.description ?? fallback?.description ?? '这个作品还在补充过程说明。',
+    stack: project.techStack.length > 0
+      ? project.techStack.slice(0, 4)
+      : project.tags.slice(0, 4).map((tag) => tag.name),
+    palette: {
+      from: fallback?.palette.from ?? '#16233f',
+      to: fallback?.palette.to ?? '#080f1d',
+      accent,
+    },
+    posterImage: project.coverUrl ?? fallback?.posterImage ?? '',
+  }
+}
+
+function inspirationToFragment(card: InspirationCard, index: number): CreativeFragment {
+  const fallback = creativeFragments[index % creativeFragments.length] ?? creativeFragments[0]
+  const accent = safeHexColor(card.color, fallback?.palette?.[0] ?? '#263e70')
+  return {
+    id: `inspiration-${card.id}`,
+    kind: fragmentKindMap[card.cardType],
+    span: fallback?.span ?? { col: 1, row: 1 },
+    label: card.tags[0]?.name ?? card.title,
+    body: card.content ?? card.title,
+    meta: card.sourceUrl ? 'source link' : formatHomeDate(card.createdAt, fallback?.meta ?? '灵感卡片'),
+    palette: [accent, fallback?.palette?.[1] ?? '#0b1428'],
+  }
 }
 
 const HeroUniverse = defineComponent({
@@ -324,6 +428,7 @@ const FeaturedArticles = defineComponent({
   name: 'FeaturedArticles',
   setup() {
     const root = ref<HTMLElement | null>(null)
+    const articles = ref<FeaturedArticle[]>(featuredArticles)
 
     useGsapContext(root, ({ reduced }) => {
       const cards = gsap.utils.toArray<HTMLElement>('.cs-article')
@@ -382,41 +487,56 @@ const FeaturedArticles = defineComponent({
       })
     }
 
+    onMounted(async () => {
+      try {
+        const response = await fetchArticles()
+        const records = response.records.slice(0, featuredArticles.length)
+        if (records.length > 0) {
+          articles.value = records.map(articleToFeatured)
+          requestAnimationFrame(() => ScrollTrigger.refresh())
+        }
+      } catch {
+        articles.value = featuredArticles
+      }
+    })
+
     // 渲染精选文章卡片。
     const renderCard = (article: FeaturedArticle, index: number) =>
       h(
-        'a',
+        RouterLink,
         {
           key: article.id,
-          href: `/articles#${article.id}`,
+          to: { name: 'article-detail', params: { slug: article.slug } },
           class: spanClass(article, index),
           style: { '--cs-from': article.cover[0], '--cs-to': article.cover[1] },
           onPointermove: onTilt,
           onPointerleave: onTiltOut,
         },
-        [
-          h('span', {
-            class: 'cs-article__wash',
-            style: {
-              '--cs-from': article.cover[0],
-              '--cs-to': article.cover[1],
-              '--cs-cover': `url(${article.coverImage})`,
-            },
-          }),
-          h('div', { class: 'cs-article__body' }, [
-            h(
-              'div',
-              { class: 'cs-article__tags' },
-              article.tags.map((tag) => h('span', { class: 'cs-tag', key: tag }, tag)),
-            ),
-            h('h3', { class: 'cs-article__title' }, article.title),
-            h('p', { class: 'cs-article__excerpt' }, article.excerpt),
-            h('div', { class: 'cs-article__meta' }, [
-              h('span', `${article.readingMinutes} 分钟阅读`),
-              h('span', article.publishedAt),
+        {
+          default: () => [
+            h('span', {
+              class: 'cs-article__wash',
+              style: {
+                '--cs-from': article.cover[0],
+                '--cs-to': article.cover[1],
+                '--cs-cover': toCssImageUrl(article.coverImage),
+              },
+            }),
+            h('div', { class: 'cs-article__body' }, [
+              h(
+                'div',
+                { class: 'cs-article__tags' },
+                article.tags.map((tag) => h('span', { class: 'cs-tag', key: tag }, tag)),
+              ),
+              h('h3', { class: 'cs-article__title' }, article.title),
+              h('p', { class: 'cs-article__excerpt' }, article.excerpt),
+              h('div', { class: 'cs-article__meta' }, [
+                h('span', `${article.readingMinutes} 分钟阅读`),
+                h('span', article.publishedAt),
+              ]),
             ]),
-          ]),
-        ],
+          ],
+        },
       )
 
     return () =>
@@ -435,7 +555,7 @@ const FeaturedArticles = defineComponent({
         h(
           'div',
           { class: 'cs-articles__grid' },
-          featuredArticles.map((article, index) => renderCard(article, index)),
+          articles.value.map((article, index) => renderCard(article, index)),
         ),
       ])
   },
@@ -445,6 +565,7 @@ const PortfolioGallery = defineComponent({
   name: 'PortfolioGallery',
   setup() {
     const root = ref<HTMLElement | null>(null)
+    const projects = ref<PortfolioProject[]>(portfolioProjects)
     const stacked = ref(isStackedViewport())
     const stackQuery =
       typeof window !== 'undefined' ? window.matchMedia('(max-width: 900px)') : null
@@ -463,7 +584,18 @@ const PortfolioGallery = defineComponent({
       stacked.value = event.matches
     }
 
-    onMounted(() => {
+    onMounted(async () => {
+      try {
+        const response = await fetchProjects()
+        const records = response.records.slice(0, portfolioProjects.length)
+        if (records.length > 0) {
+          projects.value = records.map(projectToPortfolio)
+          await nextTick()
+        }
+      } catch {
+        projects.value = portfolioProjects
+      }
+
       stackQuery?.addEventListener('change', onStackChange)
       matchMediaContext = gsap.matchMedia()
       matchMediaContext.add(
@@ -524,36 +656,39 @@ const PortfolioGallery = defineComponent({
     // 渲染作品海报卡片。
     const renderPoster = (project: PortfolioProject) =>
       h(
-        'article',
+        RouterLink,
         {
           key: project.id,
+          to: { name: 'project-detail', params: { slug: project.slug } },
           class: 'cs-poster',
           style: {
             '--cs-from': project.palette.from,
             '--cs-to': project.palette.to,
             '--cs-accent': project.palette.accent,
-            '--cs-poster': `url(${project.posterImage})`,
+            '--cs-poster': toCssImageUrl(project.posterImage),
           },
         },
-        [
-          h('span', { class: 'cs-poster__parallax', style: { '--cs-accent': project.palette.accent } }),
-          h('span', { class: 'cs-poster__grain' }),
-          h('div', { class: 'cs-poster__content' }, [
-            h('div', { class: 'cs-poster__top' }, [
-              h('span', { class: 'cs-poster__index' }, `${project.index} / ${project.year}`),
+        {
+          default: () => [
+            h('span', { class: 'cs-poster__parallax', style: { '--cs-accent': project.palette.accent } }),
+            h('span', { class: 'cs-poster__grain' }),
+            h('div', { class: 'cs-poster__content' }, [
+              h('div', { class: 'cs-poster__top' }, [
+                h('span', { class: 'cs-poster__index' }, `${project.index} / ${project.year}`),
+              ]),
+              h('div', [
+                h('span', { class: 'cs-poster__cat' }, project.category),
+                h('h3', { class: 'cs-poster__title' }, project.title),
+                h('p', { class: 'cs-poster__desc' }, project.description),
+                h(
+                  'div',
+                  { class: 'cs-poster__stack' },
+                  project.stack.map((tech) => h('span', { key: tech }, tech)),
+                ),
+              ]),
             ]),
-            h('div', [
-              h('span', { class: 'cs-poster__cat' }, project.category),
-              h('h3', { class: 'cs-poster__title' }, project.title),
-              h('p', { class: 'cs-poster__desc' }, project.description),
-              h(
-                'div',
-                { class: 'cs-poster__stack' },
-                project.stack.map((tech) => h('span', { key: tech }, tech)),
-              ),
-            ]),
-          ]),
-        ],
+          ],
+        },
       )
 
     return () =>
@@ -576,7 +711,7 @@ const PortfolioGallery = defineComponent({
                 ),
                 h('span', { class: 'cs-gallery__hint' }, stacked.value ? '继续往下' : '横向浏览作品 →'),
               ]),
-              ...portfolioProjects.map(renderPoster),
+              ...projects.value.map(renderPoster),
               h('div', { class: 'cs-gallery__outro' }, [
                 h('p', { class: 'cs-eyebrow' }, 'End of wall'),
                 h('h2', { class: 'cs-gallery__outro-title' }, '更多作品正在归档中'),
@@ -598,6 +733,7 @@ const SiteStructureShowcase = defineComponent({
     const svgW = ref(1200)
     const svgH = ref(360)
     const spineD = ref('')
+    const showFlowPulses = !prefersReducedMotion()
     let resizeObserver: ResizeObserver | null = null
 
     // 根据节点位置生成平滑连线路径。
@@ -745,13 +881,13 @@ const SiteStructureShowcase = defineComponent({
       h('section', { ref: root, class: 'cs-agents cs-section', id: 'agents' }, [
         h('div', { class: 'cs-head' }, [
           h('div', [
-            h('p', { class: 'cs-eyebrow' }, 'Site Structure'),
-            h('h2', { class: 'cs-head__title' }, '一个个人博客，需要自己的整理方式'),
+            h('p', { class: 'cs-eyebrow' }, 'AI Flow'),
+            h('h2', { class: 'cs-head__title' }, '让内容像在时间轴里被调度'),
           ]),
           h(
             'p',
             { class: 'cs-head__note' },
-            '主题索引、作品橱窗和灵感卡片一起工作，让内容不只是被发布，而是被安放。',
+            '主题、作品和灵感沿同一条 SVG 路径流动，表现内容从采集、理解到编排的工作节奏。',
           ),
         ]),
         h('div', { ref: stage, class: 'cs-agents__stage' }, [
@@ -763,8 +899,27 @@ const SiteStructureShowcase = defineComponent({
               preserveAspectRatio: 'none',
             },
             [
+              h('defs', [
+                h('linearGradient', { id: 'cs-flow-gradient', x1: '0%', y1: '0%', x2: '100%', y2: '0%' }, [
+                  h('stop', { offset: '0%', 'stop-color': '#6ea8ff' }),
+                  h('stop', { offset: '52%', 'stop-color': '#54e6c8' }),
+                  h('stop', { offset: '100%', 'stop-color': '#ff9d6e' }),
+                ]),
+              ]),
               h('path', { ref: spineEl, class: 'cs-wire', d: spineD.value }),
               h('path', { ref: pulseEl, class: 'cs-wire cs-wire--live', d: spineD.value }),
+              ...(showFlowPulses && spineD.value
+                ? [0, 1.15, 2.3].map((begin) =>
+                    h('circle', { key: begin, class: 'cs-wire__pulse', r: 4 }, [
+                      h('animateMotion', {
+                        dur: '4.6s',
+                        begin: `${begin}s`,
+                        repeatCount: 'indefinite',
+                        path: spineD.value,
+                      }),
+                    ]),
+                  )
+                : []),
             ],
           ),
           ...agentCapabilities.map(renderAgent),
@@ -898,7 +1053,18 @@ const CreativeWall = defineComponent({
   name: 'CreativeWall',
   setup() {
     const root = ref<HTMLElement | null>(null)
+    const fragments = ref<CreativeFragment[]>(creativeFragments)
     const detachers: Array<() => void> = []
+
+    const bindMagneticCards = () => {
+      detachers.forEach((off) => off())
+      detachers.length = 0
+      const cards = Array.from(root.value?.querySelectorAll<HTMLElement>('.cs-frag') ?? [])
+      cards.forEach((card) => {
+        const inner = card.querySelector<HTMLElement>('.cs-frag__inner')
+        detachers.push(attachMagnetic(card, { inner, strength: 0.22, innerStrength: 0.4 }))
+      })
+    }
 
     useGsapContext(root, ({ reduced }) => {
       const cards = gsap.utils.toArray<HTMLElement>('.cs-frag')
@@ -914,10 +1080,19 @@ const CreativeWall = defineComponent({
           scrollTrigger: { trigger: root.value as Element, start: 'top 72%' },
         })
       }
-      cards.forEach((card) => {
-        const inner = card.querySelector<HTMLElement>('.cs-frag__inner')
-        detachers.push(attachMagnetic(card, { inner, strength: 0.22, innerStrength: 0.4 }))
-      })
+    })
+
+    onMounted(async () => {
+      try {
+        const response = await fetchInspirations({ pageSize: 8 })
+        if (response.records.length > 0) {
+          fragments.value = response.records.map(inspirationToFragment)
+          await nextTick()
+        }
+      } catch {
+        fragments.value = creativeFragments
+      }
+      bindMagneticCards()
     })
 
     onBeforeUnmount(() => {
@@ -969,7 +1144,7 @@ const CreativeWall = defineComponent({
             '摘句、封面草图、阅读路径和语气规则，都是文章长出来之前的原材料。',
           ),
         ]),
-        h('div', { class: 'cs-wall__grid' }, creativeFragments.map(renderFragment)),
+        h('div', { class: 'cs-wall__grid' }, fragments.value.map(renderFragment)),
       ])
   },
 })
@@ -978,6 +1153,7 @@ const ThemeUniverse = defineComponent({
   name: 'ThemeUniverse',
   setup() {
     const activeId = ref<string>(themePresets[0]?.id ?? '')
+    const currentThemeName = ref('读取中')
     const preview = ref<HTMLElement | null>(null)
 
     // 把主题变量写入预览容器。
@@ -1025,6 +1201,15 @@ const ThemeUniverse = defineComponent({
     onBeforeUnmount(() => {
       if (preview.value) {
         gsap.killTweensOf(preview.value.querySelectorAll('.cs-tp-fade'))
+      }
+    })
+
+    onMounted(async () => {
+      try {
+        const theme = await fetchCurrentTheme()
+        currentThemeName.value = theme?.displayName ?? '默认主题'
+      } catch {
+        currentThemeName.value = '本地默认'
       }
     })
 
@@ -1088,7 +1273,7 @@ const ThemeUniverse = defineComponent({
                 h('span', '作品'),
               ]),
             ]),
-            h('span', { class: 'cs-theme-preview__chip cs-tp-fade' }, '应用主题'),
+            h('span', { class: 'cs-theme-preview__chip cs-tp-fade' }, `当前启用 · ${currentThemeName.value}`),
           ]),
         ]),
       ])
