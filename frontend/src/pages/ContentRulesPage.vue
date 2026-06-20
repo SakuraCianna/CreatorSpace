@@ -36,3 +36,111 @@ const rules = [
   { title: '安全', body: 'JWT 密钥和第三方 API Key 只允许写入本地或部署密钥系统。', icon: ShieldCheck },
 ]
 </script>
+
+<style scoped>
+.rules-page {
+  display: grid;
+  gap: 18px;
+}
+
+.module-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 22px;
+  min-height: clamp(220px, 23vw, 292px);
+  padding: clamp(24px, 3vw, 42px);
+  border: 1px solid var(--tone-line);
+  border-radius: var(--app-radius-sm);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.58)),
+    radial-gradient(circle at 16% 20%, rgba(49, 91, 255, 0.14), transparent 34%),
+    radial-gradient(circle at 88% 18%, rgba(0, 124, 114, 0.16), transparent 28%),
+    linear-gradient(120deg, rgba(49, 91, 255, 0.08), rgba(194, 95, 58, 0.08), rgba(0, 124, 114, 0.1));
+  box-shadow: var(--tone-shadow);
+}
+
+.module-hero h2 {
+  max-width: 830px;
+  margin: 0;
+  color: var(--tone-ink);
+  font-size: 44px;
+  font-weight: 860;
+  line-height: 1.08;
+}
+
+.module-hero p:not(.eyebrow) {
+  max-width: 680px;
+  color: var(--tone-muted);
+  font-size: 17px;
+  line-height: 1.72;
+}
+
+.rule-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--tone-muted);
+  line-height: 1.68;
+}
+
+.rules-grid--cards {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.rules-grid--cards article {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+  border: 1px solid var(--tone-line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: var(--tone-shadow);
+}
+
+.rules-grid--cards h3,
+.rules-grid--cards p {
+  margin: 0;
+}
+
+.rules-grid--cards p {
+  color: var(--tone-muted);
+  line-height: 1.65;
+}
+
+@media (min-width: 761px) {
+  .module-hero h2 {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 1020px) {
+  .module-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .rules-grid--cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .module-hero {
+    padding: 22px;
+  }
+
+  .module-hero h2 {
+    font-size: 30px;
+  }
+
+  .rules-grid--cards {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

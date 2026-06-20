@@ -211,3 +211,243 @@ function scrollToHeading(title: string) {
 onMounted(loadArticle)
 watch(slug, loadArticle)
 </script>
+
+<style scoped>
+.detail-page {
+  display: grid;
+  gap: 18px;
+  padding: 46px 0 84px;
+}
+
+.detail-back {
+  justify-self: start;
+}
+
+.reading-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 18px;
+  align-items: start;
+}
+
+.detail-panel {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--tone-line);
+  border-radius: var(--app-radius-sm);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.78)),
+    rgba(255, 255, 255, 0.88);
+  box-shadow: var(--tone-shadow);
+  backdrop-filter: blur(22px);
+}
+
+.detail-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(120deg, color-mix(in srgb, var(--detail-accent, var(--tone-primary)) 28%, transparent), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent 22%);
+  opacity: 0.72;
+}
+
+.detail-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.detail-hero {
+  position: relative;
+  display: grid;
+  gap: 18px;
+  padding: 48px;
+  background:
+    linear-gradient(135deg, rgba(6, 8, 18, 0.96), rgba(6, 8, 18, 0.84) 48%, rgba(6, 8, 18, 0.7)),
+    var(--detail-cover),
+    linear-gradient(135deg, var(--detail-accent), #10131f);
+  background-size: cover;
+  background-position: center;
+  color: #f8fafc;
+  overflow: hidden;
+}
+
+.detail-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.2), transparent 26%),
+    linear-gradient(180deg, transparent, rgba(6, 8, 18, 0.32));
+  z-index: 0;
+}
+
+.detail-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.16), transparent 22%, rgba(255, 255, 255, 0.08) 48%, transparent 72%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 18px);
+  mix-blend-mode: screen;
+  opacity: 0.38;
+}
+
+.detail-hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.detail-hero h1 {
+  max-width: 820px;
+  margin: 0;
+  font-size: 58px;
+  font-weight: 860;
+  line-height: 1.04;
+  text-shadow: 0 16px 34px rgba(0, 0, 0, 0.42);
+}
+
+.detail-summary {
+  max-width: 760px;
+  margin: 0;
+  color: rgba(248, 250, 252, 0.8);
+  font-size: 18px;
+  line-height: 1.74;
+  text-shadow: 0 12px 28px rgba(0, 0, 0, 0.36);
+}
+
+.detail-hero .page-kicker,
+.detail-hero .detail-meta,
+.detail-hero .tag-row {
+  text-shadow: 0 10px 24px rgba(0, 0, 0, 0.38);
+}
+
+.detail-hero .detail-meta span {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(6, 8, 18, 0.42);
+  color: rgba(248, 250, 252, 0.86);
+}
+
+.detail-hero .tag-row span {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+}
+
+.detail-actions {
+  padding: 0 48px;
+}
+
+.markdown-body {
+  display: grid;
+  gap: 18px;
+  padding: 34px 48px 52px;
+  color: #1f2937;
+}
+
+.markdown-body :deep(h1),
+.markdown-body :deep(h2),
+.markdown-body :deep(h3) {
+  max-width: 780px;
+  margin: 14px 0 0;
+  color: var(--tone-ink);
+  line-height: 1.18;
+}
+
+.markdown-body :deep(h2) {
+  font-size: 30px;
+}
+
+.markdown-body :deep(p),
+.markdown-body :deep(li),
+.markdown-body :deep(blockquote) {
+  max-width: 780px;
+  margin: 0;
+  color: #475569;
+  font-size: 16px;
+  line-height: 1.88;
+}
+
+.markdown-body :deep(blockquote) {
+  padding: 14px 18px;
+  border-left: 4px solid var(--tone-teal);
+  background: rgba(0, 124, 114, 0.08);
+}
+
+.markdown-body :deep(pre) {
+  max-width: 100%;
+  overflow-x: auto;
+  border-radius: 8px;
+}
+
+.reading-aside {
+  position: sticky;
+  top: 100px;
+  display: grid;
+  gap: 12px;
+}
+
+.toc-card,
+.reaction-card {
+  padding: 18px;
+}
+
+.toc-card {
+  display: grid;
+  gap: 10px;
+}
+
+.toc-card a,
+.toc-card span {
+  color: var(--tone-muted);
+  font-size: 14px;
+}
+
+.reaction-card {
+  display: grid;
+  gap: 10px;
+}
+
+.reaction-card .icon-button {
+  justify-content: flex-start;
+}
+
+@media (max-width: 1020px) {
+  .reading-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .reading-aside {
+    position: static;
+  }
+}
+
+@media (max-width: 760px) {
+  .detail-page {
+    padding-top: 26px;
+  }
+
+  .detail-hero {
+    padding: 22px;
+  }
+
+  .detail-hero h1 {
+    font-size: 32px;
+  }
+
+  .detail-actions,
+  .markdown-body {
+    padding-right: 24px;
+    padding-left: 24px;
+  }
+}
+
+@media (max-width: 520px) {
+  .detail-hero h1 {
+    font-size: 28px;
+  }
+}
+</style>
