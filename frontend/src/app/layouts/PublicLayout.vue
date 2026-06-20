@@ -215,3 +215,196 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
 </script>
+
+<style scoped>
+.public-shell {
+  position: relative;
+  min-height: 100vh;
+  overflow: clip;
+}
+
+.public-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(20, 21, 29, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(20, 21, 29, 0.028) 1px, transparent 1px);
+  background-size: 52px 52px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.82), rgba(0, 0, 0, 0.08));
+}
+
+.frontstage-webgl {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.6;
+  mix-blend-mode: screen;
+}
+
+.public-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  width: 100%;
+  min-height: 72px;
+  margin: 0;
+  padding: 0 clamp(18px, 5vw, 72px);
+  gap: 24px;
+  border-bottom: 1px solid rgba(196, 199, 207, 0.58);
+  background: color-mix(in srgb, var(--md-sys-color-surface) 88%, transparent);
+  backdrop-filter: blur(22px);
+  box-shadow: 0 1px 0 rgba(60, 64, 67, 0.04);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  font-weight: 760;
+}
+
+.brand-copy {
+  display: grid;
+  gap: 2px;
+}
+
+.brand-copy small {
+  color: var(--tone-muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.brand-mark {
+  display: inline-grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--md-sys-color-primary) 18%, transparent);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(235, 242, 255, 0.78)),
+    var(--md-sys-color-surface-container-lowest);
+  box-shadow: var(--md-sys-elevation-2);
+}
+
+.brand-mark img {
+  width: 72%;
+  height: 72%;
+  object-fit: contain;
+}
+
+.public-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.public-nav {
+  justify-content: center;
+}
+
+.public-nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 9px 12px;
+  border-radius: 999px;
+  color: var(--tone-muted);
+  font-size: 14px;
+  font-weight: 690;
+  transition: background 180ms ease, color 180ms ease, transform 180ms ease;
+}
+
+.public-nav a.router-link-active,
+.public-nav a:hover {
+  background: color-mix(in srgb, var(--md-sys-color-primary) 12%, transparent);
+  color: var(--md-sys-color-primary);
+}
+
+.public-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mobile-auth-action {
+  display: none !important;
+}
+
+.nav-toggle {
+  display: none;
+  justify-self: end;
+}
+.public-main {
+  position: relative;
+  z-index: 1;
+  width: min(1200px, calc(100vw - 40px));
+  margin: 0 auto;
+}
+@media (max-width: 760px) {
+  .public-header {
+    grid-template-columns: auto auto;
+  }
+
+  .nav-toggle {
+    display: inline-flex;
+  }
+
+  .public-nav,
+  .public-actions {
+    display: none;
+  }
+
+  .public-nav.is-open {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: stretch;
+    padding-bottom: 12px;
+  }
+
+  .public-nav.is-open a {
+    justify-content: center;
+    border: 1px solid var(--tone-line);
+    background: rgba(255, 255, 255, 0.72);
+  }
+
+  .public-nav.is-open .mobile-auth-action {
+    display: inline-flex !important;
+    min-height: 42px;
+    border-radius: 999px;
+    font-weight: 780;
+  }
+
+  .public-nav.is-open .mobile-auth-action--tonal {
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+  }
+
+  .public-nav.is-open .mobile-auth-action--filled {
+    background: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+  }
+}
+
+@media (max-width: 520px) {
+  .public-header,
+  .public-main {
+    width: min(100vw - 24px, 1200px);
+  }
+
+  .brand-copy small {
+    display: none;
+  }
+}
+</style>
