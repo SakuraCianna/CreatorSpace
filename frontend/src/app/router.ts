@@ -67,6 +67,16 @@ const router = createRouter({
       meta: { layout: 'public' },
     },
     {
+      path: '/creator',
+      redirect: '/creator/articles',
+    },
+    {
+      path: '/creator/:section',
+      name: 'creator-center',
+      component: () => import('@/pages/CreatorCenterPage.vue'),
+      meta: { layout: 'public', requiresAuth: true },
+    },
+    {
       path: '/admin',
       name: 'admin-dashboard',
       component: () => import('@/pages/AdminDashboardPage.vue'),
@@ -89,19 +99,22 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   const requiresAdmin = to.matched.some((record) => record.meta.requiresAdmin)
+  const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
   const hasToken = Boolean(window.localStorage.getItem(ACCESS_TOKEN_KEY))
   const roles = readStoredRoles()
 
   if (hasToken && roles.length === 0) {
     window.localStorage.removeItem(ACCESS_TOKEN_KEY)
     window.localStorage.removeItem(USER_SUMMARY_KEY)
-    if (requiresAdmin) {
-      return { name: 'login', query: { redirect: to.fullPath, mode: 'admin' } }
+    if (requiresAdmin || requiresAuth) {
+      return requiresAdmin
+        ? { name: 'login', query: { redirect: to.fullPath, mode: 'admin' } }
+        : { name: 'login', query: { redirect: to.fullPath } }
     }
     return true
   }
 
-  if (requiresAdmin && !hasToken) {
+  if ((requiresAdmin || requiresAuth) && !hasToken) {
     return { name: 'login', query: { redirect: to.fullPath } }
   }
 
@@ -113,6 +126,9 @@ router.beforeEach((to) => {
     const redirect = readRedirect(to.query.redirect)
     if (redirect.startsWith('/admin') && !roles.includes('ADMIN')) {
       return true
+    }
+    if (redirect && !redirect.startsWith('/admin')) {
+      return redirect
     }
     if (!roles.includes('ADMIN')) {
       return { name: 'articles' }

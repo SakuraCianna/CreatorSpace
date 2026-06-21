@@ -5,6 +5,8 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 
+import java.time.OffsetDateTime;
+
 /**
  * 作品表实体，保存项目展示信息、技术栈和可见状态。
  */
@@ -48,6 +50,18 @@ public class ProjectEntity {
 
     @TableField("sort_order")
     private Integer sortOrder;
+
+    @TableField("submitted_at")
+    private OffsetDateTime submittedAt;
+
+    @TableField("reviewed_by")
+    private Long reviewedBy;
+
+    @TableField("reviewed_at")
+    private OffsetDateTime reviewedAt;
+
+    @TableField("review_note")
+    private String reviewNote;
 
     @TableField("created_by")
     private Long createdBy;
@@ -193,6 +207,46 @@ public class ProjectEntity {
     // 设置sort order。
     public void setSortOrder(Integer sortOrder) {
         this.sortOrder = sortOrder;
+    }
+
+    // 获取submitted at。
+    public OffsetDateTime getSubmittedAt() {
+        return submittedAt;
+    }
+
+    // 设置submitted at。
+    public void setSubmittedAt(OffsetDateTime submittedAt) {
+        this.submittedAt = submittedAt;
+    }
+
+    // 获取reviewed by。
+    public Long getReviewedBy() {
+        return reviewedBy;
+    }
+
+    // 设置reviewed by。
+    public void setReviewedBy(Long reviewedBy) {
+        this.reviewedBy = reviewedBy;
+    }
+
+    // 获取reviewed at。
+    public OffsetDateTime getReviewedAt() {
+        return reviewedAt;
+    }
+
+    // 设置reviewed at。
+    public void setReviewedAt(OffsetDateTime reviewedAt) {
+        this.reviewedAt = reviewedAt;
+    }
+
+    // 获取review note。
+    public String getReviewNote() {
+        return reviewNote;
+    }
+
+    // 设置review note。
+    public void setReviewNote(String reviewNote) {
+        this.reviewNote = reviewNote;
     }
 
     // 获取created by。

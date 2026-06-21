@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the initial Spring Boot 4 backend foundation with Flyway migrations, PostgreSQL schema, and database backup rules.
+**Goal:** Build the initial Spring Boot 3.5 backend foundation with Flyway migrations, PostgreSQL schema, and database backup rules.
 
 **Architecture:** Use a monorepo layout with `backend/` for the Spring Boot service and later `frontend/` for Vue. Flyway owns schema changes under `backend/src/main/resources/db/migration`, and database-changing work must follow a documented backup checklist before migrations are run against persistent databases.
 
-**Tech Stack:** Java 21, Spring Boot 4.0.x, Maven, PostgreSQL 17, Redis 7, MyBatis-Plus Spring Boot 4 starter, Flyway, Testcontainers, JUnit 5.
+**Tech Stack:** Java 21, Spring Boot 3.5.x, Maven, PostgreSQL 17, Redis 7, MyBatis-Plus Spring Boot 3 starter, Flyway, Testcontainers, JUnit 5.
 
 ---
 

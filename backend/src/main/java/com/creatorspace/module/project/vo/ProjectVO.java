@@ -2,6 +2,7 @@ package com.creatorspace.module.project.vo;
 
 import com.creatorspace.module.tag.vo.TagVO;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -21,6 +22,10 @@ public record ProjectVO(
         String contentMarkdown,
         String status,
         Boolean recommended,
-        List<TagVO> tags
+        List<TagVO> tags,
+        Long authorId,
+        OffsetDateTime submittedAt,
+        OffsetDateTime reviewedAt,
+        String reviewNote
 ) {
 }

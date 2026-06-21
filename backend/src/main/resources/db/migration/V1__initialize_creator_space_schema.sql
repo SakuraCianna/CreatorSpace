@@ -106,12 +106,16 @@ create table articles (
     comment_count bigint not null default 0,
     is_top boolean not null default false,
     is_recommend boolean not null default false,
+    submitted_at timestamptz,
+    reviewed_by bigint references users(id) on delete set null,
+    reviewed_at timestamptz,
+    review_note text,
     publish_time timestamptz,
     created_by bigint references users(id) on delete set null,
     updated_by bigint references users(id) on delete set null,
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now(),
-    constraint ck_articles_status check (status in ('DRAFT', 'PUBLISHED', 'PRIVATE', 'SCHEDULED', 'ARCHIVED')),
+    constraint ck_articles_status check (status in ('DRAFT', 'PENDING_REVIEW', 'PUBLISHED', 'PRIVATE', 'REJECTED', 'SCHEDULED', 'ARCHIVED')),
     constraint ck_articles_privacy_type
         check (privacy_type in ('PUBLIC', 'SELF', 'FRIENDS', 'SELECTED_FRIENDS', 'EXCLUDED_FRIENDS'))
 );
@@ -163,16 +167,20 @@ create table portfolio_projects (
     demo_url text,
     video_url text,
     content_markdown text not null default '',
-    status varchar(20) not null default 'VISIBLE',
+    status varchar(20) not null default 'DRAFT',
     is_recommend boolean not null default false,
     sort_order integer not null default 0,
     started_at date,
     ended_at date,
+    submitted_at timestamptz,
+    reviewed_by bigint references users(id) on delete set null,
+    reviewed_at timestamptz,
+    review_note text,
     created_by bigint references users(id) on delete set null,
     updated_by bigint references users(id) on delete set null,
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now(),
-    constraint ck_portfolio_projects_status check (status in ('VISIBLE', 'HIDDEN', 'DRAFT', 'ARCHIVED')),
+    constraint ck_portfolio_projects_status check (status in ('DRAFT', 'PENDING_REVIEW', 'VISIBLE', 'HIDDEN', 'REJECTED', 'ARCHIVED')),
     constraint ck_portfolio_projects_cover_url_safe check (cover_url is null or cover_url ~* '^(https?://|/uploads/)'),
     constraint ck_portfolio_projects_github_url_safe check (github_url is null or github_url ~* '^https?://'),
     constraint ck_portfolio_projects_demo_url_safe check (demo_url is null or demo_url ~* '^https?://'),
@@ -812,6 +820,10 @@ comment on column articles.like_count is '点赞次数';
 comment on column articles.comment_count is '评论次数';
 comment on column articles.is_top is '是否置顶';
 comment on column articles.is_recommend is '是否推荐';
+comment on column articles.submitted_at is '提交审核时间';
+comment on column articles.reviewed_by is '审核用户主键';
+comment on column articles.reviewed_at is '审核时间';
+comment on column articles.review_note is '审核备注';
 comment on column articles.publish_time is '发布时间';
 comment on column articles.created_by is '创建用户主键';
 comment on column articles.updated_by is '更新用户主键';
@@ -855,6 +867,10 @@ comment on column portfolio_projects.is_recommend is '是否推荐';
 comment on column portfolio_projects.sort_order is '排序值';
 comment on column portfolio_projects.started_at is '开始日期';
 comment on column portfolio_projects.ended_at is '结束日期';
+comment on column portfolio_projects.submitted_at is '提交审核时间';
+comment on column portfolio_projects.reviewed_by is '审核用户主键';
+comment on column portfolio_projects.reviewed_at is '审核时间';
+comment on column portfolio_projects.review_note is '审核备注';
 comment on column portfolio_projects.created_by is '创建用户主键';
 comment on column portfolio_projects.updated_by is '更新用户主键';
 comment on column portfolio_projects.created_at is '创建时间';
@@ -1295,7 +1311,7 @@ comment on column ai_suggestions.created_at is '创建时间';
 insert into roles (code, name, description)
 values
     ('ADMIN', '管理员', '拥有后台 CMS 和站点配置管理权限'),
-    ('USER', '注册用户', '可登录、评论、点赞和收藏公开内容')
+    ('USER', '注册用户', '可登录、创作博客和作品、上传资源、评论、点赞和收藏公开内容')
 on conflict (code) do nothing;
 
 do $$

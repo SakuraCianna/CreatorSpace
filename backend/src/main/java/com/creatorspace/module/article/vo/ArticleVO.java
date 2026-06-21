@@ -22,6 +22,10 @@ public record ArticleVO(
         Boolean recommended,
         CategoryVO category,
         List<TagVO> tags,
-        OffsetDateTime publishTime
+        OffsetDateTime publishTime,
+        Long authorId,
+        OffsetDateTime submittedAt,
+        OffsetDateTime reviewedAt,
+        String reviewNote
 ) {
 }
