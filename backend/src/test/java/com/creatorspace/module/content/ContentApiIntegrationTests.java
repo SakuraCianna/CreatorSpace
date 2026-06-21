@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
@@ -61,26 +61,27 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    // 验证注册和文章发布的完整闭环。
+    // 验证普通用户注册、创作文章、提交审核和管理员通过后的公开闭环。
     @Test
-    void visitorCanRegisterAndAdminCanPublishArticleWithCategoryAndTags() throws Exception {
+    void registeredUserCanCreateArticleAndAdminCanApproveIt() throws Exception {
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(Map.of(
-                                "username", "reader",
+                                "username", "creator-reader",
                                 "password", "reader-secret"
                         ))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success", is(true)))
-                .andExpect(jsonPath("$.data.username", is("reader")))
+                .andExpect(jsonPath("$.data.username", is("creator-reader")))
                 .andExpect(jsonPath("$.data.roles[0]", is("USER")));
 
-        String token = loginAsAdmin();
-        long categoryId = createCategory(token, "ARTICLE", "技术札记", "tech-notes");
-        long tagId = createTag(token, "Spring Boot", "spring-boot");
+        String userToken = loginAsUser("creator-reader", "reader-secret");
+        String adminToken = loginAsAdmin();
+        long categoryId = createCategory(adminToken, "ARTICLE", "技术札记", "tech-notes");
+        long tagId = createTag(adminToken, "Spring Boot 测试标签", "spring-boot-test-tag");
 
-        String createArticleResponse = mockMvc.perform(post("/api/admin/articles")
-                        .header("Authorization", bearer(token))
+        String createArticleResponse = mockMvc.perform(post("/api/creator/articles")
+                        .header("Authorization", bearer(userToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(Map.of(
                                 "title", "第一篇公开文章",
@@ -94,14 +95,25 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success", is(true)))
                 .andExpect(jsonPath("$.data.status", is("DRAFT")))
+                .andExpect(jsonPath("$.data.recommended", is(false)))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
 
         long articleId = dataId(createArticleResponse);
 
-        mockMvc.perform(put("/api/admin/articles/{id}/publish", articleId)
-                        .header("Authorization", bearer(token)))
+        mockMvc.perform(get("/api/articles")
+                        .param("keyword", "第一篇公开文章"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.records", empty()));
+
+        mockMvc.perform(put("/api/creator/articles/{id}/submit", articleId)
+                        .header("Authorization", bearer(userToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("PENDING_REVIEW")));
+
+        mockMvc.perform(put("/api/admin/articles/{id}/approve", articleId)
+                        .header("Authorization", bearer(adminToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status", is("PUBLISHED")));
 
@@ -111,7 +123,7 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                 .andExpect(jsonPath("$.data.records", hasSize(1)))
                 .andExpect(jsonPath("$.data.records[0].title", is("第一篇公开文章")))
                 .andExpect(jsonPath("$.data.records[0].category.name", is("技术札记")))
-                .andExpect(jsonPath("$.data.records[0].tags[0].name", is("Spring Boot")));
+                .andExpect(jsonPath("$.data.records[0].tags[0].name", is("Spring Boot 测试标签")));
 
         mockMvc.perform(get("/api/articles/slug/{slug}", "first-public-article"))
                 .andExpect(status().isOk())
@@ -252,14 +264,22 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                 .andExpect(status().isNotFound());
     }
 
-    // 验证管理员创建作品后游客可读取公开作品列表。
+    // 验证普通用户创建作品、提交审核和管理员通过后游客可读取。
     @Test
-    void adminCanCreateProjectAndVisitorCanReadVisibleProjectList() throws Exception {
-        String token = loginAsAdmin();
-        long tagId = createTag(token, "唯一展厅标签", "unique-gallery-tag");
+    void registeredUserCanCreateProjectAndAdminCanApproveIt() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "username", "project-creator",
+                                "password", "project-secret"
+                        ))))
+                .andExpect(status().isOk());
+        String userToken = loginAsUser("project-creator", "project-secret");
+        String adminToken = loginAsAdmin();
+        long tagId = createTag(adminToken, "唯一展厅标签", "unique-gallery-tag");
 
-        mockMvc.perform(post("/api/admin/projects")
-                        .header("Authorization", bearer(token))
+        String createResponse = mockMvc.perform(post("/api/creator/projects")
+                        .header("Authorization", bearer(userToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(Map.of(
                                 "title", "CreatorSpace CMS",
@@ -273,6 +293,25 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                         ))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.status", is("DRAFT")))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        long projectId = dataId(createResponse);
+
+        mockMvc.perform(get("/api/projects")
+                        .param("keyword", "CreatorSpace CMS"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.records", empty()));
+
+        mockMvc.perform(put("/api/creator/projects/{id}/submit", projectId)
+                        .header("Authorization", bearer(userToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("PENDING_REVIEW")));
+
+        mockMvc.perform(put("/api/admin/projects/{id}/approve", projectId)
+                        .header("Authorization", bearer(adminToken)))
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status", is("VISIBLE")));
 
         mockMvc.perform(get("/api/projects")
@@ -280,6 +319,7 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.records", hasSize(1)))
                 .andExpect(jsonPath("$.data.records[0].title", is("CreatorSpace CMS")))
+                .andExpect(jsonPath("$.data.records[0].recommended", is(false)))
                 .andExpect(jsonPath("$.data.records[0].tags[0].name", is("唯一展厅标签")))
                 .andExpect(jsonPath("$.data.records[0].techStack[0]", is("Vue 3")));
 
@@ -293,6 +333,105 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.records[0].type", is("PROJECT")))
                 .andExpect(jsonPath("$.data.records[0].title", is("CreatorSpace CMS")));
+    }
+
+    // 验证普通用户可以上传创作资源，并对公开内容点赞和收藏。
+    @Test
+    void registeredUserCanUploadCreatorFilesAndInteractWithPublicContent() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "username", "asset-creator",
+                                "password", "asset-secret"
+                        ))))
+                .andExpect(status().isOk());
+        String userToken = loginAsUser("asset-creator", "asset-secret");
+        String adminToken = loginAsAdmin();
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "creator-cover.png",
+                "image/png",
+                PNG_BYTES
+        );
+        mockMvc.perform(multipart("/api/creator/files/upload")
+                        .file(file)
+                        .param("module", "PROJECT")
+                        .header("Authorization", bearer(userToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.module", is("PROJECT")))
+                .andExpect(jsonPath("$.data.publicUrl", not("")));
+
+        mockMvc.perform(get("/api/creator/files")
+                        .header("Authorization", bearer(userToken))
+                        .param("module", "PROJECT"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.records[0].originalName", is("creator-cover.png")));
+
+        MockMultipartFile pdf = new MockMultipartFile(
+                "file",
+                "creator-note.pdf",
+                "application/pdf",
+                "%PDF-1.4\n".getBytes(StandardCharsets.UTF_8)
+        );
+        mockMvc.perform(multipart("/api/creator/files/upload")
+                        .file(pdf)
+                        .param("module", "OTHER")
+                        .header("Authorization", bearer(userToken)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message", is("普通用户只能上传图片资源")));
+
+        String createArticleResponse = mockMvc.perform(post("/api/admin/articles")
+                        .header("Authorization", bearer(adminToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "title", "互动目标文章",
+                                "slug", "interaction-target-article",
+                                "summary", "用于验证点赞和收藏",
+                                "contentMarkdown", "## 互动\n这是一篇公开文章。",
+                                "privacyType", "PUBLIC"
+                        ))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        long articleId = dataId(createArticleResponse);
+        mockMvc.perform(put("/api/admin/articles/{id}/approve", articleId)
+                        .header("Authorization", bearer(adminToken)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/me/likes")
+                        .header("Authorization", bearer(userToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "targetType", "ARTICLE",
+                                "targetId", articleId
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.targetType", is("ARTICLE")))
+                .andExpect(jsonPath("$.data.targetId", is((int) articleId)));
+
+        mockMvc.perform(post("/api/me/favorites")
+                        .header("Authorization", bearer(userToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "targetType", "ARTICLE",
+                                "targetId", articleId
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.targetType", is("ARTICLE")));
+
+        mockMvc.perform(get("/api/me/favorites")
+                        .header("Authorization", bearer(userToken))
+                        .param("targetType", "ARTICLE"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.records", hasSize(1)));
+
+        mockMvc.perform(delete("/api/me/likes")
+                        .header("Authorization", bearer(userToken))
+                        .param("targetType", "ARTICLE")
+                        .param("targetId", String.valueOf(articleId)))
+                .andExpect(status().isOk());
     }
 
     // 验证后台作品列表、更新、展示状态、推荐和删除闭环。
@@ -315,7 +454,7 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                                 "recommended", true
                         ))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.status", is("VISIBLE")))
+                .andExpect(jsonPath("$.data.status", is("DRAFT")))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
@@ -342,7 +481,7 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
         mockMvc.perform(get("/api/admin/projects")
                         .header("Authorization", bearer(token))
                         .param("keyword", "生命周期已更新")
-                        .param("status", "VISIBLE"))
+                        .param("status", "DRAFT"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.records", hasSize(1)))
                 .andExpect(jsonPath("$.data.records[0].title", is("后台作品生命周期已更新")));

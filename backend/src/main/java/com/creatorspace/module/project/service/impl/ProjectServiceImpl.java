@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URI;
+import java.time.OffsetDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -47,7 +48,7 @@ public class ProjectServiceImpl implements ProjectService {
         this.tagService = tagService;
     }
 
-    // 创建可见作品，并在同一个事务内写入标签绑定。
+    // 创建作品草稿，并在同一个事务内写入标签绑定。
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ProjectVO create(ProjectCreateRequest request, Long operatorId) {
@@ -57,13 +58,135 @@ public class ProjectServiceImpl implements ProjectService {
 
         ProjectEntity project = new ProjectEntity();
         applyEditableFields(project, request, slug);
-        project.setStatus(ContentConstants.PROJECT_VISIBLE);
+        project.setStatus(ContentConstants.PROJECT_DRAFT);
         project.setSortOrder(0);
+        project.setSubmittedAt(null);
+        project.setReviewedBy(null);
+        project.setReviewedAt(null);
+        project.setReviewNote(null);
         project.setCreatedBy(operatorId);
         project.setUpdatedBy(operatorId);
         projectMapper.insertProject(project);
         replaceTags(project.getId(), request.tagIds());
         return toVO(project, true);
+    }
+
+    // 当前创作者创建作品草稿，推荐位只能由管理员运营。
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ProjectVO createMine(ProjectCreateRequest request, Long userId) {
+        String slug = normalizeSlug(request.slug());
+        ensureSlugAvailable(slug, null);
+        validateTagIds(request.tagIds());
+
+        ProjectEntity project = new ProjectEntity();
+        applyEditableFields(project, request, slug);
+        project.setRecommend(false);
+        project.setStatus(ContentConstants.PROJECT_DRAFT);
+        project.setSortOrder(0);
+        project.setSubmittedAt(null);
+        project.setReviewedBy(null);
+        project.setReviewedAt(null);
+        project.setReviewNote(null);
+        project.setCreatedBy(userId);
+        project.setUpdatedBy(userId);
+        projectMapper.insertProject(project);
+        replaceTags(project.getId(), request.tagIds());
+        return toVO(project, true);
+    }
+
+    // 查询当前创作者自己的作品队列。
+    @Override
+    public PageResponse<ProjectVO> listMine(Long userId, String keyword, String status, long page, long pageSize) {
+        LambdaQueryWrapper<ProjectEntity> query = new LambdaQueryWrapper<ProjectEntity>()
+                .eq(ProjectEntity::getCreatedBy, userId);
+        String normalizedKeyword = keyword == null ? "" : keyword.trim();
+        if (!normalizedKeyword.isEmpty()) {
+            query.and(wrapper -> wrapper
+                    .like(ProjectEntity::getTitle, normalizedKeyword)
+                    .or()
+                    .like(ProjectEntity::getDescription, normalizedKeyword)
+                    .or()
+                    .like(ProjectEntity::getContentMarkdown, normalizedKeyword));
+        }
+        String normalizedStatus = normalizeOptionalStatus(status);
+        if (!normalizedStatus.isEmpty()) {
+            query.eq(ProjectEntity::getStatus, normalizedStatus);
+        }
+        query.orderByDesc(ProjectEntity::getId);
+        Page<ProjectEntity> result = projectMapper.selectPage(new Page<>(page, pageSize), query);
+        return new PageResponse<>(
+                result.getRecords().stream().map(project -> toVO(project, false)).toList(),
+                result.getCurrent(),
+                result.getSize(),
+                result.getTotal()
+        );
+    }
+
+    // 当前创作者读取自己的作品。
+    @Override
+    public ProjectVO getMineById(Long id, Long userId) {
+        return toVO(requiredOwnedProject(id, userId), true);
+    }
+
+    // 当前创作者更新自己的作品草稿或驳回作品。
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ProjectVO updateMine(Long id, ProjectCreateRequest request, Long userId) {
+        ProjectEntity project = requiredOwnedProject(id, userId);
+        ensureCreatorEditable(project);
+        String slug = normalizeSlug(request.slug());
+        ensureSlugAvailable(slug, id);
+        validateTagIds(request.tagIds());
+
+        applyEditableFields(project, request, slug);
+        project.setRecommend(false);
+        project.setStatus(ContentConstants.PROJECT_DRAFT);
+        project.setSubmittedAt(null);
+        project.setReviewedBy(null);
+        project.setReviewedAt(null);
+        project.setReviewNote(null);
+        project.setUpdatedBy(userId);
+        projectMapper.updateProject(project);
+        replaceTags(project.getId(), request.tagIds());
+        return toVO(project, true);
+    }
+
+    // 当前创作者提交作品进入管理员审核队列。
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ProjectVO submitForReview(Long id, Long userId) {
+        ProjectEntity project = requiredOwnedProject(id, userId);
+        ensureCreatorEditable(project);
+        OffsetDateTime submittedAt = OffsetDateTime.now();
+        projectMapper.updateReviewState(
+                id,
+                ContentConstants.PROJECT_PENDING_REVIEW,
+                submittedAt,
+                null,
+                null,
+                null,
+                userId
+        );
+        project.setStatus(ContentConstants.PROJECT_PENDING_REVIEW);
+        project.setSubmittedAt(submittedAt);
+        project.setReviewedBy(null);
+        project.setReviewedAt(null);
+        project.setReviewNote(null);
+        return toVO(project, true);
+    }
+
+    // 当前创作者只能删除未公开作品。
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteMine(Long id, Long userId) {
+        ProjectEntity project = requiredOwnedProject(id, userId);
+        if (Set.of(ContentConstants.PROJECT_VISIBLE, ContentConstants.PROJECT_HIDDEN, ContentConstants.PROJECT_ARCHIVED)
+                .contains(project.getStatus())) {
+            throw BusinessException.badRequest("已展示或归档作品不能由创作者直接删除");
+        }
+        projectTagMapper.deleteByProjectId(project.getId());
+        projectMapper.deleteById(project.getId());
     }
 
     // 更新作品主体信息和标签绑定。
@@ -99,6 +222,55 @@ public class ProjectServiceImpl implements ProjectService {
         project.setStatus(normalizeProjectStatus(status));
         project.setUpdatedBy(operatorId);
         projectMapper.updateProject(project);
+        return toVO(project, true);
+    }
+
+    // 管理员审核通过作品，让它进入公开作品展厅。
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ProjectVO approve(Long id, Long operatorId) {
+        ProjectEntity project = requiredProject(id);
+        OffsetDateTime reviewedAt = OffsetDateTime.now();
+        OffsetDateTime submittedAt = project.getSubmittedAt() == null ? reviewedAt : project.getSubmittedAt();
+        projectMapper.updateReviewState(
+                id,
+                ContentConstants.PROJECT_VISIBLE,
+                submittedAt,
+                operatorId,
+                reviewedAt,
+                null,
+                operatorId
+        );
+        project.setStatus(ContentConstants.PROJECT_VISIBLE);
+        project.setSubmittedAt(submittedAt);
+        project.setReviewedBy(operatorId);
+        project.setReviewedAt(reviewedAt);
+        project.setReviewNote(null);
+        return toVO(project, true);
+    }
+
+    // 管理员驳回作品，保留可执行的修改意见。
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ProjectVO reject(Long id, String reviewNote, Long operatorId) {
+        ProjectEntity project = requiredProject(id);
+        OffsetDateTime reviewedAt = OffsetDateTime.now();
+        OffsetDateTime submittedAt = project.getSubmittedAt() == null ? reviewedAt : project.getSubmittedAt();
+        String note = blankToNull(reviewNote);
+        projectMapper.updateReviewState(
+                id,
+                ContentConstants.PROJECT_REJECTED,
+                submittedAt,
+                operatorId,
+                reviewedAt,
+                note == null ? "作品暂未通过审核，请修改后重新提交。" : note,
+                operatorId
+        );
+        project.setStatus(ContentConstants.PROJECT_REJECTED);
+        project.setSubmittedAt(submittedAt);
+        project.setReviewedBy(operatorId);
+        project.setReviewedAt(reviewedAt);
+        project.setReviewNote(note == null ? "作品暂未通过审核，请修改后重新提交。" : note);
         return toVO(project, true);
     }
 
@@ -269,8 +441,28 @@ public class ProjectServiceImpl implements ProjectService {
                 includeContent ? entity.getContentMarkdown() : null,
                 entity.getStatus(),
                 entity.getRecommend(),
-                tags
+                tags,
+                entity.getCreatedBy(),
+                entity.getSubmittedAt(),
+                entity.getReviewedAt(),
+                entity.getReviewNote()
         );
+    }
+
+    // 查询必须属于当前创作者的作品。
+    private ProjectEntity requiredOwnedProject(Long id, Long userId) {
+        ProjectEntity project = requiredProject(id);
+        if (!Objects.equals(project.getCreatedBy(), userId)) {
+            throw BusinessException.forbidden("只能操作自己的作品");
+        }
+        return project;
+    }
+
+    // 创作者只允许编辑未公开传播的作品。
+    private void ensureCreatorEditable(ProjectEntity project) {
+        if (!Set.of(ContentConstants.PROJECT_DRAFT, ContentConstants.PROJECT_REJECTED).contains(project.getStatus())) {
+            throw BusinessException.badRequest("当前状态不能编辑，请等待审核或联系管理员");
+        }
     }
 
     // 将列表数据序列化为 JSON。

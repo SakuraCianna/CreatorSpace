@@ -8,6 +8,7 @@ import type {
   CommentSummary,
   DashboardOverview,
   FileResource,
+  InteractionRecord,
   InspirationCard,
   InspirationPayload,
   InspirationType,
@@ -31,6 +32,7 @@ interface ApiEnvelope<T> {
 
 type ArticleStatusFilter = ArticleSummary['status'] | 'ALL'
 type ProjectStatusFilter = ProjectSummary['status'] | 'ALL'
+type InteractionTargetType = 'ARTICLE' | 'PROJECT' | 'COMMENT' | 'INSPIRATION'
 
 interface RegisterPayload {
   username: string
@@ -130,6 +132,70 @@ export async function createArticle(payload: ArticlePayload): Promise<ArticleSum
   return response.data
 }
 
+// 创作者查询自己的文章队列。
+export async function fetchCreatorArticles(options: {
+  keyword?: string
+  status?: ArticleStatusFilter
+  page?: number
+  pageSize?: number
+} = {}): Promise<PageResponse<ArticleSummary>> {
+  const params = new URLSearchParams()
+  if (options.keyword?.trim()) {
+    params.set('keyword', options.keyword.trim())
+  }
+  if (options.status && options.status !== 'ALL') {
+    params.set('status', options.status)
+  }
+  if (options.page) {
+    params.set('page', String(options.page))
+  }
+  if (options.pageSize) {
+    params.set('pageSize', String(options.pageSize))
+  }
+  const query = params.toString()
+  const response = await requestJson<ApiEnvelope<PageResponse<ArticleSummary>>>(
+    query ? `/api/creator/articles?${query}` : '/api/creator/articles',
+  )
+  return response.data
+}
+
+// 创作者创建文章草稿。
+export async function createCreatorArticle(payload: ArticlePayload): Promise<ArticleSummary> {
+  const response = await requestJson<ApiEnvelope<ArticleSummary>>('/api/creator/articles', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return response.data
+}
+
+// 创作者读取自己的文章详情。
+export async function fetchCreatorArticle(id: number): Promise<ArticleSummary> {
+  const response = await requestJson<ApiEnvelope<ArticleSummary>>(`/api/creator/articles/${id}`)
+  return response.data
+}
+
+// 创作者更新自己的文章。
+export async function updateCreatorArticle(id: number, payload: ArticlePayload): Promise<ArticleSummary> {
+  const response = await requestJson<ApiEnvelope<ArticleSummary>>(`/api/creator/articles/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+  return response.data
+}
+
+// 创作者提交文章审核。
+export async function submitCreatorArticle(id: number): Promise<ArticleSummary> {
+  const response = await requestJson<ApiEnvelope<ArticleSummary>>(`/api/creator/articles/${id}/submit`, {
+    method: 'PUT',
+  })
+  return response.data
+}
+
+// 创作者删除自己的未公开文章。
+export async function deleteCreatorArticle(id: number): Promise<void> {
+  await requestJson<ApiEnvelope<null>>(`/api/creator/articles/${id}`, { method: 'DELETE' })
+}
+
 // 管理员更新文章。
 export async function updateArticle(id: number, payload: ArticlePayload): Promise<ArticleSummary> {
   const response = await requestJson<ApiEnvelope<ArticleSummary>>(`/api/admin/articles/${id}`, {
@@ -148,6 +214,23 @@ export async function deleteArticle(id: number): Promise<void> {
 export async function changeArticlePublishState(id: number, action: 'publish' | 'unpublish'): Promise<ArticleSummary> {
   const response = await requestJson<ApiEnvelope<ArticleSummary>>(`/api/admin/articles/${id}/${action}`, {
     method: 'PUT',
+  })
+  return response.data
+}
+
+// 管理员审核通过文章。
+export async function approveArticle(id: number): Promise<ArticleSummary> {
+  const response = await requestJson<ApiEnvelope<ArticleSummary>>(`/api/admin/articles/${id}/approve`, {
+    method: 'PUT',
+  })
+  return response.data
+}
+
+// 管理员驳回文章。
+export async function rejectArticle(id: number, reviewNote: string): Promise<ArticleSummary> {
+  const response = await requestJson<ApiEnvelope<ArticleSummary>>(`/api/admin/articles/${id}/reject`, {
+    method: 'PUT',
+    body: JSON.stringify({ reviewNote }),
   })
   return response.data
 }
@@ -232,6 +315,70 @@ export async function createProject(payload: ProjectPayload): Promise<ProjectSum
   return response.data
 }
 
+// 创作者查询自己的作品队列。
+export async function fetchCreatorProjects(options: {
+  keyword?: string
+  status?: ProjectStatusFilter
+  page?: number
+  pageSize?: number
+} = {}): Promise<PageResponse<ProjectSummary>> {
+  const params = new URLSearchParams()
+  if (options.keyword?.trim()) {
+    params.set('keyword', options.keyword.trim())
+  }
+  if (options.status && options.status !== 'ALL') {
+    params.set('status', options.status)
+  }
+  if (options.page) {
+    params.set('page', String(options.page))
+  }
+  if (options.pageSize) {
+    params.set('pageSize', String(options.pageSize))
+  }
+  const query = params.toString()
+  const response = await requestJson<ApiEnvelope<PageResponse<ProjectSummary>>>(
+    query ? `/api/creator/projects?${query}` : '/api/creator/projects',
+  )
+  return response.data
+}
+
+// 创作者创建作品草稿。
+export async function createCreatorProject(payload: ProjectPayload): Promise<ProjectSummary> {
+  const response = await requestJson<ApiEnvelope<ProjectSummary>>('/api/creator/projects', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return response.data
+}
+
+// 创作者读取自己的作品详情。
+export async function fetchCreatorProject(id: number): Promise<ProjectSummary> {
+  const response = await requestJson<ApiEnvelope<ProjectSummary>>(`/api/creator/projects/${id}`)
+  return response.data
+}
+
+// 创作者更新自己的作品。
+export async function updateCreatorProject(id: number, payload: ProjectPayload): Promise<ProjectSummary> {
+  const response = await requestJson<ApiEnvelope<ProjectSummary>>(`/api/creator/projects/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+  return response.data
+}
+
+// 创作者提交作品审核。
+export async function submitCreatorProject(id: number): Promise<ProjectSummary> {
+  const response = await requestJson<ApiEnvelope<ProjectSummary>>(`/api/creator/projects/${id}/submit`, {
+    method: 'PUT',
+  })
+  return response.data
+}
+
+// 创作者删除自己的未公开作品。
+export async function deleteCreatorProject(id: number): Promise<void> {
+  await requestJson<ApiEnvelope<null>>(`/api/creator/projects/${id}`, { method: 'DELETE' })
+}
+
 // 管理员更新作品。
 export async function updateProject(id: number, payload: ProjectPayload): Promise<ProjectSummary> {
   const response = await requestJson<ApiEnvelope<ProjectSummary>>(`/api/admin/projects/${id}`, {
@@ -251,6 +398,23 @@ export async function setProjectStatus(id: number, status: string): Promise<Proj
   const params = new URLSearchParams({ status })
   const response = await requestJson<ApiEnvelope<ProjectSummary>>(`/api/admin/projects/${id}/status?${params.toString()}`, {
     method: 'PUT',
+  })
+  return response.data
+}
+
+// 管理员审核通过作品。
+export async function approveProject(id: number): Promise<ProjectSummary> {
+  const response = await requestJson<ApiEnvelope<ProjectSummary>>(`/api/admin/projects/${id}/approve`, {
+    method: 'PUT',
+  })
+  return response.data
+}
+
+// 管理员驳回作品。
+export async function rejectProject(id: number, reviewNote: string): Promise<ProjectSummary> {
+  const response = await requestJson<ApiEnvelope<ProjectSummary>>(`/api/admin/projects/${id}/reject`, {
+    method: 'PUT',
+    body: JSON.stringify({ reviewNote }),
   })
   return response.data
 }
@@ -448,6 +612,29 @@ export async function fetchAdminFiles(options: {
   return response.data
 }
 
+// 创作者查询自己的文件资源。
+export async function fetchCreatorFiles(options: {
+  module?: string
+  page?: number
+  pageSize?: number
+} = {}): Promise<PageResponse<FileResource>> {
+  const params = new URLSearchParams()
+  if (options.module && options.module !== 'ALL') {
+    params.set('module', options.module)
+  }
+  if (options.page) {
+    params.set('page', String(options.page))
+  }
+  if (options.pageSize) {
+    params.set('pageSize', String(options.pageSize))
+  }
+  const query = params.toString()
+  const response = await requestJson<ApiEnvelope<PageResponse<FileResource>>>(
+    query ? `/api/creator/files?${query}` : '/api/creator/files',
+  )
+  return response.data
+}
+
 // 管理员上传文件资源。
 export async function uploadAdminFile(file: File, module: string): Promise<FileResource> {
   const formData = new FormData()
@@ -457,6 +644,61 @@ export async function uploadAdminFile(file: File, module: string): Promise<FileR
     method: 'POST',
     body: formData,
   })
+  return response.data
+}
+
+// 创作者上传自己的文件资源。
+export async function uploadCreatorFile(file: File, module: string): Promise<FileResource> {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('module', module)
+  const response = await requestJson<ApiEnvelope<FileResource>>('/api/creator/files/upload', {
+    method: 'POST',
+    body: formData,
+  })
+  return response.data
+}
+
+// 登录用户点赞公开内容。
+export async function likeTarget(targetType: InteractionTargetType, targetId: number): Promise<InteractionRecord> {
+  const response = await requestJson<ApiEnvelope<InteractionRecord>>('/api/me/likes', {
+    method: 'POST',
+    body: JSON.stringify({ targetType, targetId }),
+  })
+  return response.data
+}
+
+// 登录用户取消点赞。
+export async function unlikeTarget(targetType: InteractionTargetType, targetId: number): Promise<void> {
+  const params = new URLSearchParams({ targetType, targetId: String(targetId) })
+  await requestJson<ApiEnvelope<null>>(`/api/me/likes?${params.toString()}`, { method: 'DELETE' })
+}
+
+// 登录用户收藏公开内容。
+export async function favoriteTarget(targetType: Exclude<InteractionTargetType, 'COMMENT'>, targetId: number): Promise<InteractionRecord> {
+  const response = await requestJson<ApiEnvelope<InteractionRecord>>('/api/me/favorites', {
+    method: 'POST',
+    body: JSON.stringify({ targetType, targetId }),
+  })
+  return response.data
+}
+
+// 登录用户取消收藏。
+export async function unfavoriteTarget(targetType: Exclude<InteractionTargetType, 'COMMENT'>, targetId: number): Promise<void> {
+  const params = new URLSearchParams({ targetType, targetId: String(targetId) })
+  await requestJson<ApiEnvelope<null>>(`/api/me/favorites?${params.toString()}`, { method: 'DELETE' })
+}
+
+// 登录用户查询自己的收藏。
+export async function fetchMyFavorites(targetType?: Exclude<InteractionTargetType, 'COMMENT'>): Promise<PageResponse<InteractionRecord>> {
+  const params = new URLSearchParams()
+  if (targetType) {
+    params.set('targetType', targetType)
+  }
+  const query = params.toString()
+  const response = await requestJson<ApiEnvelope<PageResponse<InteractionRecord>>>(
+    query ? `/api/me/favorites?${query}` : '/api/me/favorites',
+  )
   return response.data
 }
 

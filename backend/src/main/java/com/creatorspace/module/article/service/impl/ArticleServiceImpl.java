@@ -65,11 +65,114 @@ public class ArticleServiceImpl implements ArticleService {
         article.setStatus(ContentConstants.STATUS_DRAFT);
         article.setTop(false);
         article.setRecommend(false);
+        article.setSubmittedAt(null);
+        article.setReviewedBy(null);
+        article.setReviewedAt(null);
+        article.setReviewNote(null);
         article.setCreatedBy(operatorId);
         article.setUpdatedBy(operatorId);
         articleMapper.insert(article);
         replaceTags(article.getId(), request.tagIds());
         return toVO(article, true);
+    }
+
+    // 查询当前创作者自己的文章队列。
+    @Override
+    public PageResponse<ArticleVO> listMine(Long userId, String keyword, String status, long page, long pageSize) {
+        LambdaQueryWrapper<ArticleEntity> query = new LambdaQueryWrapper<ArticleEntity>()
+                .eq(ArticleEntity::getCreatedBy, userId);
+        String normalizedKeyword = keyword == null ? "" : keyword.trim();
+        if (!normalizedKeyword.isEmpty()) {
+            query.and(wrapper -> wrapper
+                    .like(ArticleEntity::getTitle, normalizedKeyword)
+                    .or()
+                    .like(ArticleEntity::getSummary, normalizedKeyword)
+                    .or()
+                    .like(ArticleEntity::getContentMarkdown, normalizedKeyword));
+        }
+        String normalizedStatus = normalizeOptionalStatus(status);
+        if (!normalizedStatus.isEmpty()) {
+            query.eq(ArticleEntity::getStatus, normalizedStatus);
+        }
+        query.orderByDesc(ArticleEntity::getId);
+        Page<ArticleEntity> result = articleMapper.selectPage(new Page<>(page, pageSize), query);
+        return new PageResponse<>(
+                result.getRecords().stream().map(article -> toVO(article, false)).toList(),
+                result.getCurrent(),
+                result.getSize(),
+                result.getTotal()
+        );
+    }
+
+    // 当前创作者读取自己的文章。
+    @Override
+    public ArticleVO getMineById(Long id, Long userId) {
+        ArticleEntity article = requiredOwnedArticle(id, userId);
+        return toVO(article, true);
+    }
+
+    // 当前创作者更新自己的草稿或驳回文章。
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ArticleVO updateMine(Long id, ArticleCreateRequest request, Long userId) {
+        ArticleEntity article = requiredOwnedArticle(id, userId);
+        ensureCreatorEditable(article);
+        String slug = normalizeSlug(request.slug());
+        ensureSlugAvailable(slug, id);
+        String privacyType = normalizePrivacyType(request.privacyType());
+        validateCategoryForArticle(request.categoryId());
+        validateTagIds(request.tagIds());
+
+        applyEditableFields(article, request, slug, privacyType);
+        article.setStatus(ContentConstants.STATUS_DRAFT);
+        article.setSubmittedAt(null);
+        article.setReviewedBy(null);
+        article.setReviewedAt(null);
+        article.setReviewNote(null);
+        article.setPublishTime(null);
+        article.setUpdatedBy(userId);
+        articleMapper.updateEditableArticle(article);
+        replaceTags(article.getId(), request.tagIds());
+        return toVO(article, true);
+    }
+
+    // 当前创作者提交文章进入管理员审核队列。
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ArticleVO submitForReview(Long id, Long userId) {
+        ArticleEntity article = requiredOwnedArticle(id, userId);
+        ensureCreatorEditable(article);
+        OffsetDateTime submittedAt = OffsetDateTime.now();
+        articleMapper.updateReviewState(
+                id,
+                ContentConstants.STATUS_PENDING_REVIEW,
+                submittedAt,
+                null,
+                null,
+                null,
+                null,
+                userId
+        );
+        article.setStatus(ContentConstants.STATUS_PENDING_REVIEW);
+        article.setSubmittedAt(submittedAt);
+        article.setReviewedBy(null);
+        article.setReviewedAt(null);
+        article.setReviewNote(null);
+        article.setPublishTime(null);
+        return toVO(article, true);
+    }
+
+    // 当前创作者只能删除未公开内容，避免误删已经进入公开传播的内容。
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteMine(Long id, Long userId) {
+        ArticleEntity article = requiredOwnedArticle(id, userId);
+        if (Set.of(ContentConstants.STATUS_PUBLISHED, ContentConstants.STATUS_PRIVATE, ContentConstants.STATUS_ARCHIVED)
+                .contains(article.getStatus())) {
+            throw BusinessException.badRequest("已公开或归档文章不能由创作者直接删除");
+        }
+        articleTagMapper.deleteByArticleId(article.getId());
+        articleMapper.deleteById(article.getId());
     }
 
     // 更新文章主体内容，已发布文章会根据可见性同步公开/私密状态。
@@ -97,13 +200,7 @@ public class ArticleServiceImpl implements ArticleService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ArticleVO publish(Long id, Long operatorId) {
-        ArticleEntity article = requiredArticle(id);
-        String status = publishedStatusFor(article.getPrivacyType());
-        OffsetDateTime publishTime = OffsetDateTime.now();
-        articleMapper.updatePublishState(id, status, publishTime, operatorId);
-        article.setStatus(status);
-        article.setPublishTime(publishTime);
-        return toVO(article, true);
+        return approve(id, operatorId);
     }
 
     // 撤回文章到草稿状态。
@@ -111,8 +208,58 @@ public class ArticleServiceImpl implements ArticleService {
     @Transactional(rollbackFor = Exception.class)
     public ArticleVO unpublish(Long id, Long operatorId) {
         ArticleEntity article = requiredArticle(id);
-        articleMapper.updatePublishState(id, ContentConstants.STATUS_DRAFT, null, operatorId);
+        articleMapper.updateReviewState(id, ContentConstants.STATUS_DRAFT, null, null, null, null, null, operatorId);
         article.setStatus(ContentConstants.STATUS_DRAFT);
+        article.setSubmittedAt(null);
+        article.setReviewedBy(null);
+        article.setReviewedAt(null);
+        article.setReviewNote(null);
+        article.setPublishTime(null);
+        return toVO(article, true);
+    }
+
+    // 管理员审核通过文章，根据隐私可见性决定是否进入公开列表。
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ArticleVO approve(Long id, Long operatorId) {
+        ArticleEntity article = requiredArticle(id);
+        String status = publishedStatusFor(article.getPrivacyType());
+        OffsetDateTime reviewedAt = OffsetDateTime.now();
+        OffsetDateTime publishTime = reviewedAt;
+        OffsetDateTime submittedAt = article.getSubmittedAt() == null ? reviewedAt : article.getSubmittedAt();
+        articleMapper.updateReviewState(id, status, submittedAt, operatorId, reviewedAt, null, publishTime, operatorId);
+        article.setStatus(status);
+        article.setSubmittedAt(submittedAt);
+        article.setReviewedBy(operatorId);
+        article.setReviewedAt(reviewedAt);
+        article.setReviewNote(null);
+        article.setPublishTime(publishTime);
+        return toVO(article, true);
+    }
+
+    // 管理员驳回文章，保留审核意见供创作者修改后重新提交。
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ArticleVO reject(Long id, String reviewNote, Long operatorId) {
+        ArticleEntity article = requiredArticle(id);
+        OffsetDateTime reviewedAt = OffsetDateTime.now();
+        OffsetDateTime submittedAt = article.getSubmittedAt() == null ? reviewedAt : article.getSubmittedAt();
+        String note = blankToNull(reviewNote);
+        articleMapper.updateReviewState(
+                id,
+                ContentConstants.STATUS_REJECTED,
+                submittedAt,
+                operatorId,
+                reviewedAt,
+                note == null ? "内容暂未通过审核，请修改后重新提交。" : note,
+                null,
+                operatorId
+        );
+        article.setStatus(ContentConstants.STATUS_REJECTED);
+        article.setSubmittedAt(submittedAt);
+        article.setReviewedBy(operatorId);
+        article.setReviewedAt(reviewedAt);
+        article.setReviewNote(note == null ? "内容暂未通过审核，请修改后重新提交。" : note);
         article.setPublishTime(null);
         return toVO(article, true);
     }
@@ -323,8 +470,28 @@ public class ArticleServiceImpl implements ArticleService {
                 entity.getRecommend(),
                 category,
                 tags,
-                entity.getPublishTime()
+                entity.getPublishTime(),
+                entity.getCreatedBy(),
+                entity.getSubmittedAt(),
+                entity.getReviewedAt(),
+                entity.getReviewNote()
         );
+    }
+
+    // 查询必须属于当前创作者的文章。
+    private ArticleEntity requiredOwnedArticle(Long id, Long userId) {
+        ArticleEntity article = requiredArticle(id);
+        if (!Objects.equals(article.getCreatedBy(), userId)) {
+            throw BusinessException.forbidden("只能操作自己的文章");
+        }
+        return article;
+    }
+
+    // 创作者只允许编辑未进入公开传播的文章。
+    private void ensureCreatorEditable(ArticleEntity article) {
+        if (!Set.of(ContentConstants.STATUS_DRAFT, ContentConstants.STATUS_REJECTED).contains(article.getStatus())) {
+            throw BusinessException.badRequest("当前状态不能编辑，请等待审核或联系管理员");
+        }
     }
 
     // 规范化并校验文章可见性。

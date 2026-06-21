@@ -4,6 +4,7 @@ import com.creatorspace.common.exception.BusinessException;
 import com.creatorspace.common.result.ApiResponse;
 import com.creatorspace.common.result.PageResponse;
 import com.creatorspace.security.LoginUser;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import org.springframework.beans.factory.annotation.Value;
@@ -62,10 +63,11 @@ public class FileResourceController {
         this.publicPrefix = normalizePublicPrefix(publicPrefix);
     }
 
-    // 管理员上传文件资源。
+    // 登录用户上传文件资源，管理员和普通创作者共用同一套安全校验。
     @Transactional(rollbackFor = Exception.class)
-    @PostMapping("/api/admin/files/upload")
+    @PostMapping({"/api/admin/files/upload", "/api/creator/files/upload"})
     public ApiResponse<FileResourceVO> upload(
+            HttpServletRequest request,
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestParam("file") MultipartFile file,
             @RequestParam(defaultValue = "OTHER") String module
@@ -73,6 +75,9 @@ public class FileResourceController {
         String normalizedModule = normalizeModule(module);
         String originalName = safeOriginalName(file.getOriginalFilename());
         ValidatedUpload validatedUpload = validateFile(file, originalName);
+        if (isCreatorUpload(request) && !isImageContentType(validatedUpload.contentType())) {
+            throw BusinessException.badRequest("普通用户只能上传图片资源");
+        }
         String fileName = UUID.randomUUID() + validatedUpload.extension();
         LocalDate today = LocalDate.now();
         Path modulePath = Path.of(
@@ -134,15 +139,36 @@ public class FileResourceController {
             @RequestParam(defaultValue = "1") @Min(1) long page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) long pageSize
     ) {
+        return ApiResponse.ok(listResources(module, page, pageSize, null));
+    }
+
+    // 登录创作者查看自己上传的文件资源。
+    @GetMapping("/api/creator/files")
+    public ApiResponse<PageResponse<FileResourceVO>> listMine(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestParam(required = false) String module,
+            @RequestParam(defaultValue = "1") @Min(1) long page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) long pageSize
+    ) {
+        return ApiResponse.ok(listResources(module, page, pageSize, loginUser.userId()));
+    }
+
+    private PageResponse<FileResourceVO> listResources(String module, long page, long pageSize, Long createdBy) {
         String normalizedModule = module == null || module.isBlank() ? "" : normalizeModule(module);
-        String where = normalizedModule.isEmpty() ? "" : "where module = ?";
-        Object[] countParams = normalizedModule.isEmpty() ? new Object[]{} : new Object[]{normalizedModule};
+        List<Object> whereParams = new java.util.ArrayList<>();
+        StringBuilder where = new StringBuilder("where 1 = 1");
+        if (!normalizedModule.isEmpty()) {
+            where.append(" and module = ?");
+            whereParams.add(normalizedModule);
+        }
+        if (createdBy != null) {
+            where.append(" and created_by = ?");
+            whereParams.add(createdBy);
+        }
+        Object[] countParams = whereParams.toArray();
         Long total = jdbcTemplate.queryForObject("select count(*) from file_resources " + where, Long.class, countParams);
 
-        List<Object> params = new java.util.ArrayList<>();
-        if (!normalizedModule.isEmpty()) {
-            params.add(normalizedModule);
-        }
+        List<Object> params = new java.util.ArrayList<>(whereParams);
         params.add(pageSize);
         params.add((page - 1) * pageSize);
         List<FileResourceVO> records = jdbcTemplate.query("""
@@ -163,7 +189,7 @@ public class FileResourceController {
                         """.formatted(where),
                 (rs, rowNum) -> toFile(rs),
                 params.toArray());
-        return ApiResponse.ok(new PageResponse<>(records, page, pageSize, total == null ? 0 : total));
+        return new PageResponse<>(records, page, pageSize, total == null ? 0 : total);
     }
 
     private FileResourceVO getFile(Long id) {
@@ -258,6 +284,14 @@ public class FileResourceController {
             case "text/plain", "text/markdown" -> looksLikeText(header);
             default -> false;
         };
+    }
+
+    private boolean isCreatorUpload(HttpServletRequest request) {
+        return request != null && request.getRequestURI() != null && request.getRequestURI().startsWith("/api/creator/");
+    }
+
+    private boolean isImageContentType(String contentType) {
+        return contentType != null && contentType.startsWith("image/");
     }
 
     private boolean startsWith(byte[] value, byte[] prefix) {

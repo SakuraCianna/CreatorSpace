@@ -34,13 +34,72 @@ public class ProjectController {
         this.projectService = projectService;
     }
 
-    // 管理员创建可见作品。
+    // 管理员创建作品草稿。
     @PostMapping("/api/admin/projects")
     public ApiResponse<ProjectVO> create(
             @AuthenticationPrincipal LoginUser loginUser,
             @Valid @RequestBody ProjectCreateRequest request
     ) {
         return ApiResponse.ok(projectService.create(request, loginUser.userId()));
+    }
+
+    // 登录创作者创建自己的作品草稿。
+    @PostMapping("/api/creator/projects")
+    public ApiResponse<ProjectVO> createMine(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @Valid @RequestBody ProjectCreateRequest request
+    ) {
+        return ApiResponse.ok(projectService.createMine(request, loginUser.userId()));
+    }
+
+    // 登录创作者查询自己的作品队列。
+    @GetMapping("/api/creator/projects")
+    public ApiResponse<PageResponse<ProjectVO>> listMine(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "1") @Min(1) long page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) long pageSize
+    ) {
+        return ApiResponse.ok(projectService.listMine(loginUser.userId(), keyword, status, page, pageSize));
+    }
+
+    // 登录创作者读取自己的作品详情。
+    @GetMapping("/api/creator/projects/{id}")
+    public ApiResponse<ProjectVO> getMine(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable Long id
+    ) {
+        return ApiResponse.ok(projectService.getMineById(id, loginUser.userId()));
+    }
+
+    // 登录创作者更新自己的草稿或驳回作品。
+    @PutMapping("/api/creator/projects/{id}")
+    public ApiResponse<ProjectVO> updateMine(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable Long id,
+            @Valid @RequestBody ProjectCreateRequest request
+    ) {
+        return ApiResponse.ok(projectService.updateMine(id, request, loginUser.userId()));
+    }
+
+    // 登录创作者提交作品进入审核。
+    @PutMapping("/api/creator/projects/{id}/submit")
+    public ApiResponse<ProjectVO> submitMine(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable Long id
+    ) {
+        return ApiResponse.ok(projectService.submitForReview(id, loginUser.userId()));
+    }
+
+    // 登录创作者删除自己的未公开作品。
+    @DeleteMapping("/api/creator/projects/{id}")
+    public ApiResponse<Void> deleteMine(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable Long id
+    ) {
+        projectService.deleteMine(id, loginUser.userId());
+        return ApiResponse.ok(null);
     }
 
     // 管理员查询全部作品。
@@ -80,6 +139,25 @@ public class ProjectController {
         return ApiResponse.ok(projectService.setStatus(id, status, loginUser.userId()));
     }
 
+    // 管理员审核通过作品。
+    @PutMapping("/api/admin/projects/{id}/approve")
+    public ApiResponse<ProjectVO> approve(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable Long id
+    ) {
+        return ApiResponse.ok(projectService.approve(id, loginUser.userId()));
+    }
+
+    // 管理员驳回作品。
+    @PutMapping("/api/admin/projects/{id}/reject")
+    public ApiResponse<ProjectVO> reject(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable Long id,
+            @RequestBody(required = false) ReviewRequest request
+    ) {
+        return ApiResponse.ok(projectService.reject(id, request == null ? null : request.reviewNote(), loginUser.userId()));
+    }
+
     // 管理员切换推荐状态。
     @PutMapping("/api/admin/projects/{id}/recommend")
     public ApiResponse<ProjectVO> setRecommend(
@@ -111,5 +189,8 @@ public class ProjectController {
     @GetMapping("/api/projects/slug/{slug}")
     public ApiResponse<ProjectVO> getBySlug(@PathVariable String slug) {
         return ApiResponse.ok(projectService.getPublicBySlug(slug));
+    }
+
+    public record ReviewRequest(String reviewNote) {
     }
 }

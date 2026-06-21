@@ -32,17 +32,49 @@
           <component :is="item.icon" :size="16" />
           <span>{{ item.label }}</span>
         </RouterLink>
-        <RouterLink class="mobile-auth-action mobile-auth-action--tonal" to="/login" @click="navOpen = false">
+        <RouterLink
+          v-if="!session.isAuthenticated"
+          class="mobile-auth-action mobile-auth-action--tonal"
+          to="/login"
+          @click="navOpen = false"
+        >
           登录
         </RouterLink>
-        <RouterLink class="mobile-auth-action mobile-auth-action--filled" to="/register" @click="navOpen = false">
+        <RouterLink
+          v-if="!session.isAuthenticated"
+          class="mobile-auth-action mobile-auth-action--filled"
+          to="/register"
+          @click="navOpen = false"
+        >
           注册
         </RouterLink>
+        <RouterLink
+          v-if="session.isAuthenticated"
+          class="mobile-auth-action mobile-auth-action--tonal"
+          to="/creator"
+          @click="navOpen = false"
+        >
+          创作中心
+        </RouterLink>
+        <button
+          v-if="session.isAuthenticated"
+          class="mobile-auth-action mobile-auth-action--filled"
+          type="button"
+          @click="handleLogout"
+        >
+          退出
+        </button>
       </nav>
 
       <div class="public-actions">
-        <RouterLink class="button button-tonal button-compact" to="/login">登录</RouterLink>
-        <RouterLink class="button button-filled button-compact" to="/register">注册</RouterLink>
+        <template v-if="session.isAuthenticated">
+          <RouterLink class="button button-tonal button-compact" to="/creator">{{ currentUsername }}</RouterLink>
+          <button class="button button-filled button-compact" type="button" @click="handleLogout">退出</button>
+        </template>
+        <template v-else>
+          <RouterLink class="button button-tonal button-compact" to="/login">登录</RouterLink>
+          <RouterLink class="button button-filled button-compact" to="/register">注册</RouterLink>
+        </template>
       </div>
     </header>
 
@@ -53,17 +85,21 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref, watch, type Component } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
-import { BookOpen, Home, Images, Info, Lightbulb, Menu, Search, X } from '@lucide/vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type Component } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { BookOpen, Home, Images, Info, Lightbulb, Menu, PenLine, Search, X } from '@lucide/vue'
 
 import { fetchSiteConfig } from '@/services/content'
 import { prefersReducedMotion } from '@/shared/composables/useReducedMotion'
+import { useSessionStore } from '@/shared/sessionStore'
 
 const navOpen = ref(false)
 const sceneHost = ref<HTMLElement | null>(null)
 const scrollProgress = ref(0)
 const route = useRoute()
+const router = useRouter()
+const session = useSessionStore()
+const currentUsername = computed(() => session.currentUser?.username ?? '创作中心')
 let disposeScene: (() => void) | null = null
 let setScenePaused: ((paused: boolean) => void) | null = null
 let setScenePointer: ((nx: number, ny: number) => void) | null = null
@@ -81,6 +117,8 @@ const iconMap: Record<string, Component> = {
   images: Images,
   info: Info,
   lightbulb: Lightbulb,
+  'pen-line': PenLine,
+  pen: PenLine,
   search: Search,
 }
 
@@ -88,6 +126,7 @@ const fallbackNavItems: PublicNavItem[] = [
   { to: '/articles', label: '文章', icon: BookOpen },
   { to: '/projects', label: '作品', icon: Images },
   { to: '/inspirations', label: '灵感', icon: Lightbulb },
+  { to: '/creator', label: '创作', icon: PenLine },
   { to: '/search', label: '搜索', icon: Search },
   { to: '/about', label: '关于', icon: Info },
 ]
@@ -106,7 +145,7 @@ onMounted(async () => {
     const config = await fetchSiteConfig()
     const configuredItems = readConfiguredNavigation(config['site.navigationItems'])
     if (configuredItems.length > 0) {
-      navItems.value = configuredItems
+      navItems.value = withCreatorEntry(configuredItems)
     }
   } catch {
     navItems.value = fallbackNavItems
@@ -209,6 +248,23 @@ function readNavigationItem(value: unknown): PublicNavItem | null {
     label,
     icon: iconMap[iconName] ?? Info,
   }
+}
+
+function withCreatorEntry(items: PublicNavItem[]): PublicNavItem[] {
+  if (items.some((item) => item.to === '/creator' || item.to.startsWith('/creator/'))) {
+    return items
+  }
+  const searchIndex = items.findIndex((item) => item.to === '/search')
+  const nextItems = [...items]
+  const insertAt = searchIndex >= 0 ? searchIndex : nextItems.length
+  nextItems.splice(insertAt, 0, { to: '/creator', label: '创作', icon: PenLine })
+  return nextItems
+}
+
+function handleLogout() {
+  session.logout()
+  navOpen.value = false
+  router.push('/')
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -339,6 +395,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 .mobile-auth-action {
   display: none !important;
+}
+
+button.mobile-auth-action {
+  font: inherit;
+  cursor: pointer;
 }
 
 .nav-toggle {

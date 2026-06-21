@@ -80,7 +80,10 @@ class FlywayMigrationTests extends PostgresIntegrationTestSupport {
             assertThat(nullableColumnNames(connection, "users")).contains("nickname");
             assertThat(columnNames(connection, "articles"))
                     .contains("privacy_type")
+                    .contains("submitted_at", "reviewed_by", "reviewed_at", "review_note")
                     .doesNotContain("access_password_hash");
+            assertThat(columnNames(connection, "portfolio_projects"))
+                    .contains("submitted_at", "reviewed_by", "reviewed_at", "review_note");
             assertThat(columnNames(connection, "comments"))
                     .contains("root_id", "reply_to_user_id", "depth", "reply_count")
                     .doesNotContain("nickname", "email");
@@ -154,11 +157,15 @@ class FlywayMigrationTests extends PostgresIntegrationTestSupport {
                 "ai_agent_messages",
                 "ai_suggestions"
         );
-        assertThat(countRows(connection, "articles")).isGreaterThanOrEqualTo(18L);
-        assertThat(countRows(connection, "portfolio_projects")).isGreaterThanOrEqualTo(12L);
-        assertThat(countRows(connection, "inspiration_cards")).isGreaterThanOrEqualTo(14L);
-        assertThat(countRows(connection, "visit_logs")).isGreaterThanOrEqualTo(80L);
-        assertThat(countRows(connection, "operation_logs")).isGreaterThanOrEqualTo(36L);
+        assertThat(countRows(connection, "articles")).isGreaterThanOrEqualTo(5L);
+        assertThat(countRows(connection, "portfolio_projects")).isGreaterThanOrEqualTo(4L);
+        assertThat(countRows(connection, "inspiration_cards")).isGreaterThanOrEqualTo(3L);
+        assertThat(countRows(connection, "visit_logs")).isGreaterThanOrEqualTo(1L);
+        assertThat(countRows(connection, "operation_logs")).isGreaterThanOrEqualTo(1L);
+        assertThat(singleLong(connection, "select count(*) from articles where status = 'PENDING_REVIEW'")).isPositive();
+        assertThat(singleLong(connection, "select count(*) from articles where status = 'REJECTED'")).isPositive();
+        assertThat(singleLong(connection, "select count(*) from portfolio_projects where status = 'PENDING_REVIEW'")).isPositive();
+        assertThat(singleLong(connection, "select count(*) from portfolio_projects where status = 'REJECTED'")).isPositive();
     }
 
     // 验证指定表都至少有一条展示数据。

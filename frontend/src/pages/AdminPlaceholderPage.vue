@@ -79,8 +79,10 @@
           <select v-model="articleStatus" @change="loadArticles">
             <option value="ALL">全部状态</option>
             <option value="DRAFT">草稿</option>
+            <option value="PENDING_REVIEW">待审核</option>
             <option value="PUBLISHED">公开</option>
             <option value="PRIVATE">私密</option>
+            <option value="REJECTED">已驳回</option>
             <option value="ARCHIVED">归档</option>
           </select>
           <button class="icon-text-button" type="button" @click="loadArticles">刷新</button>
@@ -95,8 +97,24 @@
           <div class="row-actions">
             <span class="status-chip">{{ article.status }}</span>
             <button class="icon-text-button" type="button" @click="editArticle(article.id)">编辑</button>
+            <button
+              v-if="article.status === 'PENDING_REVIEW'"
+              class="icon-text-button"
+              type="button"
+              @click="approveArticleReview(article)"
+            >
+              通过
+            </button>
+            <button
+              v-if="article.status === 'PENDING_REVIEW'"
+              class="icon-text-button danger"
+              type="button"
+              @click="rejectArticleReview(article)"
+            >
+              驳回
+            </button>
             <button class="icon-text-button" type="button" @click="toggleArticlePublish(article)">
-              {{ article.status === 'DRAFT' ? '发布' : '撤回' }}
+              {{ articlePublishActionLabel(article) }}
             </button>
             <button class="icon-text-button" type="button" @click="toggleArticleTop(article)">
               {{ article.top ? '取消置顶' : '置顶' }}
@@ -183,9 +201,11 @@
           <input v-model="projectKeyword" placeholder="搜索作品" @keyup.enter="loadProjects" />
           <select v-model="projectStatus" @change="loadProjects">
             <option value="ALL">全部状态</option>
+            <option value="DRAFT">草稿</option>
+            <option value="PENDING_REVIEW">待审核</option>
             <option value="VISIBLE">展示</option>
             <option value="HIDDEN">隐藏</option>
-            <option value="DRAFT">草稿</option>
+            <option value="REJECTED">已驳回</option>
             <option value="ARCHIVED">归档</option>
           </select>
           <button class="icon-text-button" type="button" @click="loadProjects">刷新</button>
@@ -198,6 +218,22 @@
           <div class="row-actions">
             <span class="status-chip">{{ project.status }}</span>
             <button class="icon-text-button" type="button" @click="editProject(project.id)">编辑</button>
+            <button
+              v-if="project.status === 'PENDING_REVIEW'"
+              class="icon-text-button"
+              type="button"
+              @click="approveProjectReview(project)"
+            >
+              通过
+            </button>
+            <button
+              v-if="project.status === 'PENDING_REVIEW'"
+              class="icon-text-button danger"
+              type="button"
+              @click="rejectProjectReview(project)"
+            >
+              驳回
+            </button>
             <button class="icon-text-button" type="button" @click="toggleProjectVisible(project)">
               {{ project.status === 'VISIBLE' ? '隐藏' : '展示' }}
             </button>
@@ -540,6 +576,8 @@ import { useRoute } from 'vue-router'
 import { Plus } from '@lucide/vue'
 
 import {
+  approveArticle,
+  approveProject,
   changeArticlePublishState,
   createArticle,
   createInspiration,
@@ -559,6 +597,8 @@ import {
   fetchCategories,
   fetchTags,
   reviewComment,
+  rejectArticle,
+  rejectProject,
   setArticleRecommend,
   setArticleTop,
   setProjectRecommend,
@@ -788,12 +828,41 @@ async function editArticle(id: number) {
 
 async function toggleArticlePublish(article: ArticleSummary) {
   try {
-    await changeArticlePublishState(article.id, article.status === 'DRAFT' ? 'publish' : 'unpublish')
-    notice.value = article.status === 'DRAFT' ? '文章已发布' : '文章已撤回'
+    const action = article.status === 'PUBLISHED' || article.status === 'PRIVATE' ? 'unpublish' : 'publish'
+    await changeArticlePublishState(article.id, action)
+    notice.value = action === 'publish' ? '文章已发布' : '文章已撤回'
     await loadArticles()
   } catch (error) {
     notice.value = readError(error, '文章状态更新失败')
   }
+}
+
+async function approveArticleReview(article: ArticleSummary) {
+  try {
+    await approveArticle(article.id)
+    notice.value = '文章审核通过'
+    await loadArticles()
+  } catch (error) {
+    notice.value = readError(error, '文章审核失败')
+  }
+}
+
+async function rejectArticleReview(article: ArticleSummary) {
+  const reviewNote = window.prompt('请输入驳回原因', article.reviewNote ?? '请补充来源、说明或作品归属信息。')?.trim()
+  if (!reviewNote) {
+    return
+  }
+  try {
+    await rejectArticle(article.id, reviewNote)
+    notice.value = '文章已驳回'
+    await loadArticles()
+  } catch (error) {
+    notice.value = readError(error, '文章驳回失败')
+  }
+}
+
+function articlePublishActionLabel(article: ArticleSummary) {
+  return article.status === 'PUBLISHED' || article.status === 'PRIVATE' ? '撤回' : '发布'
 }
 
 async function toggleArticleTop(article: ArticleSummary) {
@@ -900,11 +969,39 @@ async function editProject(id: number) {
 
 async function toggleProjectVisible(project: ProjectSummary) {
   try {
-    await setProjectStatus(project.id, project.status === 'VISIBLE' ? 'HIDDEN' : 'VISIBLE')
+    if (project.status === 'PENDING_REVIEW') {
+      await approveProject(project.id)
+    } else {
+      await setProjectStatus(project.id, project.status === 'VISIBLE' ? 'HIDDEN' : 'VISIBLE')
+    }
     notice.value = project.status === 'VISIBLE' ? '作品已隐藏' : '作品已展示'
     await loadProjects()
   } catch (error) {
     notice.value = readError(error, '作品状态更新失败')
+  }
+}
+
+async function approveProjectReview(project: ProjectSummary) {
+  try {
+    await approveProject(project.id)
+    notice.value = '作品审核通过'
+    await loadProjects()
+  } catch (error) {
+    notice.value = readError(error, '作品审核失败')
+  }
+}
+
+async function rejectProjectReview(project: ProjectSummary) {
+  const reviewNote = window.prompt('请输入驳回原因', project.reviewNote ?? '请补充素材授权、创作说明或演示链接。')?.trim()
+  if (!reviewNote) {
+    return
+  }
+  try {
+    await rejectProject(project.id, reviewNote)
+    notice.value = '作品已驳回'
+    await loadProjects()
+  } catch (error) {
+    notice.value = readError(error, '作品驳回失败')
   }
 }
 

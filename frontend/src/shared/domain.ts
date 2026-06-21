@@ -7,7 +7,16 @@ export type ArticlePrivacy =
   | 'SELECTED_FRIENDS'
   | 'EXCLUDED_FRIENDS'
 
-export type ContentStatus = 'DRAFT' | 'PUBLISHED' | 'PRIVATE' | 'SCHEDULED' | 'ARCHIVED'
+export type ContentStatus =
+  | 'DRAFT'
+  | 'PENDING_REVIEW'
+  | 'PUBLISHED'
+  | 'PRIVATE'
+  | 'REJECTED'
+  | 'SCHEDULED'
+  | 'ARCHIVED'
+
+export type ProjectStatus = 'DRAFT' | 'PENDING_REVIEW' | 'VISIBLE' | 'HIDDEN' | 'REJECTED' | 'ARCHIVED'
 
 export interface UserSummary {
   id: number
@@ -51,6 +60,10 @@ export interface ArticleSummary {
   category?: CategorySummary | null
   tags: TagSummary[]
   publishTime?: string | null
+  authorId?: number | null
+  submittedAt?: string | null
+  reviewedAt?: string | null
+  reviewNote?: string | null
 }
 
 export interface ProjectSummary {
@@ -65,9 +78,13 @@ export interface ProjectSummary {
   demoUrl?: string | null
   videoUrl?: string | null
   contentMarkdown?: string | null
-  status: string
+  status: ProjectStatus
   recommended: boolean
   tags: TagSummary[]
+  authorId?: number | null
+  submittedAt?: string | null
+  reviewedAt?: string | null
+  reviewNote?: string | null
 }
 
 export type InspirationType = 'IMAGE' | 'TEXT' | 'PROMPT' | 'CODE' | 'LINK'
@@ -150,6 +167,13 @@ export interface FileResource {
   fileSize: number
   storageType: string
   module: string
+  createdAt?: string | null
+}
+
+export interface InteractionRecord {
+  id: number
+  targetType: 'ARTICLE' | 'PROJECT' | 'COMMENT' | 'INSPIRATION'
+  targetId: number
   createdAt?: string | null
 }
 

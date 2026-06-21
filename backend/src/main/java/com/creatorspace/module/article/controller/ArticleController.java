@@ -43,6 +43,65 @@ public class ArticleController {
         return ApiResponse.ok(articleService.create(request, loginUser.userId()));
     }
 
+    // 登录创作者创建自己的文章草稿。
+    @PostMapping("/api/creator/articles")
+    public ApiResponse<ArticleVO> createMine(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @Valid @RequestBody ArticleCreateRequest request
+    ) {
+        return ApiResponse.ok(articleService.create(request, loginUser.userId()));
+    }
+
+    // 登录创作者查询自己的文章队列。
+    @GetMapping("/api/creator/articles")
+    public ApiResponse<PageResponse<ArticleVO>> listMine(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "1") @Min(1) long page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) long pageSize
+    ) {
+        return ApiResponse.ok(articleService.listMine(loginUser.userId(), keyword, status, page, pageSize));
+    }
+
+    // 登录创作者读取自己的文章详情。
+    @GetMapping("/api/creator/articles/{id}")
+    public ApiResponse<ArticleVO> getMine(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable Long id
+    ) {
+        return ApiResponse.ok(articleService.getMineById(id, loginUser.userId()));
+    }
+
+    // 登录创作者更新自己的草稿或驳回文章。
+    @PutMapping("/api/creator/articles/{id}")
+    public ApiResponse<ArticleVO> updateMine(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable Long id,
+            @Valid @RequestBody ArticleCreateRequest request
+    ) {
+        return ApiResponse.ok(articleService.updateMine(id, request, loginUser.userId()));
+    }
+
+    // 登录创作者提交文章进入审核。
+    @PutMapping("/api/creator/articles/{id}/submit")
+    public ApiResponse<ArticleVO> submitMine(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable Long id
+    ) {
+        return ApiResponse.ok(articleService.submitForReview(id, loginUser.userId()));
+    }
+
+    // 登录创作者删除自己的未公开文章。
+    @DeleteMapping("/api/creator/articles/{id}")
+    public ApiResponse<Void> deleteMine(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable Long id
+    ) {
+        articleService.deleteMine(id, loginUser.userId());
+        return ApiResponse.ok(null);
+    }
+
     // 管理员查询全部文章。
     @GetMapping("/api/admin/articles")
     public ApiResponse<PageResponse<ArticleVO>> listAdmin(
@@ -88,6 +147,25 @@ public class ArticleController {
         return ApiResponse.ok(articleService.unpublish(id, loginUser.userId()));
     }
 
+    // 管理员审核通过投稿文章。
+    @PutMapping("/api/admin/articles/{id}/approve")
+    public ApiResponse<ArticleVO> approve(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable Long id
+    ) {
+        return ApiResponse.ok(articleService.approve(id, loginUser.userId()));
+    }
+
+    // 管理员驳回投稿文章。
+    @PutMapping("/api/admin/articles/{id}/reject")
+    public ApiResponse<ArticleVO> reject(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable Long id,
+            @RequestBody(required = false) ReviewRequest request
+    ) {
+        return ApiResponse.ok(articleService.reject(id, request == null ? null : request.reviewNote(), loginUser.userId()));
+    }
+
     // 管理员切换文章置顶状态。
     @PutMapping("/api/admin/articles/{id}/top")
     public ApiResponse<ArticleVO> setTop(
@@ -129,5 +207,8 @@ public class ArticleController {
     @GetMapping("/api/articles/slug/{slug}")
     public ApiResponse<ArticleVO> getBySlug(@PathVariable String slug) {
         return ApiResponse.ok(articleService.getPublicBySlug(slug));
+    }
+
+    public record ReviewRequest(String reviewNote) {
     }
 }

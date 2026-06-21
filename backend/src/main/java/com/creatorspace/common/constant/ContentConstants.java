@@ -17,12 +17,16 @@ public final class ContentConstants {
     public static final String MODULE_INSPIRATION = "INSPIRATION";
 
     public static final String STATUS_DRAFT = "DRAFT";
+    public static final String STATUS_PENDING_REVIEW = "PENDING_REVIEW";
     public static final String STATUS_PUBLISHED = "PUBLISHED";
     public static final String STATUS_PRIVATE = "PRIVATE";
+    public static final String STATUS_REJECTED = "REJECTED";
     public static final String STATUS_ARCHIVED = "ARCHIVED";
     public static final String PROJECT_VISIBLE = "VISIBLE";
     public static final String PROJECT_HIDDEN = "HIDDEN";
     public static final String PROJECT_DRAFT = "DRAFT";
+    public static final String PROJECT_PENDING_REVIEW = "PENDING_REVIEW";
+    public static final String PROJECT_REJECTED = "REJECTED";
     public static final String PROJECT_ARCHIVED = "ARCHIVED";
 
     public static final String PRIVACY_PUBLIC = "PUBLIC";
@@ -37,8 +41,10 @@ public final class ContentConstants {
     );
     public static final Set<String> ARTICLE_STATUSES = Set.of(
             STATUS_DRAFT,
+            STATUS_PENDING_REVIEW,
             STATUS_PUBLISHED,
             STATUS_PRIVATE,
+            STATUS_REJECTED,
             "SCHEDULED",
             STATUS_ARCHIVED
     );
@@ -46,6 +52,8 @@ public final class ContentConstants {
             PROJECT_VISIBLE,
             PROJECT_HIDDEN,
             PROJECT_DRAFT,
+            PROJECT_PENDING_REVIEW,
+            PROJECT_REJECTED,
             PROJECT_ARCHIVED
     );
 
