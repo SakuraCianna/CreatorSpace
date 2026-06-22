@@ -37,9 +37,37 @@ const markdown = markdownit({
   },
 })
 
+export function normalizeMarkdownSource(value?: string | null): string {
+  const source = value?.trim()
+  if (!source) {
+    return '这段内容还在整理中。'
+  }
+  return shouldUnescapeMarkdownNewlines(source)
+    ? source.replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n')
+    : source
+}
+
+function shouldUnescapeMarkdownNewlines(source: string): boolean {
+  if (!source.includes('\\n') || /[\r\n]/.test(source)) {
+    return false
+  }
+
+  const unescaped = source.replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n')
+  const lines = unescaped
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+
+  if (lines.length < 2) {
+    return false
+  }
+
+  return lines.some((line) => /^(#{1,6}\s|>\s|[-*+]\s|\d+\.\s|```|!\[|\|)/.test(line))
+}
+
 // 将 Markdown 转成经过清洗的 HTML，避免详情页直接插入不可信内容。
 export function renderSafeMarkdown(value?: string | null): string {
-  const rawHtml = markdown.render(value?.trim() || '这段内容还在整理中。')
+  const rawHtml = markdown.render(normalizeMarkdownSource(value))
   return DOMPurify.sanitize(rawHtml, {
     ADD_ATTR: ['target', 'rel'],
   })

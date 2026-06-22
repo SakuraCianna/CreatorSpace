@@ -11,7 +11,7 @@
       </form>
     </header>
 
-    <div class="topic-strip" data-reveal>
+    <div ref="topicStrip" class="topic-strip" data-reveal>
       <button
         class="topic-chip"
         :class="{ 'is-active': activeTagId === null }"
@@ -21,7 +21,7 @@
         全部
       </button>
       <button
-        v-for="tag in availableTags"
+        v-for="tag in visibleTopicTags"
         :key="tag.id"
         class="topic-chip"
         :class="{ 'is-active': activeTagId === tag.id }"
@@ -104,7 +104,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { LoaderCircle, Search } from '@lucide/vue'
 
@@ -122,16 +122,36 @@ const coverPalettes = [
 ] as const
 
 const root = ref<HTMLElement | null>(null)
+const topicStrip = ref<HTMLElement | null>(null)
 const articles = ref<ArticleSummary[]>([])
-const availableTags = ref<TagSummary[]>([])
+const tagCatalog = ref<TagSummary[]>([])
+const topicInterest = ref<Record<string, number>>({})
+const topicStripWidth = ref(0)
 const keyword = ref('')
 const activeTagId = ref<number | null>(null)
 const isLoading = ref(true)
 const notice = ref('')
+let topicResizeObserver: ResizeObserver | null = null
 
 usePageReveal(root)
 
 const allTags = computed(() => [...new Map(articles.value.flatMap((article) => article.tags).map((tag) => [tag.id, tag])).values()])
+const articleTopicScore = computed(() => {
+  const scores = new Map<number, number>()
+  articles.value.forEach((article) => {
+    const score = contentInterestScore(article)
+    article.tags.forEach((tag) => {
+      scores.set(tag.id, (scores.get(tag.id) ?? 0) + score)
+    })
+  })
+  return scores
+})
+const availableTags = computed(() => {
+  const source = tagCatalog.value.length > 0 ? tagCatalog.value : allTags.value
+  return [...source]
+    .sort((a, b) => topicScore(b) - topicScore(a) || b.weight - a.weight || a.name.localeCompare(b.name, 'zh-CN'))
+})
+const visibleTopicTags = computed(() => pickTwoRowTopicTags(availableTags.value))
 const categoryCount = computed(() => new Set(articles.value.map((article) => article.category?.id).filter(Boolean)).size)
 const visibleArticles = computed(() => articles.value)
 const featuredArticle = computed(() => visibleArticles.value[0] ?? null)
@@ -139,6 +159,9 @@ const regularArticles = computed(() => visibleArticles.value.slice(1))
 
 function selectTag(tagId: number | null) {
   activeTagId.value = tagId
+  if (tagId !== null) {
+    rememberTopicInterest(tagId)
+  }
   loadArticles()
 }
 
@@ -159,10 +182,133 @@ async function loadArticles() {
 async function loadTags() {
   try {
     const tags = await fetchTags()
-    availableTags.value = tags.sort((a, b) => b.weight - a.weight).slice(0, 12)
+    tagCatalog.value = tags
   } catch {
-    availableTags.value = []
+    tagCatalog.value = []
   }
+}
+
+function topicScore(tag: TagSummary): number {
+  const personalScore = (topicInterest.value[String(tag.id)] ?? 0) * 8
+  return tag.weight + personalScore + (articleTopicScore.value.get(tag.id) ?? 0)
+}
+
+function contentInterestScore(article: ArticleSummary): number {
+  return (article.top ? 12 : 0)
+    + (article.recommended ? 10 : 0)
+    + Math.log10(Math.max(0, article.viewCount ?? 0) + 1) * 3
+    + Math.log10(Math.max(0, article.likeCount ?? 0) * 2 + 1) * 3
+    + Math.log10(Math.max(0, article.commentCount ?? 0) * 3 + 1) * 2
+    + recencyScore(article.publishTime)
+}
+
+function recencyScore(value?: string | null): number {
+  if (!value) {
+    return 0
+  }
+  const timestamp = new Date(value).getTime()
+  if (!Number.isFinite(timestamp)) {
+    return 0
+  }
+  const days = Math.max(0, (Date.now() - timestamp) / 86_400_000)
+  return Math.max(0, 8 - days / 14)
+}
+
+function rememberTopicInterest(tagId: number) {
+  const key = String(tagId)
+  topicInterest.value = {
+    ...topicInterest.value,
+    [key]: Math.min((topicInterest.value[key] ?? 0) + 1, 20),
+  }
+  writeTopicInterest(topicInterest.value)
+}
+
+function readTopicInterest(): Record<string, number> {
+  try {
+    const raw = localStorage.getItem('creatorspace:article-topic-interest')
+    const parsed: unknown = raw ? JSON.parse(raw) : {}
+    if (!isRecord(parsed)) {
+      return {}
+    }
+    return Object.fromEntries(
+      Object.entries(parsed)
+        .filter((entry): entry is [string, number] => typeof entry[1] === 'number' && Number.isFinite(entry[1]))
+        .map(([key, value]) => [key, Math.max(0, Math.min(value, 20))]),
+    )
+  } catch {
+    return {}
+  }
+}
+
+function writeTopicInterest(value: Record<string, number>) {
+  try {
+    localStorage.setItem('creatorspace:article-topic-interest', JSON.stringify(value))
+  } catch {
+    // 本地偏好不可写时跳过，仍按内容热度排序推荐话题。
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+function pickTwoRowTopicTags(tags: TagSummary[]): TagSummary[] {
+  const sortedTags = prioritizeActiveTag(tags)
+  const containerWidth = Math.max(topicStripWidth.value, 280)
+  const rowGap = 10
+  const rowRemaining = [
+    Math.max(0, containerWidth - estimateControlWidth('全部') - rowGap),
+    containerWidth,
+  ]
+  const visible: TagSummary[] = []
+  let rowIndex = 0
+
+  sortedTags.forEach((tag) => {
+    if (rowIndex > 1) {
+      return
+    }
+    const chipWidth = estimateControlWidth(`#${tag.name}`)
+    if (chipWidth > rowRemaining[rowIndex] && rowIndex < 1) {
+      rowIndex += 1
+    }
+    if (chipWidth <= rowRemaining[rowIndex]) {
+      visible.push(tag)
+      rowRemaining[rowIndex] -= chipWidth + rowGap
+    }
+  })
+
+  return visible
+}
+
+function prioritizeActiveTag(tags: TagSummary[]): TagSummary[] {
+  if (activeTagId.value === null) {
+    return tags
+  }
+  const activeTag = tags.find((tag) => tag.id === activeTagId.value)
+  if (!activeTag) {
+    return tags
+  }
+  return [activeTag, ...tags.filter((tag) => tag.id !== activeTag.id)]
+}
+
+function estimateControlWidth(label: string): number {
+  const textWidth = Array.from(label).reduce((total, char) => total + (char.charCodeAt(0) > 255 ? 18 : 10), 0)
+  return Math.min(190, Math.max(72, textWidth + 38))
+}
+
+function observeTopicStrip() {
+  const target = topicStrip.value
+  if (!target) {
+    return
+  }
+  topicStripWidth.value = target.clientWidth
+  topicResizeObserver = new ResizeObserver((entries) => {
+    const width = entries[0]?.contentRect.width
+    if (typeof width === 'number') {
+      topicStripWidth.value = width
+    }
+  })
+  topicResizeObserver.observe(target)
 }
 
 function formatDate(value?: string | null): string {
@@ -185,22 +331,29 @@ function articleCoverStyle(article: ArticleSummary, index: number) {
 }
 
 onMounted(async () => {
+  topicInterest.value = readTopicInterest()
+  observeTopicStrip()
   await Promise.all([loadArticles(), loadTags()])
+})
+
+onBeforeUnmount(() => {
+  topicResizeObserver?.disconnect()
+  topicResizeObserver = null
 })
 </script>
 
 <style scoped>
 .archive-page {
-  padding: 46px 0 84px;
+  padding: 36px 0 78px;
 }
 
 .archive-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 390px);
   align-items: center;
-  gap: 22px;
-  min-height: clamp(220px, 23vw, 292px);
-  padding: clamp(24px, 3vw, 42px);
+  gap: 18px;
+  min-height: clamp(156px, 17vw, 214px);
+  padding: clamp(18px, 2.5vw, 30px);
   border: 1px solid var(--tone-line);
   border-radius: var(--app-radius-sm);
   background:
@@ -223,14 +376,14 @@ onMounted(async () => {
 .page-hero::before {
   content: "";
   position: absolute;
-  inset: 16px;
+  inset: 12px;
   z-index: 0;
   border: 1px solid color-mix(in srgb, var(--hero-accent) 24%, transparent);
   background:
     linear-gradient(90deg, color-mix(in srgb, var(--hero-accent) 10%, transparent), transparent 38%),
     repeating-linear-gradient(90deg, rgba(20, 21, 29, 0.05) 0 1px, transparent 1px 42px),
     repeating-linear-gradient(0deg, rgba(20, 21, 29, 0.035) 0 1px, transparent 1px 34px);
-  clip-path: polygon(0 0, calc(100% - 46px) 0, 100% 46px, 100% 100%, 46px 100%, 0 calc(100% - 46px));
+  clip-path: polygon(0 0, calc(100% - 34px) 0, 100% 34px, 100% 100%, 34px 100%, 0 calc(100% - 34px));
   opacity: 0.9;
   pointer-events: none;
 }
@@ -238,11 +391,11 @@ onMounted(async () => {
 .page-hero::after {
   content: var(--hero-mark);
   position: absolute;
-  top: clamp(16px, 4vw, 40px);
-  right: clamp(24px, 6vw, 88px);
+  top: clamp(12px, 3vw, 28px);
+  right: clamp(20px, 5vw, 70px);
   z-index: 0;
   color: color-mix(in srgb, var(--hero-accent) 16%, transparent);
-  font-size: clamp(86px, 12vw, 180px);
+  font-size: clamp(72px, 9vw, 132px);
   font-weight: 900;
   line-height: 0.8;
   pointer-events: none;
@@ -259,7 +412,7 @@ onMounted(async () => {
   justify-self: start;
   width: fit-content;
   max-width: 100%;
-  padding-top: 24px;
+  padding-top: 18px;
   text-shadow: 0 16px 34px rgba(20, 21, 29, 0.1);
 }
 
@@ -268,8 +421,8 @@ onMounted(async () => {
   position: absolute;
   top: 0;
   left: 0;
-  width: clamp(110px, 18vw, 240px);
-  height: 8px;
+  width: clamp(96px, 16vw, 190px);
+  height: 6px;
   border-radius: 999px;
   background: linear-gradient(90deg, var(--hero-accent), var(--hero-accent-2), transparent);
   box-shadow: 0 10px 28px color-mix(in srgb, var(--hero-accent) 22%, transparent);
@@ -293,7 +446,7 @@ onMounted(async () => {
   max-width: 830px;
   margin: 0;
   color: var(--tone-ink);
-  font-size: 44px;
+  font-size: clamp(34px, 4vw, 42px);
   font-weight: 860;
   line-height: 1.08;
 }
@@ -312,8 +465,8 @@ onMounted(async () => {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
-  min-height: 58px;
-  padding: 8px 8px 8px 16px;
+  min-height: 52px;
+  padding: 7px 7px 7px 15px;
   border: 1px solid color-mix(in srgb, var(--hero-accent) 22%, var(--tone-line-strong));
   border-radius: 999px;
   background:
@@ -353,17 +506,20 @@ onMounted(async () => {
 }
 
 .topic-strip {
+  --topic-chip-height: 38px;
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin: 22px 0;
+  align-content: flex-start;
+  margin: 18px 0 22px;
 }
 
 .topic-chip {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  min-height: 38px;
+  min-height: var(--topic-chip-height);
+  max-width: min(190px, 48vw);
   padding: 0 14px;
   border: 1px solid var(--tone-line);
   border-radius: 999px;
@@ -372,6 +528,9 @@ onMounted(async () => {
   cursor: pointer;
   font-size: 13px;
   font-weight: 760;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .topic-chip.is-active,
@@ -470,10 +629,10 @@ onMounted(async () => {
 
 .journal-featured {
   display: flex;
-  min-height: 380px;
+  min-height: 292px;
   flex-direction: column;
   justify-content: flex-end;
-  padding: 34px;
+  padding: 28px;
   overflow: hidden;
   background:
     linear-gradient(145deg, rgba(5, 8, 22, 0.1), rgba(5, 8, 22, 0.88)),
@@ -493,8 +652,8 @@ onMounted(async () => {
 .journal-featured h2 {
   max-width: 720px;
   margin: 14px 0 0;
-  font-size: 48px;
-  line-height: 1.02;
+  font-size: clamp(32px, 4.2vw, 42px);
+  line-height: 1.08;
 }
 
 .journal-featured p {

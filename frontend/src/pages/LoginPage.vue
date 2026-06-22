@@ -43,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { LoaderCircle, ShieldCheck } from '@lucide/vue'
 
@@ -65,7 +65,8 @@ const form = reactive({
 })
 const message = ref('')
 const isSubmitting = ref(false)
-const loginMode = ref(route.query.mode === 'admin' || isAdminRedirect(route.query.redirect) ? 'ADMIN' : 'USER')
+const loginMode = ref<'ADMIN' | 'USER'>(route.query.mode === 'admin' || isAdminRedirect(route.query.redirect) ? 'ADMIN' : 'USER')
+const loginAttemptId = ref(0)
 const accountKicker = computed(() => siteAccountLabel(identity.value))
 const registerRoute = computed(() => ({
   name: 'register',
@@ -76,6 +77,11 @@ const registerRoute = computed(() => ({
 
 usePageReveal(root)
 
+watch([loginMode, () => form.username, () => form.password], () => {
+  loginAttemptId.value += 1
+  message.value = ''
+})
+
 async function submitLogin() {
   if (!form.username.trim() || !form.password) {
     message.value = '请输入用户名和密码'
@@ -84,27 +90,52 @@ async function submitLogin() {
 
   isSubmitting.value = true
   message.value = ''
+  const attemptId = loginAttemptId.value
+  const modeSnapshot = loginMode.value
+  const usernameSnapshot = form.username.trim()
   try {
     const payload = {
-      username: form.username.trim(),
+      username: usernameSnapshot,
       password: form.password,
     }
-    const token = loginMode.value === 'ADMIN' ? await loginAdmin(payload) : await loginUser(payload)
+    const token = modeSnapshot === 'ADMIN' ? await loginAdmin(payload) : await loginUser(payload)
     session.setSession(token.accessToken, token.user)
     form.password = ''
-    router.push(loginMode.value === 'ADMIN' ? readRedirectPath() : readPublicRedirectPath())
+    router.push(modeSnapshot === 'ADMIN' ? readRedirectPath() : readPublicRedirectPath())
   } catch (error) {
-    message.value = loginErrorMessage(error)
+    if (attemptId === loginAttemptId.value && modeSnapshot === loginMode.value && usernameSnapshot === form.username.trim()) {
+      message.value = loginErrorMessage(error, modeSnapshot)
+    }
   } finally {
     isSubmitting.value = false
   }
 }
 
-function loginErrorMessage(error: unknown) {
-  if (error instanceof HttpError && error.status === 403 && loginMode.value === 'ADMIN') {
-    return '当前账号没有后台权限，请使用管理员账号登录'
+function loginErrorMessage(error: unknown, mode: 'ADMIN' | 'USER') {
+  if (!(error instanceof HttpError)) {
+    return mode === 'ADMIN'
+      ? '管理员登录失败：前端没有拿到明确错误，请检查浏览器控制台和后端日志。'
+      : '登录失败：前端没有拿到明确错误，请检查浏览器控制台和后端日志。'
   }
-  return toUserMessage(error, loginMode.value === 'ADMIN' ? '管理员登录失败，请检查账号权限' : '登录失败，请检查账号密码')
+  if (error.status === 0) {
+    return `登录请求没有连上后端：${error.message}`
+  }
+  if (mode === 'ADMIN') {
+    if (error.status === 401) {
+      return '管理员登录失败：用户名或密码错误。后端返回 401，说明账号不存在或密码不匹配。'
+    }
+    if (error.status === 403) {
+      return '管理员登录失败：账号密码已通过，但这个账号没有后台权限或已被禁用。后端返回 403。'
+    }
+    return `管理员登录失败：${error.message}`
+  }
+  if (error.status === 401) {
+    return '普通用户登录失败：用户名或密码错误。后端返回 401，请检查账号是否存在以及密码是否输入正确。'
+  }
+  if (error.status === 403) {
+    return '普通用户登录失败：账号存在但当前不可用，可能已被禁用或锁定。后端返回 403。'
+  }
+  return toUserMessage(error, mode === 'ADMIN' ? '管理员登录失败' : '登录失败')
 }
 
 function readPublicRedirectPath() {

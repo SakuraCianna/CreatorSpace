@@ -6,6 +6,9 @@ export class HttpError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    readonly requestPath: string,
+    readonly method: string,
+    readonly backendMessage = '',
   ) {
     super(message)
     this.name = 'HttpError'
@@ -17,6 +20,7 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
   const controller = new AbortController()
   const timeoutId = window.setTimeout(() => controller.abort(), appConfig.apiTimeoutMs)
   const requestPath = path.startsWith('/') ? path : `/${path}`
+  const method = init?.method?.toUpperCase() ?? 'GET'
   const token = window.localStorage.getItem(ACCESS_TOKEN_KEY)
   const isFormData = init?.body instanceof FormData
 
@@ -33,8 +37,14 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
     })
 
     if (!response.ok) {
-      const message = await readErrorMessage(response)
-      throw new HttpError(message || statusMessage(response.status), response.status)
+      const backendMessage = await readErrorMessage(response)
+      throw new HttpError(
+        buildHttpErrorMessage(response.status, requestPath, method, backendMessage),
+        response.status,
+        requestPath,
+        method,
+        backendMessage,
+      )
     }
 
     return response.json() as Promise<T>
@@ -43,9 +53,19 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
       throw error
     }
     if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new HttpError('请求超时，请确认后端服务是否已经启动', 0)
+      throw new HttpError(
+        `请求超时：${method} ${requestPath} 在 ${appConfig.apiTimeoutMs}ms 内没有响应，请确认后端服务是否启动并且接口没有卡住。`,
+        0,
+        requestPath,
+        method,
+      )
     }
-    throw new HttpError('无法连接后端服务，请确认服务是否已经启动', 0)
+    throw new HttpError(
+      `无法连接后端服务：${method} ${requestPath} 请求没有到达后端，请确认 Vite 代理目标和 8080 后端服务是否正常。`,
+      0,
+      requestPath,
+      method,
+    )
   } finally {
     window.clearTimeout(timeoutId)
   }
@@ -54,11 +74,21 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
 // 从失败响应中读取错误信息。
 async function readErrorMessage(response: Response): Promise<string> {
   try {
-    const body = (await response.json()) as { message?: string }
-    return body.message ?? ''
+    const contentType = response.headers.get('content-type') ?? ''
+    if (contentType.includes('application/json')) {
+      const body = (await response.json()) as { message?: unknown; error?: unknown }
+      return readString(body.message) || readString(body.error)
+    }
+    return ''
   } catch {
     return ''
   }
+}
+
+function buildHttpErrorMessage(status: number, requestPath: string, method: string, backendMessage: string): string {
+  const reason = backendMessage.trim() || statusMessage(status)
+  const hint = statusHint(status, requestPath)
+  return `${method} ${requestPath} 返回 ${status}：${reason}${hint ? `。${hint}` : ''}`
 }
 
 function statusMessage(status: number): string {
@@ -81,6 +111,35 @@ function statusMessage(status: number): string {
     return '服务暂时不可用，请稍后再试'
   }
   return `请求失败，状态码 ${status}`
+}
+
+function statusHint(status: number, requestPath: string): string {
+  if (status === 400) {
+    return '通常是表单字段缺失、格式不符合后端校验，或请求参数名称不对'
+  }
+  if (status === 401) {
+    if (requestPath.includes('/auth/login')) {
+      return '这是登录校验失败，通常是用户名不存在或密码错误'
+    }
+    return '通常是用户名或密码不匹配，或者本地保存的登录令牌已经过期'
+  }
+  if (status === 403) {
+    return '通常是当前账号缺少对应角色权限，或账号状态被后端禁用'
+  }
+  if (status === 404) {
+    return '通常是接口地址、内容 slug 或记录 ID 不存在'
+  }
+  if (status === 409) {
+    return '通常是用户名、slug、分类或其他唯一字段已经存在'
+  }
+  if (status >= 500) {
+    return '通常是后端异常、数据库连接失败、迁移数据缺失或服务配置错误'
+  }
+  return ''
+}
+
+function readString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
 }
 
 export function toUserMessage(error: unknown, fallback: string): string {

@@ -1,37 +1,86 @@
 <template>
-  <section ref="root" class="studio-page">
-    <header class="studio-intro gallery-hero page-hero page-hero--projects" data-reveal>
-      <h1>作品展厅</h1>
+  <section ref="root" class="projects-page">
+    <header class="projects-hero page-hero" data-reveal>
+      <div class="hero-copy">
+        <p class="page-kicker">Project Gallery</p>
+        <h1>作品展厅</h1>
+        <p>把公开作品按类型、技术栈和推荐度陈列出来，后端只要继续返回作品列表字段，前台就能自然接上。</p>
+      </div>
+      <form class="hero-search" @submit.prevent="loadProjects">
+        <Search :size="18" />
+        <input v-model="keyword" placeholder="搜索作品、说明或技术栈" aria-label="搜索作品" />
+        <button class="button button-filled button-compact" type="submit">检索</button>
+      </form>
     </header>
 
-    <div class="topic-strip" data-reveal>
-      <button
-        v-for="type in projectTypes"
-        :key="type"
-        class="topic-chip"
-        :class="{ 'is-active': activeType === type }"
-        type="button"
-        @click="activeType = type"
+    <section class="gallery-tools" data-reveal>
+      <div class="segmented-control" aria-label="作品类型筛选">
+        <button
+          v-for="type in projectTypes"
+          :key="type"
+          type="button"
+          :class="{ 'is-active': activeType === type }"
+          @click="activeType = type"
+        >
+          {{ typeLabel(type) }}
+        </button>
+      </div>
+      <div class="tech-row" aria-label="技术栈筛选">
+        <button
+          v-for="tech in techFilters"
+          :key="tech"
+          class="tech-chip"
+          type="button"
+          :class="{ 'is-active': activeTech === tech }"
+          @click="activeTech = tech"
+        >
+          {{ techLabel(tech) }}
+        </button>
+      </div>
+    </section>
+
+    <div v-if="featuredProject" class="featured-project" data-reveal>
+      <RouterLink
+        class="featured-project__visual"
+        :style="projectCoverStyle(featuredProject, 0)"
+        :to="{ name: 'project-detail', params: { slug: featuredProject.slug } }"
       >
-        {{ type }}
-      </button>
+        <img v-if="featuredProject.coverUrl" :src="featuredProject.coverUrl" alt="" loading="lazy" />
+        <span>Featured</span>
+      </RouterLink>
+      <div class="featured-project__body">
+        <p class="page-kicker">{{ featuredProject.projectType }}</p>
+        <h2>{{ featuredProject.title }}</h2>
+        <p>{{ featuredProject.description || '这个作品还没有填写简介。' }}</p>
+        <div class="metric-row">
+          <span><Eye :size="15" />{{ formatCount(featuredProject.viewCount) }} 阅读</span>
+          <span><Heart :size="15" />{{ formatCount(featuredProject.likeCount) }} 喜欢</span>
+          <span><MessageCircle :size="15" />{{ formatCount(featuredProject.commentCount) }} 评论</span>
+        </div>
+        <div class="tag-row">
+          <span v-for="tech in featuredProject.techStack.slice(0, 5)" :key="tech">{{ tech }}</span>
+        </div>
+        <RouterLink class="text-link" :to="{ name: 'project-detail', params: { slug: featuredProject.slug } }">
+          打开作品档案
+          <ArrowRight :size="15" />
+        </RouterLink>
+      </div>
     </div>
 
     <div v-if="isLoading" class="empty-state showcase-state" data-reveal>
       <LoaderCircle class="spin" :size="24" />
       <h2>正在点亮作品展厅</h2>
     </div>
-    <div v-else-if="visibleProjects.length === 0" class="empty-state showcase-state" data-reveal>
+    <div v-else-if="filteredProjects.length === 0" class="empty-state showcase-state" data-reveal>
       <h2>暂无匹配作品</h2>
-      <p>换一个类型或稍后再来。</p>
+      <p>换一个类型、技术栈或关键词再试。</p>
     </div>
-    <div v-else class="showcase-grid">
+    <div v-else-if="visibleProjects.length > 0" class="showcase-grid">
       <RouterLink
         v-for="(project, index) in visibleProjects"
         :key="project.id"
         class="showcase-card"
-        :class="{ 'showcase-card--feature': index === 0 }"
-        :style="projectCoverStyle(project, index)"
+        :style="projectCoverStyle(project, index + 1)"
         :to="{ name: 'project-detail', params: { slug: project.slug } }"
         @pointermove="tiltCard"
         @pointerleave="resetTilt"
@@ -47,7 +96,12 @@
             <span v-if="project.recommended">推荐</span>
           </div>
           <h2>{{ project.title }}</h2>
-          <p>{{ project.description }}</p>
+          <p>{{ project.description || '这个作品还没有填写简介。' }}</p>
+          <div class="mini-stats">
+            <span><Eye :size="14" />{{ formatCount(project.viewCount) }}</span>
+            <span><Heart :size="14" />{{ formatCount(project.likeCount) }}</span>
+            <span><Bookmark :size="14" />{{ formatCount(project.favoriteCount) }}</span>
+          </div>
           <div class="tag-row">
             <span v-for="tech in project.techStack.slice(0, 4)" :key="tech">{{ tech }}</span>
           </div>
@@ -62,12 +116,15 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { LoaderCircle } from '@lucide/vue'
+import { ArrowRight, Bookmark, Eye, Heart, LoaderCircle, MessageCircle, Search } from '@lucide/vue'
 
 import { fetchProjects } from '@/services/content'
 import { toUserMessage } from '@/services/http'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import type { ProjectSummary } from '@/shared/domain'
+
+type ProjectTypeFilter = 'ALL' | string
+type TechFilter = 'ALL' | string
 
 const coverPalettes = [
   ['#16213e', '#47d5ff'],
@@ -79,25 +136,26 @@ const coverPalettes = [
 
 const root = ref<HTMLElement | null>(null)
 const projects = ref<ProjectSummary[]>([])
-const activeType = ref('全部')
+const keyword = ref('')
+const activeType = ref<ProjectTypeFilter>('ALL')
+const activeTech = ref<TechFilter>('ALL')
 const isLoading = ref(true)
 const notice = ref('')
 
 usePageReveal(root)
 
-const projectTypes = computed(() => ['全部', ...new Set(projects.value.map((project) => project.projectType))])
-const visibleProjects = computed(() => {
-  if (activeType.value === '全部') {
-    return projects.value
-  }
-  return projects.value.filter((project) => project.projectType === activeType.value)
-})
+const sortedProjects = computed(() => [...projects.value].sort(projectSort))
+const projectTypes = computed<ProjectTypeFilter[]>(() => ['ALL', ...unique(projects.value.map((project) => project.projectType))])
+const techFilters = computed<TechFilter[]>(() => ['ALL', ...unique(projects.value.flatMap((project) => project.techStack)).slice(0, 10)])
+const filteredProjects = computed(() => sortedProjects.value.filter(matchesFilters))
+const featuredProject = computed(() => filteredProjects.value[0] ?? null)
+const visibleProjects = computed(() => filteredProjects.value.slice(featuredProject.value ? 1 : 0))
 
 async function loadProjects() {
   isLoading.value = true
   notice.value = ''
   try {
-    const page = await fetchProjects()
+    const page = await fetchProjects(keyword.value)
     projects.value = page.records
   } catch (error) {
     projects.value = []
@@ -105,6 +163,24 @@ async function loadProjects() {
   } finally {
     isLoading.value = false
   }
+}
+
+function matchesFilters(project: ProjectSummary): boolean {
+  const matchesType = activeType.value === 'ALL' || project.projectType === activeType.value
+  const matchesTech = activeTech.value === 'ALL' || project.techStack.includes(activeTech.value)
+  return matchesType && matchesTech
+}
+
+function projectSort(left: ProjectSummary, right: ProjectSummary): number {
+  return scoreProject(right) - scoreProject(left)
+}
+
+function scoreProject(project: ProjectSummary): number {
+  return (project.recommended ? 1000 : 0)
+    + (project.viewCount ?? 0)
+    + (project.likeCount ?? 0) * 3
+    + (project.favoriteCount ?? 0) * 4
+    + (project.commentCount ?? 0) * 5
 }
 
 function projectCoverStyle(project: ProjectSummary, index: number) {
@@ -130,41 +206,56 @@ function resetTilt(event: PointerEvent) {
   card.style.setProperty('--tilt-y', '0deg')
 }
 
+function unique(values: string[]): string[] {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))]
+}
+
+function typeLabel(type: ProjectTypeFilter): string {
+  return type === 'ALL' ? '全部类型' : type
+}
+
+function techLabel(tech: TechFilter): string {
+  return tech === 'ALL' ? '全部技术' : tech
+}
+
+function formatCount(value?: number | null): string {
+  return new Intl.NumberFormat('zh-CN', { notation: 'compact' }).format(value ?? 0)
+}
+
 onMounted(loadProjects)
 </script>
 
 <style scoped>
-.studio-page {
+.projects-page {
+  display: grid;
+  gap: 18px;
   padding: 46px 0 84px;
 }
 
-.gallery-hero {
+.projects-hero {
+  --hero-accent: #6d3fd2;
+  --hero-accent-2: #0077b6;
+  --hero-mark: "02";
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
   align-items: center;
-  gap: 22px;
-  min-height: clamp(220px, 23vw, 292px);
+  gap: 24px;
+  min-height: clamp(230px, 24vw, 308px);
   padding: clamp(24px, 3vw, 42px);
+  overflow: hidden;
   border: 1px solid var(--tone-line);
   border-radius: var(--app-radius-sm);
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.58)),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.6)),
     radial-gradient(circle at 16% 20%, color-mix(in srgb, var(--hero-accent) 18%, transparent), transparent 34%),
     radial-gradient(circle at 88% 18%, color-mix(in srgb, var(--hero-accent-2) 18%, transparent), transparent 28%),
     linear-gradient(120deg, rgba(49, 91, 255, 0.08), rgba(194, 95, 58, 0.08), rgba(0, 124, 114, 0.1));
   box-shadow: var(--tone-shadow);
   isolation: isolate;
-  overflow: hidden;
-  position: relative;
 }
 
-.page-hero {
-  --hero-accent: #6d3fd2;
-  --hero-accent-2: #0077b6;
-  --hero-mark: "02";
-}
-
-.page-hero::before {
+.projects-hero::before {
   content: "";
   position: absolute;
   inset: 16px;
@@ -175,14 +266,13 @@ onMounted(loadProjects)
     repeating-linear-gradient(90deg, rgba(20, 21, 29, 0.05) 0 1px, transparent 1px 42px),
     repeating-linear-gradient(0deg, rgba(20, 21, 29, 0.035) 0 1px, transparent 1px 34px);
   clip-path: polygon(0 0, calc(100% - 46px) 0, 100% 46px, 100% 100%, 46px 100%, 0 calc(100% - 46px));
-  opacity: 0.9;
   pointer-events: none;
 }
 
-.page-hero::after {
+.projects-hero::after {
   content: var(--hero-mark);
   position: absolute;
-  top: clamp(16px, 4vw, 40px);
+  top: clamp(20px, 4vw, 42px);
   right: clamp(24px, 6vw, 88px);
   z-index: 0;
   color: color-mix(in srgb, var(--hero-accent) 16%, transparent);
@@ -192,22 +282,29 @@ onMounted(loadProjects)
   pointer-events: none;
 }
 
-.page-hero > * {
+.projects-hero > * {
   position: relative;
   z-index: 1;
 }
 
-.page-hero h1 {
-  position: relative;
-  display: inline-block;
-  justify-self: start;
-  width: fit-content;
-  max-width: 100%;
-  padding-top: 24px;
-  text-shadow: 0 16px 34px rgba(20, 21, 29, 0.1);
+.hero-copy {
+  display: grid;
+  gap: 14px;
 }
 
-.page-hero h1::before {
+.hero-copy h1 {
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0;
+  padding-top: 24px;
+  color: var(--tone-ink);
+  font-size: clamp(36px, 4vw, 54px);
+  font-weight: 860;
+  line-height: 1.08;
+}
+
+.hero-copy h1::before {
   content: "";
   position: absolute;
   top: 0;
@@ -216,145 +313,97 @@ onMounted(loadProjects)
   height: 8px;
   border-radius: 999px;
   background: linear-gradient(90deg, var(--hero-accent), var(--hero-accent-2), transparent);
-  box-shadow: 0 10px 28px color-mix(in srgb, var(--hero-accent) 22%, transparent);
 }
 
-.page-hero h1::after {
-  content: "";
-  position: absolute;
-  top: -2px;
-  right: -54px;
-  width: 34px;
-  height: 14px;
-  border: 1px solid color-mix(in srgb, var(--hero-accent) 42%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--hero-accent-2) 18%, transparent);
-  box-shadow: 18px 0 0 color-mix(in srgb, var(--hero-accent) 18%, transparent);
-}
-
-.gallery-hero h1 {
-  max-width: 830px;
+.hero-copy p:not(.page-kicker) {
+  max-width: 640px;
   margin: 0;
-  color: var(--tone-ink);
-  font-size: 44px;
-  font-weight: 860;
-  line-height: 1.08;
+  color: var(--tone-muted);
+  font-size: 16px;
+  line-height: 1.72;
 }
 
-.topic-strip {
+.hero-search {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 8px 8px 8px 16px;
+  border: 1px solid color-mix(in srgb, var(--hero-accent) 22%, var(--tone-line-strong));
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 18px 44px rgba(32, 33, 36, 0.12);
+  backdrop-filter: blur(18px);
+}
+
+.hero-search svg {
+  color: var(--hero-accent);
+}
+
+.hero-search input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--tone-ink);
+}
+
+.gallery-tools {
+  display: grid;
+  gap: 12px;
+}
+
+.segmented-control,
+.tech-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin: 22px 0;
+  gap: 8px;
 }
 
-.topic-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
+.segmented-control button,
+.tech-chip {
   min-height: 38px;
   padding: 0 14px;
   border: 1px solid var(--tone-line);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.74);
   color: var(--tone-muted);
   cursor: pointer;
   font-size: 13px;
   font-weight: 760;
 }
 
-.topic-chip.is-active,
-.topic-chip:hover {
+.segmented-control button.is-active,
+.tech-chip.is-active,
+.segmented-control button:hover,
+.tech-chip:hover {
   border-color: rgba(49, 91, 255, 0.36);
   background: rgba(49, 91, 255, 0.1);
   color: var(--tone-ink);
 }
 
-.empty-state,
+.featured-project,
 .showcase-card {
   border: 1px solid var(--tone-line);
   border-radius: var(--app-radius-sm);
   background: rgba(255, 255, 255, 0.78);
   box-shadow: var(--tone-shadow);
-  transition: transform 180ms ease, border-color 180ms ease;
+  backdrop-filter: blur(18px);
 }
 
-.showcase-card:hover {
-  border-color: rgba(49, 91, 255, 0.34);
-  transform: translateY(-3px);
-}
-
-.showcase-card__meta {
-  color: rgba(248, 250, 252, 0.72);
-  font-size: 12px;
-  font-weight: 780;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.showcase-grid {
+.featured-project {
   display: grid;
-  gap: 16px;
-}
-
-.showcase-card__meta {
-  color: var(--tone-faint);
-}
-
-.showcase-card h2 {
-  margin: 12px 0 0;
-  color: var(--tone-ink);
-  font-size: 24px;
-  line-height: 1.18;
-}
-
-.showcase-card p {
-  color: var(--tone-muted);
-  line-height: 1.68;
-}
-
-.tag-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 16px;
-}
-
-.tag-row span {
-  padding: 6px 10px;
-  border-radius: 6px;
-  background: rgba(0, 124, 114, 0.1);
-  color: #055f57;
-  font-size: 12px;
-  font-weight: 740;
-}
-
-.studio-intro {
-  margin-bottom: 0;
-}
-
-.showcase-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  perspective: 1200px;
-}
-
-.showcase-card {
-  display: grid;
-  grid-template-rows: 230px minmax(0, 1fr);
+  grid-template-columns: minmax(280px, 0.82fr) minmax(0, 1fr);
   overflow: hidden;
-  transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
 }
 
-.showcase-card--feature {
-  grid-column: span 2;
-}
-
-.showcase-card__visual {
+.featured-project__visual {
   position: relative;
-  display: flex;
-  align-items: flex-end;
-  min-height: 230px;
-  padding: 22px;
+  display: grid;
+  min-height: 320px;
+  place-items: end start;
+  padding: 26px;
   overflow: hidden;
   background:
     linear-gradient(145deg, rgba(3, 7, 18, 0.08), rgba(3, 7, 18, 0.66)),
@@ -362,13 +411,97 @@ onMounted(loadProjects)
   color: #fff;
 }
 
+.featured-project__visual img,
 .showcase-card__visual img {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  opacity: 0.72;
+  opacity: 0.74;
+}
+
+.featured-project__visual span {
+  position: relative;
+  z-index: 1;
+  font-size: clamp(44px, 7vw, 86px);
+  font-weight: 900;
+  line-height: 0.9;
+}
+
+.featured-project__body {
+  display: grid;
+  align-content: center;
+  gap: 14px;
+  padding: clamp(24px, 4vw, 44px);
+}
+
+.featured-project__body h2,
+.showcase-card h2 {
+  margin: 0;
+  color: var(--tone-ink);
+  line-height: 1.18;
+}
+
+.featured-project__body h2 {
+  font-size: clamp(28px, 3.2vw, 44px);
+}
+
+.featured-project__body p,
+.showcase-card p {
+  margin: 0;
+  color: var(--tone-muted);
+  line-height: 1.68;
+}
+
+.metric-row,
+.mini-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.metric-row span,
+.mini-stats span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--tone-muted);
+  font-size: 13px;
+  font-weight: 720;
+}
+
+.showcase-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  perspective: 1200px;
+}
+
+.showcase-card {
+  display: grid;
+  grid-template-rows: 214px minmax(0, 1fr);
+  overflow: hidden;
+  transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+  transition: transform 180ms ease, border-color 180ms ease;
+}
+
+.showcase-card:hover {
+  border-color: rgba(49, 91, 255, 0.34);
+  transform: translateY(-3px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+}
+
+.showcase-card__visual {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  min-height: 214px;
+  padding: 22px;
+  overflow: hidden;
+  background:
+    linear-gradient(145deg, rgba(3, 7, 18, 0.08), rgba(3, 7, 18, 0.66)),
+    linear-gradient(135deg, var(--cover-from), var(--cover-accent));
+  color: #fff;
 }
 
 .showcase-card__visual span {
@@ -380,6 +513,8 @@ onMounted(loadProjects)
 }
 
 .showcase-card__body {
+  display: grid;
+  gap: 12px;
   padding: 20px;
 }
 
@@ -387,49 +522,67 @@ onMounted(loadProjects)
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  color: var(--tone-faint);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
-@media (min-width: 761px) {
-  .gallery-hero h1 {
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+.showcase-card h2 {
+  font-size: 24px;
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag-row span {
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(0, 124, 114, 0.1);
+  color: #055f57;
+  font-size: 12px;
+  font-weight: 740;
+}
+
+.inline-notice {
+  margin: 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--tone-coral);
+  background: rgba(194, 95, 58, 0.08);
+  color: #754226;
+  font-size: 13px;
+  line-height: 1.55;
 }
 
 @media (max-width: 1020px) {
-  .gallery-hero,
+  .projects-hero,
+  .featured-project,
   .showcase-grid {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 760px) {
-  .studio-page {
+  .projects-page {
     padding-top: 26px;
   }
 
-  .gallery-hero {
+  .projects-hero {
     padding: 22px;
   }
 
-  .gallery-hero h1 {
-    font-size: 32px;
+  .hero-search {
+    grid-template-columns: auto minmax(0, 1fr);
+    border-radius: 8px;
   }
 
-  .showcase-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .showcase-card--feature {
-    grid-column: span 1;
-  }
-}
-
-@media (max-width: 520px) {
-  .gallery-hero h1 {
-    font-size: 28px;
+  .hero-search button {
+    grid-column: 1 / -1;
+    width: 100%;
   }
 }
 </style>
