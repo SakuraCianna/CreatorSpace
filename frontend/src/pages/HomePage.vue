@@ -8,7 +8,6 @@
     <ApproachProcess />
     <CreativeWall />
     <ThemeUniverse />
-    <FieldNotes />
     <FinalCTA />
   </div>
 </template>
@@ -26,13 +25,18 @@ import { useLenis } from '@/shared/composables/useLenis'
 import { attachMagnetic } from '@/shared/composables/useMagnetic'
 import { prefersReducedMotion } from '@/shared/composables/useReducedMotion'
 import { toCssImageUrl } from '@/shared/cssImage'
+import inspirationBg01 from '@/assets/homepage/inspiration-bg-01.svg'
+import inspirationBg02 from '@/assets/homepage/inspiration-bg-02.svg'
+import inspirationBg03 from '@/assets/homepage/inspiration-bg-03.svg'
+import inspirationBg04 from '@/assets/homepage/inspiration-bg-04.svg'
+import inspirationBg05 from '@/assets/homepage/inspiration-bg-05.svg'
+import inspirationBg06 from '@/assets/homepage/inspiration-bg-06.svg'
 import {
   type AgentCapability,
   type ApproachStep,
   type CounterItem,
   type CreativeFragment,
   type FeaturedArticle,
-  type FieldNote,
   type HomeHeroAction,
   type HomeHeroContent,
   type ManifestoContent,
@@ -47,19 +51,24 @@ gsap.registerPlugin(ScrollTrigger)
 
 useLenis()
 
+const emptyTotals = {
+  articleTotal: 0,
+  projectTotal: 0,
+  inspirationTotal: 0,
+}
+
 const runtimeSiteConfig = ref<SiteConfig | null>(null)
-const runtimeHeroContent = ref<HomeHeroContent | null>(null)
-const runtimeMarqueeWords = ref<string[]>([])
-const runtimeManifesto = ref<ManifestoContent | null>(null)
+const runtimeHeroContent = ref<HomeHeroContent>(resolveHeroContent(emptyTotals))
+const runtimeMarqueeWords = ref<string[]>(buildMarqueeWords())
+const runtimeManifesto = ref<ManifestoContent>(buildManifesto())
 const runtimeArticles = ref<FeaturedArticle[]>([])
 const runtimeProjects = ref<PortfolioProject[]>([])
-const runtimeStructureCards = ref<AgentCapability[]>([])
-const runtimeApproachSteps = ref<ApproachStep[]>([])
-const runtimeCounters = ref<CounterItem[]>([])
+const runtimeStructureCards = ref<AgentCapability[]>(buildStructureCards())
+const runtimeApproachSteps = ref<ApproachStep[]>(buildApproachSteps())
+const runtimeCounters = ref<CounterItem[]>(buildCounters(emptyTotals))
 const runtimeFragments = ref<CreativeFragment[]>([])
 const runtimeThemePresets = ref<ThemePreset[]>([])
 const runtimeCurrentThemeName = ref('读取中')
-const runtimeFieldNotes = ref<FieldNote[]>([])
 
 onMounted(() => {
   document.body.classList.add('cs-dark-body')
@@ -193,26 +202,21 @@ async function loadHomeRuntimeData() {
   const nextSiteConfig = resolveSiteConfig(config)
 
   runtimeSiteConfig.value = nextSiteConfig
-  runtimeHeroContent.value = resolveHeroContent(config, nextSiteConfig, totals)
-  runtimeMarqueeWords.value = buildMarqueeWords(config, nextSiteConfig)
-  runtimeManifesto.value = buildManifesto(config, nextSiteConfig)
+  runtimeHeroContent.value = resolveHeroContent(totals)
   runtimeArticles.value = buildFeaturedCards(articles, projects)
   runtimeProjects.value = buildPortfolioProjects(projects)
-  runtimeStructureCards.value = buildStructureCards(config, nextSiteConfig)
-  runtimeApproachSteps.value = buildApproachSteps(config, nextSiteConfig)
-  runtimeCounters.value = buildCounters(config, nextSiteConfig, totals)
-  runtimeFragments.value = inspirations.map(inspirationToFragment)
+  runtimeCounters.value = buildCounters(totals)
+  runtimeFragments.value = inspirations.slice(0, HOME_INSPIRATION_LIMIT).map(inspirationToFragment)
   runtimeThemePresets.value = themes.map(themeToPreset)
   runtimeCurrentThemeName.value = currentTheme?.displayName
     ?? themes.find((theme) => theme.active)?.displayName
     ?? (themes.length > 0 ? '默认主题' : '暂无主题')
-  runtimeFieldNotes.value = buildFieldNotes(articles, projects, inspirations)
 }
 
 const validHexColorPattern = /^#(?:[\da-f]{3,4}|[\da-f]{6}|[\da-f]{8})$/i
 const HOME_ARTICLE_LIMIT = 6
 const HOME_PROJECT_LIMIT = 5
-const HOME_INSPIRATION_LIMIT = 8
+const HOME_INSPIRATION_LIMIT = 6
 const defaultArticlePalettes = [
   ['#1b2b4d', '#0a1326'],
   ['#3a1d4d', '#160a26'],
@@ -239,51 +243,19 @@ const fragmentKindMap = {
   CODE: 'code',
   LINK: 'link',
 } as const satisfies Record<InspirationCard['cardType'], CreativeFragment['kind']>
-const homeModuleMeta: Record<string, Omit<ApproachStep, 'no'>> = {
-  hero: {
-    title: '首屏叙事',
-    en: 'Hero',
-    body: '站点身份、公开资料和首页内容块共同决定首屏标题、描述和 CTA。',
-    tags: ['site.identity', 'home.creatorHero'],
-  },
-  creatorArticles: {
-    title: '文章陈列',
-    en: 'Articles',
-    body: '公开文章从内容 API 读取，封面、标签和摘要会自动进入首页网格。',
-    tags: ['articles', 'published'],
-  },
-  creatorProjects: {
-    title: '作品橱窗',
-    en: 'Projects',
-    body: '已公开作品会进入横向作品墙，技术栈和封面都来自真实作品记录。',
-    tags: ['projects', 'visible'],
-  },
-  inspirations: {
-    title: '灵感桌面',
-    en: 'Ideas',
-    body: '公开灵感卡片会变成写作桌上的碎片，跟文章和作品保持同一套内容来源。',
-    tags: ['inspirations', 'public'],
-  },
-  themes: {
-    title: '主题预览',
-    en: 'Themes',
-    body: '主题展示区读取后台主题 API，并用当前启用主题作为默认预览。',
-    tags: ['themes', 'redis'],
-  },
-}
+const homepageFragmentBackgrounds = [
+  inspirationBg01,
+  inspirationBg02,
+  inspirationBg03,
+  inspirationBg04,
+  inspirationBg05,
+  inspirationBg06,
+] as const
 
 type SiteTotals = {
   articleTotal: number
   projectTotal: number
   inspirationTotal: number
-}
-
-interface HomeContentBlock {
-  blockKey: string
-  blockType: string
-  title: string
-  body: string
-  config: Record<string, unknown>
 }
 
 function readRecord(value: unknown): Record<string, unknown> {
@@ -298,44 +270,10 @@ function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
 }
 
-function readNumber(value: unknown): number | null {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value
-  }
-  if (typeof value === 'string' && value.trim()) {
-    const parsed = Number(value)
-    return Number.isFinite(parsed) ? parsed : null
-  }
-  return null
-}
-
 function readStringList(value: unknown): string[] {
   return readArray(value)
     .map((item) => readString(item))
     .filter(Boolean)
-}
-
-function readContentBlocks(config: Record<string, unknown>): HomeContentBlock[] {
-  return readArray(config['home.contentBlocks'])
-    .map((item) => {
-      const record = readRecord(item)
-      const blockKey = readString(record.blockKey)
-      if (!blockKey) {
-        return null
-      }
-      return {
-        blockKey,
-        blockType: readString(record.blockType),
-        title: readString(record.title),
-        body: readString(record.body),
-        config: readRecord(record.config),
-      }
-    })
-    .filter((item): item is HomeContentBlock => item !== null)
-}
-
-function findContentBlock(config: Record<string, unknown>, blockKey: string): HomeContentBlock | null {
-  return readContentBlocks(config).find((block) => block.blockKey === blockKey) ?? null
 }
 
 function resolveSiteConfig(config: Record<string, unknown>): SiteConfig {
@@ -410,146 +348,68 @@ function isExternalUrl(value: string): boolean {
   return /^https?:\/\//i.test(value)
 }
 
-function resolveHeroContent(
-  config: Record<string, unknown>,
-  site: SiteConfig,
-  totals: SiteTotals,
-): HomeHeroContent {
-  const block = findContentBlock(config, 'home.creatorHero')
-  const page = readRecord(config['page.home'])
-  const pageContent = readRecord(page.contentJson)
-  const blockConfig = block?.config ?? {}
-  const title = block?.title || readString(page.title) || site.brand
-  const configuredTitleLines = readStringList(blockConfig.titleLines)
-  const titleLines = configuredTitleLines.length > 0 ? configuredTitleLines : splitHeroTitle(title)
-  const configuredActions = readHeroActions(blockConfig.actions)
-  const primary = resolveHeroAction(blockConfig.primary, configuredActions[0] ?? firstNavigationAction(site, '/articles'))
-  const secondary = resolveHeroAction(blockConfig.secondary, configuredActions[1] ?? firstNavigationAction(site, '/projects'))
+function resolveHeroContent(totals: SiteTotals): HomeHeroContent {
   return {
-    kicker: readString(blockConfig.kicker) || readString(pageContent.kicker) || site.wordmark,
-    titleLines,
-    subtitle: readString(blockConfig.subtitle) || readString(pageContent.subtitle) || readString(page.seoTitle),
-    description: block?.body || readString(page.seoDescription) || readString(pageContent.description),
-    primary,
-    secondary,
+    kicker: 'Personal Theme Blog · Creative Portfolio',
+    titleLines: ['CreatorSpace', '创作主页'],
+    subtitle: '一个有主题风格的个人博客与作品展示平台。',
+    description: '这里不是模板化列表，而是一个带有主题气质的个人站点：文章记录思考，作品呈现过程，灵感碎片连接长期创作。',
+    primary: { label: '进入博客', to: '/articles' },
+    secondary: { label: '浏览作品', to: '/projects' },
     stats: [
-      { value: String(totals.articleTotal), label: statLabel(blockConfig, 'article', '主题文章') },
-      { value: String(totals.projectTotal), label: statLabel(blockConfig, 'project', '创意作品') },
-      { value: String(totals.inspirationTotal), label: statLabel(blockConfig, 'inspiration', '灵感碎片') },
+      { value: String(totals.articleTotal), label: '主题文章' },
+      { value: String(totals.projectTotal), label: '创意作品' },
+      { value: String(totals.inspirationTotal), label: '灵感碎片' },
     ],
   }
 }
 
-function splitHeroTitle(title: string): string[] {
-  const normalized = title.trim()
-  if (!normalized) {
-    return []
-  }
-  const parts = normalized
-    .split(/[，,。|]/)
-    .map((part) => part.trim())
-    .filter(Boolean)
-  return parts.length > 1 ? parts.slice(0, 3) : [normalized]
+function buildMarqueeWords(): string[] {
+  return ['Articles', 'Works', 'Notes', 'Covers', 'Tags', 'Themes', 'Archive', 'Reading']
 }
 
-function readHeroActions(value: unknown): HomeHeroAction[] {
-  return readArray(value)
-    .map((item) => resolveHeroAction(item, null))
-    .filter((item): item is HomeHeroAction => item !== null)
-}
-
-function resolveHeroAction(value: unknown, fallback: HomeHeroAction | null): HomeHeroAction | null {
-  const record = readRecord(value)
-  const label = readString(record.label) || fallback?.label
-  const to = readString(record.to) || readString(record.path) || fallback?.to
-  if (!label || !to) {
-    return null
-  }
-  return { label, to, external: Boolean(record.external) || isExternalUrl(to) }
-}
-
-function firstNavigationAction(site: SiteConfig, preferredPath: string): HomeHeroAction | null {
-  const item = site.navigation.find((nav) => nav.to === preferredPath)
-    ?? site.navigation.find((nav) => nav.to.startsWith('/'))
-  return item ? { label: item.label, to: item.to, external: item.external } : null
-}
-
-function statLabel(config: Record<string, unknown>, key: string, fallback: string): string {
-  const labels = readRecord(config.statLabels)
-  return readString(labels[key]) || fallback
-}
-
-function buildMarqueeWords(config: Record<string, unknown>, site: SiteConfig): string[] {
-  const block = findContentBlock(config, 'home.manifesto')
-  const profile = readRecord(config['site.profile.active'])
-  const profileJson = readRecord(profile.profileJson)
-  return uniqueText([
-    ...readStringList(block?.config.marqueeWords),
-    ...readStringList(profileJson.focus),
-    ...site.navigation.map((item) => item.label),
-    site.brand,
-  ]).slice(0, 10)
-}
-
-function buildManifesto(config: Record<string, unknown>, site: SiteConfig): ManifestoContent {
-  const block = findContentBlock(config, 'home.manifesto')
-  const profile = readRecord(config['site.profile.active'])
-  const profileJson = readRecord(profile.profileJson)
-  const segments = readArray(block?.config.segments)
-    .map((item) => {
-      const record = readRecord(item)
-      const text = readString(record.text)
-      return text ? { text, accent: Boolean(record.accent) } : null
-    })
-    .filter((item): item is ManifestoContent['segments'][number] => item !== null)
-  const cards = readArray(block?.config.cards)
-    .map((item) => {
-      const record = readRecord(item)
-      const label = readString(record.label)
-      const value = readString(record.value)
-      if (!label || !value) {
-        return null
-      }
-      return {
-        label,
-        value,
-        detail: readString(record.detail),
-      }
-    })
-    .filter((item): item is ManifestoContent['cards'][number] => item !== null)
+function buildManifesto(): ManifestoContent {
   return {
-    lead: block?.title || readString(profile.headline) || site.brand,
-    segments: segments.length > 0
-      ? segments
-      : [{ text: block?.body || readString(profile.bio) || site.brand, accent: false }],
-    cards: cards.length > 0
-      ? cards
-      : readStringList(profileJson.focus).slice(0, 3).map((focus, index) => ({
-          label: `Focus ${index + 1}`,
-          value: focus,
-          detail: readString(profile.location),
-        })),
+    lead: '(01) — 站点宣言',
+    segments: [
+      { text: '这里先是一座个人主题博客。 ', accent: false },
+      { text: '文章负责把想法说清楚， ', accent: true },
+      { text: '作品负责把过程留下来， ', accent: false },
+      { text: '灵感卡片负责等下一次回头。', accent: true },
+    ],
+    cards: [
+      {
+        label: '阅读路径',
+        value: '主题 / 标签 / 归档',
+        detail: '不让读者只靠时间线找文章。',
+      },
+      {
+        label: '视觉气质',
+        value: '封面色 / 字号 / 留白',
+        detail: '每个页面都要像同一个人整理出来的。',
+      },
+      {
+        label: '内容边界',
+        value: '公开 / 私密 / 草稿',
+        detail: '写给别人看的内容和写给自己的内容分开放。',
+      },
+    ],
   }
 }
 
 function buildFeaturedCards(articles: ArticleSummary[], projects: ProjectSummary[]): FeaturedArticle[] {
-  const articleItems = articles.slice(0, HOME_ARTICLE_LIMIT).map((article) => ({
-    type: 'article' as const,
-    item: article,
-  }))
-  const projectItems = projects.slice(0, HOME_PROJECT_LIMIT).map((project) => ({
-    type: 'project' as const,
-    item: project,
-  }))
-  return weightedShuffle([...articleItems, ...projectItems], (entry) =>
-    entry.type === 'article' ? featuredArticleScore(entry.item) : featuredProjectScore(entry.item),
-  )
+  const selectedArticles = weightedShuffle(articles, featuredArticleScore)
     .slice(0, HOME_ARTICLE_LIMIT)
-    .map((entry, index) =>
-      entry.type === 'article'
-        ? articleToFeatured(entry.item, index)
-        : projectToFeatured(entry.item, index),
-    )
+  const remainingSlots = Math.max(0, HOME_ARTICLE_LIMIT - selectedArticles.length)
+  const supplementalProjects = remainingSlots > 0
+    ? weightedShuffle(projects.slice(HOME_PROJECT_LIMIT), featuredProjectScore).slice(0, remainingSlots)
+    : []
+  return [
+    ...selectedArticles.map(articleToFeatured),
+    ...supplementalProjects.map((project, index) =>
+      projectToFeatured(project, selectedArticles.length + index),
+    ),
+  ]
 }
 
 function weightedShuffle<T>(items: T[], score: (item: T) => number): T[] {
@@ -606,132 +466,89 @@ function buildPortfolioProjects(projects: ProjectSummary[]): PortfolioProject[] 
   return projects.slice(0, HOME_PROJECT_LIMIT).map(projectToPortfolio)
 }
 
-function buildStructureCards(config: Record<string, unknown>, site: SiteConfig): AgentCapability[] {
-  const configured = readContentBlocks(config)
-    .filter((block) => block.blockKey.startsWith('home.module.'))
-    .map((block, index) => blockToCapability(block, index))
-  if (configured.length > 0) {
-    return configured
-  }
-  return site.navigation.slice(0, 5).map((item, index) => {
-    const meta = Object.values(homeModuleMeta)[index] ?? homeModuleMeta.hero
-    return {
-      id: `nav-${item.to}`,
-      name: item.label,
-      role: meta.en || '站点模块',
-      summary: item.to,
-      pipeline: defaultPipeline(),
-      outputs: [item.to],
-      accent: defaultProjectPalettes[index % defaultProjectPalettes.length]?.accent ?? '#6ea8ff',
-    }
-  })
-}
-
-function blockToCapability(block: HomeContentBlock, index: number): AgentCapability {
-  const configuredPipeline = readArray(block.config.pipeline)
-    .map((item) => {
-      const record = readRecord(item)
-      const stage = readString(record.stage)
-      const label = readString(record.label)
-      if (!['route', 'retrieve', 'generate'].includes(stage) || !label) {
-        return null
-      }
-      return { stage: stage as AgentStage, label }
-    })
-    .filter((item): item is AgentCapability['pipeline'][number] => item !== null)
-  return {
-    id: block.blockKey,
-    name: block.title,
-    role: readString(block.config.role) || block.blockType || '站点模块',
-    summary: block.body,
-    pipeline: configuredPipeline.length > 0 ? configuredPipeline : defaultPipeline(),
-    outputs: readStringList(block.config.outputs).slice(0, 4),
-    accent: safeHexColor(readString(block.config.accent), defaultProjectPalettes[index % defaultProjectPalettes.length]?.accent ?? '#6ea8ff'),
-  }
-}
-
-function defaultPipeline(): AgentCapability['pipeline'] {
+function buildStructureCards(): AgentCapability[] {
   return [
-    { stage: 'route', label: '读取' },
-    { stage: 'retrieve', label: '合并' },
-    { stage: 'generate', label: '渲染' },
+    {
+      id: 'topics',
+      name: '主题索引',
+      role: '站点结构',
+      summary: '把文章、作品和灵感放到清晰主题下，让访客能按兴趣进入，而不是被一条时间线淹没。',
+      pipeline: [
+        { stage: 'route', label: '选择主题' },
+        { stage: 'retrieve', label: '归类内容' },
+        { stage: 'generate', label: '形成入口' },
+      ],
+      outputs: ['主题页', '文章集合', '标签入口', '延伸阅读'],
+      accent: '#6ea8ff',
+    },
+    {
+      id: 'gallery',
+      name: '作品橱窗',
+      role: '创作展示',
+      summary: '作品不只放截图，也要写清背景、过程、取舍和完成后的状态，像一面可翻阅的展示墙。',
+      pipeline: [
+        { stage: 'route', label: '整理封面' },
+        { stage: 'retrieve', label: '补齐过程' },
+        { stage: 'generate', label: '陈列作品' },
+      ],
+      outputs: ['作品封面', '过程记录', '技术标签', '成品链接'],
+      accent: '#b18cff',
+    },
+    {
+      id: 'fragments',
+      name: '灵感卡片',
+      role: '素材回收',
+      summary: '没写成文章的句子、图片参考、链接和代码片段先被收好，之后再慢慢长成内容。',
+      pipeline: [
+        { stage: 'route', label: '快速记录' },
+        { stage: 'retrieve', label: '补充来源' },
+        { stage: 'generate', label: '关联主题' },
+      ],
+      outputs: ['摘句', '参考图', '链接', '代码片段'],
+      accent: '#54e6c8',
+    },
   ]
 }
 
-function buildApproachSteps(config: Record<string, unknown>, site: SiteConfig): ApproachStep[] {
-  const configured = readContentBlocks(config)
-    .filter((block) => block.blockKey.startsWith('home.step.'))
-    .map((block, index) => ({
-      no: String(index + 1).padStart(2, '0'),
-      title: block.title,
-      en: readString(block.config.en) || block.blockType || 'Step',
-      body: block.body,
-      tags: readStringList(block.config.tags).slice(0, 4),
-    }))
-  if (configured.length > 0) {
-    return configured
-  }
-  return site.navigation.slice(0, 4).map((item, index) => ({
-    no: String(index + 1).padStart(2, '0'),
-    title: item.label,
-    en: 'Navigation',
-    body: item.to,
-    tags: [item.external ? 'external' : 'internal'],
-  }))
-}
-
-function buildCounters(
-  config: Record<string, unknown>,
-  site: SiteConfig,
-  totals: SiteTotals,
-): CounterItem[] {
-  const block = findContentBlock(config, 'home.metrics')
-  const configured = readArray(block?.config.items)
-    .map((item) => {
-      const record = readRecord(item)
-      const value = readNumber(record.value)
-      const label = readString(record.label)
-      if (value === null || !label) {
-        return null
-      }
-      return { value, suffix: readString(record.suffix), label }
-    })
-    .filter((item): item is CounterItem => item !== null)
-  if (configured.length > 0) {
-    return configured
-  }
+function buildApproachSteps(): ApproachStep[] {
   return [
-    { value: totals.articleTotal, suffix: '', label: statLabel({}, 'article', '主题文章') },
-    { value: totals.projectTotal, suffix: '', label: statLabel({}, 'project', '创意作品') },
-    { value: totals.inspirationTotal, suffix: '', label: statLabel({}, 'inspiration', '灵感碎片') },
-    { value: site.navigation.length, suffix: '', label: '公开入口' },
+    {
+      no: '01',
+      title: '捕捉',
+      en: 'Capture',
+      body: '句子、链接、截图和代码片段先落进灵感盒，不急着整理，也不让它们丢掉。',
+      tags: ['灵感盒', '摘句', '参考'],
+    },
+    {
+      no: '02',
+      title: '整理',
+      en: 'Organize',
+      body: '用主题、分类和标签把内容放回合适的位置，让一篇文章自然通向下一篇。',
+      tags: ['主题', '分类', '标签'],
+    },
+    {
+      no: '03',
+      title: '写作',
+      en: 'Write',
+      body: '把草稿写成能公开阅读的文章，补齐摘要、封面、标签和必要的上下文。',
+      tags: ['草稿', '摘要', '封面'],
+    },
+    {
+      no: '04',
+      title: '展示',
+      en: 'Curate',
+      body: '文章和作品被编排进前台，读者看到的是一个有风格、有边界、能继续长大的个人空间。',
+      tags: ['前台', '作品橱窗', '归档'],
+    },
   ]
 }
 
-function buildFieldNotes(
-  articles: ArticleSummary[],
-  projects: ProjectSummary[],
-  inspirations: InspirationCard[],
-): FieldNote[] {
-  const articleNotes = articles.slice(0, 3).map((article) => ({
-    date: formatHomeDate(article.publishTime, '已发布'),
-    tag: article.category?.name ?? '文章',
-    title: article.title,
-    detail: article.summary ?? '这篇文章暂未填写摘要。',
-  }))
-  const projectNotes = projects.slice(0, 2).map((project) => ({
-    date: formatHomeDate(project.reviewedAt ?? project.submittedAt, '展示中'),
-    tag: project.projectType || '作品',
-    title: project.title,
-    detail: project.description ?? '这个作品暂未填写说明。',
-  }))
-  const inspirationNotes = inspirations.slice(0, 2).map((card) => ({
-    date: formatHomeDate(card.createdAt, '灵感卡片'),
-    tag: card.cardType,
-    title: card.title,
-    detail: card.content ?? card.sourceUrl ?? '这张灵感卡片暂未填写内容。',
-  }))
-  return [...articleNotes, ...projectNotes, ...inspirationNotes].slice(0, 7)
+function buildCounters(totals: SiteTotals): CounterItem[] {
+  return [
+    { value: totals.articleTotal, suffix: '', label: '主题文章' },
+    { value: totals.projectTotal, suffix: '', label: '创意作品' },
+    { value: totals.inspirationTotal, suffix: '', label: '灵感碎片' },
+  ]
 }
 
 function themeToPreset(theme: PublicThemeConfig): ThemePreset {
@@ -893,6 +710,7 @@ function projectToPortfolio(project: ProjectSummary, index: number): PortfolioPr
 function inspirationToFragment(card: InspirationCard, index: number): CreativeFragment {
   const layout = fragmentLayouts[index % fragmentLayouts.length]
   const accent = safeHexColor(card.color, '#263e70')
+  const backgroundImage = homepageFragmentBackgrounds[index % homepageFragmentBackgrounds.length]
   return {
     id: `inspiration-${card.id}`,
     kind: fragmentKindMap[card.cardType],
@@ -901,6 +719,7 @@ function inspirationToFragment(card: InspirationCard, index: number): CreativeFr
     body: card.content ?? card.title,
     meta: card.sourceUrl ? 'source link' : formatHomeDate(card.createdAt, '灵感卡片'),
     palette: [accent, layout?.to ?? '#0b1428'],
+    backgroundImage,
   }
 }
 
@@ -1683,24 +1502,6 @@ const ApproachProcess = defineComponent({
           })
         }
       })
-      gsap.utils.toArray<HTMLElement>('.cs-counter__value').forEach((el) => {
-        const target = Number(el.dataset.target || '0')
-        const suffix = el.dataset.suffix || ''
-        if (reduced) {
-          el.textContent = `${target}${suffix}`
-          return
-        }
-        const obj = { v: 0 }
-        gsap.to(obj, {
-          v: target,
-          duration: 1.8,
-          ease: 'power2.out',
-          scrollTrigger: { trigger: el, start: 'top 88%' },
-          onUpdate: () => {
-            el.textContent = `${Math.round(obj.v)}${suffix}`
-          },
-        })
-      })
     })
 
     onBeforeUnmount(() => {
@@ -1730,7 +1531,6 @@ const ApproachProcess = defineComponent({
 
     return () => {
       const steps = runtimeApproachSteps.value
-      const counterItems = runtimeCounters.value
       return h('section', { ref: root, class: 'cs-approach cs-section', id: 'approach' }, [
         h('div', { class: 'cs-head' }, [
           h('div', [
@@ -1760,24 +1560,6 @@ const ApproachProcess = defineComponent({
           ]),
           h('div', { class: 'cs-steps' }, steps.map(renderStep)),
         ]),
-        h(
-          'div',
-          { class: 'cs-counters' },
-          counterItems.map((counter) =>
-            h('div', { class: 'cs-counter', key: counter.label }, [
-              h(
-                'span',
-                {
-                  class: 'cs-counter__value',
-                  'data-target': String(counter.value),
-                  'data-suffix': counter.suffix,
-                },
-                `0${counter.suffix}`,
-              ),
-              h('span', { class: 'cs-counter__label' }, counter.label),
-            ]),
-          ),
-        ),
       ])
     }
   },
@@ -1841,6 +1623,9 @@ const CreativeWall = defineComponent({
         style['--cs-from'] = fragment.palette[0]
         style['--cs-to'] = fragment.palette[1]
       }
+      if (fragment.backgroundImage) {
+        style['--cs-frag-bg'] = toCssImageUrl(fragment.backgroundImage)
+      }
 
       const inner = [
         h('span', { class: 'cs-frag__kind' }, fragment.label),
@@ -1856,7 +1641,7 @@ const CreativeWall = defineComponent({
         'div',
         { key: fragment.id, class: `cs-frag cs-frag--${fragment.kind}`, style },
         [
-          fragment.palette ? h('span', { class: 'cs-frag__wash' }) : null,
+          fragment.palette || fragment.backgroundImage ? h('span', { class: 'cs-frag__wash' }) : null,
           h('div', { class: 'cs-frag__inner' }, inner),
         ],
       )
@@ -2020,68 +1805,6 @@ const ThemeUniverse = defineComponent({
         ]),
       ])
     }
-  },
-})
-
-const FieldNotes = defineComponent({
-  name: 'FieldNotes',
-  setup() {
-    const root = ref<HTMLElement | null>(null)
-
-    useGsapContext(root, ({ reduced }) => {
-      if (reduced) {
-        return
-      }
-      gsap.utils.toArray<HTMLElement>('.cs-note').forEach((row, index) => {
-        gsap.from(row, {
-          yPercent: 40,
-          opacity: 0,
-          duration: 0.7,
-          ease: 'power3.out',
-          delay: (index % 4) * 0.05,
-          scrollTrigger: { trigger: row, start: 'top 88%' },
-        })
-        const rule = row.querySelector('.cs-note__rule')
-        if (rule) {
-          gsap.from(rule, {
-            scaleX: 0,
-            transformOrigin: 'left',
-            duration: 0.9,
-            ease: 'power3.inOut',
-            scrollTrigger: { trigger: row, start: 'top 88%' },
-          })
-        }
-      })
-    })
-
-    // 渲染创作记录条目。
-    const renderNote = (note: FieldNote, index: number) =>
-      h('article', { key: index, class: 'cs-note' }, [
-        h('span', { class: 'cs-note__rule' }),
-        h('div', { class: 'cs-note__row' }, [
-          h('span', { class: 'cs-note__date' }, note.date),
-          h('span', { class: 'cs-note__tag' }, note.tag),
-          h('h3', { class: 'cs-note__title' }, note.title),
-          h('span', { class: 'cs-note__arrow', 'aria-hidden': 'true' }, '→'),
-        ]),
-        h('p', { class: 'cs-note__detail' }, note.detail),
-      ])
-
-    return () =>
-      h('section', { ref: root, class: 'cs-notes cs-section', id: 'notes' }, [
-        h('div', { class: 'cs-head' }, [
-          h('div', [
-            h('p', { class: 'cs-eyebrow' }, 'Development Log'),
-            h('h2', { class: 'cs-head__title' }, '按模块记录开发历程'),
-          ]),
-          h(
-            'p',
-            { class: 'cs-head__note' },
-            '这里只记录模块级进展，方便回看这个个人博客与作品平台是怎样一步步搭起来的。',
-          ),
-        ]),
-        h('div', { class: 'cs-notes__list' }, runtimeFieldNotes.value.map(renderNote)),
-      ])
   },
 })
 
@@ -3221,6 +2944,7 @@ function renderFooter() {
   flex-direction: column;
   height: 100%;
   justify-content: space-between;
+  text-shadow: 0 1px 16px rgba(2, 6, 18, 0.52);
   will-change: transform;
 }
 
@@ -3288,7 +3012,11 @@ function renderFooter() {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background: linear-gradient(155deg, var(--cs-from), var(--cs-to));
+  background-image:
+    linear-gradient(155deg, rgba(6, 9, 20, 0.18), rgba(6, 9, 20, 0.74)),
+    var(--cs-frag-bg, linear-gradient(155deg, var(--cs-from), var(--cs-to)));
+  background-size: cover;
+  background-position: center;
 }
 
 .cs-home :deep(.cs-frag--image .cs-frag__body),
@@ -3872,35 +3600,6 @@ function renderFooter() {
   background: var(--cs-accent);
 }
 
-.cs-home :deep(.cs-counters) {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: clamp(16px, 2vw, 28px);
-  margin-top: clamp(60px, 9vh, 120px);
-  padding-top: 44px;
-  border-top: 1px solid var(--cs-line);
-}
-
-.cs-home :deep(.cs-counter__value) {
-  display: block;
-  font-family: var(--cs-font-display);
-  font-weight: 700;
-  font-size: clamp(36px, 5vw, 70px);
-  line-height: 1;
-  letter-spacing: -0.03em;
-  color: var(--cs-ink);
-}
-
-.cs-home :deep(.cs-counter__label) {
-  display: block;
-  margin-top: 10px;
-  font-family: var(--cs-font-mono);
-  font-size: 11px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--cs-ink-faint);
-}
-
 @media (max-width: 860px) {
   .cs-home :deep(.cs-approach__grid) {
     grid-template-columns: 1fr;
@@ -3917,129 +3616,6 @@ function renderFooter() {
   }
   .cs-home :deep(.cs-rail__track) {
     display: none;
-  }
-  .cs-home :deep(.cs-counters) {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 28px 16px;
-  }
-}
-
-
-.cs-home :deep(.cs-notes__list) {
-  padding-bottom: clamp(50px, 8vh, 110px);
-}
-
-.cs-home :deep(.cs-note) {
-  position: relative;
-  padding: clamp(22px, 3vh, 34px) 0;
-  cursor: default;
-}
-
-.cs-home :deep(.cs-note__rule) {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 1px;
-  background: var(--cs-line);
-  transform-origin: left;
-}
-
-.cs-home :deep(.cs-note__row) {
-  display: grid;
-  grid-template-columns: 120px 110px minmax(0, 1fr) 40px;
-  align-items: center;
-  gap: 20px;
-}
-
-.cs-home :deep(.cs-note__date) {
-  font-family: var(--cs-font-mono);
-  font-size: 13px;
-  letter-spacing: 0.06em;
-  color: var(--cs-ink-faint);
-}
-
-.cs-home :deep(.cs-note__tag) {
-  justify-self: start;
-  padding: 4px 12px;
-  border: 1px solid var(--cs-line);
-  border-radius: 999px;
-  font-family: var(--cs-font-mono);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  color: var(--cs-ink-dim);
-}
-
-.cs-home :deep(.cs-note__title) {
-  margin: 0;
-  font-family: var(--cs-font-display);
-  font-weight: 500;
-  font-size: clamp(18px, 2.2vw, 28px);
-  line-height: 1.2;
-  letter-spacing: -0.01em;
-  color: var(--cs-ink);
-  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), color 0.3s ease;
-}
-
-.cs-home :deep(.cs-note__arrow) {
-  justify-self: end;
-  font-size: 20px;
-  color: var(--cs-ink-faint);
-  opacity: 0;
-  transform: translateX(-8px);
-  transition: opacity 0.4s ease, transform 0.4s ease, color 0.3s ease;
-}
-
-.cs-home :deep(.cs-note__detail) {
-  max-width: 60ch;
-  margin: 0;
-  padding-left: 250px;
-  font-size: 14px;
-  line-height: 1.6;
-  color: var(--cs-ink-dim);
-
-  max-height: 0;
-  opacity: 0;
-  overflow: hidden;
-  transform: translateY(-6px);
-  transition: max-height 0.5s ease, opacity 0.4s ease, margin 0.4s ease, transform 0.4s ease;
-}
-
-.cs-home :deep(.cs-note:hover .cs-note__title) {
-  transform: translateX(10px);
-  color: var(--cs-accent);
-}
-
-.cs-home :deep(.cs-note:hover .cs-note__arrow) {
-  opacity: 1;
-  transform: translateX(0);
-  color: var(--cs-accent);
-}
-
-.cs-home :deep(.cs-note:hover .cs-note__detail) {
-  max-height: 120px;
-  opacity: 1;
-  margin-top: 16px;
-  transform: translateY(0);
-}
-
-@media (max-width: 720px) {
-  .cs-home :deep(.cs-note__row) {
-    grid-template-columns: 1fr auto;
-    grid-template-areas:
-      'date tag'
-      'title title';
-    gap: 10px;
-  }
-  .cs-home :deep(.cs-note__date) { grid-area: date; }
-  .cs-home :deep(.cs-note__tag) { grid-area: tag; justify-self: end; }
-  .cs-home :deep(.cs-note__title) { grid-area: title; }
-  .cs-home :deep(.cs-note__arrow) { display: none; }
-  .cs-home :deep(.cs-note__detail) {
-    padding-left: 0;
-  }
-  .cs-home :deep(.cs-note:hover .cs-note__title) {
-    transform: none;
   }
 }
 
@@ -4083,12 +3659,5 @@ function renderFooter() {
     color: var(--cs-ink) !important;
   }
 
-
-  .cs-home :deep(.cs-note__detail) {
-    max-height: none !important;
-    opacity: 1 !important;
-    margin-top: 14px !important;
-    transform: none !important;
-  }
 }
 </style>

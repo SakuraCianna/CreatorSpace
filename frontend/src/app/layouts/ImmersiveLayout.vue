@@ -8,7 +8,7 @@
         <span>{{ brandName }}</span>
       </RouterLink>
       <div class="cs-nav__links">
-        <RouterLink v-for="item in navItems" :key="item.to" :to="item.to">
+        <RouterLink v-for="item in immersiveNavItems" :key="item.to" :to="item.to">
           {{ item.label }}
         </RouterLink>
       </div>
@@ -31,37 +31,22 @@ interface ImmersiveNavItem {
 }
 
 const brandName = ref('CreatorSpace')
-const navItems = ref<ImmersiveNavItem[]>([])
+const immersiveNavItems: ImmersiveNavItem[] = [
+  { label: '游客', to: '/articles' },
+  { label: '登录', to: '/login' },
+  { label: '注册', to: '/register' },
+]
 
 onMounted(async () => {
   try {
     const config = await fetchSiteConfig()
     const identity = readRecord(config['site.identity'])
     const profile = readRecord(config['site.profile.active'])
-    const configuredItems = readNavigation(config['site.navigationItems'])
     brandName.value = readString(identity.name) || readString(profile.displayName) || brandName.value
-    navItems.value = configuredItems
   } catch {
-    navItems.value = []
+    brandName.value = 'CreatorSpace'
   }
 })
-
-function readNavigation(value: unknown): ImmersiveNavItem[] {
-  if (!Array.isArray(value)) {
-    return []
-  }
-  return value
-    .map((item) => {
-      const record = readRecord(item)
-      const label = readString(record.label)
-      const to = readString(record.path)
-      if (!label || !to || /^https?:\/\//i.test(to) || to.startsWith('//')) {
-        return null
-      }
-      return { label, to }
-    })
-    .filter((item): item is ImmersiveNavItem => item !== null)
-}
 
 function readRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
