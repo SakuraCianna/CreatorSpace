@@ -49,6 +49,7 @@ export interface CreativeFragment {
   body: string
   meta?: string
   palette?: [string, string]
+  backgroundImage?: string
 }
 
 export interface ThemePreset {
