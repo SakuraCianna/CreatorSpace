@@ -108,8 +108,8 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { LoaderCircle, Search } from '@lucide/vue'
 
-import { fallbackArticles } from '@/content/studio'
 import { fetchArticles, fetchTags } from '@/services/content'
+import { toUserMessage } from '@/services/http'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import type { ArticleSummary, TagSummary } from '@/shared/domain'
 
@@ -147,13 +147,10 @@ async function loadArticles() {
   notice.value = ''
   try {
     const page = await fetchArticles(keyword.value, activeTagId.value ?? undefined)
-    articles.value = page.records.length ? page.records : fallbackArticles
-    if (!page.records.length) {
-      notice.value = '已显示精选文章。'
-    }
+    articles.value = page.records
   } catch (error) {
-    articles.value = fallbackArticles
-    notice.value = '已显示精选文章。'
+    articles.value = []
+    notice.value = toUserMessage(error, '文章接口暂不可用，请稍后再试')
   } finally {
     isLoading.value = false
   }

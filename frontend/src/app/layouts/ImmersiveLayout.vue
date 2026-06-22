@@ -5,10 +5,10 @@
         <span class="cs-nav__mark">
           <img src="/public.svg" alt="" aria-hidden="true" />
         </span>
-        <span>{{ siteConfig.brand }}</span>
+        <span>{{ brandName }}</span>
       </RouterLink>
       <div class="cs-nav__links">
-        <RouterLink v-for="item in siteConfig.navigation" :key="item.to" :to="item.to">
+        <RouterLink v-for="item in navItems" :key="item.to" :to="item.to">
           {{ item.label }}
         </RouterLink>
       </div>
@@ -20,9 +20,56 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
-import { siteConfig } from '@/content/home'
+import { fetchSiteConfig } from '@/services/content'
+
+interface ImmersiveNavItem {
+  label: string
+  to: string
+}
+
+const brandName = ref('CreatorSpace')
+const navItems = ref<ImmersiveNavItem[]>([])
+
+onMounted(async () => {
+  try {
+    const config = await fetchSiteConfig()
+    const identity = readRecord(config['site.identity'])
+    const profile = readRecord(config['site.profile.active'])
+    const configuredItems = readNavigation(config['site.navigationItems'])
+    brandName.value = readString(identity.name) || readString(profile.displayName) || brandName.value
+    navItems.value = configuredItems
+  } catch {
+    navItems.value = []
+  }
+})
+
+function readNavigation(value: unknown): ImmersiveNavItem[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+  return value
+    .map((item) => {
+      const record = readRecord(item)
+      const label = readString(record.label)
+      const to = readString(record.path)
+      if (!label || !to || /^https?:\/\//i.test(to) || to.startsWith('//')) {
+        return null
+      }
+      return { label, to }
+    })
+    .filter((item): item is ImmersiveNavItem => item !== null)
+}
+
+function readRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
+}
+
+function readString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
 </script>
 
 <style scoped>

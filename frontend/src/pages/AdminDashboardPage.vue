@@ -114,7 +114,7 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 
 import { fetchDashboardOverview } from '@/services/content'
-import { HttpError } from '@/services/http'
+import { HttpError, toUserMessage } from '@/services/http'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import type { DashboardOverview } from '@/shared/domain'
 import { useSessionStore } from '@/shared/sessionStore'
@@ -149,7 +149,7 @@ async function loadOverview() {
       router.replace({ name: 'login', query: { redirect: '/admin' } })
       return
     }
-    notice.value = error instanceof Error ? `后台概览接口暂不可用：${error.message}` : '后台概览接口暂不可用。'
+    notice.value = `后台概览接口暂不可用：${toUserMessage(error, '请稍后再试')}`
   }
 }
 

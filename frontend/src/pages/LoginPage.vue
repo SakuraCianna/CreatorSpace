@@ -48,6 +48,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { LoaderCircle, ShieldCheck } from '@lucide/vue'
 
 import { loginAdmin, loginUser } from '@/services/content'
+import { HttpError, toUserMessage } from '@/services/http'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import { useSessionStore } from '@/shared/sessionStore'
 
@@ -83,10 +84,17 @@ async function submitLogin() {
     form.password = ''
     router.push(loginMode.value === 'ADMIN' ? readRedirectPath() : readPublicRedirectPath())
   } catch (error) {
-    message.value = error instanceof Error ? error.message : '登录失败，请稍后重试'
+    message.value = loginErrorMessage(error)
   } finally {
     isSubmitting.value = false
   }
+}
+
+function loginErrorMessage(error: unknown) {
+  if (error instanceof HttpError && error.status === 403 && loginMode.value === 'ADMIN') {
+    return '当前账号没有后台权限，请使用管理员账号登录'
+  }
+  return toUserMessage(error, loginMode.value === 'ADMIN' ? '管理员登录失败，请检查账号权限' : '登录失败，请检查账号密码')
 }
 
 function readPublicRedirectPath() {

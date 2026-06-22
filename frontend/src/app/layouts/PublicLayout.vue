@@ -11,13 +11,13 @@
       <span :style="{ transform: `scaleY(${scrollProgress})` }" />
     </div>
     <header class="public-header">
-      <RouterLink class="brand" to="/" aria-label="返回 CreatorSpace 首页">
+      <RouterLink class="brand" to="/" :aria-label="`返回 ${brandName} 首页`">
         <span class="brand-mark">
           <img src="/public.svg" alt="" aria-hidden="true" />
         </span>
         <span class="brand-copy">
-          <strong>CreatorSpace</strong>
-          <small>Personal Theme Archive</small>
+          <strong>{{ brandName }}</strong>
+          <small>{{ brandTagline }}</small>
         </span>
       </RouterLink>
 
@@ -28,10 +28,22 @@
       </button>
 
       <nav class="public-nav" :class="{ 'is-open': navOpen }" aria-label="前台导航">
-        <RouterLink v-for="item in navItems" :key="item.to" :to="item.to" @click="navOpen = false">
-          <component :is="item.icon" :size="16" />
-          <span>{{ item.label }}</span>
-        </RouterLink>
+        <template v-for="item in navItems" :key="item.to">
+          <a
+            v-if="item.external"
+            :href="item.to"
+            target="_blank"
+            rel="noreferrer"
+            @click="navOpen = false"
+          >
+            <component :is="item.icon" :size="16" />
+            <span>{{ item.label }}</span>
+          </a>
+          <RouterLink v-else :to="item.to" @click="navOpen = false">
+            <component :is="item.icon" :size="16" />
+            <span>{{ item.label }}</span>
+          </RouterLink>
+        </template>
         <RouterLink
           v-if="!session.isAuthenticated"
           class="mobile-auth-action mobile-auth-action--tonal"
@@ -109,6 +121,7 @@ interface PublicNavItem {
   to: string
   label: string
   icon: Component
+  external: boolean
 }
 
 const iconMap: Record<string, Component> = {
@@ -122,16 +135,9 @@ const iconMap: Record<string, Component> = {
   search: Search,
 }
 
-const fallbackNavItems: PublicNavItem[] = [
-  { to: '/articles', label: '文章', icon: BookOpen },
-  { to: '/projects', label: '作品', icon: Images },
-  { to: '/inspirations', label: '灵感', icon: Lightbulb },
-  { to: '/creator', label: '创作', icon: PenLine },
-  { to: '/search', label: '搜索', icon: Search },
-  { to: '/about', label: '关于', icon: Info },
-]
-
-const navItems = ref<PublicNavItem[]>(fallbackNavItems)
+const brandName = ref('站点')
+const brandTagline = ref('后台配置')
+const navItems = ref<PublicNavItem[]>([])
 
 onMounted(() => {
   mountFrontstageScene()
@@ -143,12 +149,16 @@ onMounted(() => {
 onMounted(async () => {
   try {
     const config = await fetchSiteConfig()
+    const identity = readRecord(config['site.identity'])
+    const profile = readRecord(config['site.profile.active'])
+    brandName.value = readString(identity.name) || readString(profile.displayName) || brandName.value
+    brandTagline.value = readString(identity.slogan) || readString(profile.headline) || brandTagline.value
     const configuredItems = readConfiguredNavigation(config['site.navigationItems'])
     if (configuredItems.length > 0) {
       navItems.value = withCreatorEntry(configuredItems)
     }
   } catch {
-    navItems.value = fallbackNavItems
+    navItems.value = []
   }
 })
 
@@ -233,6 +243,14 @@ function readConfiguredNavigation(value: unknown): PublicNavItem[] {
     .filter((item): item is PublicNavItem => item !== null)
 }
 
+function readRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
+}
+
+function readString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
 function readNavigationItem(value: unknown): PublicNavItem | null {
   if (!isRecord(value)) {
     return null
@@ -247,6 +265,7 @@ function readNavigationItem(value: unknown): PublicNavItem | null {
     to: path,
     label,
     icon: iconMap[iconName] ?? Info,
+    external: isExternalUrl(path),
   }
 }
 
@@ -257,8 +276,12 @@ function withCreatorEntry(items: PublicNavItem[]): PublicNavItem[] {
   const searchIndex = items.findIndex((item) => item.to === '/search')
   const nextItems = [...items]
   const insertAt = searchIndex >= 0 ? searchIndex : nextItems.length
-  nextItems.splice(insertAt, 0, { to: '/creator', label: '创作', icon: PenLine })
+  nextItems.splice(insertAt, 0, { to: '/creator', label: '创作', icon: PenLine, external: false })
   return nextItems
+}
+
+function isExternalUrl(value: string) {
+  return /^https?:\/\//i.test(value)
 }
 
 function handleLogout() {

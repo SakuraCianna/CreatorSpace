@@ -5,22 +5,17 @@
     </header>
 
     <div class="about-grid">
-      <article class="about-panel about-panel--bio" data-reveal>
+      <article v-if="profile" class="about-panel about-panel--bio" data-reveal>
         <UserRound :size="22" />
         <h2>{{ profile.displayName }}</h2>
         <p>{{ profile.bio }}</p>
       </article>
-      <article class="about-panel" data-reveal>
-        <PenTool :size="22" />
-        <h2>写作方向</h2>
-        <p>工程复盘、产品设计、AI 工作流、个人知识库和创作者工具。</p>
+      <article v-else class="about-panel about-panel--bio" data-reveal>
+        <UserRound :size="22" />
+        <h2>暂无公开资料</h2>
+        <p>请在后台维护站点资料后刷新页面。</p>
       </article>
-      <article class="about-panel" data-reveal>
-        <Sparkles :size="22" />
-        <h2>作品方向</h2>
-        <p>Web 应用、内容系统、沉浸式前台、后台 CMS、创意工具和动效实验。</p>
-      </article>
-      <article class="about-panel" data-reveal>
+      <article v-if="contactLinks.length" class="about-panel" data-reveal>
         <Mail :size="22" />
         <h2>联系入口</h2>
         <p>欢迎从文章或作品进入，也可以通过公开联系方式继续交流。</p>
@@ -40,7 +35,7 @@
       </article>
     </div>
 
-    <section class="skills-band" data-reveal>
+    <section v-if="skills.length" class="skills-band" data-reveal>
       <div>
         <p class="page-kicker">Toolbox</p>
         <h2>技术栈与表达方式</h2>
@@ -54,7 +49,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { Mail, PenTool, Sparkles, UserRound } from '@lucide/vue'
+import { Mail, UserRound } from '@lucide/vue'
 
 import { fetchSiteConfig } from '@/services/content'
 import { useCinematicPageMotion } from '@/shared/composables/useCinematicPageMotion'
@@ -74,30 +69,12 @@ interface ContactLink {
 
 const root = ref<HTMLElement | null>(null)
 const cinematic = useCinematicPageMotion(root)
-const profile = ref<AboutProfile>({
-  displayName: '个人介绍',
-  headline: '关于我',
-  bio: 'CreatorSpace 把文章、作品、灵感和后台工作台放在同一套内容系统里。前台负责表达气质，后台负责让它持续可维护。',
-})
-const contactLinks = ref<ContactLink[]>([
-  { platform: 'github', label: 'GitHub', url: 'https://github.com/SakuraCianna/CreatorSpace' },
-  { platform: 'mail', label: 'Mail', url: 'mailto:754515922@qq.com' },
-])
+const profile = ref<AboutProfile | null>(null)
+const contactLinks = ref<ContactLink[]>([])
 
 usePageReveal(root)
 
-const skills = ref([
-  'Vue 3',
-  'TypeScript',
-  'Spring Boot',
-  'PostgreSQL',
-  'Redis',
-  'GSAP',
-  'anime.js',
-  'Three.js',
-  'Material Design 3',
-  'Markdown',
-])
+const skills = ref<string[]>([])
 
 async function loadSiteProfile() {
   try {
@@ -109,19 +86,21 @@ async function loadSiteProfile() {
       .filter((link): link is ContactLink => Boolean(link))
 
     profile.value = {
-      displayName: readString(siteProfile.displayName) || profile.value.displayName,
-      headline: readString(siteProfile.headline) || profile.value.headline,
-      bio: readString(siteProfile.bio) || profile.value.bio,
+      displayName: readString(siteProfile.displayName) || '未命名资料',
+      headline: readString(siteProfile.headline),
+      bio: readString(siteProfile.bio),
     }
     if (socialLinks.length) {
       contactLinks.value = socialLinks
     }
     const focus = readStringArray(profileJson.focus)
     if (focus.length) {
-      skills.value = [...focus, ...skills.value].slice(0, 12)
+      skills.value = focus.slice(0, 12)
     }
   } catch {
-    // 站点配置不可用时保留本地兜底文案。
+    profile.value = null
+    contactLinks.value = []
+    skills.value = []
   } finally {
     void cinematic.play()
   }

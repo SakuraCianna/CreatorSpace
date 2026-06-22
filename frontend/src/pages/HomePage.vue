@@ -14,50 +14,57 @@
 </template>
 
 <script setup lang="ts">
-import { defineComponent, h, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { defineComponent, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
 import type { HeroSceneHandles } from '@/shared/heroScene'
-import { fetchArticles, fetchCurrentTheme, fetchInspirations, fetchProjects } from '@/services/content'
+import { fetchArticles, fetchCurrentTheme, fetchInspirations, fetchProjects, fetchSiteConfig, fetchThemes } from '@/services/content'
 import { useGsapContext } from '@/shared/composables/useGsapScroll'
 import { useLenis } from '@/shared/composables/useLenis'
 import { attachMagnetic } from '@/shared/composables/useMagnetic'
 import { prefersReducedMotion } from '@/shared/composables/useReducedMotion'
 import { toCssImageUrl } from '@/shared/cssImage'
 import {
-  agentCapabilities,
-  approachSteps,
-  counters,
-  closing,
-  creativeFragments,
-  featuredArticles,
-  fieldNotes,
-  heroContent,
-  manifesto,
-  marqueeWords,
-  portfolioProjects,
-  siteConfig,
-  themePresets,
   type AgentCapability,
   type ApproachStep,
+  type CounterItem,
   type CreativeFragment,
   type FeaturedArticle,
   type FieldNote,
+  type HomeHeroAction,
+  type HomeHeroContent,
+  type ManifestoContent,
   type PortfolioProject,
+  type SiteConfig,
   type ThemePreset,
 } from '@/content/home'
-import type { ArticleSummary, InspirationCard, ProjectSummary, TagSummary } from '@/shared/domain'
+import type { ArticleSummary, InspirationCard, ProjectSummary, PublicThemeConfig, TagSummary } from '@/shared/domain'
 
 
 gsap.registerPlugin(ScrollTrigger)
 
 useLenis()
 
+const runtimeSiteConfig = ref<SiteConfig | null>(null)
+const runtimeHeroContent = ref<HomeHeroContent | null>(null)
+const runtimeMarqueeWords = ref<string[]>([])
+const runtimeManifesto = ref<ManifestoContent | null>(null)
+const runtimeArticles = ref<FeaturedArticle[]>([])
+const runtimeProjects = ref<PortfolioProject[]>([])
+const runtimeStructureCards = ref<AgentCapability[]>([])
+const runtimeApproachSteps = ref<ApproachStep[]>([])
+const runtimeCounters = ref<CounterItem[]>([])
+const runtimeFragments = ref<CreativeFragment[]>([])
+const runtimeThemePresets = ref<ThemePreset[]>([])
+const runtimeCurrentThemeName = ref('读取中')
+const runtimeFieldNotes = ref<FieldNote[]>([])
+
 onMounted(() => {
   document.body.classList.add('cs-dark-body')
   document.documentElement.classList.add('cs-dark-scroll')
+  void loadHomeRuntimeData()
 })
 onBeforeUnmount(() => {
   document.body.classList.remove('cs-dark-body')
@@ -136,21 +143,95 @@ const HeroWebGLScene = defineComponent({
 })
 
 // 渲染首页英雄区按钮。
-function heroButton(to: string, label: string, ghost = false) {
+function heroButton(action: HomeHeroAction, ghost = false) {
+  const children = [
+    h('span', { class: 'cs-btn__fill' }),
+    h('span', { class: 'cs-btn__dot' }),
+    h('span', action.label),
+  ]
+  if (action.external) {
+    return h(
+      'a',
+      {
+        href: action.to,
+        class: ['cs-btn', { 'cs-btn--ghost': ghost }],
+        target: '_blank',
+        rel: 'noreferrer',
+      },
+      children,
+    )
+  }
   return h(
     RouterLink,
-    { to, class: ['cs-btn', { 'cs-btn--ghost': ghost }] },
-    {
-      default: () => [
-        h('span', { class: 'cs-btn__fill' }),
-        h('span', { class: 'cs-btn__dot' }),
-        h('span', label),
-      ],
-    },
+    { to: action.to, class: ['cs-btn', { 'cs-btn--ghost': ghost }] },
+    { default: () => children },
   )
 }
 
+async function loadHomeRuntimeData() {
+  const [configResult, articlesResult, projectsResult, inspirationsResult, themesResult, currentThemeResult] =
+    await Promise.allSettled([
+      fetchSiteConfig(),
+      fetchArticles(),
+      fetchProjects(),
+      fetchInspirations({ pageSize: HOME_INSPIRATION_LIMIT }),
+      fetchThemes(),
+      fetchCurrentTheme(),
+    ])
+
+  const config = configResult.status === 'fulfilled' ? configResult.value : {}
+  const articles = articlesResult.status === 'fulfilled' ? articlesResult.value.records : []
+  const projects = projectsResult.status === 'fulfilled' ? projectsResult.value.records : []
+  const inspirations = inspirationsResult.status === 'fulfilled' ? inspirationsResult.value.records : []
+  const themes = themesResult.status === 'fulfilled' ? themesResult.value : []
+  const currentTheme = currentThemeResult.status === 'fulfilled' ? currentThemeResult.value : null
+  const totals = {
+    articleTotal: articlesResult.status === 'fulfilled' ? articlesResult.value.total : 0,
+    projectTotal: projectsResult.status === 'fulfilled' ? projectsResult.value.total : 0,
+    inspirationTotal: inspirationsResult.status === 'fulfilled' ? inspirationsResult.value.total : 0,
+  }
+  const nextSiteConfig = resolveSiteConfig(config)
+
+  runtimeSiteConfig.value = nextSiteConfig
+  runtimeHeroContent.value = resolveHeroContent(config, nextSiteConfig, totals)
+  runtimeMarqueeWords.value = buildMarqueeWords(config, nextSiteConfig)
+  runtimeManifesto.value = buildManifesto(config, nextSiteConfig)
+  runtimeArticles.value = buildFeaturedCards(articles, projects)
+  runtimeProjects.value = buildPortfolioProjects(projects)
+  runtimeStructureCards.value = buildStructureCards(config, nextSiteConfig)
+  runtimeApproachSteps.value = buildApproachSteps(config, nextSiteConfig)
+  runtimeCounters.value = buildCounters(config, nextSiteConfig, totals)
+  runtimeFragments.value = inspirations.map(inspirationToFragment)
+  runtimeThemePresets.value = themes.map(themeToPreset)
+  runtimeCurrentThemeName.value = currentTheme?.displayName
+    ?? themes.find((theme) => theme.active)?.displayName
+    ?? (themes.length > 0 ? '默认主题' : '暂无主题')
+  runtimeFieldNotes.value = buildFieldNotes(articles, projects, inspirations)
+}
+
 const validHexColorPattern = /^#(?:[\da-f]{3,4}|[\da-f]{6}|[\da-f]{8})$/i
+const HOME_ARTICLE_LIMIT = 6
+const HOME_PROJECT_LIMIT = 5
+const HOME_INSPIRATION_LIMIT = 8
+const defaultArticlePalettes = [
+  ['#1b2b4d', '#0a1326'],
+  ['#3a1d4d', '#160a26'],
+  ['#123a37', '#08201f'],
+  ['#4d3312', '#261707'],
+  ['#2f2a57', '#121028'],
+] as const
+const defaultProjectPalettes = [
+  { from: '#16233f', to: '#080f1d', accent: '#6ea8ff' },
+  { from: '#24143d', to: '#0e071d', accent: '#b18cff' },
+  { from: '#10312e', to: '#061918', accent: '#54e6c8' },
+  { from: '#3a2508', to: '#160d04', accent: '#ff9d6e' },
+] as const
+const fragmentLayouts = [
+  { span: { col: 2, row: 2 }, to: '#0b1428' },
+  { span: { col: 2, row: 1 }, to: '#0b1226' },
+  { span: { col: 1, row: 1 }, to: '#0a1326' },
+  { span: { col: 1, row: 2 }, to: '#0a0f1f' },
+] as const
 const fragmentKindMap = {
   IMAGE: 'image',
   TEXT: 'note',
@@ -158,6 +239,554 @@ const fragmentKindMap = {
   CODE: 'code',
   LINK: 'link',
 } as const satisfies Record<InspirationCard['cardType'], CreativeFragment['kind']>
+const homeModuleMeta: Record<string, Omit<ApproachStep, 'no'>> = {
+  hero: {
+    title: '首屏叙事',
+    en: 'Hero',
+    body: '站点身份、公开资料和首页内容块共同决定首屏标题、描述和 CTA。',
+    tags: ['site.identity', 'home.creatorHero'],
+  },
+  creatorArticles: {
+    title: '文章陈列',
+    en: 'Articles',
+    body: '公开文章从内容 API 读取，封面、标签和摘要会自动进入首页网格。',
+    tags: ['articles', 'published'],
+  },
+  creatorProjects: {
+    title: '作品橱窗',
+    en: 'Projects',
+    body: '已公开作品会进入横向作品墙，技术栈和封面都来自真实作品记录。',
+    tags: ['projects', 'visible'],
+  },
+  inspirations: {
+    title: '灵感桌面',
+    en: 'Ideas',
+    body: '公开灵感卡片会变成写作桌上的碎片，跟文章和作品保持同一套内容来源。',
+    tags: ['inspirations', 'public'],
+  },
+  themes: {
+    title: '主题预览',
+    en: 'Themes',
+    body: '主题展示区读取后台主题 API，并用当前启用主题作为默认预览。',
+    tags: ['themes', 'redis'],
+  },
+}
+
+type SiteTotals = {
+  articleTotal: number
+  projectTotal: number
+  inspirationTotal: number
+}
+
+interface HomeContentBlock {
+  blockKey: string
+  blockType: string
+  title: string
+  body: string
+  config: Record<string, unknown>
+}
+
+function readRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
+}
+
+function readArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : []
+}
+
+function readString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function readNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value
+  }
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return null
+}
+
+function readStringList(value: unknown): string[] {
+  return readArray(value)
+    .map((item) => readString(item))
+    .filter(Boolean)
+}
+
+function readContentBlocks(config: Record<string, unknown>): HomeContentBlock[] {
+  return readArray(config['home.contentBlocks'])
+    .map((item) => {
+      const record = readRecord(item)
+      const blockKey = readString(record.blockKey)
+      if (!blockKey) {
+        return null
+      }
+      return {
+        blockKey,
+        blockType: readString(record.blockType),
+        title: readString(record.title),
+        body: readString(record.body),
+        config: readRecord(record.config),
+      }
+    })
+    .filter((item): item is HomeContentBlock => item !== null)
+}
+
+function findContentBlock(config: Record<string, unknown>, blockKey: string): HomeContentBlock | null {
+  return readContentBlocks(config).find((block) => block.blockKey === blockKey) ?? null
+}
+
+function resolveSiteConfig(config: Record<string, unknown>): SiteConfig {
+  const identity = readRecord(config['site.identity'])
+  const profile = readRecord(config['site.profile.active'])
+  const profileJson = readRecord(profile.profileJson)
+  const brand = readString(identity.name)
+    || readString(profile.displayName)
+    || readString(identity.title)
+  const wordmark = readString(identity.wordmark) || readString(profileJson.signature) || brand
+  return {
+    brand,
+    wordmark,
+    navigation: readNavigation(config['site.navigationItems']),
+    social: readSocial(config['site.socialLinks']),
+  }
+}
+
+function readNavigation(value: unknown): SiteConfig['navigation'] {
+  return readArray(value)
+    .map((item) => {
+      const record = readRecord(item)
+      const label = readString(record.label)
+      const to = readString(record.path)
+      if (!label || !to || to.startsWith('//')) {
+        return null
+      }
+      return { label, to, external: isExternalUrl(to) }
+    })
+    .filter((item): item is SiteConfig['navigation'][number] => item !== null)
+}
+
+function readSocial(value: unknown): SiteConfig['social'] {
+  return readArray(value)
+    .map((item) => {
+      const record = readRecord(item)
+      const href = safeSocialHref(readString(record.url))
+      const label = readString(record.label) || readString(record.platform)
+      if (!label || !href) {
+        return null
+      }
+      return { label, handle: socialHandle(href), href }
+    })
+    .filter((item): item is SiteConfig['social'][number] => item !== null)
+}
+
+function safeSocialHref(value: string): string {
+  if (value.startsWith('mailto:')) {
+    return value
+  }
+  try {
+    const url = new URL(value)
+    return ['http:', 'https:'].includes(url.protocol) ? url.toString() : ''
+  } catch {
+    return ''
+  }
+}
+
+function socialHandle(href: string): string {
+  if (href.startsWith('mailto:')) {
+    return href.replace(/^mailto:/, '')
+  }
+  try {
+    const url = new URL(href)
+    return `${url.hostname}${url.pathname}`.replace(/\/$/, '')
+  } catch {
+    return href
+  }
+}
+
+function isExternalUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value)
+}
+
+function resolveHeroContent(
+  config: Record<string, unknown>,
+  site: SiteConfig,
+  totals: SiteTotals,
+): HomeHeroContent {
+  const block = findContentBlock(config, 'home.creatorHero')
+  const page = readRecord(config['page.home'])
+  const pageContent = readRecord(page.contentJson)
+  const blockConfig = block?.config ?? {}
+  const title = block?.title || readString(page.title) || site.brand
+  const configuredTitleLines = readStringList(blockConfig.titleLines)
+  const titleLines = configuredTitleLines.length > 0 ? configuredTitleLines : splitHeroTitle(title)
+  const configuredActions = readHeroActions(blockConfig.actions)
+  const primary = resolveHeroAction(blockConfig.primary, configuredActions[0] ?? firstNavigationAction(site, '/articles'))
+  const secondary = resolveHeroAction(blockConfig.secondary, configuredActions[1] ?? firstNavigationAction(site, '/projects'))
+  return {
+    kicker: readString(blockConfig.kicker) || readString(pageContent.kicker) || site.wordmark,
+    titleLines,
+    subtitle: readString(blockConfig.subtitle) || readString(pageContent.subtitle) || readString(page.seoTitle),
+    description: block?.body || readString(page.seoDescription) || readString(pageContent.description),
+    primary,
+    secondary,
+    stats: [
+      { value: String(totals.articleTotal), label: statLabel(blockConfig, 'article', '主题文章') },
+      { value: String(totals.projectTotal), label: statLabel(blockConfig, 'project', '创意作品') },
+      { value: String(totals.inspirationTotal), label: statLabel(blockConfig, 'inspiration', '灵感碎片') },
+    ],
+  }
+}
+
+function splitHeroTitle(title: string): string[] {
+  const normalized = title.trim()
+  if (!normalized) {
+    return []
+  }
+  const parts = normalized
+    .split(/[，,。|]/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+  return parts.length > 1 ? parts.slice(0, 3) : [normalized]
+}
+
+function readHeroActions(value: unknown): HomeHeroAction[] {
+  return readArray(value)
+    .map((item) => resolveHeroAction(item, null))
+    .filter((item): item is HomeHeroAction => item !== null)
+}
+
+function resolveHeroAction(value: unknown, fallback: HomeHeroAction | null): HomeHeroAction | null {
+  const record = readRecord(value)
+  const label = readString(record.label) || fallback?.label
+  const to = readString(record.to) || readString(record.path) || fallback?.to
+  if (!label || !to) {
+    return null
+  }
+  return { label, to, external: Boolean(record.external) || isExternalUrl(to) }
+}
+
+function firstNavigationAction(site: SiteConfig, preferredPath: string): HomeHeroAction | null {
+  const item = site.navigation.find((nav) => nav.to === preferredPath)
+    ?? site.navigation.find((nav) => nav.to.startsWith('/'))
+  return item ? { label: item.label, to: item.to, external: item.external } : null
+}
+
+function statLabel(config: Record<string, unknown>, key: string, fallback: string): string {
+  const labels = readRecord(config.statLabels)
+  return readString(labels[key]) || fallback
+}
+
+function buildMarqueeWords(config: Record<string, unknown>, site: SiteConfig): string[] {
+  const block = findContentBlock(config, 'home.manifesto')
+  const profile = readRecord(config['site.profile.active'])
+  const profileJson = readRecord(profile.profileJson)
+  return uniqueText([
+    ...readStringList(block?.config.marqueeWords),
+    ...readStringList(profileJson.focus),
+    ...site.navigation.map((item) => item.label),
+    site.brand,
+  ]).slice(0, 10)
+}
+
+function buildManifesto(config: Record<string, unknown>, site: SiteConfig): ManifestoContent {
+  const block = findContentBlock(config, 'home.manifesto')
+  const profile = readRecord(config['site.profile.active'])
+  const profileJson = readRecord(profile.profileJson)
+  const segments = readArray(block?.config.segments)
+    .map((item) => {
+      const record = readRecord(item)
+      const text = readString(record.text)
+      return text ? { text, accent: Boolean(record.accent) } : null
+    })
+    .filter((item): item is ManifestoContent['segments'][number] => item !== null)
+  const cards = readArray(block?.config.cards)
+    .map((item) => {
+      const record = readRecord(item)
+      const label = readString(record.label)
+      const value = readString(record.value)
+      if (!label || !value) {
+        return null
+      }
+      return {
+        label,
+        value,
+        detail: readString(record.detail),
+      }
+    })
+    .filter((item): item is ManifestoContent['cards'][number] => item !== null)
+  return {
+    lead: block?.title || readString(profile.headline) || site.brand,
+    segments: segments.length > 0
+      ? segments
+      : [{ text: block?.body || readString(profile.bio) || site.brand, accent: false }],
+    cards: cards.length > 0
+      ? cards
+      : readStringList(profileJson.focus).slice(0, 3).map((focus, index) => ({
+          label: `Focus ${index + 1}`,
+          value: focus,
+          detail: readString(profile.location),
+        })),
+  }
+}
+
+function buildFeaturedCards(articles: ArticleSummary[], projects: ProjectSummary[]): FeaturedArticle[] {
+  const articleItems = articles.slice(0, HOME_ARTICLE_LIMIT).map((article) => ({
+    type: 'article' as const,
+    item: article,
+  }))
+  const projectItems = projects.slice(0, HOME_PROJECT_LIMIT).map((project) => ({
+    type: 'project' as const,
+    item: project,
+  }))
+  return weightedShuffle([...articleItems, ...projectItems], (entry) =>
+    entry.type === 'article' ? featuredArticleScore(entry.item) : featuredProjectScore(entry.item),
+  )
+    .slice(0, HOME_ARTICLE_LIMIT)
+    .map((entry, index) =>
+      entry.type === 'article'
+        ? articleToFeatured(entry.item, index)
+        : projectToFeatured(entry.item, index),
+    )
+}
+
+function weightedShuffle<T>(items: T[], score: (item: T) => number): T[] {
+  return [...items]
+    .map((item, index) => ({
+      item,
+      index,
+      rank: Math.random() * (Math.max(1, score(item)) + 1),
+    }))
+    .sort((left, right) => right.rank - left.rank || left.index - right.index)
+    .map((entry) => entry.item)
+}
+
+function featuredArticleScore(article: ArticleSummary): number {
+  return (article.top ? 5 : 0)
+    + (article.recommended ? 4 : 0)
+    + Math.min(article.tags.length, 4)
+    + heatScore(article.viewCount, article.likeCount, 0, article.commentCount)
+    + recencyScore(article.publishTime)
+}
+
+function featuredProjectScore(project: ProjectSummary): number {
+  return (project.recommended ? 5 : 0)
+    + Math.min(project.tags.length, 4)
+    + heatScore(project.viewCount, project.likeCount, project.favoriteCount, project.commentCount)
+    + recencyScore(project.reviewedAt ?? project.submittedAt)
+}
+
+function heatScore(
+  viewCount: number | null | undefined,
+  likeCount: number | null | undefined,
+  favoriteCount: number | null | undefined,
+  commentCount: number | null | undefined,
+): number {
+  return Math.log10(Math.max(0, viewCount ?? 0) + 1)
+    + Math.log10(Math.max(0, likeCount ?? 0) * 3 + 1)
+    + Math.log10(Math.max(0, favoriteCount ?? 0) * 3 + 1)
+    + Math.log10(Math.max(0, commentCount ?? 0) * 4 + 1)
+}
+
+function recencyScore(value: string | null | undefined): number {
+  if (!value) {
+    return 0
+  }
+  const time = new Date(value).getTime()
+  if (Number.isNaN(time)) {
+    return 0
+  }
+  const ageDays = Math.max(0, (Date.now() - time) / 86400000)
+  return Math.max(0, 3 - ageDays / 60)
+}
+
+function buildPortfolioProjects(projects: ProjectSummary[]): PortfolioProject[] {
+  return projects.slice(0, HOME_PROJECT_LIMIT).map(projectToPortfolio)
+}
+
+function buildStructureCards(config: Record<string, unknown>, site: SiteConfig): AgentCapability[] {
+  const configured = readContentBlocks(config)
+    .filter((block) => block.blockKey.startsWith('home.module.'))
+    .map((block, index) => blockToCapability(block, index))
+  if (configured.length > 0) {
+    return configured
+  }
+  return site.navigation.slice(0, 5).map((item, index) => {
+    const meta = Object.values(homeModuleMeta)[index] ?? homeModuleMeta.hero
+    return {
+      id: `nav-${item.to}`,
+      name: item.label,
+      role: meta.en || '站点模块',
+      summary: item.to,
+      pipeline: defaultPipeline(),
+      outputs: [item.to],
+      accent: defaultProjectPalettes[index % defaultProjectPalettes.length]?.accent ?? '#6ea8ff',
+    }
+  })
+}
+
+function blockToCapability(block: HomeContentBlock, index: number): AgentCapability {
+  const configuredPipeline = readArray(block.config.pipeline)
+    .map((item) => {
+      const record = readRecord(item)
+      const stage = readString(record.stage)
+      const label = readString(record.label)
+      if (!['route', 'retrieve', 'generate'].includes(stage) || !label) {
+        return null
+      }
+      return { stage: stage as AgentStage, label }
+    })
+    .filter((item): item is AgentCapability['pipeline'][number] => item !== null)
+  return {
+    id: block.blockKey,
+    name: block.title,
+    role: readString(block.config.role) || block.blockType || '站点模块',
+    summary: block.body,
+    pipeline: configuredPipeline.length > 0 ? configuredPipeline : defaultPipeline(),
+    outputs: readStringList(block.config.outputs).slice(0, 4),
+    accent: safeHexColor(readString(block.config.accent), defaultProjectPalettes[index % defaultProjectPalettes.length]?.accent ?? '#6ea8ff'),
+  }
+}
+
+function defaultPipeline(): AgentCapability['pipeline'] {
+  return [
+    { stage: 'route', label: '读取' },
+    { stage: 'retrieve', label: '合并' },
+    { stage: 'generate', label: '渲染' },
+  ]
+}
+
+function buildApproachSteps(config: Record<string, unknown>, site: SiteConfig): ApproachStep[] {
+  const configured = readContentBlocks(config)
+    .filter((block) => block.blockKey.startsWith('home.step.'))
+    .map((block, index) => ({
+      no: String(index + 1).padStart(2, '0'),
+      title: block.title,
+      en: readString(block.config.en) || block.blockType || 'Step',
+      body: block.body,
+      tags: readStringList(block.config.tags).slice(0, 4),
+    }))
+  if (configured.length > 0) {
+    return configured
+  }
+  return site.navigation.slice(0, 4).map((item, index) => ({
+    no: String(index + 1).padStart(2, '0'),
+    title: item.label,
+    en: 'Navigation',
+    body: item.to,
+    tags: [item.external ? 'external' : 'internal'],
+  }))
+}
+
+function buildCounters(
+  config: Record<string, unknown>,
+  site: SiteConfig,
+  totals: SiteTotals,
+): CounterItem[] {
+  const block = findContentBlock(config, 'home.metrics')
+  const configured = readArray(block?.config.items)
+    .map((item) => {
+      const record = readRecord(item)
+      const value = readNumber(record.value)
+      const label = readString(record.label)
+      if (value === null || !label) {
+        return null
+      }
+      return { value, suffix: readString(record.suffix), label }
+    })
+    .filter((item): item is CounterItem => item !== null)
+  if (configured.length > 0) {
+    return configured
+  }
+  return [
+    { value: totals.articleTotal, suffix: '', label: statLabel({}, 'article', '主题文章') },
+    { value: totals.projectTotal, suffix: '', label: statLabel({}, 'project', '创意作品') },
+    { value: totals.inspirationTotal, suffix: '', label: statLabel({}, 'inspiration', '灵感碎片') },
+    { value: site.navigation.length, suffix: '', label: '公开入口' },
+  ]
+}
+
+function buildFieldNotes(
+  articles: ArticleSummary[],
+  projects: ProjectSummary[],
+  inspirations: InspirationCard[],
+): FieldNote[] {
+  const articleNotes = articles.slice(0, 3).map((article) => ({
+    date: formatHomeDate(article.publishTime, '已发布'),
+    tag: article.category?.name ?? '文章',
+    title: article.title,
+    detail: article.summary ?? '这篇文章暂未填写摘要。',
+  }))
+  const projectNotes = projects.slice(0, 2).map((project) => ({
+    date: formatHomeDate(project.reviewedAt ?? project.submittedAt, '展示中'),
+    tag: project.projectType || '作品',
+    title: project.title,
+    detail: project.description ?? '这个作品暂未填写说明。',
+  }))
+  const inspirationNotes = inspirations.slice(0, 2).map((card) => ({
+    date: formatHomeDate(card.createdAt, '灵感卡片'),
+    tag: card.cardType,
+    title: card.title,
+    detail: card.content ?? card.sourceUrl ?? '这张灵感卡片暂未填写内容。',
+  }))
+  return [...articleNotes, ...projectNotes, ...inspirationNotes].slice(0, 7)
+}
+
+function themeToPreset(theme: PublicThemeConfig): ThemePreset {
+  const config = readRecord(theme.config)
+  const accent = cssColor(config.accentColor, theme.primaryColor || '#6ea8ff')
+  const background = cssColor(config.backgroundColor, '#070b18')
+  const surface = cssColor(config.surfaceColor, '#11182a')
+  const ink = cssColor(config.inkColor, '#eaf1ff')
+  const muted = cssColor(config.mutedColor, '#99a6c4')
+  return {
+    id: theme.themeName,
+    name: theme.displayName,
+    tagline: readString(config.tagline) || theme.layoutType,
+    mood: readString(config.mood) || theme.backgroundType,
+    vars: {
+      bg: background,
+      surface,
+      ink,
+      muted,
+      accent,
+      accentSoft: cssColor(config.accentSoftColor, transparentColor(accent, 0.22)),
+      font: theme.fontFamily || 'Sora',
+    },
+    swatches: uniqueText([background, surface, accent, muted, theme.primaryColor]).slice(0, 5),
+  }
+}
+
+function cssColor(value: unknown, fallback: string): string {
+  const color = readString(value)
+  return color && (validHexColorPattern.test(color) || /^rgba?\(/i.test(color)) ? color : fallback
+}
+
+function transparentColor(color: string, alpha: number): string {
+  const hex = color.replace('#', '')
+  if (![3, 6].includes(hex.length) || !/^[\da-f]+$/i.test(hex)) {
+    return color
+  }
+  const full = hex.length === 3 ? hex.split('').map((char) => `${char}${char}`).join('') : hex
+  const r = Number.parseInt(full.slice(0, 2), 16)
+  const g = Number.parseInt(full.slice(2, 4), 16)
+  const b = Number.parseInt(full.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+function uniqueText(values: Array<string | null | undefined>): string[] {
+  const seen = new Set<string>()
+  return values.filter((value): value is string => {
+    const text = value?.trim()
+    if (!text || seen.has(text)) {
+      return false
+    }
+    seen.add(text)
+    return true
+  })
+}
 
 function safeHexColor(value: string | null | undefined, fallback: string) {
   const color = value?.trim()
@@ -193,61 +822,85 @@ function plainExcerpt(value: string | null | undefined, fallback: string) {
 }
 
 function articleToFeatured(article: ArticleSummary, index: number): FeaturedArticle {
-  const fallback = featuredArticles[index % featuredArticles.length] ?? featuredArticles[0]
+  const paletteSeed = defaultArticlePalettes[index % defaultArticlePalettes.length]
   const palette: [string, string] = [
-    firstTagColor(article.tags, fallback?.cover[0] ?? '#1b2b4d'),
-    fallback?.cover[1] ?? '#0a1326',
+    firstTagColor(article.tags, paletteSeed?.[0] ?? '#1b2b4d'),
+    paletteSeed?.[1] ?? '#0a1326',
   ]
   return {
     id: `article-${article.id}`,
     slug: article.slug,
     kind: index === 0 ? 'feature' : 'standard',
+    targetType: 'ARTICLE',
     title: article.title,
-    excerpt: article.summary ?? plainExcerpt(article.contentMarkdown, fallback?.excerpt ?? '这篇文章还在整理摘要。'),
+    excerpt: article.summary ?? plainExcerpt(article.contentMarkdown, '这篇文章还在整理摘要。'),
     tags: article.tags.length > 0
       ? article.tags.slice(0, 3).map((tag) => tag.name)
       : [article.category?.name ?? '主题文章'],
     readingMinutes: Math.max(1, Math.ceil((article.contentMarkdown?.length ?? article.summary?.length ?? 420) / 420)),
-    publishedAt: formatHomeDate(article.publishTime, fallback?.publishedAt),
+    publishedAt: formatHomeDate(article.publishTime),
     cover: palette,
-    coverImage: article.coverUrl ?? fallback?.coverImage ?? '',
+    coverImage: article.coverUrl ?? '',
+  }
+}
+
+function projectToFeatured(project: ProjectSummary, index: number): FeaturedArticle {
+  const paletteSeed = defaultProjectPalettes[index % defaultProjectPalettes.length]
+  const palette: [string, string] = [
+    firstTagColor(project.tags, paletteSeed?.from ?? '#16233f'),
+    paletteSeed?.to ?? '#080f1d',
+  ]
+  return {
+    id: `project-feature-${project.id}`,
+    slug: project.slug,
+    kind: index === 0 ? 'feature' : 'standard',
+    targetType: 'PROJECT',
+    title: project.title,
+    excerpt: project.description ?? plainExcerpt(project.contentMarkdown, '这个作品还在补充过程说明。'),
+    tags: project.tags.length > 0
+      ? project.tags.slice(0, 3).map((tag) => tag.name)
+      : [project.projectType || '创意作品'],
+    readingMinutes: Math.max(1, Math.ceil((project.contentMarkdown?.length ?? project.description?.length ?? 420) / 420)),
+    publishedAt: formatHomeDate(project.reviewedAt ?? project.submittedAt, '展示中'),
+    cover: palette,
+    coverImage: project.coverUrl ?? '',
   }
 }
 
 function projectToPortfolio(project: ProjectSummary, index: number): PortfolioProject {
-  const fallback = portfolioProjects[index % portfolioProjects.length] ?? portfolioProjects[0]
-  const accent = firstTagColor(project.tags, fallback?.palette.accent ?? '#6ea8ff')
+  const palette = defaultProjectPalettes[index % defaultProjectPalettes.length]
+  const accent = firstTagColor(project.tags, palette?.accent ?? '#6ea8ff')
   return {
     id: `project-${project.id}`,
     slug: project.slug,
     index: String(index + 1).padStart(2, '0'),
     title: project.title,
-    category: project.projectType || fallback?.category || 'PROJECT',
-    year: fallback?.year ?? '2026',
-    description: project.description ?? fallback?.description ?? '这个作品还在补充过程说明。',
+    category: project.projectType || 'PROJECT',
+    year: formatHomeDate(project.reviewedAt ?? project.submittedAt, 'LIVE'),
+    description: project.description ?? '这个作品还在补充过程说明。',
     stack: project.techStack.length > 0
       ? project.techStack.slice(0, 4)
       : project.tags.slice(0, 4).map((tag) => tag.name),
     palette: {
-      from: fallback?.palette.from ?? '#16233f',
-      to: fallback?.palette.to ?? '#080f1d',
+      from: palette?.from ?? '#16233f',
+      to: palette?.to ?? '#080f1d',
       accent,
     },
-    posterImage: project.coverUrl ?? fallback?.posterImage ?? '',
+    posterImage: project.coverUrl ?? '',
   }
 }
 
 function inspirationToFragment(card: InspirationCard, index: number): CreativeFragment {
-  const fallback = creativeFragments[index % creativeFragments.length] ?? creativeFragments[0]
-  const accent = safeHexColor(card.color, fallback?.palette?.[0] ?? '#263e70')
+  const layout = fragmentLayouts[index % fragmentLayouts.length]
+  const accent = safeHexColor(card.color, '#263e70')
   return {
     id: `inspiration-${card.id}`,
     kind: fragmentKindMap[card.cardType],
-    span: fallback?.span ?? { col: 1, row: 1 },
+    span: layout?.span ?? { col: 1, row: 1 },
     label: card.tags[0]?.name ?? card.title,
     body: card.content ?? card.title,
-    meta: card.sourceUrl ? 'source link' : formatHomeDate(card.createdAt, fallback?.meta ?? '灵感卡片'),
-    palette: [accent, fallback?.palette?.[1] ?? '#0b1428'],
+    meta: card.sourceUrl ? 'source link' : formatHomeDate(card.createdAt, '灵感卡片'),
+    palette: [accent, layout?.to ?? '#0b1428'],
   }
 }
 
@@ -276,25 +929,24 @@ const HeroUniverse = defineComponent({
     const titleLine = (text: string) =>
       h('span', { class: 'cs-line' }, [h('span', text)])
 
-    return () =>
-      h('section', { ref: root, class: 'cs-hero cs-section' }, [
+    return () => {
+      const hero = runtimeHeroContent.value
+      const actions = [hero?.primary, hero?.secondary].filter((item): item is HomeHeroAction => item !== null && item !== undefined)
+      return h('section', { ref: root, class: 'cs-hero cs-section' }, [
         h(HeroWebGLScene),
         h('div', { class: 'cs-hero__grain' }),
         h('div', { class: 'cs-hero__inner' }, [
-          h('p', { class: 'cs-eyebrow cs-hero__kicker' }, heroContent.kicker),
-          h('h1', { class: 'cs-hero__title' }, heroContent.titleLines.map(titleLine)),
+          h('p', { class: 'cs-eyebrow cs-hero__kicker' }, hero?.kicker ?? ''),
+          h('h1', { class: 'cs-hero__title' }, (hero?.titleLines ?? []).map(titleLine)),
           h('p', { class: 'cs-hero__sub' }, [
-            heroContent.subtitle,
-            h('span', { class: 'cs-zh' }, heroContent.description),
+            hero?.subtitle ?? '',
+            h('span', { class: 'cs-zh' }, hero?.description ?? ''),
           ]),
-          h('div', { class: 'cs-hero__actions' }, [
-            heroButton(heroContent.primary.to, heroContent.primary.label),
-            heroButton(heroContent.secondary.to, heroContent.secondary.label, true),
-          ]),
+          h('div', { class: 'cs-hero__actions' }, actions.map((action, index) => heroButton(action, index > 0))),
           h(
             'div',
             { class: 'cs-hero__stats' },
-            heroContent.stats.map((stat) =>
+            (hero?.stats ?? []).map((stat) =>
               h('div', { class: 'cs-stat', key: stat.label }, [
                 h('div', { class: 'cs-stat__value' }, stat.value),
                 h('div', { class: 'cs-stat__label' }, stat.label),
@@ -304,6 +956,7 @@ const HeroUniverse = defineComponent({
         ]),
         h('div', { class: 'cs-hero__scroll' }, 'Scroll to explore'),
       ])
+    }
   },
 })
 
@@ -371,7 +1024,8 @@ const MarqueeManifesto = defineComponent({
 
     // 渲染无缝滚动标语行。
     const marqueeRow = (reverse: boolean) => {
-      const items = [...marqueeWords, ...marqueeWords].map((word, i) =>
+      const words = runtimeMarqueeWords.value
+      const items = [...words, ...words].map((word, i) =>
         h('span', { key: `${word}-${i}`, class: 'cs-marquee__item' }, [
           word,
           h('i', { class: 'cs-marquee__star', 'aria-hidden': 'true' }, '✦'),
@@ -382,16 +1036,19 @@ const MarqueeManifesto = defineComponent({
       ])
     }
 
-    return () =>
-      h('section', { ref: root, id: 'manifesto', class: 'cs-marquee-sec' }, [
+    return () => {
+      const content = runtimeManifesto.value
+      const segments = content?.segments ?? []
+      const cards = content?.cards ?? []
+      return h('section', { ref: root, id: 'manifesto', class: 'cs-marquee-sec' }, [
         h('div', { class: 'cs-marquee' }, [marqueeRow(false), marqueeRow(true)]),
         h('div', { class: 'cs-mani cs-section' }, [
           h('div', { class: 'cs-mani__copy' }, [
-            h('p', { class: 'cs-eyebrow' }, manifesto.lead),
+            h('p', { class: 'cs-eyebrow' }, content?.lead ?? ''),
             h(
               'p',
               { class: 'cs-mani__text' },
-              manifesto.segments.flatMap((segment) =>
+              segments.flatMap((segment) =>
                 segment.text.split(' ').filter(Boolean).map((word, wordIndex) =>
                   h(
                     'span',
@@ -408,7 +1065,7 @@ const MarqueeManifesto = defineComponent({
           h(
             'div',
             { class: 'cs-mani__cards' },
-            manifesto.cards.map((card) =>
+            cards.map((card) =>
               h('article', { key: card.label, class: 'cs-mani-card' }, [
                 h('span', card.label),
                 h('strong', card.value),
@@ -418,6 +1075,7 @@ const MarqueeManifesto = defineComponent({
           ),
         ]),
       ])
+    }
   },
 })
 
@@ -433,9 +1091,8 @@ const FeaturedArticles = defineComponent({
   name: 'FeaturedArticles',
   setup() {
     const root = ref<HTMLElement | null>(null)
-    const articles = ref<FeaturedArticle[]>(featuredArticles)
+    const articles = runtimeArticles
     let articleRevealTweens: gsap.core.Tween[] = []
-    let disposed = false
 
     const killArticleReveal = () => {
       articleRevealTweens.forEach((tween) => tween.kill())
@@ -519,37 +1176,17 @@ const FeaturedArticles = defineComponent({
       })
     }
 
-    onMounted(async () => {
+    onMounted(() => {
       revealCurrentCards()
-      try {
-        const response = await fetchArticles()
-        if (disposed) {
-          return
-        }
-        const records = response.records.slice(0, featuredArticles.length)
-        if (records.length > 0) {
-          articles.value = records.map(articleToFeatured)
-          await nextTick()
-          if (disposed) {
-            return
-          }
-          revealCurrentCards()
-          requestAnimationFrame(() => {
-            if (!disposed) {
-              ScrollTrigger.refresh()
-            }
-          })
-        }
-      } catch {
-        if (disposed) {
-          return
-        }
-        articles.value = featuredArticles
-      }
     })
 
+    watch(articles, async () => {
+      await nextTick()
+      revealCurrentCards()
+      requestAnimationFrame(() => ScrollTrigger.refresh())
+    }, { flush: 'post' })
+
     onBeforeUnmount(() => {
-      disposed = true
       killArticleReveal()
     })
 
@@ -559,7 +1196,10 @@ const FeaturedArticles = defineComponent({
         RouterLink,
         {
           key: article.id,
-          to: { name: 'article-detail', params: { slug: article.slug } },
+          to: {
+            name: article.targetType === 'PROJECT' ? 'project-detail' : 'article-detail',
+            params: { slug: article.slug },
+          },
           class: spanClass(article, index),
           style: { '--cs-from': article.cover[0], '--cs-to': article.cover[1] },
           onPointermove: onTilt,
@@ -584,7 +1224,7 @@ const FeaturedArticles = defineComponent({
               h('h3', { class: 'cs-article__title' }, article.title),
               h('p', { class: 'cs-article__excerpt' }, article.excerpt),
               h('div', { class: 'cs-article__meta' }, [
-                h('span', `${article.readingMinutes} 分钟阅读`),
+                h('span', article.targetType === 'PROJECT' ? '作品记录' : `${article.readingMinutes} 分钟阅读`),
                 h('span', article.publishedAt),
               ]),
             ]),
@@ -618,7 +1258,7 @@ const PortfolioGallery = defineComponent({
   name: 'PortfolioGallery',
   setup() {
     const root = ref<HTMLElement | null>(null)
-    const projects = ref<PortfolioProject[]>(portfolioProjects)
+    const projects = runtimeProjects
     const stacked = ref(isStackedViewport())
     const stackQuery =
       typeof window !== 'undefined' ? window.matchMedia('(max-width: 900px)') : null
@@ -637,18 +1277,7 @@ const PortfolioGallery = defineComponent({
       stacked.value = event.matches
     }
 
-    onMounted(async () => {
-      try {
-        const response = await fetchProjects()
-        const records = response.records.slice(0, portfolioProjects.length)
-        if (records.length > 0) {
-          projects.value = records.map(projectToPortfolio)
-          await nextTick()
-        }
-      } catch {
-        projects.value = portfolioProjects
-      }
-
+    onMounted(() => {
       stackQuery?.addEventListener('change', onStackChange)
       matchMediaContext = gsap.matchMedia()
       matchMediaContext.add(
@@ -699,6 +1328,11 @@ const PortfolioGallery = defineComponent({
         root.value ?? undefined,
       )
     })
+
+    watch(projects, async () => {
+      await nextTick()
+      ScrollTrigger.refresh()
+    }, { flush: 'post' })
 
     onBeforeUnmount(() => {
       stackQuery?.removeEventListener('change', onStackChange)
@@ -888,6 +1522,12 @@ const SiteStructureShowcase = defineComponent({
       }
     })
 
+    watch(runtimeStructureCards, async () => {
+      await nextTick()
+      remeasure()
+      ScrollTrigger.refresh()
+    }, { flush: 'post' })
+
     onBeforeUnmount(() => {
       resizeObserver?.disconnect()
       resizeObserver = null
@@ -975,7 +1615,7 @@ const SiteStructureShowcase = defineComponent({
                 : []),
             ],
           ),
-          ...agentCapabilities.map(renderAgent),
+          ...runtimeStructureCards.value.map(renderAgent),
         ]),
       ])
   },
@@ -1088,8 +1728,10 @@ const ApproachProcess = defineComponent({
         ),
       ])
 
-    return () =>
-      h('section', { ref: root, class: 'cs-approach cs-section', id: 'approach' }, [
+    return () => {
+      const steps = runtimeApproachSteps.value
+      const counterItems = runtimeCounters.value
+      return h('section', { ref: root, class: 'cs-approach cs-section', id: 'approach' }, [
         h('div', { class: 'cs-head' }, [
           h('div', [
             h('p', { class: 'cs-eyebrow' }, 'How It Works'),
@@ -1103,12 +1745,12 @@ const ApproachProcess = defineComponent({
         ]),
         h('div', { class: 'cs-approach__grid' }, [
           h('aside', { class: 'cs-rail' }, [
-            h('div', { class: 'cs-rail__num' }, approachSteps[activeIndex.value]?.no ?? '01'),
-            h('div', { class: 'cs-rail__label' }, approachSteps[activeIndex.value]?.en ?? ''),
+            h('div', { class: 'cs-rail__num' }, steps[activeIndex.value]?.no ?? '01'),
+            h('div', { class: 'cs-rail__label' }, steps[activeIndex.value]?.en ?? ''),
             h(
               'div',
               { class: 'cs-rail__track' },
-              approachSteps.map((step, index) =>
+              steps.map((step, index) =>
                 h('span', {
                   key: step.no,
                   class: ['cs-rail__tick', { 'is-active': index === activeIndex.value }],
@@ -1116,12 +1758,12 @@ const ApproachProcess = defineComponent({
               ),
             ),
           ]),
-          h('div', { class: 'cs-steps' }, approachSteps.map(renderStep)),
+          h('div', { class: 'cs-steps' }, steps.map(renderStep)),
         ]),
         h(
           'div',
           { class: 'cs-counters' },
-          counters.map((counter) =>
+          counterItems.map((counter) =>
             h('div', { class: 'cs-counter', key: counter.label }, [
               h(
                 'span',
@@ -1137,6 +1779,7 @@ const ApproachProcess = defineComponent({
           ),
         ),
       ])
+    }
   },
 })
 
@@ -1144,7 +1787,7 @@ const CreativeWall = defineComponent({
   name: 'CreativeWall',
   setup() {
     const root = ref<HTMLElement | null>(null)
-    const fragments = ref<CreativeFragment[]>(creativeFragments)
+    const fragments = runtimeFragments
     const detachers: Array<() => void> = []
 
     const bindMagneticCards = () => {
@@ -1173,18 +1816,15 @@ const CreativeWall = defineComponent({
       }
     })
 
-    onMounted(async () => {
-      try {
-        const response = await fetchInspirations({ pageSize: 8 })
-        if (response.records.length > 0) {
-          fragments.value = response.records.map(inspirationToFragment)
-          await nextTick()
-        }
-      } catch {
-        fragments.value = creativeFragments
-      }
+    onMounted(() => {
       bindMagneticCards()
     })
+
+    watch(fragments, async () => {
+      await nextTick()
+      bindMagneticCards()
+      ScrollTrigger.refresh()
+    }, { flush: 'post' })
 
     onBeforeUnmount(() => {
       detachers.forEach((off) => off())
@@ -1243,8 +1883,7 @@ const CreativeWall = defineComponent({
 const ThemeUniverse = defineComponent({
   name: 'ThemeUniverse',
   setup() {
-    const activeId = ref<string>(themePresets[0]?.id ?? '')
-    const currentThemeName = ref('读取中')
+    const activeId = ref<string>('')
     const preview = ref<HTMLElement | null>(null)
 
     // 把主题变量写入预览容器。
@@ -1283,7 +1922,7 @@ const ThemeUniverse = defineComponent({
     // 保存主题预览容器引用。
     const setPreviewRef = (el: Element | null) => {
       preview.value = el as HTMLElement | null
-      const first = themePresets.find((preset) => preset.id === activeId.value)
+      const first = runtimeThemePresets.value.find((preset) => preset.id === activeId.value)
       if (first) {
         applyVars(first)
       }
@@ -1295,14 +1934,20 @@ const ThemeUniverse = defineComponent({
       }
     })
 
-    onMounted(async () => {
-      try {
-        const theme = await fetchCurrentTheme()
-        currentThemeName.value = theme?.displayName ?? '默认主题'
-      } catch {
-        currentThemeName.value = '本地默认'
+    watch(runtimeThemePresets, (presets) => {
+      if (presets.length === 0) {
+        activeId.value = ''
+        return
       }
-    })
+      const active = presets.find((preset) => preset.name === runtimeCurrentThemeName.value) ?? presets[0]
+      if (active && !presets.some((preset) => preset.id === activeId.value)) {
+        activeId.value = active.id
+      }
+      const selected = presets.find((preset) => preset.id === activeId.value) ?? active
+      if (selected) {
+        applyVars(selected)
+      }
+    }, { immediate: true, flush: 'post' })
 
     // 渲染主题切换按钮。
     const renderThemeButton = (preset: ThemePreset) =>
@@ -1328,10 +1973,16 @@ const ThemeUniverse = defineComponent({
       )
 
     // 读取当前激活主题配置。
-    const activePreset = () => themePresets.find((preset) => preset.id === activeId.value) ?? themePresets[0]
+    const activePreset = () =>
+      runtimeThemePresets.value.find((preset) => preset.id === activeId.value) ?? runtimeThemePresets.value[0]
+
+    const previewCount = (keyword: string) =>
+      runtimeCounters.value.find((counter) => counter.label.includes(keyword))
 
     return () => {
       const active = activePreset()
+      const articleCounter = previewCount('文章')
+      const projectCounter = previewCount('作品')
       return h('section', { class: 'cs-themes cs-section', id: 'themes' }, [
         h('div', { class: 'cs-head' }, [
           h('div', [
@@ -1345,7 +1996,7 @@ const ThemeUniverse = defineComponent({
           ),
         ]),
         h('div', { class: 'cs-themes__layout' }, [
-          h('div', { class: 'cs-themes__list' }, themePresets.map(renderThemeButton)),
+          h('div', { class: 'cs-themes__list' }, runtimeThemePresets.value.map(renderThemeButton)),
           h('div', { class: 'cs-theme-preview', ref: setPreviewRef }, [
             h('p', { class: 'cs-theme-preview__eyebrow cs-tp-fade' }, active?.mood ?? ''),
             h('h3', { class: 'cs-theme-preview__title cs-tp-fade' }, active?.name ?? ''),
@@ -1356,15 +2007,15 @@ const ThemeUniverse = defineComponent({
             ),
             h('div', { class: 'cs-theme-preview__cards cs-tp-fade' }, [
               h('div', { class: 'cs-theme-preview__card' }, [
-                h('strong', '128'),
-                h('span', '文章'),
+                h('strong', articleCounter ? `${articleCounter.value}${articleCounter.suffix}` : '0'),
+                h('span', articleCounter?.label ?? '文章'),
               ]),
               h('div', { class: 'cs-theme-preview__card' }, [
-                h('strong', '36'),
-                h('span', '作品'),
+                h('strong', projectCounter ? `${projectCounter.value}${projectCounter.suffix}` : '0'),
+                h('span', projectCounter?.label ?? '作品'),
               ]),
             ]),
-            h('span', { class: 'cs-theme-preview__chip cs-tp-fade' }, `当前启用 · ${currentThemeName.value}`),
+            h('span', { class: 'cs-theme-preview__chip cs-tp-fade' }, `当前启用 · ${runtimeCurrentThemeName.value}`),
           ]),
         ]),
       ])
@@ -1429,7 +2080,7 @@ const FieldNotes = defineComponent({
             '这里只记录模块级进展，方便回看这个个人博客与作品平台是怎样一步步搭起来的。',
           ),
         ]),
-        h('div', { class: 'cs-notes__list' }, fieldNotes.map(renderNote)),
+        h('div', { class: 'cs-notes__list' }, runtimeFieldNotes.value.map(renderNote)),
       ])
   },
 })
@@ -1502,7 +2153,7 @@ const FinalCTA = defineComponent({
       h('section', { ref: root, class: 'cs-cta-wrap', id: 'enter', onPointermove: onMove }, [
         h('div', { class: 'cs-cta' }, [
           h('div', { ref: glow, class: 'cs-cta__glow' }),
-          h('p', { class: 'cs-eyebrow cs-cta__eyebrow' }, closing.eyebrow),
+          h('p', { class: 'cs-eyebrow cs-cta__eyebrow' }, runtimeSiteConfig.value?.brand ?? ''),
           h('h2', { class: 'cs-cta__line', onPointerover: onCharOver }, chars()),
           h(
             'p',
@@ -1530,26 +2181,22 @@ const FinalCTA = defineComponent({
 
 // 渲染首页页脚。
 function renderFooter() {
-  const github = siteConfig.social.find((item) => item.label === 'GitHub')
-  const mail = siteConfig.social.find((item) => item.label === 'Mail')
+  const site = runtimeSiteConfig.value
+  const links = (site?.social ?? []).slice(0, 2)
 
   return h('footer', { class: 'cs-footer' }, [
-    h('span', `© ${new Date().getFullYear()} ${siteConfig.wordmark}`),
-    h(
-      'a',
-      {
-        href: 'https://github.com/SakuraCianna/CreatorSpace',
-        target: '_blank',
-        rel: 'noreferrer',
-      },
-      `GitHub · ${github?.handle ?? 'github.com/SakuraCianna/CreatorSpace'}`,
-    ),
-    h(
-      'a',
-      {
-        href: 'mailto:754515922@qq.com',
-      },
-      `Mail · ${mail?.handle ?? '754515922@qq.com'}`,
+    h('span', `© ${new Date().getFullYear()} ${site?.wordmark ?? ''}`),
+    ...links.map((link) =>
+      h(
+        'a',
+        {
+          key: link.href,
+          href: link.href,
+          target: link.href?.startsWith('mailto:') ? undefined : '_blank',
+          rel: link.href?.startsWith('mailto:') ? undefined : 'noreferrer',
+        },
+        `${link.label} · ${link.handle}`,
+      ),
     ),
   ])
 }

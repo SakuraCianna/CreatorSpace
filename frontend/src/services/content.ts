@@ -15,6 +15,7 @@ import type {
   PageResponse,
   ProjectPayload,
   ProjectSummary,
+  PublicThemeConfig,
   SearchResult,
   SiteSettings,
   SiteSettingsPayload,
@@ -773,6 +774,12 @@ export async function fetchSiteConfig(): Promise<Record<string, unknown>> {
 // 读取当前主题配置。
 export async function fetchCurrentTheme(): Promise<ThemeConfig | null> {
   const response = await requestJson<ApiEnvelope<ThemeConfig | null>>('/api/theme/current')
+  return response.data
+}
+
+// 读取公开主题列表，供前台主题展示区使用。
+export async function fetchThemes(): Promise<PublicThemeConfig[]> {
+  const response = await requestJson<ApiEnvelope<PublicThemeConfig[]>>('/api/themes')
   return response.data
 }
 

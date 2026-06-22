@@ -36,17 +36,17 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { ref } from 'vue'
 import { RouterLink, type RouteLocationRaw } from 'vue-router'
 import { ArrowRight, LoaderCircle, Search } from '@lucide/vue'
 
-import { fallbackSearchResults } from '@/content/studio'
 import { searchContent } from '@/services/content'
+import { toUserMessage } from '@/services/http'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import type { SearchResult } from '@/shared/domain'
 
 const root = ref<HTMLElement | null>(null)
-const keyword = ref('内容系统')
+const keyword = ref('')
 const results = ref<SearchResult[]>([])
 const isLoading = ref(false)
 const searched = ref(false)
@@ -74,10 +74,8 @@ async function runSearch() {
     const page = await searchContent(value)
     results.value = page.records
   } catch (error) {
-    results.value = fallbackSearchResults.filter((item) =>
-      `${item.title} ${item.description ?? ''}`.toLowerCase().includes(value.toLowerCase()),
-    )
-    notice.value = '已显示本地精选内容。'
+    results.value = []
+    notice.value = toUserMessage(error, '搜索接口暂不可用，请稍后再试')
   } finally {
     isLoading.value = false
   }
@@ -92,8 +90,6 @@ function resultTarget(result: SearchResult): RouteLocationRaw {
   }
   return { name: 'inspirations' }
 }
-
-onMounted(runSearch)
 </script>
 
 <style scoped>

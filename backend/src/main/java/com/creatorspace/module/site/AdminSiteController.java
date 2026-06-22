@@ -11,6 +11,8 @@ import jakarta.validation.constraints.Size;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -32,10 +34,12 @@ public class AdminSiteController {
     private static final String THEME_NAME_PATTERN = "^[a-z0-9]+(?:[-_][a-z0-9]+)*$";
 
     private final JdbcTemplate jdbcTemplate;
+    private final SiteCacheService siteCacheService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public AdminSiteController(JdbcTemplate jdbcTemplate) {
+    public AdminSiteController(JdbcTemplate jdbcTemplate, SiteCacheService siteCacheService) {
         this.jdbcTemplate = jdbcTemplate;
+        this.siteCacheService = siteCacheService;
     }
 
     // 查询全部主题，后台用于编辑和切换当前主题。
@@ -82,6 +86,7 @@ public class AdminSiteController {
                 id
         );
         logOperation(loginUser.userId(), "更新主题", "THEME", "THEME", id, Map.of("themeName", request.themeName()));
+        evictAfterCommit(siteCacheService::evictThemes);
         return ApiResponse.ok(themeById(id));
     }
 
@@ -96,6 +101,7 @@ public class AdminSiteController {
         jdbcTemplate.update("update theme_configs set is_active = false, updated_at = now() where is_active = true");
         jdbcTemplate.update("update theme_configs set is_active = true, updated_at = now() where id = ?", id);
         logOperation(loginUser.userId(), "切换主题", "THEME", "THEME", id, Map.of("themeId", id));
+        evictAfterCommit(siteCacheService::evictThemes);
         return ApiResponse.ok(themeById(id));
     }
 
@@ -128,7 +134,21 @@ public class AdminSiteController {
             request.pages().forEach(this::upsertPageConfig);
         }
         logOperation(loginUser.userId(), "更新站点设置", "SITE", "SITE", null, Map.of("sections", request.changedSections()));
+        evictAfterCommit(siteCacheService::evictSiteConfig);
         return ApiResponse.ok(siteSettings());
+    }
+
+    private void evictAfterCommit(Runnable eviction) {
+        if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+            eviction.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                eviction.run();
+            }
+        });
     }
 
     private List<AdminThemeVO> themes() {

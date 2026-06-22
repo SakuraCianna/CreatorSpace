@@ -44,6 +44,7 @@ import { RouterLink } from 'vue-router'
 import { LoaderCircle, UserPlus } from '@lucide/vue'
 
 import { registerUser } from '@/services/content'
+import { toUserMessage } from '@/services/http'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 
 const root = ref<HTMLElement | null>(null)
@@ -72,7 +73,7 @@ async function submitRegister() {
     message.value = `账号 ${user.username} 创建成功，可以等待后续普通登录入口接入。`
     form.password = ''
   } catch (error) {
-    message.value = error instanceof Error ? error.message : '注册失败，请稍后重试'
+    message.value = toUserMessage(error, '注册失败，请稍后重试')
   } finally {
     isSubmitting.value = false
   }

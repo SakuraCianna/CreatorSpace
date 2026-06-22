@@ -64,8 +64,8 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { LoaderCircle } from '@lucide/vue'
 
-import { fallbackProjects } from '@/content/studio'
 import { fetchProjects } from '@/services/content'
+import { toUserMessage } from '@/services/http'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import type { ProjectSummary } from '@/shared/domain'
 
@@ -98,13 +98,10 @@ async function loadProjects() {
   notice.value = ''
   try {
     const page = await fetchProjects()
-    projects.value = page.records.length ? page.records : fallbackProjects
-    if (!page.records.length) {
-      notice.value = '已显示精选作品。'
-    }
+    projects.value = page.records
   } catch (error) {
-    projects.value = fallbackProjects
-    notice.value = '已显示精选作品。'
+    projects.value = []
+    notice.value = toUserMessage(error, '作品接口暂不可用，请稍后再试')
   } finally {
     isLoading.value = false
   }

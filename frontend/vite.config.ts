@@ -22,7 +22,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
-      host: env.VITE_DEV_SERVER_HOST || '127.0.0.1',
+      host: '127.0.0.1',
       port: readNumber(env.VITE_DEV_SERVER_PORT, 5173),
       proxy: {
         '/api': {

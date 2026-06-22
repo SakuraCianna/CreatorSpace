@@ -118,7 +118,6 @@ import {
   MessageCircle,
 } from '@lucide/vue'
 
-import { fallbackArticles } from '@/content/studio'
 import {
   fetchArticleBySlug,
   fetchComments,
@@ -128,6 +127,7 @@ import {
   favoriteTarget,
   unfavoriteTarget,
 } from '@/services/content'
+import { toUserMessage } from '@/services/http'
 import { useCinematicPageMotion } from '@/shared/composables/useCinematicPageMotion'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import { toCssImageUrl } from '@/shared/cssImage'
@@ -183,8 +183,8 @@ async function loadArticle() {
     article.value = await fetchArticleBySlug(slug.value)
     await loadComments()
   } catch (error) {
-    article.value = fallbackArticles.find((item) => item.slug === slug.value) ?? null
-    notice.value = error instanceof Error ? `后端暂不可用，已尝试本地样例：${error.message}` : '后端暂不可用，已尝试本地样例。'
+    article.value = null
+    notice.value = toUserMessage(error, '文章暂时无法打开，请稍后再试')
   } finally {
     isLoading.value = false
     void cinematic.play()
@@ -227,7 +227,7 @@ async function postComment() {
     commentNotice.value = '评论已提交，审核通过后会公开展示'
     await loadComments()
   } catch (error) {
-    commentNotice.value = error instanceof Error ? error.message : '评论提交失败'
+    commentNotice.value = toUserMessage(error, '评论提交失败')
   }
 }
 

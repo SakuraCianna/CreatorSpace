@@ -642,6 +642,7 @@ import {
   updateTheme,
   uploadAdminFile,
 } from '@/services/content'
+import { toUserMessage } from '@/services/http'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import type {
   AdminThemeConfig,
@@ -1419,7 +1420,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function readError(error: unknown, fallback: string) {
-  return error instanceof Error ? `${fallback}: ${error.message}` : fallback
+  return `${fallback}: ${toUserMessage(error, '请稍后再试')}`
 }
 
 const configs: Record<string, ModuleConfig> = {

@@ -156,6 +156,10 @@ mvn -f backend/pom.xml spring-boot:run
 npm run dev --prefix frontend
 ```
 
+后端已接入 Spring Boot DevTools，本地通过 `spring-boot:run` 启动时，代码变更会触发开发重启。
+
+前端保持 Vite 本机开发服务的简单配置，未额外增加局域网访问配置。
+
 6. 验证健康检查。
 
 ```powershell
@@ -288,6 +292,7 @@ POST   /api/auth/register
 POST   /api/auth/login
 GET    /api/site/config
 GET    /api/theme/current
+GET    /api/themes
 GET    /api/search
 GET    /api/categories
 GET    /api/tags

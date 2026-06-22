@@ -36,6 +36,15 @@ public class ArticleEntity {
     @TableField("privacy_type")
     private String privacyType;
 
+    @TableField("view_count")
+    private Long viewCount;
+
+    @TableField("like_count")
+    private Long likeCount;
+
+    @TableField("comment_count")
+    private Long commentCount;
+
     @TableField("is_top")
     private Boolean top;
 
@@ -151,6 +160,36 @@ public class ArticleEntity {
     // 设置privacy type。
     public void setPrivacyType(String privacyType) {
         this.privacyType = privacyType;
+    }
+
+    // 获取view count。
+    public Long getViewCount() {
+        return viewCount;
+    }
+
+    // 设置view count。
+    public void setViewCount(Long viewCount) {
+        this.viewCount = viewCount;
+    }
+
+    // 获取like count。
+    public Long getLikeCount() {
+        return likeCount;
+    }
+
+    // 设置like count。
+    public void setLikeCount(Long likeCount) {
+        this.likeCount = likeCount;
+    }
+
+    // 获取comment count。
+    public Long getCommentCount() {
+        return commentCount;
+    }
+
+    // 设置comment count。
+    public void setCommentCount(Long commentCount) {
+        this.commentCount = commentCount;
     }
 
     // 获取top。

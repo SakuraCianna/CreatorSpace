@@ -74,8 +74,8 @@ import {
   StickyNote,
 } from '@lucide/vue'
 
-import { fallbackInspirations } from '@/content/studio'
 import { fetchInspirations } from '@/services/content'
+import { toUserMessage } from '@/services/http'
 import { useCinematicPageMotion } from '@/shared/composables/useCinematicPageMotion'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import type { InspirationCard, InspirationType } from '@/shared/domain'
@@ -116,13 +116,10 @@ async function loadInspirations() {
   notice.value = ''
   try {
     const page = await fetchInspirations({ keyword: keyword.value, type: activeType.value, pageSize: 30 })
-    cards.value = page.records.length ? page.records : filterFallback()
-    if (!page.records.length) {
-      notice.value = '已显示精选灵感。'
-    }
+    cards.value = page.records
   } catch (error) {
-    cards.value = filterFallback()
-    notice.value = '已显示精选灵感。'
+    cards.value = []
+    notice.value = toUserMessage(error, '灵感接口暂不可用，请稍后再试')
   } finally {
     isLoading.value = false
     hasLoaded.value = true
@@ -131,16 +128,6 @@ async function loadInspirations() {
       void cinematic.play()
     }
   }
-}
-
-function filterFallback() {
-  return fallbackInspirations.filter((card) => {
-    const typeMatch = activeType.value === 'ALL' || card.cardType === activeType.value
-    const keywordMatch =
-      !keyword.value.trim() ||
-      `${card.title} ${card.content ?? ''}`.toLowerCase().includes(keyword.value.trim().toLowerCase())
-    return typeMatch && keywordMatch
-  })
 }
 
 function safeSource(value?: string | null): string {

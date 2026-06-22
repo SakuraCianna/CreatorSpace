@@ -1,23 +1,29 @@
 package com.creatorspace.module.content;
 
+import com.creatorspace.module.site.SiteCacheService;
 import com.creatorspace.testsupport.PostgresIntegrationTestSupport;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
+import org.testcontainers.utility.DockerImageName;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -46,10 +52,17 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
     @Container
     private static final PostgreSQLContainer POSTGRES = createPostgres("creatorspace_content_test");
 
+    @Container
+    private static final GenericContainer<?> REDIS = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
+            .withExposedPorts(6379);
+
     // 注册内容接口集成测试所需的临时 PostgreSQL 配置。
     @DynamicPropertySource
     static void registerProperties(DynamicPropertyRegistry registry) {
         registerPostgresProperties(registry, POSTGRES);
+        registry.add("spring.data.redis.host", REDIS::getHost);
+        registry.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));
+        registry.add("spring.data.redis.password", () -> "");
         registry.add("app.storage.local-root", () -> "target/test-uploads");
     }
 
@@ -59,7 +72,19 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private StringRedisTemplate redisTemplate;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @BeforeEach
+    void clearSiteCache() {
+        redisTemplate.delete(List.of(
+                SiteCacheService.SITE_CONFIG_KEY,
+                SiteCacheService.CURRENT_THEME_KEY,
+                SiteCacheService.THEME_LIST_KEY
+        ));
+    }
 
     // 验证普通用户注册、创作文章、提交审核和管理员通过后的公开闭环。
     @Test
@@ -1019,6 +1044,21 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
         String token = loginAsAdmin();
         long themeId = firstThemeId(token);
 
+        mockMvc.perform(get("/api/themes"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", not(empty())))
+                .andExpect(jsonPath("$.data[0].themeName", not("")))
+                .andExpect(jsonPath("$.data[0].id").doesNotExist())
+                .andExpect(jsonPath("$.data[0].createdAt").doesNotExist())
+                .andExpect(jsonPath("$.data[0].updatedAt").doesNotExist())
+                .andExpect(jsonPath("$.data[0].config.creatorMode").doesNotExist());
+        assertThat(Boolean.TRUE.equals(redisTemplate.hasKey(SiteCacheService.THEME_LIST_KEY))).isTrue();
+
+        mockMvc.perform(get("/api/theme/current"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.themeName", not("")));
+        assertThat(Boolean.TRUE.equals(redisTemplate.hasKey(SiteCacheService.CURRENT_THEME_KEY))).isTrue();
+
         mockMvc.perform(put("/api/admin/themes/{id}", themeId)
                         .header("Authorization", bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -1040,6 +1080,8 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                 .andExpect(jsonPath("$.data.themeName", is("test-material-blue")))
                 .andExpect(jsonPath("$.data.primaryColor", is("#1a73e8")))
                 .andExpect(jsonPath("$.data.config.density", is("focused")));
+        assertThat(Boolean.TRUE.equals(redisTemplate.hasKey(SiteCacheService.CURRENT_THEME_KEY))).isFalse();
+        assertThat(Boolean.TRUE.equals(redisTemplate.hasKey(SiteCacheService.THEME_LIST_KEY))).isFalse();
 
         mockMvc.perform(put("/api/admin/themes/{id}/switch", themeId)
                         .header("Authorization", bearer(token)))
@@ -1050,6 +1092,7 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.themeName", is("test-material-blue")))
                 .andExpect(jsonPath("$.data.config.motion", is("soft")));
+        assertThat(Boolean.TRUE.equals(redisTemplate.hasKey(SiteCacheService.CURRENT_THEME_KEY))).isTrue();
     }
 
     // 验证主题后台拒绝 javascript 等不安全资源地址。
@@ -1081,6 +1124,15 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
     @Test
     void adminCanUpdateSiteSettingsAndPublicConfigReflectsChanges() throws Exception {
         String token = loginAsAdmin();
+        mockMvc.perform(get("/api/site/config"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data['site.identity'].name", not("")))
+                .andExpect(jsonPath("$.data['site.creatorPolicy']").doesNotExist())
+                .andExpect(jsonPath("$.data['page.home'].title", not("")))
+                .andExpect(jsonPath("$.data['home.contentBlocks'][0].blockKey", is("home.creatorHero")))
+                .andExpect(jsonPath("$.data['home.contentBlocks'][0].config.cta", is("/creator")));
+        assertThat(Boolean.TRUE.equals(redisTemplate.hasKey(SiteCacheService.SITE_CONFIG_KEY))).isTrue();
+
         String settingsResponse = mockMvc.perform(get("/api/admin/site/settings")
                         .header("Authorization", bearer(token)))
                 .andExpect(status().isOk())
@@ -1100,11 +1152,15 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                                         "displayName", "CreatorSpace Test Lab",
                                         "headline", "主题博客与创意展厅",
                                         "avatarUrl", "/uploads/demo/avatar.webp",
-                                        "bio", "测试公开站点资料会从后台同步。",
-                                        "contactEmail", "creator@example.com",
-                                        "location", "Shanghai",
-                                        "profileJson", Map.of("signature", "material-cms")
-                                ),
+                                         "bio", "测试公开站点资料会从后台同步。",
+                                         "contactEmail", "creator@example.com",
+                                         "location", "Shanghai",
+                                        "profileJson", Map.of(
+                                                "signature", "material-cms",
+                                                "focus", new String[]{"主题配置", "内容展示"},
+                                                "privateToken", "should-not-be-public"
+                                        )
+                                 ),
                                 "configs", new Object[]{
                                         Map.of(
                                                 "configKey", "site.identity",
@@ -1154,15 +1210,23 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                 .andExpect(jsonPath("$.data.profile.displayName", is("CreatorSpace Test Lab")))
                 .andExpect(jsonPath("$.data.navigationItems[0].label", is("实验室")))
                 .andExpect(jsonPath("$.data.navigationItems[0].extraJson.source", is("test")));
+        assertThat(Boolean.TRUE.equals(redisTemplate.hasKey(SiteCacheService.SITE_CONFIG_KEY))).isFalse();
 
         mockMvc.perform(get("/api/site/config"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data['site.profile.active'].displayName", is("CreatorSpace Test Lab")))
+                .andExpect(jsonPath("$.data['site.profile.active'].contactEmail").doesNotExist())
+                .andExpect(jsonPath("$.data['site.profile.active'].profileJson.signature", is("material-cms")))
+                .andExpect(jsonPath("$.data['site.profile.active'].profileJson.focus[0]", is("主题配置")))
+                .andExpect(jsonPath("$.data['site.profile.active'].profileJson.privateToken").doesNotExist())
                 .andExpect(jsonPath("$.data['site.identity'].name", is("CreatorSpace Test Lab")))
                 .andExpect(jsonPath("$.data['site.navigationItems'][0].label", is("实验室")))
                 .andExpect(jsonPath("$.data['site.navigationItems'][0].path", is("/lab")))
                 .andExpect(jsonPath("$.data['site.socialLinks'][0].label", is("Code Lab")))
+                .andExpect(jsonPath("$.data['page.home'].title", not("")))
+                .andExpect(jsonPath("$.data['home.contentBlocks'][0].blockKey", is("home.creatorHero")))
                 .andExpect(jsonPath("$.data['page.about'].title", is("关于测试创作者")));
+        assertThat(Boolean.TRUE.equals(redisTemplate.hasKey(SiteCacheService.SITE_CONFIG_KEY))).isTrue();
     }
 
     // 验证后台导航配置拒绝协议相对 URL，避免把 //evil.example 当作站内路径。

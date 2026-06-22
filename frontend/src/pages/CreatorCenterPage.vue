@@ -285,6 +285,7 @@ import {
   updateCreatorProject,
   uploadCreatorFile,
 } from '@/services/content'
+import { toUserMessage } from '@/services/http'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import type {
   ArticlePayload,
@@ -609,7 +610,7 @@ function formatSize(value: number) {
 }
 
 function readError(error: unknown, fallback: string) {
-  return error instanceof Error ? `${fallback}: ${error.message}` : fallback
+  return `${fallback}: ${toUserMessage(error, '请稍后再试')}`
 }
 </script>
 
