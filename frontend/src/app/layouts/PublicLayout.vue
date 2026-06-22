@@ -11,13 +11,13 @@
       <span :style="{ transform: `scaleY(${scrollProgress})` }" />
     </div>
     <header class="public-header">
-      <RouterLink class="brand" to="/" :aria-label="`返回 ${brandName} 首页`">
+      <RouterLink class="brand" to="/" :aria-label="`返回 ${siteName} 首页`">
         <span class="brand-mark">
           <img src="/public.svg" alt="" aria-hidden="true" />
         </span>
         <span class="brand-copy">
-          <strong>{{ brandName }}</strong>
-          <small>{{ brandTagline }}</small>
+          <strong>{{ siteName }}</strong>
+          <small>{{ siteSlogan }}</small>
         </span>
       </RouterLink>
 
@@ -104,6 +104,7 @@ import { BookOpen, Home, Images, Info, Lightbulb, Menu, PenLine, Search, X } fro
 import { fetchSiteConfig } from '@/services/content'
 import { prefersReducedMotion } from '@/shared/composables/useReducedMotion'
 import { useSessionStore } from '@/shared/sessionStore'
+import { syncSiteIdentityFromConfig, useSiteIdentity } from '@/shared/siteIdentity'
 
 const navOpen = ref(false)
 const sceneHost = ref<HTMLElement | null>(null)
@@ -135,8 +136,7 @@ const iconMap: Record<string, Component> = {
   search: Search,
 }
 
-const brandName = ref('站点')
-const brandTagline = ref('后台配置')
+const { siteName, siteSlogan } = useSiteIdentity({ load: false })
 const navItems = ref<PublicNavItem[]>([])
 
 onMounted(() => {
@@ -149,10 +149,7 @@ onMounted(() => {
 onMounted(async () => {
   try {
     const config = await fetchSiteConfig()
-    const identity = readRecord(config['site.identity'])
-    const profile = readRecord(config['site.profile.active'])
-    brandName.value = readString(identity.name) || readString(profile.displayName) || brandName.value
-    brandTagline.value = readString(identity.slogan) || readString(profile.headline) || brandTagline.value
+    syncSiteIdentityFromConfig(config)
     const configuredItems = readConfiguredNavigation(config['site.navigationItems'])
     if (configuredItems.length > 0) {
       navItems.value = withCreatorEntry(configuredItems)
@@ -241,10 +238,6 @@ function readConfiguredNavigation(value: unknown): PublicNavItem[] {
   return value
     .map((item) => readNavigationItem(item))
     .filter((item): item is PublicNavItem => item !== null)
-}
-
-function readRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
 }
 
 function readString(value: unknown): string {

@@ -6,8 +6,8 @@
           <img src="/public.svg" alt="" aria-hidden="true" />
         </span>
         <span>
-          <strong>CreatorSpace CMS</strong>
-          <small>Content Operating Desk</small>
+          <strong>{{ cmsLabel }}</strong>
+          <small>{{ siteSlogan }}</small>
         </span>
       </RouterLink>
 
@@ -68,10 +68,13 @@ import {
 } from '@lucide/vue'
 
 import { useSessionStore } from '@/shared/sessionStore'
+import { siteCmsLabel, useSiteIdentity } from '@/shared/siteIdentity'
 
 const route = useRoute()
 const router = useRouter()
 const session = useSessionStore()
+const { identity, siteSlogan } = useSiteIdentity()
+const cmsLabel = computed(() => siteCmsLabel(identity.value))
 
 const navItems = [
   { to: '/admin', label: '概览', badge: 'LIVE', icon: BarChart3 },

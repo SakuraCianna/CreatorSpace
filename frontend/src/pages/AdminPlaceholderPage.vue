@@ -545,27 +545,229 @@
         <button class="button button-filled" type="submit">保存站点设置</button>
       </form>
 
-      <div class="workspace-panel admin-form" data-reveal>
+      <div class="workspace-panel admin-form settings-builder" data-reveal>
         <div class="panel-title">
           <h2>导航 / 社交 / 页面</h2>
-          <span>JSON Editor</span>
+          <span>表单编辑</span>
         </div>
-        <label>
-          导航项 JSON
-          <textarea v-model="navigationText" rows="7" spellcheck="false" />
-        </label>
-        <label>
-          社交链接 JSON
-          <textarea v-model="socialLinksText" rows="7" spellcheck="false" />
-        </label>
-        <label>
-          页面配置 JSON
-          <textarea v-model="pagesText" rows="7" spellcheck="false" />
-        </label>
-        <label>
-          站点配置 JSON
-          <textarea v-model="siteConfigsText" rows="7" spellcheck="false" />
-        </label>
+        <p class="settings-editor-note">已保存项按现有接口更新；新增项可移除，导航和社交可隐藏，页面可归档。</p>
+        <section class="settings-section">
+          <div class="settings-section-heading">
+            <h3>导航项</h3>
+            <button class="icon-text-button" type="button" @click="addNavigationItem">新增导航</button>
+          </div>
+          <article
+            v-for="(item, index) in navigationForms"
+            :key="item.id ?? `navigation-${index}`"
+            class="settings-card"
+          >
+            <div class="settings-card-title">
+              <strong>{{ item.label || `导航项 ${index + 1}` }}</strong>
+              <button
+                v-if="isDraftItem(item)"
+                class="icon-text-button danger"
+                type="button"
+                @click="removeNavigationItem(index)"
+              >
+                移除
+              </button>
+            </div>
+            <div class="form-line">
+              <label>
+                名称
+                <input v-model="item.label" maxlength="80" />
+              </label>
+              <label>
+                路径
+                <input v-model="item.path" maxlength="180" placeholder="/articles" />
+              </label>
+            </div>
+            <div class="form-line">
+              <label>
+                图标
+                <input v-model="item.icon" maxlength="80" placeholder="book-open" />
+              </label>
+              <label>
+                分组
+                <input v-model="item.groupName" maxlength="80" />
+              </label>
+              <label>
+                排序
+                <input v-model.number="item.sortOrder" type="number" />
+              </label>
+            </div>
+            <label class="check-line settings-check">
+              <input v-model="item.visible" type="checkbox" />
+              前台可见
+            </label>
+            <details class="json-fallback">
+              <summary>扩展 JSON</summary>
+              <textarea v-model="item.extraJsonText" rows="4" spellcheck="false" />
+            </details>
+          </article>
+          <p v-if="navigationForms.length === 0" class="empty-editor">暂无导航项</p>
+        </section>
+
+        <section class="settings-section">
+          <div class="settings-section-heading">
+            <h3>社交链接</h3>
+            <button class="icon-text-button" type="button" @click="addSocialLink">新增链接</button>
+          </div>
+          <article
+            v-for="(link, index) in socialLinkForms"
+            :key="link.id ?? `social-${index}`"
+            class="settings-card"
+          >
+            <div class="settings-card-title">
+              <strong>{{ link.label || `社交链接 ${index + 1}` }}</strong>
+              <button
+                v-if="isDraftItem(link)"
+                class="icon-text-button danger"
+                type="button"
+                @click="removeSocialLink(index)"
+              >
+                移除
+              </button>
+            </div>
+            <div class="form-line">
+              <label>
+                平台
+                <input v-model="link.platform" maxlength="80" placeholder="github" />
+              </label>
+              <label>
+                展示文本
+                <input v-model="link.label" maxlength="120" />
+              </label>
+            </div>
+            <label>
+              链接
+              <input v-model="link.url" maxlength="500" placeholder="https://example.com 或 mailto:name@example.com" />
+            </label>
+            <div class="form-line">
+              <label>
+                图标
+                <input v-model="link.icon" maxlength="80" placeholder="github" />
+              </label>
+              <label>
+                排序
+                <input v-model.number="link.sortOrder" type="number" />
+              </label>
+            </div>
+            <label class="check-line settings-check">
+              <input v-model="link.visible" type="checkbox" />
+              前台可见
+            </label>
+          </article>
+          <p v-if="socialLinkForms.length === 0" class="empty-editor">暂无社交链接</p>
+        </section>
+
+        <section class="settings-section">
+          <div class="settings-section-heading">
+            <h3>页面配置</h3>
+            <button class="icon-text-button" type="button" @click="addPageConfig">新增页面</button>
+          </div>
+          <article
+            v-for="(page, index) in pageConfigForms"
+            :key="page.id ?? `page-${index}`"
+            class="settings-card"
+          >
+            <div class="settings-card-title">
+              <strong>{{ page.title || `页面配置 ${index + 1}` }}</strong>
+              <button
+                v-if="isDraftItem(page)"
+                class="icon-text-button danger"
+                type="button"
+                @click="removePageConfig(index)"
+              >
+                移除
+              </button>
+            </div>
+            <div class="form-line">
+              <label>
+                配置键
+                <input v-model="page.pageKey" maxlength="120" placeholder="about" />
+              </label>
+              <label>
+                页面标题
+                <input v-model="page.title" maxlength="180" />
+              </label>
+            </div>
+            <div class="form-line">
+              <label>
+                URL 标识
+                <input v-model="page.slug" maxlength="180" placeholder="about" />
+              </label>
+              <label>
+                状态
+                <select v-model="page.status">
+                  <option v-for="status in pageStatuses" :key="status" :value="status">{{ status }}</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              SEO 标题
+              <input v-model="page.seoTitle" maxlength="180" />
+            </label>
+            <label>
+              SEO 描述
+              <textarea v-model="page.seoDescription" rows="3" maxlength="1000" />
+            </label>
+            <details class="json-fallback" open>
+              <summary>内容 JSON</summary>
+              <textarea v-model="page.contentJsonText" rows="4" spellcheck="false" />
+            </details>
+            <details class="json-fallback">
+              <summary>布局 JSON</summary>
+              <textarea v-model="page.layoutJsonText" rows="4" spellcheck="false" />
+            </details>
+          </article>
+          <p v-if="pageConfigForms.length === 0" class="empty-editor">暂无页面配置</p>
+        </section>
+
+        <section class="settings-section">
+          <div class="settings-section-heading">
+            <h3>站点配置</h3>
+            <button class="icon-text-button" type="button" @click="addSiteConfigEntry">新增配置</button>
+          </div>
+          <article
+            v-for="(config, index) in siteConfigForms"
+            :key="config.id ?? `config-${index}`"
+            class="settings-card"
+          >
+            <div class="settings-card-title">
+              <strong>{{ config.configKey || `站点配置 ${index + 1}` }}</strong>
+              <button
+                v-if="isDraftItem(config)"
+                class="icon-text-button danger"
+                type="button"
+                @click="removeSiteConfigEntry(index)"
+              >
+                移除
+              </button>
+            </div>
+            <label>
+              配置键
+              <input
+                v-model="config.configKey"
+                :disabled="!isDraftItem(config)"
+                maxlength="120"
+                placeholder="site.identity"
+              />
+            </label>
+            <label>
+              配置说明
+              <input v-model="config.description" maxlength="500" />
+            </label>
+            <details class="json-fallback" open>
+              <summary>配置值 JSON</summary>
+              <textarea v-model="config.configValueText" rows="5" spellcheck="false" />
+            </details>
+          </article>
+          <p v-if="siteConfigForms.length === 0" class="empty-editor">暂无站点配置</p>
+        </section>
+        <div class="form-actions settings-actions">
+          <button class="button button-filled" type="button" @click="saveSiteSettings">保存全部设置</button>
+        </div>
       </div>
     </section>
 
@@ -667,6 +869,7 @@ import type {
   TagSummary,
   ThemePayload,
 } from '@/shared/domain'
+import { syncSiteIdentityFromSettings, useSiteIdentity } from '@/shared/siteIdentity'
 
 interface ModuleConfig {
   eyebrow: string
@@ -677,8 +880,30 @@ interface ModuleConfig {
   rows: Array<{ title: string; meta: string; status: string }>
 }
 
+type NavigationItemForm = Omit<NavigationItem, 'extraJson' | 'icon'> & {
+  icon: string
+  extraJsonText: string
+}
+
+type SocialLinkForm = Omit<SocialLink, 'icon'> & {
+  icon: string
+}
+
+type PageConfigForm = Omit<PageConfig, 'contentJson' | 'layoutJson' | 'seoTitle' | 'seoDescription'> & {
+  seoTitle: string
+  seoDescription: string
+  contentJsonText: string
+  layoutJsonText: string
+}
+
+type SiteConfigEntryForm = Omit<SiteConfigEntry, 'configValue' | 'description'> & {
+  description: string
+  configValueText: string
+}
+
 const route = useRoute()
 const root = ref<HTMLElement | null>(null)
+const { identity } = useSiteIdentity({ load: false })
 const notice = ref('')
 const articles = ref<ArticleSummary[]>([])
 const projects = ref<ProjectSummary[]>([])
@@ -705,14 +930,17 @@ const editingThemeId = ref<number | null>(null)
 const projectTechStack = ref('')
 const themeConfigText = ref('{}')
 const profileJsonText = ref('{}')
-const navigationText = ref('[]')
-const socialLinksText = ref('[]')
-const pagesText = ref('[]')
-const siteConfigsText = ref('[]')
+const navigationForms = ref<NavigationItemForm[]>([])
+const socialLinkForms = ref<SocialLinkForm[]>([])
+const pageConfigForms = ref<PageConfigForm[]>([])
+const siteConfigForms = ref<SiteConfigEntryForm[]>([])
 
 const articlePrivacies: ArticlePrivacy[] = ['PUBLIC', 'SELF', 'FRIENDS', 'SELECTED_FRIENDS', 'EXCLUDED_FRIENDS']
 const inspirationTypes: InspirationType[] = ['TEXT', 'PROMPT', 'IMAGE', 'CODE', 'LINK']
 const fileModules = ['AVATAR', 'COVER', 'ARTICLE', 'PROJECT', 'INSPIRATION', 'OTHER']
+const pageStatuses: PageConfig['status'][] = ['DRAFT', 'PUBLISHED', 'ARCHIVED']
+const settingsKeyPattern = /^[a-zA-Z0-9._-]{2,120}$/
+const pageSlugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const articleForm = reactive<ArticlePayload>({
   title: '',
   slug: '',
@@ -773,7 +1001,21 @@ const siteProfileForm = reactive<SiteProfile>({
 usePageReveal(root)
 
 const activeSection = computed(() => route.params.section?.toString() || 'articles')
-const moduleConfig = computed(() => configs[activeSection.value] ?? configs.articles)
+const siteIdentityMeta = computed(() => (
+  identity.value.slogan ? `${identity.value.name} · ${identity.value.slogan}` : identity.value.name
+))
+const moduleConfig = computed(() => {
+  const config = configs[activeSection.value] ?? configs.articles
+  if (activeSection.value !== 'settings') {
+    return config
+  }
+  return {
+    ...config,
+    rows: config.rows.map((row) => (
+      row.title === '站点身份' ? { ...row, meta: siteIdentityMeta.value } : row
+    )),
+  }
+})
 
 watch(activeSection, () => {
   notice.value = ''
@@ -1295,6 +1537,7 @@ async function loadSiteSettings() {
 }
 
 function applySiteSettings(settings: SiteSettings) {
+  syncSiteIdentityFromSettings(settings)
   const profile = settings.profile
   siteProfileForm.profileKey = profile?.profileKey ?? 'default'
   siteProfileForm.displayName = profile?.displayName ?? ''
@@ -1305,18 +1548,18 @@ function applySiteSettings(settings: SiteSettings) {
   siteProfileForm.location = profile?.location ?? ''
   siteProfileForm.profileJson = normalizeRecord(profile?.profileJson)
   profileJsonText.value = prettyJson(siteProfileForm.profileJson)
-  navigationText.value = prettyJson(settings.navigationItems)
-  socialLinksText.value = prettyJson(settings.socialLinks)
-  pagesText.value = prettyJson(settings.pages)
-  siteConfigsText.value = prettyJson(settings.configs)
+  navigationForms.value = settings.navigationItems.map(toNavigationForm)
+  socialLinkForms.value = settings.socialLinks.map(toSocialLinkForm)
+  pageConfigForms.value = settings.pages.map(toPageConfigForm)
+  siteConfigForms.value = settings.configs.map(toSiteConfigForm)
 }
 
 async function saveSiteSettings() {
   const profileJson = parseRecord(profileJsonText.value, '资料扩展 JSON')
-  const navigationItems = parseArray<NavigationItem>(navigationText.value, '导航项 JSON')
-  const socialLinks = parseArray<SocialLink>(socialLinksText.value, '社交链接 JSON')
-  const pages = parseArray<PageConfig>(pagesText.value, '页面配置 JSON')
-  const configs = parseArray<SiteConfigEntry>(siteConfigsText.value, '站点配置 JSON')
+  const navigationItems = collectNavigationItems()
+  const socialLinks = collectSocialLinks()
+  const pages = collectPageConfigs()
+  const configs = collectSiteConfigs()
   if (!profileJson || !navigationItems || !socialLinks || !pages || !configs) {
     return
   }
@@ -1341,6 +1584,240 @@ async function saveSiteSettings() {
   } catch (error) {
     notice.value = readError(error, '站点设置保存失败')
   }
+}
+
+function toNavigationForm(item: NavigationItem): NavigationItemForm {
+  return {
+    id: item.id ?? null,
+    label: item.label ?? '',
+    path: item.path ?? '',
+    icon: item.icon ?? '',
+    groupName: item.groupName ?? 'primary',
+    sortOrder: normalizeSortOrder(item.sortOrder),
+    visible: item.visible,
+    extraJsonText: prettyJson(normalizeRecord(item.extraJson)),
+  }
+}
+
+function toSocialLinkForm(link: SocialLink): SocialLinkForm {
+  return {
+    id: link.id ?? null,
+    platform: link.platform ?? '',
+    label: link.label ?? '',
+    url: link.url ?? '',
+    icon: link.icon ?? '',
+    sortOrder: normalizeSortOrder(link.sortOrder),
+    visible: link.visible,
+  }
+}
+
+function toPageConfigForm(page: PageConfig): PageConfigForm {
+  return {
+    id: page.id ?? null,
+    pageKey: page.pageKey ?? '',
+    title: page.title ?? '',
+    slug: page.slug ?? '',
+    seoTitle: page.seoTitle ?? '',
+    seoDescription: page.seoDescription ?? '',
+    contentJsonText: prettyJson(normalizeRecord(page.contentJson)),
+    layoutJsonText: prettyJson(normalizeRecord(page.layoutJson)),
+    status: page.status,
+  }
+}
+
+function toSiteConfigForm(config: SiteConfigEntry): SiteConfigEntryForm {
+  return {
+    id: config.id ?? null,
+    configKey: config.configKey ?? '',
+    description: config.description ?? '',
+    configValueText: prettyJson(normalizeRecord(config.configValue)),
+  }
+}
+
+function addNavigationItem() {
+  navigationForms.value.push(toNavigationForm({
+    id: null,
+    label: '',
+    path: '',
+    icon: '',
+    groupName: 'primary',
+    sortOrder: nextSortOrder(navigationForms.value),
+    visible: true,
+    extraJson: {},
+  }))
+}
+
+function addSocialLink() {
+  socialLinkForms.value.push(toSocialLinkForm({
+    id: null,
+    platform: '',
+    label: '',
+    url: '',
+    icon: '',
+    sortOrder: nextSortOrder(socialLinkForms.value),
+    visible: true,
+  }))
+}
+
+function addPageConfig() {
+  pageConfigForms.value.push(toPageConfigForm({
+    id: null,
+    pageKey: '',
+    title: '',
+    slug: '',
+    seoTitle: '',
+    seoDescription: '',
+    contentJson: {},
+    layoutJson: {},
+    status: 'DRAFT',
+  }))
+}
+
+function addSiteConfigEntry() {
+  siteConfigForms.value.push(toSiteConfigForm({
+    id: null,
+    configKey: '',
+    description: '',
+    configValue: {},
+  }))
+}
+
+function removeNavigationItem(index: number) {
+  removeDraftItem(navigationForms.value, index)
+}
+
+function removeSocialLink(index: number) {
+  removeDraftItem(socialLinkForms.value, index)
+}
+
+function removePageConfig(index: number) {
+  removeDraftItem(pageConfigForms.value, index)
+}
+
+function removeSiteConfigEntry(index: number) {
+  removeDraftItem(siteConfigForms.value, index)
+}
+
+function isDraftItem(item: { id?: number | null }) {
+  return item.id == null
+}
+
+function removeDraftItem<T extends { id?: number | null }>(items: T[], index: number) {
+  const item = items[index]
+  if (!item || !isDraftItem(item)) {
+    return
+  }
+  items.splice(index, 1)
+}
+
+function collectNavigationItems(): NavigationItem[] | null {
+  const items: NavigationItem[] = []
+  for (const [index, form] of navigationForms.value.entries()) {
+    const label = requireFormText(form.label, `导航项 ${index + 1} 名称`)
+    const path = requireFormText(form.path, `导航项 ${index + 1} 路径`)
+    const groupName = requireFormText(form.groupName, `导航项 ${index + 1} 分组`)
+    const extraJson = parseRecordOrEmpty(form.extraJsonText, `导航项 ${index + 1} 扩展 JSON`)
+    if (!label || !path || !groupName || !extraJson) {
+      return null
+    }
+    if (!isValidNavigationPath(path)) {
+      notice.value = `导航项 ${index + 1} 路径只允许站内路径或 http/https 地址`
+      return null
+    }
+    items.push({
+      id: form.id ?? null,
+      label,
+      path,
+      icon: optionalText(form.icon),
+      groupName,
+      sortOrder: normalizeSortOrder(form.sortOrder),
+      visible: Boolean(form.visible),
+      extraJson,
+    })
+  }
+  return items
+}
+
+function collectSocialLinks(): SocialLink[] | null {
+  const links: SocialLink[] = []
+  for (const [index, form] of socialLinkForms.value.entries()) {
+    const platform = requireFormText(form.platform, `社交链接 ${index + 1} 平台`)
+    const label = requireFormText(form.label, `社交链接 ${index + 1} 展示文本`)
+    const url = requireFormText(form.url, `社交链接 ${index + 1} 链接`)
+    if (!platform || !label || !url) {
+      return null
+    }
+    if (!isValidSocialUrl(url)) {
+      notice.value = `社交链接 ${index + 1} 只允许 http、https 或 mailto 地址`
+      return null
+    }
+    links.push({
+      id: form.id ?? null,
+      platform,
+      label,
+      url,
+      icon: optionalText(form.icon),
+      sortOrder: normalizeSortOrder(form.sortOrder),
+      visible: Boolean(form.visible),
+    })
+  }
+  return links
+}
+
+function collectPageConfigs(): PageConfig[] | null {
+  const pages: PageConfig[] = []
+  for (const [index, form] of pageConfigForms.value.entries()) {
+    const pageKey = requireFormText(form.pageKey, `页面配置 ${index + 1} 配置键`)
+    const title = requireFormText(form.title, `页面配置 ${index + 1} 标题`)
+    const slug = requireFormText(form.slug, `页面配置 ${index + 1} URL 标识`)
+    const contentJson = parseRecordOrEmpty(form.contentJsonText, `页面配置 ${index + 1} 内容 JSON`)
+    const layoutJson = parseRecordOrEmpty(form.layoutJsonText, `页面配置 ${index + 1} 布局 JSON`)
+    if (!pageKey || !title || !slug || !contentJson || !layoutJson) {
+      return null
+    }
+    if (!settingsKeyPattern.test(pageKey)) {
+      notice.value = `页面配置 ${index + 1} 配置键只能使用字母、数字、点、下划线或连字符`
+      return null
+    }
+    if (!pageSlugPattern.test(slug)) {
+      notice.value = `页面配置 ${index + 1} URL 标识只能使用小写字母、数字和连字符`
+      return null
+    }
+    pages.push({
+      id: form.id ?? null,
+      pageKey,
+      title,
+      slug,
+      seoTitle: optionalText(form.seoTitle),
+      seoDescription: optionalText(form.seoDescription),
+      contentJson,
+      layoutJson,
+      status: form.status,
+    })
+  }
+  return pages
+}
+
+function collectSiteConfigs(): SiteConfigEntry[] | null {
+  const configs: SiteConfigEntry[] = []
+  for (const [index, form] of siteConfigForms.value.entries()) {
+    const configKey = requireFormText(form.configKey, `站点配置 ${index + 1} 配置键`)
+    const configValue = parseRecordOrEmpty(form.configValueText, `站点配置 ${index + 1} 配置值 JSON`)
+    if (!configKey || !configValue) {
+      return null
+    }
+    if (!settingsKeyPattern.test(configKey)) {
+      notice.value = `站点配置 ${index + 1} 配置键只能使用字母、数字、点、下划线或连字符`
+      return null
+    }
+    configs.push({
+      id: form.id ?? null,
+      configKey,
+      configValue,
+      description: optionalText(form.description),
+    })
+  }
+  return configs
 }
 
 function handlePrimaryAction() {
@@ -1379,8 +1856,21 @@ function splitTechStack(value: string) {
     .filter(Boolean)
 }
 
+function normalizeSortOrder(value: unknown): number {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? Math.trunc(parsed) : 0
+}
+
+function nextSortOrder(items: Array<{ sortOrder: unknown }>) {
+  return items.reduce((max, item) => Math.max(max, normalizeSortOrder(item.sortOrder)), 0) + 10
+}
+
 function prettyJson(value: unknown) {
   return JSON.stringify(value ?? {}, null, 2)
+}
+
+function parseRecordOrEmpty(value: string, label: string): Record<string, unknown> | null {
+  return parseRecord(value.trim() || '{}', label)
 }
 
 function parseRecord(value: string, label: string): Record<string, unknown> | null {
@@ -1397,17 +1887,48 @@ function parseRecord(value: string, label: string): Record<string, unknown> | nu
   }
 }
 
-function parseArray<T>(value: string, label: string): T[] | null {
+function requireFormText(value: string, label: string): string | null {
+  const cleaned = cleanText(value)
+  if (cleaned) {
+    return cleaned
+  }
+  notice.value = `${label}不能为空`
+  return null
+}
+
+function optionalText(value: string | null | undefined): string | null {
+  const cleaned = cleanText(value)
+  return cleaned || null
+}
+
+function cleanText(value: string | null | undefined): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function isValidNavigationPath(value: string): boolean {
+  if (value.startsWith('//')) {
+    return false
+  }
+  return value.startsWith('/') || isHttpUrl(value)
+}
+
+function isValidSocialUrl(value: string): boolean {
+  if (value.toLowerCase().startsWith('mailto:')) {
+    return value.length > 'mailto:'.length
+  }
+  return isHttpUrl(value)
+}
+
+function isHttpUrl(value: string): boolean {
+  const lowerValue = value.toLowerCase()
+  if (!lowerValue.startsWith('http://') && !lowerValue.startsWith('https://')) {
+    return false
+  }
   try {
-    const parsed: unknown = JSON.parse(value)
-    if (Array.isArray(parsed)) {
-      return parsed as T[]
-    }
-    notice.value = `${label} 必须是 JSON 数组`
-    return null
+    const url = new URL(value)
+    return url.protocol === 'http:' || url.protocol === 'https:'
   } catch {
-    notice.value = `${label} 不是合法 JSON`
-    return null
+    return false
   }
 }
 
@@ -1422,6 +1943,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function readError(error: unknown, fallback: string) {
   return `${fallback}: ${toUserMessage(error, '请稍后再试')}`
 }
+
+const DEFAULT_SETTINGS_IDENTITY_META = '站点身份配置'
 
 const configs: Record<string, ModuleConfig> = {
   articles: {
@@ -1499,7 +2022,7 @@ const configs: Record<string, ModuleConfig> = {
     primaryAction: '保存配置',
     capabilities: ['导航配置', 'SEO 描述', '社交链接', '首页模块排序', '关于页内容块'],
     rows: [
-      { title: '站点身份', meta: 'CreatorSpace · Personal Theme Archive', status: 'READY' },
+      { title: '站点身份', meta: DEFAULT_SETTINGS_IDENTITY_META, status: 'READY' },
       { title: '首页推荐', meta: '文章 / 作品 / 灵感', status: 'READY' },
     ],
   },
@@ -1648,6 +2171,104 @@ const configs: Record<string, ModuleConfig> = {
 .form-line > * {
   flex: 1;
   min-width: 160px;
+}
+
+.settings-builder {
+  gap: 18px;
+}
+
+.settings-section {
+  display: grid;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.settings-editor-note {
+  margin: -4px 0 2px;
+  color: var(--tone-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.settings-section + .settings-section {
+  padding-top: 18px;
+  border-top: 1px solid var(--tone-line);
+}
+
+.settings-section-heading,
+.settings-card-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-section-heading h3 {
+  margin: 0;
+  color: var(--tone-ink);
+  font-size: 15px;
+  font-weight: 860;
+}
+
+.settings-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(17, 24, 39, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.64);
+}
+
+.settings-card-title strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--tone-strong);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-check {
+  justify-content: flex-start;
+  color: var(--tone-muted);
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.json-fallback {
+  display: grid;
+  gap: 8px;
+}
+
+.json-fallback summary {
+  color: var(--tone-muted);
+  font-size: 13px;
+  font-weight: 820;
+  cursor: pointer;
+}
+
+.json-fallback textarea {
+  min-height: 112px;
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.empty-editor {
+  margin: 0;
+  color: var(--tone-muted);
+  font-size: 13px;
+}
+
+.settings-actions {
+  justify-content: flex-end;
+  padding-top: 2px;
+}
+
+.settings-card input:disabled {
+  background: rgba(17, 24, 39, 0.06);
+  color: var(--tone-muted);
+  cursor: not-allowed;
 }
 
 .tag-picker {

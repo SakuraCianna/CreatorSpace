@@ -5,7 +5,7 @@
         <span class="material-icon-badge">
           <UserPlus :size="24" />
         </span>
-        <p class="page-kicker">Join as Reader</p>
+        <p class="page-kicker">Join {{ siteName }}</p>
         <h1>注册读者身份</h1>
         <p>普通用户可以为后续评论、点赞、收藏和好友可见内容预留身份。第一阶段只需要用户名和密码。</p>
         <div class="material-benefits" aria-label="注册能力">
@@ -27,11 +27,11 @@
           <span>密码</span>
           <input v-model="form.password" autocomplete="new-password" name="password" type="password" />
         </label>
-        <button class="button button-filled" :disabled="isSubmitting" type="submit">
+        <button class="button button-filled" :disabled="isSubmitting || isRedirecting" type="submit">
           <LoaderCircle v-if="isSubmitting" class="spin" :size="16" />
-          {{ isSubmitting ? '创建中...' : '创建账号' }}
+          {{ isSubmitting ? '创建中...' : isRedirecting ? '正在前往登录页' : '创建账号' }}
         </button>
-        <RouterLink class="auth-switch" to="/login">已有管理员账号，去登录</RouterLink>
+        <RouterLink class="auth-switch" :to="loginRoute">已有账号，去登录</RouterLink>
         <p v-if="message" class="form-message">{{ message }}</p>
       </div>
     </form>
@@ -39,25 +39,41 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { computed, onBeforeUnmount, reactive, ref } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { LoaderCircle, UserPlus } from '@lucide/vue'
 
 import { registerUser } from '@/services/content'
 import { toUserMessage } from '@/services/http'
+import { normalizeAuthRedirect } from '@/shared/authRedirect'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
+import { useSiteIdentity } from '@/shared/siteIdentity'
 
 const root = ref<HTMLElement | null>(null)
+const route = useRoute()
+const router = useRouter()
+const { siteName } = useSiteIdentity({ load: false })
 const form = reactive({
   username: '',
   password: '',
 })
 const message = ref('')
 const isSubmitting = ref(false)
+const isRedirecting = ref(false)
+let redirectTimer: number | undefined
+const loginRoute = computed(() => ({
+  name: 'login',
+  query: {
+    redirect: readRegisterRedirectPath(),
+  },
+}))
 
 usePageReveal(root)
+onBeforeUnmount(clearRedirectTimer)
 
 async function submitRegister() {
+  clearRedirectTimer()
+  isRedirecting.value = false
   if (!form.username.trim() || form.password.length < 6) {
     message.value = '请输入用户名，并保证密码至少 6 位'
     return
@@ -70,13 +86,30 @@ async function submitRegister() {
       username: form.username.trim(),
       password: form.password,
     })
-    message.value = `账号 ${user.username} 创建成功，可以等待后续普通登录入口接入。`
+    message.value = `账号 ${user.username} 创建成功，正在前往登录页完成登录。`
     form.password = ''
+    isRedirecting.value = true
+    redirectTimer = window.setTimeout(() => {
+      router.push(loginRoute.value)
+    }, 900)
   } catch (error) {
     message.value = toUserMessage(error, '注册失败，请稍后重试')
   } finally {
     isSubmitting.value = false
   }
+}
+
+function clearRedirectTimer() {
+  if (redirectTimer === undefined) {
+    return
+  }
+  window.clearTimeout(redirectTimer)
+  redirectTimer = undefined
+}
+
+function readRegisterRedirectPath() {
+  const redirect = normalizeAuthRedirect(route.query.redirect, '/creator/articles')
+  return redirect.startsWith('/admin') ? '/creator/articles' : redirect
 }
 </script>
 

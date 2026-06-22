@@ -422,7 +422,7 @@ public class AdminSiteController {
     }
 
     private void upsertSocialLink(SocialLinkRequest link) {
-        validateExternalUrl(link.url(), "社交链接只允许 http 或 https 地址");
+        validateSocialUrl(link.url());
         if (link.id() != null && exists("social_links", link.id())) {
             jdbcTemplate.update("""
                             update social_links
@@ -555,6 +555,28 @@ public class AdminSiteController {
         } catch (IllegalArgumentException exception) {
             throw BusinessException.badRequest(message);
         }
+    }
+
+    private void validateSocialUrl(String value) {
+        String cleaned = cleanRequired(value);
+        try {
+            URI uri = URI.create(cleaned);
+            String scheme = uri.getScheme();
+            String schemeSpecificPart = uri.getSchemeSpecificPart();
+            if ("mailto".equalsIgnoreCase(scheme)
+                    && schemeSpecificPart != null
+                    && !schemeSpecificPart.isBlank()) {
+                return;
+            }
+            if (("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))
+                    && uri.getHost() != null
+                    && !uri.getHost().isBlank()) {
+                return;
+            }
+        } catch (IllegalArgumentException exception) {
+            throw BusinessException.badRequest("社交链接只允许 http、https 或 mailto 地址");
+        }
+        throw BusinessException.badRequest("社交链接只允许 http、https 或 mailto 地址");
     }
 
     private void validatePath(String value) {

@@ -1191,6 +1191,14 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                                                 "icon", "github",
                                                 "sortOrder", 1,
                                                 "visible", true
+                                        ),
+                                        Map.of(
+                                                "platform", "Mail",
+                                                "label", "Email Lab",
+                                                "url", "mailto:creator@example.com",
+                                                "icon", "mail",
+                                                "sortOrder", 2,
+                                                "visible", true
                                         )
                                 },
                                 "pages", new Object[]{
@@ -1223,6 +1231,7 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                 .andExpect(jsonPath("$.data['site.navigationItems'][0].label", is("实验室")))
                 .andExpect(jsonPath("$.data['site.navigationItems'][0].path", is("/lab")))
                 .andExpect(jsonPath("$.data['site.socialLinks'][0].label", is("Code Lab")))
+                .andExpect(jsonPath("$.data['site.socialLinks'][1].url", is("mailto:creator@example.com")))
                 .andExpect(jsonPath("$.data['page.home'].title", not("")))
                 .andExpect(jsonPath("$.data['home.contentBlocks'][0].blockKey", is("home.creatorHero")))
                 .andExpect(jsonPath("$.data['page.about'].title", is("关于测试创作者")));
@@ -1253,6 +1262,50 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success", is(false)))
                 .andExpect(jsonPath("$.message", is("导航地址只允许站内路径或 http/https 地址")));
+    }
+
+    // 验证社交链接只接受安全的公开链接或邮箱链接，避免脚本协议进入公开配置。
+    @Test
+    void adminSiteSettingsRejectsUnsafeSocialLinkProtocol() throws Exception {
+        String token = loginAsAdmin();
+
+        mockMvc.perform(put("/api/admin/site/settings")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "socialLinks", new Object[]{
+                                        Map.of(
+                                                "platform", "unsafe",
+                                                "label", "Unsafe",
+                                                "url", "javascript:alert(1)",
+                                                "icon", "link",
+                                                "sortOrder", 99,
+                                                "visible", true
+                                        )
+                                }
+                        ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.message", is("社交链接只允许 http、https 或 mailto 地址")));
+
+        mockMvc.perform(put("/api/admin/site/settings")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "socialLinks", new Object[]{
+                                        Map.of(
+                                                "platform", "malformed",
+                                                "label", "Malformed",
+                                                "url", "https:example.com",
+                                                "icon", "link",
+                                                "sortOrder", 100,
+                                                "visible", true
+                                        )
+                                }
+                        ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.message", is("社交链接只允许 http、https 或 mailto 地址")));
     }
 
     // 登录管理员并返回访问令牌。
