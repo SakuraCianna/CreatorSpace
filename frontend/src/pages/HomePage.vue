@@ -323,7 +323,7 @@ function readSocial(value: unknown): SiteConfig['social'] {
 }
 
 function safeSocialHref(value: string): string {
-  if (value.startsWith('mailto:')) {
+  if (isMailtoHref(value)) {
     return value
   }
   try {
@@ -335,8 +335,8 @@ function safeSocialHref(value: string): string {
 }
 
 function socialHandle(href: string): string {
-  if (href.startsWith('mailto:')) {
-    return href.replace(/^mailto:/, '')
+  if (isMailtoHref(href)) {
+    return href.replace(/^mailto:/i, '')
   }
   try {
     const url = new URL(href)
@@ -344,6 +344,10 @@ function socialHandle(href: string): string {
   } catch {
     return href
   }
+}
+
+function isMailtoHref(value: string): boolean {
+  return value.toLowerCase().startsWith('mailto:')
 }
 
 function isExternalUrl(value: string): boolean {
@@ -1917,8 +1921,8 @@ function renderFooter() {
         {
           key: link.href,
           href: link.href,
-          target: link.href?.startsWith('mailto:') ? undefined : '_blank',
-          rel: link.href?.startsWith('mailto:') ? undefined : 'noreferrer',
+          target: link.href && isMailtoHref(link.href) ? undefined : '_blank',
+          rel: link.href && isMailtoHref(link.href) ? undefined : 'noreferrer',
         },
         `${link.label} · ${link.handle}`,
       ),
