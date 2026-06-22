@@ -35,9 +35,25 @@
           <span v-if="toc.length === 0">正文还没有二级标题。</span>
         </div>
         <div class="reaction-card">
-          <button class="icon-button" type="button">
+          <button
+            class="icon-button"
+            :class="{ 'is-active': liked }"
+            type="button"
+            :disabled="!canComment"
+            @click="toggleLike"
+          >
             <Heart :size="18" />
             <span>{{ liked ? '已喜欢' : '喜欢' }}</span>
+          </button>
+          <button
+            class="icon-button"
+            :class="{ 'is-active': favorited }"
+            type="button"
+            :disabled="!canComment"
+            @click="toggleFavorite"
+          >
+            <Bookmark :size="18" />
+            <span>{{ favorited ? '已收藏' : '收藏' }}</span>
           </button>
           <button class="icon-button" type="button">
             <MessageCircle :size="18" />
@@ -52,11 +68,29 @@
               {{ canComment ? '提交评论' : '登录后评论' }}
             </button>
           </form>
-          <article v-for="comment in comments" :key="comment.id" class="comment-item">
-            <strong>{{ comment.username }}</strong>
-            <p>{{ comment.content }}</p>
-            <span>{{ comment.createdAt ?? '刚刚' }}</span>
+          <article v-for="comment in comments" :key="comment.id" class="comment-item" :style="{ '--depth': comment.depth }">
+            <div class="comment-header">
+              <strong>{{ comment.username }}</strong>
+              <span class="comment-time">{{ formatDate(comment.createdAt) }}</span>
+            </div>
+            <p class="comment-body">{{ comment.content }}</p>
+            <div class="comment-actions">
+              <button
+                class="comment-action-btn"
+                type="button"
+                :disabled="!canComment"
+                @click="replyTo(comment)"
+              >
+                <MessageCircle :size="14" />
+                回复
+              </button>
+              <span v-if="comment.likeCount > 0" class="comment-likes">{{ comment.likeCount }} 赞</span>
+            </div>
           </article>
+          <form v-if="replyTarget" class="reply-hint" @submit.prevent="() => {}">
+            <span>回复 {{ replyTarget.username }}：</span>
+            <button class="text-link" type="button" @click="cancelReply">取消</button>
+          </form>
           <span v-if="comments.length === 0">还没有公开评论。</span>
           <p v-if="commentNotice" class="inline-notice">{{ commentNotice }}</p>
         </div>
@@ -75,6 +109,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import {
   ArrowLeft,
+  Bookmark,
   BookOpen,
   CalendarDays,
   Eye,
@@ -84,7 +119,15 @@ import {
 } from '@lucide/vue'
 
 import { fallbackArticles } from '@/content/studio'
-import { fetchArticleBySlug, fetchComments, submitComment } from '@/services/content'
+import {
+  fetchArticleBySlug,
+  fetchComments,
+  submitComment,
+  likeTarget,
+  unlikeTarget,
+  favoriteTarget,
+  unfavoriteTarget,
+} from '@/services/content'
 import { useCinematicPageMotion } from '@/shared/composables/useCinematicPageMotion'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import { toCssImageUrl } from '@/shared/cssImage'
@@ -101,6 +144,8 @@ const commentNotice = ref('')
 const isLoading = ref(true)
 const notice = ref('')
 const liked = ref(false)
+const favorited = ref(false)
+const replyTarget = ref<CommentSummary | null>(null)
 const slug = computed(() => readRouteParam(route.params.slug))
 const session = useSessionStore()
 const cinematic = useCinematicPageMotion(root)
@@ -174,14 +219,55 @@ async function postComment() {
     await submitComment({
       targetType: 'ARTICLE',
       targetId: article.value.id,
+      parentId: replyTarget.value?.id,
       content: commentDraft.value.trim(),
     })
     commentDraft.value = ''
+    replyTarget.value = null
     commentNotice.value = '评论已提交，审核通过后会公开展示'
     await loadComments()
   } catch (error) {
     commentNotice.value = error instanceof Error ? error.message : '评论提交失败'
   }
+}
+
+async function toggleLike() {
+  if (!article.value?.id || !canComment.value) return
+  try {
+    if (liked.value) {
+      await unlikeTarget('ARTICLE', article.value.id)
+      liked.value = false
+    } else {
+      await likeTarget('ARTICLE', article.value.id)
+      liked.value = true
+    }
+  } catch {
+    commentNotice.value = '操作失败，请重试'
+  }
+}
+
+async function toggleFavorite() {
+  if (!article.value?.id || !canComment.value) return
+  try {
+    if (favorited.value) {
+      await unfavoriteTarget('ARTICLE', article.value.id)
+      favorited.value = false
+    } else {
+      await favoriteTarget('ARTICLE', article.value.id)
+      favorited.value = true
+    }
+  } catch {
+    commentNotice.value = '操作失败，请重试'
+  }
+}
+
+function replyTo(comment: CommentSummary) {
+  replyTarget.value = comment
+  commentDraft.value = ''
+}
+
+function cancelReply() {
+  replyTarget.value = null
 }
 
 function readRouteParam(value: string | string[] | undefined): string {
@@ -413,6 +499,86 @@ watch(slug, loadArticle)
 
 .reaction-card .icon-button {
   justify-content: flex-start;
+}
+
+.reaction-card .icon-button.is-active {
+  color: var(--tone-primary);
+  background: rgba(49, 91, 255, 0.1);
+}
+
+.comment-item {
+  padding: 12px;
+  margin-left: calc(var(--depth, 0) * 20px);
+  border-left: 2px solid var(--tone-line);
+}
+
+.comment-item[style*="--depth: 1"],
+.comment-item[style*="--depth: 2"],
+.comment-item[style*="--depth: 3"],
+.comment-item[style*="--depth: 4"] {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.comment-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.comment-header strong {
+  color: var(--tone-ink);
+  font-size: 14px;
+}
+
+.comment-time {
+  color: var(--tone-faint);
+  font-size: 12px;
+}
+
+.comment-body {
+  margin: 4px 0 6px;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.comment-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border: none;
+  background: transparent;
+  color: var(--tone-muted);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.comment-action-btn:hover {
+  color: var(--tone-primary);
+}
+
+.comment-likes {
+  color: var(--tone-faint);
+  font-size: 12px;
+}
+
+.reply-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgba(49, 91, 255, 0.06);
+  font-size: 13px;
+  color: var(--tone-muted);
 }
 
 @media (max-width: 1020px) {

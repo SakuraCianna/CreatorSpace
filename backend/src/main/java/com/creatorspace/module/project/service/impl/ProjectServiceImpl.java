@@ -15,6 +15,7 @@ import com.creatorspace.module.tag.service.TagService;
 import com.creatorspace.module.tag.vo.TagVO;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,16 +37,19 @@ public class ProjectServiceImpl implements ProjectService {
     private final ProjectMapper projectMapper;
     private final ProjectTagMapper projectTagMapper;
     private final TagService tagService;
+    private final JdbcTemplate jdbcTemplate;
 
     // 通过构造器注入作品、标签和 JSON 序列化协作对象。
     public ProjectServiceImpl(
             ProjectMapper projectMapper,
             ProjectTagMapper projectTagMapper,
-            TagService tagService
+            TagService tagService,
+            JdbcTemplate jdbcTemplate
     ) {
         this.projectMapper = projectMapper;
         this.projectTagMapper = projectTagMapper;
         this.tagService = tagService;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     // 创建作品草稿，并在同一个事务内写入标签绑定。
@@ -349,7 +353,22 @@ public class ProjectServiceImpl implements ProjectService {
         if (project == null) {
             throw BusinessException.notFound("作品不存在或不可见");
         }
+        incrementViewCount(project.getId());
         return toVO(project, true);
+    }
+
+    // 自增作品阅读量，同步更新 content_statistics 表。
+    private void incrementViewCount(Long projectId) {
+        jdbcTemplate.update("""
+                insert into content_statistics (target_type, target_id, view_count, last_viewed_at, updated_at)
+                values ('PROJECT', ?, 1, now(), now())
+                on conflict (target_type, target_id) do update
+                set view_count = content_statistics.view_count + 1,
+                    last_viewed_at = now(),
+                    updated_at = now()
+                """,
+                projectId
+        );
     }
 
     // 构造公开作品基础查询条件，列表和详情共用可见性规则。

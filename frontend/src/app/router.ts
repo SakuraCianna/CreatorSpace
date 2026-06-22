@@ -55,6 +55,12 @@ const router = createRouter({
       meta: { layout: 'public' },
     },
     {
+      path: '/guestbook',
+      name: 'guestbook',
+      component: () => import('@/pages/GuestbookPage.vue'),
+      meta: { layout: 'public' },
+    },
+    {
       path: '/register',
       name: 'register',
       component: () => import('@/pages/RegisterPage.vue'),

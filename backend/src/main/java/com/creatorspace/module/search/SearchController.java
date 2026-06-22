@@ -2,6 +2,7 @@ package com.creatorspace.module.search;
 
 import com.creatorspace.common.result.ApiResponse;
 import com.creatorspace.common.result.PageResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -32,7 +33,8 @@ public class SearchController {
     public ApiResponse<PageResponse<SearchResultVO>> search(
             @RequestParam(defaultValue = "") String keyword,
             @RequestParam(defaultValue = "1") @Min(1) long page,
-            @RequestParam(defaultValue = "12") @Min(1) @Max(50) long pageSize
+            @RequestParam(defaultValue = "12") @Min(1) @Max(50) long pageSize,
+            HttpServletRequest servletRequest
     ) {
         String normalizedKeyword = keyword.trim();
         if (normalizedKeyword.isEmpty()) {
@@ -138,7 +140,24 @@ public class SearchController {
                 pattern, pattern, pattern, pattern, pattern,
                 pageSize, offset);
         long total = countSearchResults(pattern);
+        recordSearchLog(normalizedKeyword, (int) total, servletRequest);
         return ApiResponse.ok(new PageResponse<>(records, page, pageSize, total));
+    }
+
+    // 记录搜索日志，用于后台热门搜索关键词分析。
+    private void recordSearchLog(String keyword, int resultCount, HttpServletRequest request) {
+        try {
+            jdbcTemplate.update("""
+                    insert into search_logs (keyword, result_count, ip_address, user_agent)
+                    values (?, ?, cast(? as inet), ?)
+                    """,
+                    keyword,
+                    resultCount,
+                    request.getRemoteAddr(),
+                    request.getHeader("User-Agent"));
+        } catch (Exception ignored) {
+            // 搜索日志记录失败不应影响搜索结果返回
+        }
     }
 
     // 统计跨类型搜索结果数量。

@@ -197,10 +197,11 @@ public class ArticleController {
     @GetMapping("/api/articles")
     public ApiResponse<PageResponse<ArticleVO>> listPublic(
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long tagId,
             @RequestParam(defaultValue = "1") @Min(1) long page,
             @RequestParam(defaultValue = "10") @Min(1) @Max(100) long pageSize
     ) {
-        return ApiResponse.ok(articleService.listPublic(keyword, page, pageSize));
+        return ApiResponse.ok(articleService.listPublic(keyword, tagId, page, pageSize));
     }
 
     // 按 URL 标识读取公开文章详情。

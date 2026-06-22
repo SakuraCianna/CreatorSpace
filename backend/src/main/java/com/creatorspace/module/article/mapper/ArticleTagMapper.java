@@ -31,4 +31,13 @@ public interface ArticleTagMapper {
             """)
     // 查询文章绑定的标签 ID。
     List<Long> selectTagIdsByArticleId(Long articleId);
+
+    @Select("""
+            select article_id
+            from article_tags
+            where tag_id = #{tagId}
+            order by article_id
+            """)
+    // 查询绑定了指定标签的文章 ID 列表。
+    List<Long> selectArticleIdsByTagId(Long tagId);
 }

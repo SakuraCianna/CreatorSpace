@@ -312,10 +312,16 @@ export interface DashboardActivity {
   createdAt: string
 }
 
+export interface DashboardSearchKeyword {
+  keyword: string
+  count: number
+}
+
 export interface DashboardOverview {
   metrics: DashboardMetric[]
   hotArticles: DashboardRank[]
   hotProjects: DashboardRank[]
+  hotSearchKeywords: DashboardSearchKeyword[]
   visitTrend: DashboardTrendPoint[]
   recentActivities: DashboardActivity[]
 }

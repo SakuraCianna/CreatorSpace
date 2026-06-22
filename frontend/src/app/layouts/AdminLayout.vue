@@ -79,6 +79,7 @@ const navItems = [
   { to: '/admin/projects', label: '作品', badge: 'Gallery', icon: Images },
   { to: '/admin/inspirations', label: '灵感', badge: 'Wall', icon: Lightbulb },
   { to: '/admin/comments', label: '评论', badge: 'Review', icon: MessageSquare },
+  { to: '/admin/guestbook', label: '留言', badge: 'Guest', icon: MessageSquare },
   { to: '/admin/files', label: '文件', badge: 'Local', icon: FileImage },
   { to: '/admin/themes', label: '主题', badge: 'M3', icon: Palette },
   { to: '/admin/content-rules', label: '规则', badge: 'Policy', icon: ShieldCheck },

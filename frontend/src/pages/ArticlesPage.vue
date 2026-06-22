@@ -13,14 +13,22 @@
 
     <div class="topic-strip" data-reveal>
       <button
-        v-for="topic in topics"
-        :key="topic"
         class="topic-chip"
-        :class="{ 'is-active': activeTopic === topic }"
+        :class="{ 'is-active': activeTagId === null }"
         type="button"
-        @click="activeTopic = topic"
+        @click="selectTag(null)"
       >
-        {{ topic }}
+        全部
+      </button>
+      <button
+        v-for="tag in availableTags"
+        :key="tag.id"
+        class="topic-chip"
+        :class="{ 'is-active': activeTagId === tag.id }"
+        type="button"
+        @click="selectTag(tag.id)"
+      >
+        #{{ tag.name }}
       </button>
     </div>
 
@@ -101,9 +109,9 @@ import { RouterLink } from 'vue-router'
 import { LoaderCircle, Search } from '@lucide/vue'
 
 import { fallbackArticles } from '@/content/studio'
-import { fetchArticles } from '@/services/content'
+import { fetchArticles, fetchTags } from '@/services/content'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
-import type { ArticleSummary } from '@/shared/domain'
+import type { ArticleSummary, TagSummary } from '@/shared/domain'
 
 const coverPalettes = [
   ['#111827', '#6ea8ff', '#f8fafc'],
@@ -115,30 +123,30 @@ const coverPalettes = [
 
 const root = ref<HTMLElement | null>(null)
 const articles = ref<ArticleSummary[]>([])
+const availableTags = ref<TagSummary[]>([])
 const keyword = ref('')
-const activeTopic = ref('全部')
+const activeTagId = ref<number | null>(null)
 const isLoading = ref(true)
 const notice = ref('')
 
 usePageReveal(root)
 
-const topics = computed(() => ['全部', ...new Set(articles.value.map((article) => article.category?.name).filter(Boolean) as string[])])
 const allTags = computed(() => [...new Map(articles.value.flatMap((article) => article.tags).map((tag) => [tag.id, tag])).values()])
 const categoryCount = computed(() => new Set(articles.value.map((article) => article.category?.id).filter(Boolean)).size)
-const visibleArticles = computed(() => {
-  if (activeTopic.value === '全部') {
-    return articles.value
-  }
-  return articles.value.filter((article) => article.category?.name === activeTopic.value)
-})
+const visibleArticles = computed(() => articles.value)
 const featuredArticle = computed(() => visibleArticles.value[0] ?? null)
 const regularArticles = computed(() => visibleArticles.value.slice(1))
+
+function selectTag(tagId: number | null) {
+  activeTagId.value = tagId
+  loadArticles()
+}
 
 async function loadArticles() {
   isLoading.value = true
   notice.value = ''
   try {
-    const page = await fetchArticles(keyword.value)
+    const page = await fetchArticles(keyword.value, activeTagId.value ?? undefined)
     articles.value = page.records.length ? page.records : fallbackArticles
     if (!page.records.length) {
       notice.value = '已显示精选文章。'
@@ -148,6 +156,15 @@ async function loadArticles() {
     notice.value = '已显示精选文章。'
   } finally {
     isLoading.value = false
+  }
+}
+
+async function loadTags() {
+  try {
+    const tags = await fetchTags()
+    availableTags.value = tags.sort((a, b) => b.weight - a.weight).slice(0, 12)
+  } catch {
+    availableTags.value = []
   }
 }
 
@@ -170,7 +187,9 @@ function articleCoverStyle(article: ArticleSummary, index: number) {
   }
 }
 
-onMounted(loadArticles)
+onMounted(async () => {
+  await Promise.all([loadArticles(), loadTags()])
+})
 </script>
 
 <style scoped>

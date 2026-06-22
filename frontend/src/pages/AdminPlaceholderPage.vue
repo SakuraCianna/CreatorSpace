@@ -355,6 +355,35 @@
       </aside>
     </section>
 
+    <section v-else-if="activeSection === 'guestbook'" class="workspace-grid">
+      <div class="workspace-panel" data-reveal>
+        <div class="panel-title">
+          <h2>留言审核</h2>
+          <span>{{ guestbookEntries.length }} items</span>
+        </div>
+        <div class="filter-bar">
+          <select v-model="guestbookStatus" @change="loadGuestbook">
+            <option value="ALL">全部状态</option>
+            <option value="PENDING">待审核</option>
+            <option value="APPROVED">已通过</option>
+            <option value="REJECTED">已驳回</option>
+          </select>
+          <button class="icon-text-button" type="button" @click="loadGuestbook">刷新</button>
+        </div>
+        <article v-for="entry in guestbookEntries" :key="entry.id" class="table-row table-row--rich">
+          <div>
+            <strong>{{ entry.displayName }}: {{ entry.content }}</strong>
+            <span>{{ entry.createdAt ?? '未记录时间' }} · {{ entry.likeCount }} 赞</span>
+          </div>
+          <div class="row-actions">
+            <span class="status-chip">{{ entry.status }}</span>
+            <button class="icon-text-button" type="button" @click="reviewGuestbookEntry(entry.id, 'approve')">通过</button>
+            <button class="icon-text-button danger" type="button" @click="reviewGuestbookEntry(entry.id, 'reject')">驳回</button>
+          </div>
+        </article>
+      </div>
+    </section>
+
     <section v-else-if="activeSection === 'files'" class="workspace-grid">
       <form class="workspace-panel admin-form" data-reveal @submit.prevent="uploadFile">
         <div class="panel-title">
@@ -591,12 +620,14 @@ import {
   fetchAdminArticles,
   fetchAdminComments,
   fetchAdminFiles,
+  fetchAdminGuestbook,
   fetchAdminInspirations,
   fetchAdminProject,
   fetchAdminProjects,
   fetchCategories,
   fetchTags,
   reviewComment,
+  reviewGuestbook,
   rejectArticle,
   rejectProject,
   setArticleRecommend,
@@ -662,6 +693,8 @@ const articleStatus = ref<ContentStatus | 'ALL'>('ALL')
 const projectStatus = ref<ProjectSummary['status'] | 'ALL'>('ALL')
 const commentStatus = ref<CommentSummary['status'] | 'ALL'>('PENDING')
 const commentTargetType = ref<CommentSummary['targetType'] | 'ALL'>('ALL')
+const guestbookEntries = ref<Array<{ id: number; userId?: number | null; displayName: string; content: string; status: string; likeCount: number; createdAt?: string | null }>>([])
+const guestbookStatus = ref('ALL')
 const fileModule = ref('OTHER')
 const selectedFile = ref<File | null>(null)
 const editingArticleId = ref<number | null>(null)
@@ -757,6 +790,8 @@ async function loadActiveModule() {
     await loadInspirations()
   } else if (activeSection.value === 'comments') {
     await loadComments()
+  } else if (activeSection.value === 'guestbook') {
+    await loadGuestbook()
   } else if (activeSection.value === 'files') {
     await loadFiles()
   } else if (activeSection.value === 'themes') {
@@ -1133,6 +1168,28 @@ async function review(id: number, action: 'approve' | 'reject') {
   }
 }
 
+async function loadGuestbook() {
+  try {
+    const page = await fetchAdminGuestbook({
+      status: guestbookStatus.value,
+      pageSize: 50,
+    })
+    guestbookEntries.value = page.records
+  } catch (error) {
+    notice.value = readError(error, '留言加载失败')
+  }
+}
+
+async function reviewGuestbookEntry(id: number, action: 'approve' | 'reject') {
+  try {
+    await reviewGuestbook(id, action)
+    notice.value = action === 'approve' ? '留言已通过' : '留言已驳回'
+    await loadGuestbook()
+  } catch (error) {
+    notice.value = readError(error, '留言审核失败')
+  }
+}
+
 async function loadFiles() {
   try {
     const page = await fetchAdminFiles({ pageSize: 50 })
@@ -1402,6 +1459,14 @@ const configs: Record<string, ModuleConfig> = {
     eyebrow: 'Review Flow',
     title: '评论审核',
     description: '评论、回复、点赞和敏感词审核进入统一互动工作流。',
+    primaryAction: '查看待审',
+    capabilities: [],
+    rows: [],
+  },
+  guestbook: {
+    eyebrow: 'Guestbook',
+    title: '留言板管理',
+    description: '审核用户留言，管理公开留言列表。',
     primaryAction: '查看待审',
     capabilities: [],
     rows: [],

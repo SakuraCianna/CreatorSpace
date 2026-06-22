@@ -72,10 +72,13 @@ export async function loginAdmin(payload: LoginPayload): Promise<AuthToken> {
 }
 
 // 调用公开文章列表接口。
-export async function fetchArticles(keyword = ''): Promise<PageResponse<ArticleSummary>> {
+export async function fetchArticles(keyword = '', tagId?: number): Promise<PageResponse<ArticleSummary>> {
   const params = new URLSearchParams()
   if (keyword.trim()) {
     params.set('keyword', keyword.trim())
+  }
+  if (tagId) {
+    params.set('tagId', String(tagId))
   }
   const path = params.toString() ? `/api/articles?${params.toString()}` : '/api/articles'
   const response = await requestJson<ApiEnvelope<PageResponse<ArticleSummary>>>(path)
@@ -713,6 +716,52 @@ export async function searchContent(keyword: string): Promise<PageResponse<Searc
 export async function fetchDashboardOverview(): Promise<DashboardOverview> {
   const response = await requestJson<ApiEnvelope<DashboardOverview>>('/api/admin/dashboard/overview')
   return response.data
+}
+
+// 查询公开留言。
+export async function fetchGuestbook(options: {
+  page?: number
+  pageSize?: number
+} = {}): Promise<PageResponse<{ id: number; userId?: number | null; displayName: string; content: string; status: string; likeCount: number; createdAt?: string | null }>> {
+  const params = new URLSearchParams()
+  if (options.page) params.set('page', String(options.page))
+  if (options.pageSize) params.set('pageSize', String(options.pageSize))
+  const query = params.toString()
+  const response = await requestJson<ApiEnvelope<PageResponse<{ id: number; userId?: number | null; displayName: string; content: string; status: string; likeCount: number; createdAt?: string | null }>>>(
+    query ? `/api/guestbook?${query}` : '/api/guestbook'
+  )
+  return response.data
+}
+
+// 登录用户提交留言。
+export async function submitGuestbook(content: string): Promise<{ id: number; displayName: string; content: string; status: string; createdAt?: string | null }> {
+  const response = await requestJson<ApiEnvelope<{ id: number; displayName: string; content: string; status: string; createdAt?: string | null }>>('/api/guestbook', {
+    method: 'POST',
+    body: JSON.stringify({ content }),
+  })
+  return response.data
+}
+
+// 管理员查询留言。
+export async function fetchAdminGuestbook(options: {
+  status?: string
+  page?: number
+  pageSize?: number
+} = {}): Promise<PageResponse<{ id: number; userId?: number | null; displayName: string; content: string; status: string; likeCount: number; createdAt?: string | null }>> {
+  const params = new URLSearchParams()
+  if (options.status && options.status !== 'ALL') params.set('status', options.status)
+  if (options.page) params.set('page', String(options.page))
+  if (options.pageSize) params.set('pageSize', String(options.pageSize))
+  const query = params.toString()
+  const response = await requestJson<ApiEnvelope<PageResponse<{ id: number; userId?: number | null; displayName: string; content: string; status: string; likeCount: number; createdAt?: string | null }>>>(
+    query ? `/api/admin/guestbook?${query}` : '/api/admin/guestbook'
+  )
+  return response.data
+}
+
+// 管理员审核留言。
+export async function reviewGuestbook(id: number, action: 'approve' | 'reject'): Promise<void> {
+  await requestJson<ApiEnvelope<null>>(`/api/admin/guestbook/${id}/${action}`, { method: 'PUT' })
 }
 
 // 读取站点配置 JSON。

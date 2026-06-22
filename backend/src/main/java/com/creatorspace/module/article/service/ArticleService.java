@@ -58,7 +58,7 @@ public interface ArticleService {
     ArticleVO getAdminById(Long id);
 
     // 查询公开文章列表。
-    PageResponse<ArticleVO> listPublic(String keyword, long page, long pageSize);
+    PageResponse<ArticleVO> listPublic(String keyword, Long tagId, long page, long pageSize);
 
     // 按 URL 标识读取公开文章。
     ArticleVO getPublicBySlug(String slug);

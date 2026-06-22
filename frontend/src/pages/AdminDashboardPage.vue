@@ -76,6 +76,35 @@
       </div>
     </section>
 
+    <section class="workspace-grid workspace-grid--even">
+      <div class="workspace-panel" data-reveal>
+        <div class="panel-title">
+          <h2>热门搜索</h2>
+          <span>Top 10</span>
+        </div>
+        <article v-for="item in overview.hotSearchKeywords" :key="item.keyword" class="table-row">
+          <div>
+            <strong>{{ item.keyword }}</strong>
+            <span>{{ item.count }} 次搜索</span>
+          </div>
+          <span class="status-chip">HOT</span>
+        </article>
+        <span v-if="overview.hotSearchKeywords.length === 0" class="empty-hint">暂无搜索记录</span>
+      </div>
+      <div class="workspace-panel" data-reveal>
+        <div class="panel-title">
+          <h2>内容统计</h2>
+          <span>Summary</span>
+        </div>
+        <div class="summary-grid">
+          <div v-for="metric in overview.metrics" :key="metric.label" class="summary-item">
+            <span>{{ metric.label }}</span>
+            <strong>{{ metric.value }}</strong>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <p v-if="notice" class="inline-notice">{{ notice }}</p>
   </section>
 </template>
@@ -95,6 +124,7 @@ const emptyOverview: DashboardOverview = {
   metrics: [],
   hotArticles: [],
   hotProjects: [],
+  hotSearchKeywords: [],
   visitTrend: [],
   recentActivities: [],
 }
@@ -157,6 +187,12 @@ onMounted(loadOverview)
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
+}
+
+@media (min-width: 1200px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 .metric-card {
@@ -401,6 +437,45 @@ onMounted(loadOverview)
   text-align: center;
   color: var(--tone-faint);
   font-size: 11px;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.summary-item {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(49, 91, 255, 0.06);
+}
+
+.summary-item span {
+  color: var(--tone-muted);
+  font-size: 12px;
+}
+
+.summary-item strong {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.empty-hint {
+  color: var(--tone-muted);
+  font-size: 13px;
+}
+
+.inline-notice {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-left: 3px solid var(--tone-coral);
+  background: rgba(194, 95, 58, 0.08);
+  color: #754226;
+  font-size: 13px;
+  line-height: 1.55;
 }
 @media (max-width: 1020px) {
   .workspace-grid,

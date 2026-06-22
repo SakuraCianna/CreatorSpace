@@ -15,6 +15,7 @@ import com.creatorspace.module.category.service.CategoryService;
 import com.creatorspace.module.category.vo.CategoryVO;
 import com.creatorspace.module.tag.service.TagService;
 import com.creatorspace.module.tag.vo.TagVO;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,18 +37,21 @@ public class ArticleServiceImpl implements ArticleService {
     private final ArticleTagMapper articleTagMapper;
     private final CategoryService categoryService;
     private final TagService tagService;
+    private final JdbcTemplate jdbcTemplate;
 
     // 通过构造器注入文章、分类和标签协作服务。
     public ArticleServiceImpl(
             ArticleMapper articleMapper,
             ArticleTagMapper articleTagMapper,
             CategoryService categoryService,
-            TagService tagService
+            TagService tagService,
+            JdbcTemplate jdbcTemplate
     ) {
         this.articleMapper = articleMapper;
         this.articleTagMapper = articleTagMapper;
         this.categoryService = categoryService;
         this.tagService = tagService;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     // 创建草稿文章，并在同一个事务内写入标签绑定。
@@ -330,9 +334,12 @@ public class ArticleServiceImpl implements ArticleService {
         return toVO(requiredArticle(id), true);
     }
 
-    // 查询公开文章列表，只暴露已发布且公开可见的内容。
+    // 查询公开文章列表，支持关键字和标签筛选。
     @Override
-    public PageResponse<ArticleVO> listPublic(String keyword, long page, long pageSize) {
+    public PageResponse<ArticleVO> listPublic(String keyword, Long tagId, long page, long pageSize) {
+        if (tagId != null) {
+            return listPublicByTag(tagId, keyword, page, pageSize);
+        }
         LambdaQueryWrapper<ArticleEntity> query = publicArticleQuery();
         String normalizedKeyword = keyword == null ? "" : keyword.trim();
         if (!normalizedKeyword.isEmpty()) {
@@ -355,7 +362,33 @@ public class ArticleServiceImpl implements ArticleService {
         return new PageResponse<>(records, result.getCurrent(), result.getSize(), result.getTotal());
     }
 
-    // 按 URL 标识读取公开文章详情。
+    // 按标签筛选公开文章，通过 article_tags 关联表过滤。
+    private PageResponse<ArticleVO> listPublicByTag(Long tagId, String keyword, long page, long pageSize) {
+        String normalizedKeyword = keyword == null ? "" : keyword.trim();
+        List<Long> articleIds = articleTagMapper.selectArticleIdsByTagId(tagId);
+        if (articleIds.isEmpty()) {
+            return new PageResponse<>(List.of(), page, pageSize, 0);
+        }
+        LambdaQueryWrapper<ArticleEntity> query = publicArticleQuery()
+                .in(ArticleEntity::getId, articleIds);
+        if (!normalizedKeyword.isEmpty()) {
+            query.and(wrapper -> wrapper
+                    .like(ArticleEntity::getTitle, normalizedKeyword)
+                    .or()
+                    .like(ArticleEntity::getSummary, normalizedKeyword));
+        }
+        query.orderByDesc(ArticleEntity::getTop)
+                .orderByDesc(ArticleEntity::getPublishTime)
+                .orderByDesc(ArticleEntity::getId);
+        Page<ArticleEntity> result = articleMapper.selectPage(new Page<>(page, pageSize), query);
+        List<ArticleVO> records = result.getRecords()
+                .stream()
+                .map(article -> toVO(article, false))
+                .toList();
+        return new PageResponse<>(records, result.getCurrent(), result.getSize(), result.getTotal());
+    }
+
+    // 按 URL 标识读取公开文章详情，并自增阅读量。
     @Override
     public ArticleVO getPublicBySlug(String slug) {
         ArticleEntity article = articleMapper.selectOne(publicArticleQuery()
@@ -363,7 +396,26 @@ public class ArticleServiceImpl implements ArticleService {
         if (article == null) {
             throw BusinessException.notFound("文章不存在或不可见");
         }
+        incrementViewCount(article.getId());
         return toVO(article, true);
+    }
+
+    // 自增文章阅读量，同步更新 articles 表和 content_statistics 表。
+    private void incrementViewCount(Long articleId) {
+        jdbcTemplate.update(
+                "update articles set view_count = view_count + 1, updated_at = now() where id = ?",
+                articleId
+        );
+        jdbcTemplate.update("""
+                insert into content_statistics (target_type, target_id, view_count, last_viewed_at, updated_at)
+                values ('ARTICLE', ?, 1, now(), now())
+                on conflict (target_type, target_id) do update
+                set view_count = content_statistics.view_count + 1,
+                    last_viewed_at = now(),
+                    updated_at = now()
+                """,
+                articleId
+        );
     }
 
     // 构造公开文章基础查询条件，复用列表和详情的可见性规则。

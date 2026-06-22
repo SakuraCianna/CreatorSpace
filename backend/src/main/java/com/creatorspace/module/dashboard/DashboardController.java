@@ -29,10 +29,15 @@ public class DashboardController {
                         metric("文章", count("articles"), "公开/私密/草稿统一管理"),
                         metric("作品", count("portfolio_projects"), "作品档案、截图和外链"),
                         metric("灵感", count("inspiration_cards"), "摘句、Prompt、链接和参考图"),
-                        metric("待审核", countWhere("comments", "status = 'PENDING'"), "评论审核队列")
+                        metric("评论", count("comments"), "全部评论记录"),
+                        metric("待审核", countWhere("comments", "status = 'PENDING'"), "评论审核队列"),
+                        metric("点赞", count("like_records"), "累计互动"),
+                        metric("收藏", count("favorite_records"), "累计收藏"),
+                        metric("搜索", count("search_logs"), "累计搜索次数")
                 ),
                 hotArticles(),
                 hotProjects(),
+                hotSearchKeywords(),
                 visitTrend(),
                 recentActivities()
         ));
@@ -103,6 +108,21 @@ public class DashboardController {
                 ));
     }
 
+    // 热门搜索关键词 top 10。
+    private List<SearchKeywordVO> hotSearchKeywords() {
+        return jdbcTemplate.query("""
+                        select keyword, count(*) as search_count
+                        from search_logs
+                        group by keyword
+                        order by search_count desc
+                        limit 10
+                        """,
+                (rs, rowNum) -> new SearchKeywordVO(
+                        rs.getString("keyword"),
+                        rs.getLong("search_count")
+                ));
+    }
+
     // 最近后台操作。
     private List<ActivityVO> recentActivities() {
         return jdbcTemplate.query("""
@@ -122,6 +142,7 @@ public class DashboardController {
             List<MetricVO> metrics,
             List<ContentRankVO> hotArticles,
             List<ContentRankVO> hotProjects,
+            List<SearchKeywordVO> hotSearchKeywords,
             List<TrendPointVO> visitTrend,
             List<ActivityVO> recentActivities
     ) {
@@ -137,5 +158,8 @@ public class DashboardController {
     }
 
     public record ActivityVO(String operation, String module, String createdAt) {
+    }
+
+    public record SearchKeywordVO(String keyword, Long count) {
     }
 }

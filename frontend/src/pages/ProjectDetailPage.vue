@@ -54,16 +54,56 @@
         </ol>
         <div class="comments-card">
           <p class="page-kicker">Comments</p>
+          <div class="reaction-row">
+            <button
+              class="icon-button"
+              :class="{ 'is-active': liked }"
+              type="button"
+              :disabled="!canComment"
+              @click="toggleLike"
+            >
+              <Heart :size="18" />
+              <span>{{ liked ? '已喜欢' : '喜欢' }}</span>
+            </button>
+            <button
+              class="icon-button"
+              :class="{ 'is-active': favorited }"
+              type="button"
+              :disabled="!canComment"
+              @click="toggleFavorite"
+            >
+              <Bookmark :size="18" />
+              <span>{{ favorited ? '已收藏' : '收藏' }}</span>
+            </button>
+          </div>
           <form class="comment-form" @submit.prevent="postComment">
             <textarea v-model="commentDraft" rows="4" placeholder="对这个作品留下反馈，审核后公开展示。" />
             <button class="button button-filled button-compact" :disabled="!canComment" type="submit">
               {{ canComment ? '提交评论' : '登录后评论' }}
             </button>
           </form>
-          <article v-for="comment in comments" :key="comment.id" class="comment-item">
-            <strong>{{ comment.username }}</strong>
-            <p>{{ comment.content }}</p>
-            <span>{{ comment.createdAt ?? '刚刚' }}</span>
+          <form v-if="replyTarget" class="reply-hint" @submit.prevent="() => {}">
+            <span>回复 {{ replyTarget.username }}：</span>
+            <button class="text-link" type="button" @click="cancelReply">取消</button>
+          </form>
+          <article v-for="comment in comments" :key="comment.id" class="comment-item" :style="{ '--depth': comment.depth }">
+            <div class="comment-header">
+              <strong>{{ comment.username }}</strong>
+              <span class="comment-time">{{ formatDate(comment.createdAt) }}</span>
+            </div>
+            <p class="comment-body">{{ comment.content }}</p>
+            <div class="comment-actions">
+              <button
+                class="comment-action-btn"
+                type="button"
+                :disabled="!canComment"
+                @click="replyTo(comment)"
+              >
+                <MessageCircle :size="14" />
+                回复
+              </button>
+              <span v-if="comment.likeCount > 0" class="comment-likes">{{ comment.likeCount }} 赞</span>
+            </div>
           </article>
           <span v-if="comments.length === 0">还没有公开评论。</span>
           <p v-if="commentNotice" class="inline-notice">{{ commentNotice }}</p>
@@ -84,14 +124,25 @@ import { RouterLink, useRoute } from 'vue-router'
 import {
   Archive,
   ArrowLeft,
+  Bookmark,
   ExternalLink,
   GitBranch,
+  Heart,
   LoaderCircle,
+  MessageCircle,
   Sparkles,
 } from '@lucide/vue'
 
 import { fallbackProjects } from '@/content/studio'
-import { fetchComments, fetchProjectBySlug, submitComment } from '@/services/content'
+import {
+  fetchComments,
+  fetchProjectBySlug,
+  submitComment,
+  likeTarget,
+  unlikeTarget,
+  favoriteTarget,
+  unfavoriteTarget,
+} from '@/services/content'
 import { useCinematicPageMotion } from '@/shared/composables/useCinematicPageMotion'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import { toCssImageUrl } from '@/shared/cssImage'
@@ -107,6 +158,9 @@ const commentDraft = ref('')
 const commentNotice = ref('')
 const isLoading = ref(true)
 const notice = ref('')
+const liked = ref(false)
+const favorited = ref(false)
+const replyTarget = ref<CommentSummary | null>(null)
 const slug = computed(() => readRouteParam(route.params.slug))
 const session = useSessionStore()
 const cinematic = useCinematicPageMotion(root)
@@ -179,14 +233,63 @@ async function postComment() {
     await submitComment({
       targetType: 'PROJECT',
       targetId: project.value.id,
+      parentId: replyTarget.value?.id,
       content: commentDraft.value.trim(),
     })
     commentDraft.value = ''
+    replyTarget.value = null
     commentNotice.value = '评论已提交，审核通过后会公开展示'
     await loadComments()
   } catch (error) {
     commentNotice.value = error instanceof Error ? error.message : '评论提交失败'
   }
+}
+
+async function toggleLike() {
+  if (!project.value?.id || !canComment.value) return
+  try {
+    if (liked.value) {
+      await unlikeTarget('PROJECT', project.value.id)
+      liked.value = false
+    } else {
+      await likeTarget('PROJECT', project.value.id)
+      liked.value = true
+    }
+  } catch {
+    commentNotice.value = '操作失败，请重试'
+  }
+}
+
+async function toggleFavorite() {
+  if (!project.value?.id || !canComment.value) return
+  try {
+    if (favorited.value) {
+      await unfavoriteTarget('PROJECT', project.value.id)
+      favorited.value = false
+    } else {
+      await favoriteTarget('PROJECT', project.value.id)
+      favorited.value = true
+    }
+  } catch {
+    commentNotice.value = '操作失败，请重试'
+  }
+}
+
+function replyTo(comment: CommentSummary) {
+  replyTarget.value = comment
+  commentDraft.value = ''
+}
+
+function cancelReply() {
+  replyTarget.value = null
+}
+
+function formatDate(value?: string | null): string {
+  if (!value) return '刚刚'
+  return new Intl.DateTimeFormat('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(value))
 }
 
 function readRouteParam(value: string | string[] | undefined): string {
@@ -442,6 +545,109 @@ watch(slug, loadProject)
   color: var(--tone-faint);
   font-size: 12px;
   font-weight: 800;
+}
+
+.reaction-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.reaction-row .icon-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--tone-line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--tone-muted);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.reaction-row .icon-button.is-active {
+  color: var(--tone-primary);
+  background: rgba(49, 91, 255, 0.1);
+  border-color: rgba(49, 91, 255, 0.3);
+}
+
+.comment-item {
+  padding: 12px;
+  margin-left: calc(var(--depth, 0) * 20px);
+  border-left: 2px solid var(--tone-line);
+}
+
+.comment-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.comment-header strong {
+  color: var(--tone-ink);
+  font-size: 14px;
+}
+
+.comment-time {
+  color: var(--tone-faint);
+  font-size: 12px;
+}
+
+.comment-body {
+  margin: 4px 0 6px;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.comment-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border: none;
+  background: transparent;
+  color: var(--tone-muted);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.comment-action-btn:hover {
+  color: var(--tone-primary);
+}
+
+.comment-likes {
+  color: var(--tone-faint);
+  font-size: 12px;
+}
+
+.reply-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgba(49, 91, 255, 0.06);
+  font-size: 13px;
+  color: var(--tone-muted);
+}
+
+.inline-notice {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--tone-coral);
+  background: rgba(194, 95, 58, 0.08);
+  color: #754226;
+  font-size: 13px;
+  line-height: 1.55;
 }
 @media (max-width: 1020px) {
   .project-record {
