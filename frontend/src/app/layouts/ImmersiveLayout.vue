@@ -5,7 +5,7 @@
         <span class="cs-nav__mark">
           <img src="/public.svg" alt="" aria-hidden="true" />
         </span>
-        <span>{{ brandName }}</span>
+        <span>{{ siteName }}</span>
       </RouterLink>
       <div class="cs-nav__links">
         <RouterLink v-for="item in immersiveNavItems" :key="item.to" :to="item.to">
@@ -20,41 +20,21 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
-import { fetchSiteConfig } from '@/services/content'
+import { useSiteIdentity } from '@/shared/siteIdentity'
 
 interface ImmersiveNavItem {
   label: string
   to: string
 }
 
-const brandName = ref('CreatorSpace')
+const { siteName } = useSiteIdentity({ load: false })
 const immersiveNavItems: ImmersiveNavItem[] = [
   { label: '游客', to: '/articles' },
   { label: '登录', to: '/login' },
   { label: '注册', to: '/register' },
 ]
-
-onMounted(async () => {
-  try {
-    const config = await fetchSiteConfig()
-    const identity = readRecord(config['site.identity'])
-    const profile = readRecord(config['site.profile.active'])
-    brandName.value = readString(identity.name) || readString(profile.displayName) || brandName.value
-  } catch {
-    brandName.value = 'CreatorSpace'
-  }
-})
-
-function readRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
-}
-
-function readString(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : ''
-}
 </script>
 
 <style scoped>

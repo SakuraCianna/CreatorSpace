@@ -25,6 +25,12 @@ import { useLenis } from '@/shared/composables/useLenis'
 import { attachMagnetic } from '@/shared/composables/useMagnetic'
 import { prefersReducedMotion } from '@/shared/composables/useReducedMotion'
 import { toCssImageUrl } from '@/shared/cssImage'
+import {
+  DEFAULT_SITE_IDENTITY,
+  resolveSiteIdentity,
+  syncSiteIdentityFromConfig,
+  type SiteIdentity,
+} from '@/shared/siteIdentity'
 import inspirationBg01 from '@/assets/homepage/inspiration-bg-01.svg'
 import inspirationBg02 from '@/assets/homepage/inspiration-bg-02.svg'
 import inspirationBg03 from '@/assets/homepage/inspiration-bg-03.svg'
@@ -58,7 +64,7 @@ const emptyTotals = {
 }
 
 const runtimeSiteConfig = ref<SiteConfig | null>(null)
-const runtimeHeroContent = ref<HomeHeroContent>(resolveHeroContent(emptyTotals))
+const runtimeHeroContent = ref<HomeHeroContent>(resolveHeroContent(emptyTotals, DEFAULT_SITE_IDENTITY.name))
 const runtimeMarqueeWords = ref<string[]>(buildMarqueeWords())
 const runtimeManifesto = ref<ManifestoContent>(buildManifesto())
 const runtimeArticles = ref<FeaturedArticle[]>([])
@@ -199,10 +205,13 @@ async function loadHomeRuntimeData() {
     projectTotal: projectsResult.status === 'fulfilled' ? projectsResult.value.total : 0,
     inspirationTotal: inspirationsResult.status === 'fulfilled' ? inspirationsResult.value.total : 0,
   }
-  const nextSiteConfig = resolveSiteConfig(config)
+  const nextSiteIdentity = configResult.status === 'fulfilled'
+    ? syncSiteIdentityFromConfig(config)
+    : resolveSiteIdentity(config)
+  const nextSiteConfig = resolveSiteConfig(config, nextSiteIdentity)
 
   runtimeSiteConfig.value = nextSiteConfig
-  runtimeHeroContent.value = resolveHeroContent(totals)
+  runtimeHeroContent.value = resolveHeroContent(totals, nextSiteConfig.brand)
   runtimeArticles.value = buildFeaturedCards(articles, projects)
   runtimeProjects.value = buildPortfolioProjects(projects)
   runtimeCounters.value = buildCounters(totals)
@@ -276,17 +285,10 @@ function readStringList(value: unknown): string[] {
     .filter(Boolean)
 }
 
-function resolveSiteConfig(config: Record<string, unknown>): SiteConfig {
-  const identity = readRecord(config['site.identity'])
-  const profile = readRecord(config['site.profile.active'])
-  const profileJson = readRecord(profile.profileJson)
-  const brand = readString(identity.name)
-    || readString(profile.displayName)
-    || readString(identity.title)
-  const wordmark = readString(identity.wordmark) || readString(profileJson.signature) || brand
+function resolveSiteConfig(config: Record<string, unknown>, identity: SiteIdentity = resolveSiteIdentity(config)): SiteConfig {
   return {
-    brand,
-    wordmark,
+    brand: identity.name,
+    wordmark: identity.wordmark,
     navigation: readNavigation(config['site.navigationItems']),
     social: readSocial(config['site.socialLinks']),
   }
@@ -348,10 +350,10 @@ function isExternalUrl(value: string): boolean {
   return /^https?:\/\//i.test(value)
 }
 
-function resolveHeroContent(totals: SiteTotals): HomeHeroContent {
+function resolveHeroContent(totals: SiteTotals, siteName: string): HomeHeroContent {
   return {
     kicker: 'Personal Theme Blog · Creative Portfolio',
-    titleLines: ['CreatorSpace', '创作主页'],
+    titleLines: [siteName, '创作主页'],
     subtitle: '一个有主题风格的个人博客与作品展示平台。',
     description: '这里不是模板化列表，而是一个带有主题气质的个人站点：文章记录思考，作品呈现过程，灵感碎片连接长期创作。',
     primary: { label: '进入博客', to: '/articles' },

@@ -5,7 +5,7 @@
         <span class="material-icon-badge">
           <ShieldCheck :size="24" />
         </span>
-        <p class="page-kicker">CreatorSpace Account</p>
+        <p class="page-kicker">{{ accountKicker }}</p>
         <h1>{{ loginMode === 'ADMIN' ? '进入内容工作台' : '进入创作社区' }}</h1>
         <p>{{ loginMode === 'ADMIN' ? '使用管理员身份管理文章、作品、灵感墙、评论审核与主题配置。' : '登录后参与评论、回复、收藏，并为后续好友可见内容保留身份。' }}</p>
         <div class="material-benefits" aria-label="登录能力">
@@ -17,10 +17,10 @@
       <div class="auth-card__form">
         <div>
           <p class="page-kicker">Sign in</p>
-          <h2>{{ loginMode === 'ADMIN' ? '管理员登录' : '访客登录' }}</h2>
+          <h2>{{ loginMode === 'ADMIN' ? '管理员登录' : '普通用户登录' }}</h2>
         </div>
         <div class="auth-mode-switch">
-          <button type="button" :class="{ 'is-active': loginMode === 'USER' }" @click="loginMode = 'USER'">访客登录</button>
+          <button type="button" :class="{ 'is-active': loginMode === 'USER' }" @click="loginMode = 'USER'">普通用户登录</button>
           <button type="button" :class="{ 'is-active': loginMode === 'ADMIN' }" @click="loginMode = 'ADMIN'">管理员登录</button>
         </div>
         <label class="md-field">
@@ -35,7 +35,7 @@
           <LoaderCircle v-if="isSubmitting" class="spin" :size="16" />
           {{ isSubmitting ? '登录中...' : loginMode === 'ADMIN' ? '登录后台' : '登录账号' }}
         </button>
-        <RouterLink class="auth-switch" to="/register">没有账号，先注册普通用户</RouterLink>
+        <RouterLink class="auth-switch" :to="registerRoute">没有账号，先注册普通用户</RouterLink>
         <p v-if="message" class="form-message">{{ message }}</p>
       </div>
     </form>
@@ -43,26 +43,36 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { LoaderCircle, ShieldCheck } from '@lucide/vue'
 
 import { loginAdmin, loginUser } from '@/services/content'
 import { HttpError, toUserMessage } from '@/services/http'
+import { isAdminRedirect, normalizeAuthRedirect } from '@/shared/authRedirect'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import { useSessionStore } from '@/shared/sessionStore'
+import { siteAccountLabel, useSiteIdentity } from '@/shared/siteIdentity'
 
 const root = ref<HTMLElement | null>(null)
 const router = useRouter()
 const route = useRoute()
 const session = useSessionStore()
+const { identity } = useSiteIdentity({ load: false })
 const form = reactive({
   username: '',
   password: '',
 })
 const message = ref('')
 const isSubmitting = ref(false)
-const loginMode = ref(route.query.mode === 'admin' || readRedirectPath().startsWith('/admin') ? 'ADMIN' : 'USER')
+const loginMode = ref(route.query.mode === 'admin' || isAdminRedirect(route.query.redirect) ? 'ADMIN' : 'USER')
+const accountKicker = computed(() => siteAccountLabel(identity.value))
+const registerRoute = computed(() => ({
+  name: 'register',
+  query: {
+    redirect: readPublicRedirectPath(),
+  },
+}))
 
 usePageReveal(root)
 
@@ -98,16 +108,12 @@ function loginErrorMessage(error: unknown) {
 }
 
 function readPublicRedirectPath() {
-  const redirect = readRedirectPath()
+  const redirect = normalizeAuthRedirect(route.query.redirect, '/articles')
   return redirect.startsWith('/admin') ? '/articles' : redirect
 }
 
 function readRedirectPath() {
-  const redirect = route.query.redirect
-  if (Array.isArray(redirect)) {
-    return redirect[0] || '/admin'
-  }
-  return redirect || '/admin'
+  return normalizeAuthRedirect(route.query.redirect, '/admin')
 }
 </script>
 
