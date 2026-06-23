@@ -1,4 +1,4 @@
-export type UserRole = 'ADMIN' | 'USER'
+﻿export type UserRole = 'ADMIN' | 'USER'
 
 export type ArticlePrivacy =
   | 'PUBLIC'
@@ -184,8 +184,19 @@ export interface InteractionRecord {
   createdAt?: string | null
 }
 
+export type SearchResultType = 'ARTICLE' | 'PROJECT' | 'INSPIRATION' | 'TAG' | 'CATEGORY' | 'PAGE'
+export type SearchSortType = 'relevance' | 'latest' | 'popular'
+
+export interface SearchParams {
+  keyword: string
+  type?: SearchResultType | ''
+  sort?: SearchSortType
+  page?: number
+  pageSize?: number
+}
+
 export interface SearchResult {
-  type: 'ARTICLE' | 'PROJECT' | 'INSPIRATION'
+  type: SearchResultType
   title: string
   slug: string
   description?: string | null
@@ -193,7 +204,6 @@ export interface SearchResult {
   occurredAt?: string | null
   score: number
 }
-
 export interface ThemeConfig {
   themeName: string
   displayName: string
@@ -349,3 +359,5 @@ export interface AdminMetric {
   value: string
   trend: string
 }
+
+

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section ref="root" class="search-page">
     <header class="archive-hero page-hero page-hero--search" data-reveal>
       <div>
@@ -9,13 +9,29 @@
         <input v-model="keyword" placeholder="试试搜索 内容系统、动效、Prompt" aria-label="站内搜索" />
         <button class="button button-filled button-compact" type="submit">搜索</button>
       </form>
+      <div class="search-controls" data-reveal>
+        <label>
+          <span>类型</span>
+          <select v-model="activeType" @change="rerunIfSearched">
+            <option v-for="option in typeOptions" :key="option.value || 'ALL'" :value="option.value">{{ option.label }}</option>
+          </select>
+        </label>
+        <label>
+          <span>排序</span>
+          <select v-model="activeSort" @change="rerunIfSearched">
+            <option value="relevance">相关度</option>
+            <option value="latest">最新</option>
+            <option value="popular">热度</option>
+          </select>
+        </label>
+      </div>
     </header>
 
     <section class="search-results" data-reveal>
       <article v-for="result in results" :key="`${result.type}-${result.slug}`" class="search-result">
         <span>{{ typeLabels[result.type] }}</span>
         <h2>{{ result.title }}</h2>
-        <p>{{ result.description }}</p>
+        <p>{{ result.description || fallbackDescription(result) }}</p>
         <RouterLink class="text-link" :to="resultTarget(result)">
           打开
           <ArrowRight :size="15" />
@@ -23,7 +39,7 @@
       </article>
       <div v-if="!isLoading && results.length === 0" class="empty-state">
         <h2>{{ searched ? '没有找到匹配内容' : '输入关键词开始搜索' }}</h2>
-        <p>搜索会覆盖公开文章、可见作品和公开灵感卡片。</p>
+        <p>搜索会覆盖公开文章、可见作品、公开灵感、标签、分类和公开页面配置。</p>
       </div>
       <div v-if="isLoading" class="empty-state">
         <LoaderCircle class="spin" :size="24" />
@@ -43,10 +59,12 @@ import { ArrowRight, LoaderCircle, Search } from '@lucide/vue'
 import { searchContent } from '@/services/content'
 import { toUserMessage } from '@/services/http'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
-import type { SearchResult } from '@/shared/domain'
+import type { SearchResult, SearchResultType, SearchSortType } from '@/shared/domain'
 
 const root = ref<HTMLElement | null>(null)
 const keyword = ref('')
+const activeType = ref<SearchResultType | ''>('')
+const activeSort = ref<SearchSortType>('relevance')
 const results = ref<SearchResult[]>([])
 const isLoading = ref(false)
 const searched = ref(false)
@@ -58,7 +76,20 @@ const typeLabels: Record<SearchResult['type'], string> = {
   ARTICLE: '文章',
   PROJECT: '作品',
   INSPIRATION: '灵感',
+  TAG: '标签',
+  CATEGORY: '分类',
+  PAGE: '页面',
 }
+
+const typeOptions: Array<{ label: string; value: SearchResultType | '' }> = [
+  { label: '全部', value: '' },
+  { label: '文章', value: 'ARTICLE' },
+  { label: '作品', value: 'PROJECT' },
+  { label: '灵感', value: 'INSPIRATION' },
+  { label: '标签', value: 'TAG' },
+  { label: '分类', value: 'CATEGORY' },
+  { label: '页面', value: 'PAGE' },
+]
 
 async function runSearch() {
   const value = keyword.value.trim()
@@ -71,13 +102,24 @@ async function runSearch() {
   searched.value = true
   notice.value = ''
   try {
-    const page = await searchContent(value)
+    const page = await searchContent({
+      keyword: value,
+      type: activeType.value,
+      sort: activeSort.value,
+      pageSize: 24,
+    })
     results.value = page.records
   } catch (error) {
     results.value = []
     notice.value = toUserMessage(error, '搜索接口暂不可用，请稍后再试')
   } finally {
     isLoading.value = false
+  }
+}
+
+function rerunIfSearched() {
+  if (searched.value) {
+    runSearch()
   }
 }
 
@@ -88,7 +130,23 @@ function resultTarget(result: SearchResult): RouteLocationRaw {
   if (result.type === 'PROJECT') {
     return { name: 'project-detail', params: { slug: result.slug } }
   }
+  if (result.type === 'TAG') {
+    return { name: 'articles', query: { keyword: result.title } }
+  }
+  if (result.type === 'CATEGORY') {
+    return { name: 'articles', query: { keyword: result.title } }
+  }
+  if (result.type === 'PAGE' && result.slug === 'about') {
+    return { name: 'about' }
+  }
   return { name: 'inspirations' }
+}
+
+function fallbackDescription(result: SearchResult) {
+  if (result.type === 'TAG') return `查看与 #${result.title} 相关的公开内容。`
+  if (result.type === 'CATEGORY') return `查看 ${result.title} 分类下的公开内容。`
+  if (result.type === 'PAGE') return '打开公开页面。'
+  return '暂无摘要。'
 }
 </script>
 
@@ -248,6 +306,32 @@ function resultTarget(result: SearchResult): RouteLocationRaw {
   color: var(--tone-ink);
 }
 
+.search-controls {
+  display: flex;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.search-controls label {
+  display: grid;
+  gap: 6px;
+  min-width: 160px;
+  color: var(--tone-muted);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.search-controls select {
+  min-height: 40px;
+  border: 1px solid var(--tone-line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--tone-ink);
+  font: inherit;
+  padding: 0 12px;
+}
+
 .search-page,
 .search-results {
   display: grid;
@@ -326,6 +410,10 @@ function resultTarget(result: SearchResult): RouteLocationRaw {
   .archive-search button {
     grid-column: 1 / -1;
     width: 100%;
+  }
+
+  .search-controls {
+    display: grid;
   }
 
   .search-result {

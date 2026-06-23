@@ -1,4 +1,4 @@
-import { requestJson } from '@/services/http'
+﻿import { requestJson } from '@/services/http'
 import type {
   AdminThemeConfig,
   ArticleSummary,
@@ -16,6 +16,7 @@ import type {
   ProjectPayload,
   ProjectSummary,
   PublicThemeConfig,
+  SearchParams,
   SearchResult,
   SiteSettings,
   SiteSettingsPayload,
@@ -707,8 +708,17 @@ export async function fetchMyFavorites(targetType?: Exclude<InteractionTargetTyp
 }
 
 // 查询站内公开内容。
-export async function searchContent(keyword: string): Promise<PageResponse<SearchResult>> {
-  const params = new URLSearchParams({ keyword })
+export async function searchContent(options: SearchParams | string): Promise<PageResponse<SearchResult>> {
+  const params = new URLSearchParams()
+  if (typeof options === 'string') {
+    params.set('keyword', options)
+  } else {
+    params.set('keyword', options.keyword)
+    if (options.type) params.set('type', options.type)
+    if (options.sort) params.set('sort', options.sort)
+    if (options.page) params.set('page', String(options.page))
+    if (options.pageSize) params.set('pageSize', String(options.pageSize))
+  }
   const response = await requestJson<ApiEnvelope<PageResponse<SearchResult>>>(`/api/search?${params.toString()}`)
   return response.data
 }
@@ -820,3 +830,4 @@ export async function updateSiteSettings(payload: SiteSettingsPayload): Promise<
   })
   return response.data
 }
+
