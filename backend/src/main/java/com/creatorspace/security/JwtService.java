@@ -25,19 +25,21 @@ public class JwtService {
     private static final String HMAC_ALGORITHM = "HmacSHA256";
     private static final String JWT_ALGORITHM = "HS256";
     private static final int MIN_SECRET_LENGTH = 32;
+    private static final String LOCAL_FALLBACK_SECRET = "creator-space-local-development-secret-not-for-production";
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Clock clock;
     private final String secret;
     private final long accessTokenExpireMinutes;
 
-    // 启动时校验 JWT 密钥强度，避免默认弱密钥参与签名。
+    // 启动时校验 JWT 密钥强度，本地环境允许占位值以减少配置阻塞。
     public JwtService(
             @Value("${app.security.jwt-secret}") String secret,
-            @Value("${app.security.jwt-access-token-expire-minutes}") long accessTokenExpireMinutes
+            @Value("${app.security.jwt-access-token-expire-minutes}") long accessTokenExpireMinutes,
+            @Value("${app.env:local}") String appEnv
     ) {
         this.clock = Clock.systemUTC();
-        this.secret = requireStrongSecret(secret);
+        this.secret = resolveSigningSecret(secret, appEnv);
         this.accessTokenExpireMinutes = accessTokenExpireMinutes;
     }
 
@@ -125,12 +127,23 @@ public class JwtService {
         );
     }
 
-    // 保证令牌签名密钥只能来自显式配置，避免开发默认值进入部署环境。
-    private String requireStrongSecret(String configuredSecret) {
+    // 本地开发可使用兜底密钥，非本地环境仍强制要求显式强密钥。
+    private String resolveSigningSecret(String configuredSecret, String appEnv) {
         String normalizedSecret = configuredSecret == null ? "" : configuredSecret.trim();
-        if (normalizedSecret.length() < MIN_SECRET_LENGTH) {
-            throw new IllegalStateException("JWT_SECRET must be configured with at least 32 characters");
+        if (normalizedSecret.length() >= MIN_SECRET_LENGTH) {
+            return normalizedSecret;
         }
-        return normalizedSecret;
+        if (isLocalLikeEnv(appEnv)) {
+            return LOCAL_FALLBACK_SECRET;
+        }
+        throw new IllegalStateException("JWT_SECRET must be configured with at least 32 characters outside local development");
+    }
+
+    private boolean isLocalLikeEnv(String appEnv) {
+        String normalizedEnv = appEnv == null ? "local" : appEnv.trim().toLowerCase();
+        return "local".equals(normalizedEnv)
+                || "dev".equals(normalizedEnv)
+                || "development".equals(normalizedEnv)
+                || "test".equals(normalizedEnv);
     }
 }

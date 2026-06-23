@@ -1,21 +1,26 @@
 <template>
-  <div class="admin-shell">
+  <div class="admin-shell" :class="{ 'admin-shell--collapsed': sidebarCollapsed }">
     <aside class="admin-rail" aria-label="后台导航">
-      <RouterLink class="admin-brand" to="/admin">
+      <button
+        class="admin-brand"
+        type="button"
+        :aria-label="sidebarCollapsed ? '展开后台侧边栏' : '收起后台侧边栏'"
+        :aria-expanded="!sidebarCollapsed"
+        @click="toggleSidebar"
+      >
         <span class="brand-mark">
           <img src="/public.svg" alt="" aria-hidden="true" />
         </span>
-        <span>
-          <strong>CreatorSpace CMS</strong>
-          <small>Content Operating Desk</small>
+        <span class="brand-copy">
+          <strong>创作空间后台</strong>
+          <small>{{ siteSlogan }}</small>
         </span>
-      </RouterLink>
+      </button>
 
       <nav class="admin-nav">
-        <RouterLink v-for="item in navItems" :key="item.to" :to="item.to">
+        <RouterLink v-for="item in navItems" :key="item.to" :to="item.to" :title="item.label">
           <component :is="item.icon" :size="18" />
           <span>{{ item.label }}</span>
-          <small>{{ item.badge }}</small>
         </RouterLink>
       </nav>
 
@@ -28,7 +33,6 @@
     <section class="admin-workspace">
       <header class="admin-topbar">
         <div>
-          <p class="eyebrow">Material 3 CMS</p>
           <h1>{{ currentTitle }}</h1>
         </div>
         <div class="admin-topbar__actions">
@@ -50,7 +54,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import {
   BarChart3,
@@ -68,22 +72,25 @@ import {
 } from '@lucide/vue'
 
 import { useSessionStore } from '@/shared/sessionStore'
+import { useSiteIdentity } from '@/shared/siteIdentity'
 
 const route = useRoute()
 const router = useRouter()
 const session = useSessionStore()
+const { siteSlogan } = useSiteIdentity()
+const sidebarCollapsed = ref(false)
 
 const navItems = [
-  { to: '/admin', label: '概览', badge: 'LIVE', icon: BarChart3 },
-  { to: '/admin/articles', label: '文章', badge: 'Draft', icon: FileText },
-  { to: '/admin/projects', label: '作品', badge: 'Gallery', icon: Images },
-  { to: '/admin/inspirations', label: '灵感', badge: 'Wall', icon: Lightbulb },
-  { to: '/admin/comments', label: '评论', badge: 'Review', icon: MessageSquare },
-  { to: '/admin/guestbook', label: '留言', badge: 'Guest', icon: MessageSquare },
-  { to: '/admin/files', label: '文件', badge: 'Local', icon: FileImage },
-  { to: '/admin/themes', label: '主题', badge: 'M3', icon: Palette },
-  { to: '/admin/content-rules', label: '规则', badge: 'Policy', icon: ShieldCheck },
-  { to: '/admin/settings', label: '设置', badge: 'Site', icon: Settings },
+  { to: '/admin', label: '概览', icon: BarChart3 },
+  { to: '/admin/articles', label: '文章', icon: FileText },
+  { to: '/admin/projects', label: '作品', icon: Images },
+  { to: '/admin/inspirations', label: '灵感', icon: Lightbulb },
+  { to: '/admin/comments', label: '评论', icon: MessageSquare },
+  { to: '/admin/guestbook', label: '留言', icon: MessageSquare },
+  { to: '/admin/files', label: '文件', icon: FileImage },
+  { to: '/admin/themes', label: '主题', icon: Palette },
+  { to: '/admin/content-rules', label: '规则', icon: ShieldCheck },
+  { to: '/admin/settings', label: '设置', icon: Settings },
 ]
 
 const titleMap = new Map(navItems.map((item) => [item.to, item.label]))
@@ -98,6 +105,10 @@ function logout() {
   session.logout()
   router.push('/login')
 }
+
+function toggleSidebar() {
+  sidebarCollapsed.value = !sidebarCollapsed.value
+}
 </script>
 
 <style scoped>
@@ -105,19 +116,37 @@ function logout() {
   display: inline-flex;
   align-items: center;
   gap: 12px;
+  width: 100%;
   min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
   font-weight: 760;
+  text-align: left;
+  cursor: pointer;
 }
 
-.admin-brand span:last-child {
+.brand-copy {
   display: grid;
   gap: 2px;
+  min-width: 0;
+  max-width: 168px;
+  overflow: hidden;
+  opacity: 1;
+  transform: translateX(0);
+  transition:
+    max-width 240ms cubic-bezier(0.2, 0, 0, 1),
+    opacity 180ms ease,
+    transform 240ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 .admin-brand small {
   color: var(--tone-muted);
   font-size: 11px;
   font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .brand-mark {
@@ -132,6 +161,9 @@ function logout() {
     linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(235, 242, 255, 0.78)),
     var(--md-sys-color-surface-container-lowest);
   box-shadow: var(--md-sys-elevation-2);
+  transition:
+    transform 240ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 180ms ease;
 }
 
 .brand-mark img {
@@ -149,17 +181,41 @@ function logout() {
 
 .admin-nav a {
   display: grid;
-  grid-template-columns: 20px minmax(0, 1fr) auto;
+  grid-template-columns: 20px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
   width: 100%;
-  min-height: 40px;
-  padding: 9px 12px;
+  min-height: 38px;
+  padding: 8px 12px;
   border-radius: 999px;
   color: var(--tone-muted);
   font-size: 14px;
   font-weight: 690;
-  transition: background 180ms ease, color 180ms ease, transform 180ms ease;
+  overflow: hidden;
+  transition:
+    grid-template-columns 240ms cubic-bezier(0.2, 0, 0, 1),
+    background 180ms ease,
+    color 180ms ease,
+    padding 240ms cubic-bezier(0.2, 0, 0, 1),
+    transform 180ms ease;
+}
+
+.admin-nav a span {
+  min-width: 0;
+  max-width: 88px;
+  overflow: hidden;
+  opacity: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transform: translateX(0);
+  transition:
+    max-width 240ms cubic-bezier(0.2, 0, 0, 1),
+    opacity 180ms ease,
+    transform 240ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.admin-nav a svg {
+  transition: transform 220ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 .admin-nav a.router-link-active,
@@ -176,48 +232,47 @@ function logout() {
 
 .admin-shell {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: 250px minmax(0, 1fr);
   min-height: 100vh;
   background:
     linear-gradient(120deg, rgba(49, 91, 255, 0.08), transparent 36%),
     #f7f4f0;
+  transition: grid-template-columns 280ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.admin-shell--collapsed {
+  grid-template-columns: 78px minmax(0, 1fr);
 }
 
 .admin-rail {
   display: flex;
   flex-direction: column;
-  gap: 22px;
-  padding: 22px;
+  gap: 18px;
+  padding: 18px 16px;
   border-right: 1px solid var(--tone-line);
   background: rgba(255, 255, 255, 0.82);
-}
-
-.admin-nav {
-  align-items: stretch;
-  flex-direction: column;
-}
-
-.admin-nav a {
-  display: grid;
-  grid-template-columns: 20px minmax(0, 1fr) auto;
-  width: 100%;
-  border-radius: 999px;
-}
-
-.admin-nav small {
-  color: var(--tone-faint);
-  font-size: 10px;
-  font-weight: 800;
+  transition:
+    padding 280ms cubic-bezier(0.2, 0, 0, 1),
+    background 180ms ease;
 }
 
 .admin-rail__note {
   display: grid;
   gap: 10px;
   margin-top: auto;
+  max-height: 160px;
   padding: 16px;
   border-radius: 8px;
   background: var(--tone-night);
   color: #fff;
+  overflow: hidden;
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition:
+    max-height 240ms cubic-bezier(0.2, 0, 0, 1),
+    padding 240ms cubic-bezier(0.2, 0, 0, 1),
+    opacity 160ms ease,
+    transform 220ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 .admin-rail__note p {
@@ -231,13 +286,59 @@ function logout() {
   min-width: 0;
 }
 
+.admin-shell--collapsed .admin-rail {
+  align-items: center;
+  padding-right: 12px;
+  padding-left: 12px;
+}
+
+.admin-shell--collapsed .admin-brand {
+  justify-content: center;
+}
+
+.admin-shell--collapsed .brand-mark {
+  transform: scale(0.94);
+}
+
+.admin-shell--collapsed .brand-copy,
+.admin-shell--collapsed .admin-nav a span {
+  max-width: 0;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-8px);
+}
+
+.admin-shell--collapsed .admin-rail__note {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px) scale(0.98);
+}
+
+.admin-shell--collapsed .admin-nav {
+  width: 100%;
+}
+
+.admin-shell--collapsed .admin-nav a {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  padding-right: 0;
+  padding-left: 0;
+}
+
+.admin-shell--collapsed .admin-nav a svg {
+  transform: scale(1.04);
+}
+
 .admin-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  min-height: 98px;
-  padding: 22px 32px;
+  min-height: 82px;
+  padding: 18px 28px;
   border-bottom: 1px solid var(--tone-line);
   background: rgba(255, 251, 254, 0.82);
   backdrop-filter: blur(18px);
@@ -245,12 +346,12 @@ function logout() {
 
 .admin-topbar h1 {
   margin: 0;
-  font-size: 30px;
+  font-size: 26px;
   line-height: 1.2;
 }
 
 .admin-main {
-  padding: 28px 32px 48px;
+  padding: 24px 28px 42px;
 }
 
 @media (max-width: 1020px) {
@@ -258,9 +359,37 @@ function logout() {
     grid-template-columns: 1fr;
   }
 
+  .admin-shell--collapsed {
+    grid-template-columns: 1fr;
+  }
+
   .admin-rail {
     border-right: 0;
     border-bottom: 1px solid var(--tone-line);
+  }
+
+  .admin-shell--collapsed .brand-copy {
+    display: grid;
+    max-width: 168px;
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+  }
+
+  .admin-shell--collapsed .admin-nav a span {
+    display: inline;
+    max-width: 88px;
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+  }
+
+  .admin-shell--collapsed .admin-rail__note {
+    max-height: 160px;
+    padding: 16px;
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
   }
 
   .admin-nav {
@@ -284,6 +413,20 @@ function logout() {
   .admin-topbar {
     padding-right: 20px;
     padding-left: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-shell,
+  .admin-rail,
+  .admin-brand,
+  .brand-copy,
+  .brand-mark,
+  .admin-nav a,
+  .admin-nav a span,
+  .admin-nav a svg,
+  .admin-rail__note {
+    transition: none;
   }
 }
 </style>

@@ -1,17 +1,19 @@
 <template>
   <section ref="root" class="wall-page">
-    <header class="archive-hero page-hero page-hero--inspirations" data-reveal>
-      <div>
+    <header class="wall-hero page-hero" data-reveal>
+      <div class="hero-copy">
+        <p class="page-kicker">Inspiration Wall</p>
         <h1>灵感墙</h1>
+        <p>摘句、Prompt、图片、代码和链接都在这里先被保存成碎片，再慢慢长成文章或作品。</p>
       </div>
-      <form class="archive-search" @submit.prevent="loadInspirations">
+      <form class="wall-search" @submit.prevent="loadInspirations">
         <Search :size="18" />
         <input v-model="keyword" placeholder="搜索灵感、来源或 Prompt" aria-label="搜索灵感" />
         <button class="button button-filled button-compact" type="submit">检索</button>
       </form>
     </header>
 
-    <div class="topic-strip" data-reveal>
+    <section class="wall-toolbar" data-reveal>
       <button
         v-for="item in filters"
         :key="item.value"
@@ -22,27 +24,60 @@
       >
         <component :is="item.icon" :size="15" />
         {{ item.label }}
+        <span v-if="hasCompleteTypeCounts">{{ typeCount(item.value) }}</span>
       </button>
-    </div>
+    </section>
 
     <div v-if="isLoading && !hasLoaded" class="empty-state showcase-state" data-reveal>
       <LoaderCircle class="spin" :size="24" />
       <h2>正在铺开灵感卡片</h2>
     </div>
 
+    <section v-else-if="featuredCard" class="featured-inspiration" data-reveal>
+      <div class="featured-inspiration__visual" :style="cardStyle(featuredCard)">
+        <img v-if="featuredCard.imageUrl" :src="featuredCard.imageUrl" alt="" loading="lazy" />
+        <component :is="typeIcon(featuredCard.cardType)" v-else :size="42" />
+      </div>
+      <div class="featured-inspiration__body">
+        <span class="card-kind">{{ typeName(featuredCard.cardType) }}</span>
+        <h2>{{ featuredCard.title }}</h2>
+        <p>{{ featuredCard.content || '这张灵感卡还没有正文。' }}</p>
+        <div class="tag-row">
+          <span v-for="tag in featuredCard.tags.slice(0, 4)" :key="tag.id">#{{ tag.name }}</span>
+        </div>
+        <a v-if="safeSource(featuredCard.sourceUrl)" :href="safeSource(featuredCard.sourceUrl)" target="_blank" rel="noreferrer">
+          <ExternalLink :size="15" />
+          来源
+        </a>
+      </div>
+    </section>
+
+    <div v-if="!isLoading && cards.length === 0" class="empty-state showcase-state" data-reveal>
+      <h2>没有匹配的灵感卡</h2>
+      <p>换个类型或关键词试试。</p>
+    </div>
+
     <div v-else class="inspiration-masonry">
       <article
-        v-for="card in cards"
+        v-for="card in masonryCards"
         :key="card.id"
         class="inspiration-card"
         :class="`inspiration-card--${card.cardType.toLowerCase()}`"
-        :style="{ '--card-accent': card.color ?? '#6ea8ff' }"
+        :style="cardStyle(card)"
         data-reveal
       >
         <img v-if="card.imageUrl" :src="card.imageUrl" alt="" loading="lazy" />
-        <span class="card-kind">{{ card.cardType }}</span>
+        <span class="card-kind">
+          <component :is="typeIcon(card.cardType)" :size="14" />
+          {{ typeName(card.cardType) }}
+        </span>
         <h2>{{ card.title }}</h2>
-        <p>{{ card.content }}</p>
+        <pre v-if="card.cardType === 'CODE'">{{ card.content }}</pre>
+        <p v-else>{{ card.content || '这张灵感卡还没有正文。' }}</p>
+        <div class="card-meta">
+          <span v-if="card.createdAt"><CalendarDays :size="14" />{{ formatDate(card.createdAt) }}</span>
+          <span>{{ card.sortOrder }} sort</span>
+        </div>
         <div class="tag-row">
           <span v-for="tag in card.tags.slice(0, 3)" :key="tag.id">#{{ tag.name }}</span>
         </div>
@@ -53,17 +88,14 @@
       </article>
     </div>
 
-    <div v-if="!isLoading && cards.length === 0" class="empty-state showcase-state" data-reveal>
-      <h2>没有匹配的灵感卡</h2>
-      <p>换个类型或关键词试试。</p>
-    </div>
     <p v-if="notice" class="inline-notice">{{ notice }}</p>
   </section>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref, type Component } from 'vue'
 import {
+  CalendarDays,
   Code2,
   ExternalLink,
   Image,
@@ -74,16 +106,24 @@ import {
   StickyNote,
 } from '@lucide/vue'
 
-import { fallbackInspirations } from '@/content/studio'
 import { fetchInspirations } from '@/services/content'
+import { toUserMessage } from '@/services/http'
 import { useCinematicPageMotion } from '@/shared/composables/useCinematicPageMotion'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import type { InspirationCard, InspirationType } from '@/shared/domain'
 
 type InspirationFilter = InspirationType | 'ALL'
 
+interface InspirationFilterItem {
+  value: InspirationFilter
+  label: string
+  icon: Component
+}
+
 const root = ref<HTMLElement | null>(null)
 const cards = ref<InspirationCard[]>([])
+const countCards = ref<InspirationCard[]>([])
+const hasCompleteTypeCounts = ref(false)
 const keyword = ref('')
 const activeType = ref<InspirationFilter>('ALL')
 const isLoading = ref(true)
@@ -94,14 +134,18 @@ let hasPlayedIntro = false
 
 usePageReveal(root)
 
-const filters = [
-  { value: 'ALL' as const, label: '全部', icon: StickyNote },
-  { value: 'TEXT' as const, label: '摘句', icon: MessageSquareQuote },
-  { value: 'PROMPT' as const, label: 'Prompt', icon: StickyNote },
-  { value: 'IMAGE' as const, label: '图片', icon: Image },
-  { value: 'CODE' as const, label: '代码', icon: Code2 },
-  { value: 'LINK' as const, label: '链接', icon: Link },
+const filters: InspirationFilterItem[] = [
+  { value: 'ALL', label: '全部', icon: StickyNote },
+  { value: 'TEXT', label: '摘句', icon: MessageSquareQuote },
+  { value: 'PROMPT', label: 'Prompt', icon: StickyNote },
+  { value: 'IMAGE', label: '图片', icon: Image },
+  { value: 'CODE', label: '代码', icon: Code2 },
+  { value: 'LINK', label: '链接', icon: Link },
 ]
+
+const sortedCards = computed(() => [...cards.value].sort((left, right) => right.sortOrder - left.sortOrder))
+const featuredCard = computed(() => sortedCards.value[0] ?? null)
+const masonryCards = computed(() => sortedCards.value.slice(featuredCard.value ? 1 : 0))
 
 function selectType(type: InspirationFilter) {
   if (activeType.value === type) {
@@ -115,14 +159,29 @@ async function loadInspirations() {
   isLoading.value = true
   notice.value = ''
   try {
-    const page = await fetchInspirations({ keyword: keyword.value, type: activeType.value, pageSize: 30 })
-    cards.value = page.records.length ? page.records : filterFallback()
-    if (!page.records.length) {
-      notice.value = '已显示精选灵感。'
+    const [pageResult, countResult] = await Promise.allSettled([
+      fetchInspirations({ keyword: keyword.value, type: activeType.value, pageSize: 30 }),
+      fetchInspirations({ keyword: keyword.value, type: 'ALL', pageSize: 200 }),
+    ])
+    if (pageResult.status === 'rejected') {
+      throw pageResult.reason
+    }
+    cards.value = pageResult.value.records
+    if (countResult.status === 'fulfilled') {
+      countCards.value = countResult.value.records
+      hasCompleteTypeCounts.value = true
+    } else if (activeType.value === 'ALL') {
+      countCards.value = pageResult.value.records
+      hasCompleteTypeCounts.value = true
+    } else {
+      countCards.value = []
+      hasCompleteTypeCounts.value = false
     }
   } catch (error) {
-    cards.value = filterFallback()
-    notice.value = '已显示精选灵感。'
+    cards.value = []
+    countCards.value = []
+    hasCompleteTypeCounts.value = false
+    notice.value = toUserMessage(error, '灵感接口暂不可用，请稍后再试')
   } finally {
     isLoading.value = false
     hasLoaded.value = true
@@ -133,14 +192,51 @@ async function loadInspirations() {
   }
 }
 
-function filterFallback() {
-  return fallbackInspirations.filter((card) => {
-    const typeMatch = activeType.value === 'ALL' || card.cardType === activeType.value
-    const keywordMatch =
-      !keyword.value.trim() ||
-      `${card.title} ${card.content ?? ''}`.toLowerCase().includes(keyword.value.trim().toLowerCase())
-    return typeMatch && keywordMatch
-  })
+function typeCount(type: InspirationFilter): number {
+  const source = countCards.value.length > 0 ? countCards.value : cards.value
+  if (type === 'ALL') {
+    return source.length
+  }
+  return source.filter((card) => card.cardType === type).length
+}
+
+function cardStyle(card: InspirationCard) {
+  return {
+    '--card-accent': card.color ?? typeColor(card.cardType),
+  }
+}
+
+function typeIcon(type: InspirationType): Component {
+  const icons: Record<InspirationType, Component> = {
+    TEXT: MessageSquareQuote,
+    PROMPT: StickyNote,
+    IMAGE: Image,
+    CODE: Code2,
+    LINK: Link,
+  }
+  return icons[type]
+}
+
+function typeName(type: InspirationType): string {
+  const names: Record<InspirationType, string> = {
+    TEXT: '摘句',
+    PROMPT: 'Prompt',
+    IMAGE: '图片',
+    CODE: '代码',
+    LINK: '链接',
+  }
+  return names[type]
+}
+
+function typeColor(type: InspirationType): string {
+  const colors: Record<InspirationType, string> = {
+    TEXT: '#0f766e',
+    PROMPT: '#6d3fd2',
+    IMAGE: '#c25f3a',
+    CODE: '#0b57d0',
+    LINK: '#805610',
+  }
+  return colors[type]
 }
 
 function safeSource(value?: string | null): string {
@@ -155,43 +251,45 @@ function safeSource(value?: string | null): string {
   }
 }
 
+function formatDate(value?: string | null): string {
+  if (!value) return ''
+  return new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit' }).format(new Date(value))
+}
+
 onMounted(loadInspirations)
 </script>
 
 <style scoped>
 .wall-page {
   display: grid;
-  gap: 0;
+  gap: 18px;
   padding: 46px 0 84px;
 }
 
-.archive-hero {
+.wall-hero {
+  --hero-accent: #007c72;
+  --hero-accent-2: #984061;
+  --hero-mark: "03";
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
   align-items: center;
-  gap: 22px;
-  min-height: clamp(220px, 23vw, 292px);
+  gap: 24px;
+  min-height: clamp(230px, 24vw, 308px);
   padding: clamp(24px, 3vw, 42px);
+  overflow: hidden;
   border: 1px solid var(--tone-line);
   border-radius: var(--app-radius-sm);
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.58)),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.6)),
     radial-gradient(circle at 16% 20%, color-mix(in srgb, var(--hero-accent) 18%, transparent), transparent 34%),
     radial-gradient(circle at 88% 18%, color-mix(in srgb, var(--hero-accent-2) 18%, transparent), transparent 28%),
     linear-gradient(120deg, rgba(49, 91, 255, 0.08), rgba(194, 95, 58, 0.08), rgba(0, 124, 114, 0.1));
   box-shadow: var(--tone-shadow);
   isolation: isolate;
-  overflow: hidden;
-  position: relative;
 }
 
-.page-hero {
-  --hero-accent: #007c72;
-  --hero-accent-2: #984061;
-  --hero-mark: "03";
-}
-
-.page-hero::before {
+.wall-hero::before {
   content: "";
   position: absolute;
   inset: 16px;
@@ -202,14 +300,13 @@ onMounted(loadInspirations)
     repeating-linear-gradient(90deg, rgba(20, 21, 29, 0.05) 0 1px, transparent 1px 42px),
     repeating-linear-gradient(0deg, rgba(20, 21, 29, 0.035) 0 1px, transparent 1px 34px);
   clip-path: polygon(0 0, calc(100% - 46px) 0, 100% 46px, 100% 100%, 46px 100%, 0 calc(100% - 46px));
-  opacity: 0.9;
   pointer-events: none;
 }
 
-.page-hero::after {
+.wall-hero::after {
   content: var(--hero-mark);
   position: absolute;
-  top: clamp(16px, 4vw, 40px);
+  top: clamp(20px, 4vw, 42px);
   right: clamp(24px, 6vw, 88px);
   z-index: 0;
   color: color-mix(in srgb, var(--hero-accent) 16%, transparent);
@@ -219,22 +316,29 @@ onMounted(loadInspirations)
   pointer-events: none;
 }
 
-.page-hero > * {
+.wall-hero > * {
   position: relative;
   z-index: 1;
 }
 
-.page-hero h1 {
-  position: relative;
-  display: inline-block;
-  justify-self: start;
-  width: fit-content;
-  max-width: 100%;
-  padding-top: 24px;
-  text-shadow: 0 16px 34px rgba(20, 21, 29, 0.1);
+.hero-copy {
+  display: grid;
+  gap: 14px;
 }
 
-.page-hero h1::before {
+.hero-copy h1 {
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0;
+  padding-top: 24px;
+  color: var(--tone-ink);
+  font-size: clamp(36px, 4vw, 54px);
+  font-weight: 860;
+  line-height: 1.08;
+}
+
+.hero-copy h1::before {
   content: "";
   position: absolute;
   top: 0;
@@ -243,40 +347,17 @@ onMounted(loadInspirations)
   height: 8px;
   border-radius: 999px;
   background: linear-gradient(90deg, var(--hero-accent), var(--hero-accent-2), transparent);
-  box-shadow: 0 10px 28px color-mix(in srgb, var(--hero-accent) 22%, transparent);
 }
 
-.page-hero h1::after {
-  content: "";
-  position: absolute;
-  top: -2px;
-  right: -54px;
-  width: 34px;
-  height: 14px;
-  border: 1px solid color-mix(in srgb, var(--hero-accent) 42%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--hero-accent-2) 18%, transparent);
-  box-shadow: 18px 0 0 color-mix(in srgb, var(--hero-accent) 18%, transparent);
-}
-
-.archive-hero h1 {
-  max-width: 830px;
+.hero-copy p:not(.page-kicker) {
+  max-width: 640px;
   margin: 0;
-  color: var(--tone-ink);
-  font-size: 44px;
-  font-weight: 860;
-  line-height: 1.08;
-}
-
-.archive-hero p:not(.page-kicker) {
-  max-width: 680px;
   color: var(--tone-muted);
-  font-size: 17px;
+  font-size: 16px;
   line-height: 1.72;
 }
 
-.archive-search {
-  position: relative;
+.wall-search {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
@@ -285,35 +366,16 @@ onMounted(loadInspirations)
   padding: 8px 8px 8px 16px;
   border: 1px solid color-mix(in srgb, var(--hero-accent) 22%, var(--tone-line-strong));
   border-radius: 999px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 252, 0.7)),
-    color-mix(in srgb, var(--hero-accent) 4%, transparent);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.92),
-    0 18px 44px rgba(32, 33, 36, 0.12);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 18px 44px rgba(32, 33, 36, 0.12);
   backdrop-filter: blur(18px);
-  overflow: hidden;
 }
 
-.archive-search::before {
-  content: "";
-  position: absolute;
-  inset: 5px;
-  border-radius: inherit;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--hero-accent) 8%, transparent), transparent 36%);
-  pointer-events: none;
-}
-
-.archive-search > * {
-  position: relative;
-  z-index: 1;
-}
-
-.archive-search svg {
+.wall-search svg {
   color: var(--hero-accent);
 }
 
-.archive-search input {
+.wall-search input {
   width: 100%;
   border: 0;
   outline: 0;
@@ -321,11 +383,10 @@ onMounted(loadInspirations)
   color: var(--tone-ink);
 }
 
-.topic-strip {
+.wall-toolbar {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin: 22px 0;
 }
 
 .topic-chip {
@@ -343,11 +404,73 @@ onMounted(loadInspirations)
   font-weight: 760;
 }
 
+.topic-chip span {
+  color: var(--tone-faint);
+}
+
 .topic-chip.is-active,
 .topic-chip:hover {
   border-color: rgba(49, 91, 255, 0.36);
   background: rgba(49, 91, 255, 0.1);
   color: var(--tone-ink);
+}
+
+.featured-inspiration,
+.inspiration-card {
+  border: 1px solid var(--tone-line);
+  border-radius: var(--app-radius-sm);
+  background: var(--tone-panel);
+  box-shadow: var(--tone-shadow);
+  backdrop-filter: blur(18px);
+}
+
+.featured-inspiration {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.58fr) minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.featured-inspiration__visual {
+  position: relative;
+  display: grid;
+  min-height: 260px;
+  place-items: center;
+  overflow: hidden;
+  background:
+    linear-gradient(140deg, color-mix(in srgb, var(--card-accent) 24%, #10131f), rgba(6, 8, 18, 0.88)),
+    color-mix(in srgb, var(--card-accent) 22%, transparent);
+  color: #fff;
+}
+
+.featured-inspiration__visual img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.featured-inspiration__body {
+  display: grid;
+  align-content: center;
+  gap: 14px;
+  padding: clamp(24px, 4vw, 44px);
+}
+
+.featured-inspiration h2,
+.inspiration-card h2 {
+  margin: 0;
+  color: var(--tone-ink);
+  line-height: 1.18;
+}
+
+.featured-inspiration h2 {
+  font-size: clamp(28px, 3vw, 42px);
+}
+
+.featured-inspiration p,
+.inspiration-card p {
+  margin: 0;
+  color: var(--tone-muted);
+  line-height: 1.66;
 }
 
 .inspiration-masonry {
@@ -363,12 +486,7 @@ onMounted(loadInspirations)
   margin: 0 0 16px;
   padding: 18px;
   break-inside: avoid;
-  border: 1px solid var(--tone-line);
   border-top: 5px solid var(--card-accent);
-  border-radius: var(--app-radius-sm);
-  background: var(--tone-panel);
-  box-shadow: var(--tone-shadow);
-  backdrop-filter: blur(18px);
   overflow: hidden;
 }
 
@@ -394,34 +512,84 @@ onMounted(loadInspirations)
   object-fit: cover;
 }
 
-.inspiration-card h2 {
+.inspiration-card pre {
+  max-width: 100%;
   margin: 0;
-  font-size: 22px;
-}
-
-.inspiration-card p {
-  margin: 0;
-  color: var(--tone-muted);
-  line-height: 1.66;
-}
-
-.inspiration-card--code p {
+  overflow-x: auto;
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(7, 12, 18, 0.9);
+  color: #a7f3d0;
   font-family: "SFMono-Regular", Consolas, monospace;
   font-size: 13px;
-  color: #0f766e;
+  line-height: 1.6;
 }
 
-.card-kind {
-  color: var(--tone-faint);
-}
-
-.inspiration-card a {
+.card-kind,
+.card-meta,
+.inspiration-card a,
+.featured-inspiration a {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+.card-kind {
+  width: fit-content;
+  color: var(--tone-faint);
+  font-size: 12px;
+  font-weight: 820;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.card-meta {
+  flex-wrap: wrap;
+  color: var(--tone-faint);
+  font-size: 12px;
+}
+
+.inspiration-card a,
+.featured-inspiration a {
   color: var(--tone-primary);
   font-size: 13px;
   font-weight: 760;
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag-row span {
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(0, 124, 114, 0.1);
+  color: #055f57;
+  font-size: 12px;
+  font-weight: 740;
+}
+
+.inline-notice {
+  margin: 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--tone-coral);
+  background: rgba(194, 95, 58, 0.08);
+  color: #754226;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+@media (max-width: 1020px) {
+  .wall-hero,
+  .featured-inspiration {
+    grid-template-columns: 1fr;
+  }
+
+  .inspiration-masonry {
+    column-count: 2;
+  }
 }
 
 @media (max-width: 760px) {
@@ -429,33 +597,22 @@ onMounted(loadInspirations)
     padding-top: 26px;
   }
 
-  .archive-hero {
-    grid-template-columns: 1fr;
+  .wall-hero {
     padding: 22px;
   }
 
-  .archive-hero h1 {
-    font-size: 32px;
-  }
-
-  .archive-search {
+  .wall-search {
     grid-template-columns: auto minmax(0, 1fr);
     border-radius: 8px;
   }
 
-  .archive-search button {
+  .wall-search button {
     grid-column: 1 / -1;
     width: 100%;
   }
 
   .inspiration-masonry {
     column-count: 1;
-  }
-}
-
-@media (max-width: 520px) {
-  .archive-hero h1 {
-    font-size: 28px;
   }
 }
 </style>

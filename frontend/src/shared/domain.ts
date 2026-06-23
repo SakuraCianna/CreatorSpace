@@ -55,6 +55,9 @@ export interface ArticleSummary {
   contentMarkdown?: string | null
   privacyType: ArticlePrivacy
   status: ContentStatus
+  viewCount?: number | null
+  likeCount?: number | null
+  commentCount?: number | null
   top?: boolean | null
   recommended?: boolean | null
   category?: CategorySummary | null
@@ -80,6 +83,10 @@ export interface ProjectSummary {
   contentMarkdown?: string | null
   status: ProjectStatus
   recommended: boolean
+  viewCount?: number | null
+  likeCount?: number | null
+  favoriteCount?: number | null
+  commentCount?: number | null
   tags: TagSummary[]
   authorId?: number | null
   submittedAt?: string | null
@@ -204,6 +211,10 @@ export interface AdminThemeConfig extends ThemeConfig {
   active: boolean
   createdAt?: string | null
   updatedAt?: string | null
+}
+
+export interface PublicThemeConfig extends ThemeConfig {
+  active: boolean
 }
 
 export interface ThemePayload {

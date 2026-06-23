@@ -446,6 +446,7 @@ public class ProjectServiceImpl implements ProjectService {
     private ProjectVO toVO(ProjectEntity entity, boolean includeContent) {
         List<Long> tagIds = projectTagMapper.selectTagIdsByProjectId(entity.getId());
         List<TagVO> tags = tagIds.isEmpty() ? Collections.emptyList() : tagService.listByIds(tagIds);
+        ProjectStats stats = projectStats(entity.getId());
         return new ProjectVO(
                 entity.getId(),
                 entity.getTitle(),
@@ -460,12 +461,37 @@ public class ProjectServiceImpl implements ProjectService {
                 includeContent ? entity.getContentMarkdown() : null,
                 entity.getStatus(),
                 entity.getRecommend(),
+                stats.viewCount(),
+                stats.likeCount(),
+                stats.favoriteCount(),
+                stats.commentCount(),
                 tags,
                 entity.getCreatedBy(),
                 entity.getSubmittedAt(),
                 entity.getReviewedAt(),
                 entity.getReviewNote()
         );
+    }
+
+    private ProjectStats projectStats(Long projectId) {
+        return jdbcTemplate.query("""
+                        select view_count, like_count, favorite_count, comment_count
+                        from content_statistics
+                        where target_type = 'PROJECT'
+                          and target_id = ?
+                        """,
+                (rs, rowNum) -> new ProjectStats(
+                        rs.getLong("view_count"),
+                        rs.getLong("like_count"),
+                        rs.getLong("favorite_count"),
+                        rs.getLong("comment_count")
+                ),
+                projectId
+        ).stream().findFirst().orElse(ProjectStats.ZERO);
+    }
+
+    private record ProjectStats(Long viewCount, Long likeCount, Long favoriteCount, Long commentCount) {
+        static final ProjectStats ZERO = new ProjectStats(0L, 0L, 0L, 0L);
     }
 
     // 查询必须属于当前创作者的作品。

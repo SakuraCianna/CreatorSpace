@@ -8,56 +8,78 @@
     <ApproachProcess />
     <CreativeWall />
     <ThemeUniverse />
-    <FieldNotes />
     <FinalCTA />
   </div>
 </template>
 
 <script setup lang="ts">
-import { defineComponent, h, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { defineComponent, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
 import type { HeroSceneHandles } from '@/shared/heroScene'
-import { fetchArticles, fetchCurrentTheme, fetchInspirations, fetchProjects } from '@/services/content'
+import { fetchArticles, fetchCurrentTheme, fetchInspirations, fetchProjects, fetchSiteConfig, fetchThemes } from '@/services/content'
 import { useGsapContext } from '@/shared/composables/useGsapScroll'
 import { useLenis } from '@/shared/composables/useLenis'
 import { attachMagnetic } from '@/shared/composables/useMagnetic'
 import { prefersReducedMotion } from '@/shared/composables/useReducedMotion'
 import { toCssImageUrl } from '@/shared/cssImage'
 import {
-  agentCapabilities,
-  approachSteps,
-  counters,
-  closing,
-  creativeFragments,
-  featuredArticles,
-  fieldNotes,
-  heroContent,
-  manifesto,
-  marqueeWords,
-  portfolioProjects,
-  siteConfig,
-  themePresets,
+  DEFAULT_SITE_IDENTITY,
+  resolveSiteIdentity,
+  syncSiteIdentityFromConfig,
+  type SiteIdentity,
+} from '@/shared/siteIdentity'
+import inspirationBg01 from '@/assets/homepage/inspiration-bg-01.svg'
+import inspirationBg02 from '@/assets/homepage/inspiration-bg-02.svg'
+import inspirationBg03 from '@/assets/homepage/inspiration-bg-03.svg'
+import inspirationBg04 from '@/assets/homepage/inspiration-bg-04.svg'
+import inspirationBg05 from '@/assets/homepage/inspiration-bg-05.svg'
+import inspirationBg06 from '@/assets/homepage/inspiration-bg-06.svg'
+import {
   type AgentCapability,
   type ApproachStep,
+  type CounterItem,
   type CreativeFragment,
   type FeaturedArticle,
-  type FieldNote,
+  type HomeHeroAction,
+  type HomeHeroContent,
+  type ManifestoContent,
   type PortfolioProject,
+  type SiteConfig,
   type ThemePreset,
 } from '@/content/home'
-import type { ArticleSummary, InspirationCard, ProjectSummary, TagSummary } from '@/shared/domain'
+import type { ArticleSummary, InspirationCard, ProjectSummary, PublicThemeConfig, TagSummary } from '@/shared/domain'
 
 
 gsap.registerPlugin(ScrollTrigger)
 
 useLenis()
 
+const emptyTotals = {
+  articleTotal: 0,
+  projectTotal: 0,
+  inspirationTotal: 0,
+}
+
+const runtimeSiteConfig = ref<SiteConfig | null>(null)
+const runtimeHeroContent = ref<HomeHeroContent>(resolveHeroContent(emptyTotals, DEFAULT_SITE_IDENTITY.name))
+const runtimeMarqueeWords = ref<string[]>(buildMarqueeWords())
+const runtimeManifesto = ref<ManifestoContent>(buildManifesto())
+const runtimeArticles = ref<FeaturedArticle[]>([])
+const runtimeProjects = ref<PortfolioProject[]>([])
+const runtimeStructureCards = ref<AgentCapability[]>(buildStructureCards())
+const runtimeApproachSteps = ref<ApproachStep[]>(buildApproachSteps())
+const runtimeCounters = ref<CounterItem[]>(buildCounters(emptyTotals))
+const runtimeFragments = ref<CreativeFragment[]>([])
+const runtimeThemePresets = ref<ThemePreset[]>([])
+const runtimeCurrentThemeName = ref('读取中')
+
 onMounted(() => {
   document.body.classList.add('cs-dark-body')
   document.documentElement.classList.add('cs-dark-scroll')
+  void loadHomeRuntimeData()
 })
 onBeforeUnmount(() => {
   document.body.classList.remove('cs-dark-body')
@@ -136,21 +158,93 @@ const HeroWebGLScene = defineComponent({
 })
 
 // 渲染首页英雄区按钮。
-function heroButton(to: string, label: string, ghost = false) {
+function heroButton(action: HomeHeroAction, ghost = false) {
+  const children = [
+    h('span', { class: 'cs-btn__fill' }),
+    h('span', { class: 'cs-btn__dot' }),
+    h('span', action.label),
+  ]
+  if (action.external) {
+    return h(
+      'a',
+      {
+        href: action.to,
+        class: ['cs-btn', { 'cs-btn--ghost': ghost }],
+        target: '_blank',
+        rel: 'noreferrer',
+      },
+      children,
+    )
+  }
   return h(
     RouterLink,
-    { to, class: ['cs-btn', { 'cs-btn--ghost': ghost }] },
-    {
-      default: () => [
-        h('span', { class: 'cs-btn__fill' }),
-        h('span', { class: 'cs-btn__dot' }),
-        h('span', label),
-      ],
-    },
+    { to: action.to, class: ['cs-btn', { 'cs-btn--ghost': ghost }] },
+    { default: () => children },
   )
 }
 
+async function loadHomeRuntimeData() {
+  const [configResult, articlesResult, projectsResult, inspirationsResult, themesResult, currentThemeResult] =
+    await Promise.allSettled([
+      fetchSiteConfig(),
+      fetchArticles(),
+      fetchProjects(),
+      fetchInspirations({ pageSize: HOME_INSPIRATION_LIMIT }),
+      fetchThemes(),
+      fetchCurrentTheme(),
+    ])
+
+  const config = configResult.status === 'fulfilled' ? configResult.value : {}
+  const articles = articlesResult.status === 'fulfilled' ? articlesResult.value.records : []
+  const projects = projectsResult.status === 'fulfilled' ? projectsResult.value.records : []
+  const inspirations = inspirationsResult.status === 'fulfilled' ? inspirationsResult.value.records : []
+  const themes = themesResult.status === 'fulfilled' ? themesResult.value : []
+  const currentTheme = currentThemeResult.status === 'fulfilled' ? currentThemeResult.value : null
+  const totals = {
+    articleTotal: articlesResult.status === 'fulfilled' ? articlesResult.value.total : 0,
+    projectTotal: projectsResult.status === 'fulfilled' ? projectsResult.value.total : 0,
+    inspirationTotal: inspirationsResult.status === 'fulfilled' ? inspirationsResult.value.total : 0,
+  }
+  const nextSiteIdentity = configResult.status === 'fulfilled'
+    ? syncSiteIdentityFromConfig(config)
+    : resolveSiteIdentity(config)
+  const nextSiteConfig = resolveSiteConfig(config, nextSiteIdentity)
+
+  runtimeSiteConfig.value = nextSiteConfig
+  runtimeHeroContent.value = resolveHeroContent(totals, nextSiteConfig.brand)
+  runtimeArticles.value = buildFeaturedCards(articles, projects)
+  runtimeProjects.value = buildPortfolioProjects(projects)
+  runtimeCounters.value = buildCounters(totals)
+  runtimeFragments.value = inspirations.slice(0, HOME_INSPIRATION_LIMIT).map(inspirationToFragment)
+  runtimeThemePresets.value = themes.map(themeToPreset)
+  runtimeCurrentThemeName.value = currentTheme?.displayName
+    ?? themes.find((theme) => theme.active)?.displayName
+    ?? (themes.length > 0 ? '默认主题' : '暂无主题')
+}
+
 const validHexColorPattern = /^#(?:[\da-f]{3,4}|[\da-f]{6}|[\da-f]{8})$/i
+const HOME_ARTICLE_LIMIT = 6
+const HOME_PROJECT_LIMIT = 5
+const HOME_INSPIRATION_LIMIT = 6
+const defaultArticlePalettes = [
+  ['#1b2b4d', '#0a1326'],
+  ['#3a1d4d', '#160a26'],
+  ['#123a37', '#08201f'],
+  ['#4d3312', '#261707'],
+  ['#2f2a57', '#121028'],
+] as const
+const defaultProjectPalettes = [
+  { from: '#16233f', to: '#080f1d', accent: '#6ea8ff' },
+  { from: '#24143d', to: '#0e071d', accent: '#b18cff' },
+  { from: '#10312e', to: '#061918', accent: '#54e6c8' },
+  { from: '#3a2508', to: '#160d04', accent: '#ff9d6e' },
+] as const
+const fragmentLayouts = [
+  { span: { col: 2, row: 2 }, to: '#0b1428' },
+  { span: { col: 2, row: 1 }, to: '#0b1226' },
+  { span: { col: 1, row: 1 }, to: '#0a1326' },
+  { span: { col: 1, row: 2 }, to: '#0a0f1f' },
+] as const
 const fragmentKindMap = {
   IMAGE: 'image',
   TEXT: 'note',
@@ -158,6 +252,364 @@ const fragmentKindMap = {
   CODE: 'code',
   LINK: 'link',
 } as const satisfies Record<InspirationCard['cardType'], CreativeFragment['kind']>
+const homepageFragmentBackgrounds = [
+  inspirationBg01,
+  inspirationBg02,
+  inspirationBg03,
+  inspirationBg04,
+  inspirationBg05,
+  inspirationBg06,
+] as const
+
+type SiteTotals = {
+  articleTotal: number
+  projectTotal: number
+  inspirationTotal: number
+}
+
+function readRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
+}
+
+function readArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : []
+}
+
+function readString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function readStringList(value: unknown): string[] {
+  return readArray(value)
+    .map((item) => readString(item))
+    .filter(Boolean)
+}
+
+function resolveSiteConfig(config: Record<string, unknown>, identity: SiteIdentity = resolveSiteIdentity(config)): SiteConfig {
+  return {
+    brand: identity.name,
+    wordmark: identity.wordmark,
+    navigation: readNavigation(config['site.navigationItems']),
+    social: readSocial(config['site.socialLinks']),
+  }
+}
+
+function readNavigation(value: unknown): SiteConfig['navigation'] {
+  return readArray(value)
+    .map((item) => {
+      const record = readRecord(item)
+      const label = readString(record.label)
+      const to = readString(record.path)
+      if (!label || !to || to.startsWith('//')) {
+        return null
+      }
+      return { label, to, external: isExternalUrl(to) }
+    })
+    .filter((item): item is SiteConfig['navigation'][number] => item !== null)
+}
+
+function readSocial(value: unknown): SiteConfig['social'] {
+  return readArray(value)
+    .map((item) => {
+      const record = readRecord(item)
+      const href = safeSocialHref(readString(record.url))
+      const label = readString(record.label) || readString(record.platform)
+      if (!label || !href) {
+        return null
+      }
+      return { label, handle: socialHandle(href), href }
+    })
+    .filter((item): item is SiteConfig['social'][number] => item !== null)
+}
+
+function safeSocialHref(value: string): string {
+  if (isMailtoHref(value)) {
+    return value
+  }
+  try {
+    const url = new URL(value)
+    return ['http:', 'https:'].includes(url.protocol) ? url.toString() : ''
+  } catch {
+    return ''
+  }
+}
+
+function socialHandle(href: string): string {
+  if (isMailtoHref(href)) {
+    return href.replace(/^mailto:/i, '')
+  }
+  try {
+    const url = new URL(href)
+    return `${url.hostname}${url.pathname}`.replace(/\/$/, '')
+  } catch {
+    return href
+  }
+}
+
+function isMailtoHref(value: string): boolean {
+  return value.toLowerCase().startsWith('mailto:')
+}
+
+function isExternalUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value)
+}
+
+function resolveHeroContent(totals: SiteTotals, siteName: string): HomeHeroContent {
+  return {
+    kicker: 'Personal Theme Blog · Creative Portfolio',
+    titleLines: [siteName, '创作主页'],
+    subtitle: '一个有主题风格的个人博客与作品展示平台。',
+    description: '这里不是模板化列表，而是一个带有主题气质的个人站点：文章记录思考，作品呈现过程，灵感碎片连接长期创作。',
+    primary: { label: '进入博客', to: '/articles' },
+    secondary: { label: '浏览作品', to: '/projects' },
+    stats: [
+      { value: String(totals.articleTotal), label: '主题文章' },
+      { value: String(totals.projectTotal), label: '创意作品' },
+      { value: String(totals.inspirationTotal), label: '灵感碎片' },
+    ],
+  }
+}
+
+function buildMarqueeWords(): string[] {
+  return ['Articles', 'Works', 'Notes', 'Covers', 'Tags', 'Themes', 'Archive', 'Reading']
+}
+
+function buildManifesto(): ManifestoContent {
+  return {
+    lead: '(01) — 站点宣言',
+    segments: [
+      { text: '这里先是一座个人主题博客。 ', accent: false },
+      { text: '文章负责把想法说清楚， ', accent: true },
+      { text: '作品负责把过程留下来， ', accent: false },
+      { text: '灵感卡片负责等下一次回头。', accent: true },
+    ],
+    cards: [
+      {
+        label: '阅读路径',
+        value: '主题 / 标签 / 归档',
+        detail: '不让读者只靠时间线找文章。',
+      },
+      {
+        label: '视觉气质',
+        value: '封面色 / 字号 / 留白',
+        detail: '每个页面都要像同一个人整理出来的。',
+      },
+      {
+        label: '内容边界',
+        value: '公开 / 私密 / 草稿',
+        detail: '写给别人看的内容和写给自己的内容分开放。',
+      },
+    ],
+  }
+}
+
+function buildFeaturedCards(articles: ArticleSummary[], projects: ProjectSummary[]): FeaturedArticle[] {
+  const selectedArticles = weightedShuffle(articles, featuredArticleScore)
+    .slice(0, HOME_ARTICLE_LIMIT)
+  const remainingSlots = Math.max(0, HOME_ARTICLE_LIMIT - selectedArticles.length)
+  const supplementalProjects = remainingSlots > 0
+    ? weightedShuffle(projects.slice(HOME_PROJECT_LIMIT), featuredProjectScore).slice(0, remainingSlots)
+    : []
+  return [
+    ...selectedArticles.map(articleToFeatured),
+    ...supplementalProjects.map((project, index) =>
+      projectToFeatured(project, selectedArticles.length + index),
+    ),
+  ]
+}
+
+function weightedShuffle<T>(items: T[], score: (item: T) => number): T[] {
+  return [...items]
+    .map((item, index) => ({
+      item,
+      index,
+      rank: Math.random() * (Math.max(1, score(item)) + 1),
+    }))
+    .sort((left, right) => right.rank - left.rank || left.index - right.index)
+    .map((entry) => entry.item)
+}
+
+function featuredArticleScore(article: ArticleSummary): number {
+  return (article.top ? 5 : 0)
+    + (article.recommended ? 4 : 0)
+    + Math.min(article.tags.length, 4)
+    + heatScore(article.viewCount, article.likeCount, 0, article.commentCount)
+    + recencyScore(article.publishTime)
+}
+
+function featuredProjectScore(project: ProjectSummary): number {
+  return (project.recommended ? 5 : 0)
+    + Math.min(project.tags.length, 4)
+    + heatScore(project.viewCount, project.likeCount, project.favoriteCount, project.commentCount)
+    + recencyScore(project.reviewedAt ?? project.submittedAt)
+}
+
+function heatScore(
+  viewCount: number | null | undefined,
+  likeCount: number | null | undefined,
+  favoriteCount: number | null | undefined,
+  commentCount: number | null | undefined,
+): number {
+  return Math.log10(Math.max(0, viewCount ?? 0) + 1)
+    + Math.log10(Math.max(0, likeCount ?? 0) * 3 + 1)
+    + Math.log10(Math.max(0, favoriteCount ?? 0) * 3 + 1)
+    + Math.log10(Math.max(0, commentCount ?? 0) * 4 + 1)
+}
+
+function recencyScore(value: string | null | undefined): number {
+  if (!value) {
+    return 0
+  }
+  const time = new Date(value).getTime()
+  if (Number.isNaN(time)) {
+    return 0
+  }
+  const ageDays = Math.max(0, (Date.now() - time) / 86400000)
+  return Math.max(0, 3 - ageDays / 60)
+}
+
+function buildPortfolioProjects(projects: ProjectSummary[]): PortfolioProject[] {
+  return projects.slice(0, HOME_PROJECT_LIMIT).map(projectToPortfolio)
+}
+
+function buildStructureCards(): AgentCapability[] {
+  return [
+    {
+      id: 'topics',
+      name: '主题索引',
+      role: '站点结构',
+      summary: '把文章、作品和灵感放到清晰主题下，让访客能按兴趣进入，而不是被一条时间线淹没。',
+      pipeline: [
+        { stage: 'route', label: '选择主题' },
+        { stage: 'retrieve', label: '归类内容' },
+        { stage: 'generate', label: '形成入口' },
+      ],
+      outputs: ['主题页', '文章集合', '标签入口', '延伸阅读'],
+      accent: '#6ea8ff',
+    },
+    {
+      id: 'gallery',
+      name: '作品橱窗',
+      role: '创作展示',
+      summary: '作品不只放截图，也要写清背景、过程、取舍和完成后的状态，像一面可翻阅的展示墙。',
+      pipeline: [
+        { stage: 'route', label: '整理封面' },
+        { stage: 'retrieve', label: '补齐过程' },
+        { stage: 'generate', label: '陈列作品' },
+      ],
+      outputs: ['作品封面', '过程记录', '技术标签', '成品链接'],
+      accent: '#b18cff',
+    },
+    {
+      id: 'fragments',
+      name: '灵感卡片',
+      role: '素材回收',
+      summary: '没写成文章的句子、图片参考、链接和代码片段先被收好，之后再慢慢长成内容。',
+      pipeline: [
+        { stage: 'route', label: '快速记录' },
+        { stage: 'retrieve', label: '补充来源' },
+        { stage: 'generate', label: '关联主题' },
+      ],
+      outputs: ['摘句', '参考图', '链接', '代码片段'],
+      accent: '#54e6c8',
+    },
+  ]
+}
+
+function buildApproachSteps(): ApproachStep[] {
+  return [
+    {
+      no: '01',
+      title: '捕捉',
+      en: 'Capture',
+      body: '句子、链接、截图和代码片段先落进灵感盒，不急着整理，也不让它们丢掉。',
+      tags: ['灵感盒', '摘句', '参考'],
+    },
+    {
+      no: '02',
+      title: '整理',
+      en: 'Organize',
+      body: '用主题、分类和标签把内容放回合适的位置，让一篇文章自然通向下一篇。',
+      tags: ['主题', '分类', '标签'],
+    },
+    {
+      no: '03',
+      title: '写作',
+      en: 'Write',
+      body: '把草稿写成能公开阅读的文章，补齐摘要、封面、标签和必要的上下文。',
+      tags: ['草稿', '摘要', '封面'],
+    },
+    {
+      no: '04',
+      title: '展示',
+      en: 'Curate',
+      body: '文章和作品被编排进前台，读者看到的是一个有风格、有边界、能继续长大的个人空间。',
+      tags: ['前台', '作品橱窗', '归档'],
+    },
+  ]
+}
+
+function buildCounters(totals: SiteTotals): CounterItem[] {
+  return [
+    { value: totals.articleTotal, suffix: '', label: '主题文章' },
+    { value: totals.projectTotal, suffix: '', label: '创意作品' },
+    { value: totals.inspirationTotal, suffix: '', label: '灵感碎片' },
+  ]
+}
+
+function themeToPreset(theme: PublicThemeConfig): ThemePreset {
+  const config = readRecord(theme.config)
+  const accent = cssColor(config.accentColor, theme.primaryColor || '#6ea8ff')
+  const background = cssColor(config.backgroundColor, '#070b18')
+  const surface = cssColor(config.surfaceColor, '#11182a')
+  const ink = cssColor(config.inkColor, '#eaf1ff')
+  const muted = cssColor(config.mutedColor, '#99a6c4')
+  return {
+    id: theme.themeName,
+    name: theme.displayName,
+    tagline: readString(config.tagline) || theme.layoutType,
+    mood: readString(config.mood) || theme.backgroundType,
+    vars: {
+      bg: background,
+      surface,
+      ink,
+      muted,
+      accent,
+      accentSoft: cssColor(config.accentSoftColor, transparentColor(accent, 0.22)),
+      font: theme.fontFamily || 'Sora',
+    },
+    swatches: uniqueText([background, surface, accent, muted, theme.primaryColor]).slice(0, 5),
+  }
+}
+
+function cssColor(value: unknown, fallback: string): string {
+  const color = readString(value)
+  return color && (validHexColorPattern.test(color) || /^rgba?\(/i.test(color)) ? color : fallback
+}
+
+function transparentColor(color: string, alpha: number): string {
+  const hex = color.replace('#', '')
+  if (![3, 6].includes(hex.length) || !/^[\da-f]+$/i.test(hex)) {
+    return color
+  }
+  const full = hex.length === 3 ? hex.split('').map((char) => `${char}${char}`).join('') : hex
+  const r = Number.parseInt(full.slice(0, 2), 16)
+  const g = Number.parseInt(full.slice(2, 4), 16)
+  const b = Number.parseInt(full.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+function uniqueText(values: Array<string | null | undefined>): string[] {
+  const seen = new Set<string>()
+  return values.filter((value): value is string => {
+    const text = value?.trim()
+    if (!text || seen.has(text)) {
+      return false
+    }
+    seen.add(text)
+    return true
+  })
+}
 
 function safeHexColor(value: string | null | undefined, fallback: string) {
   const color = value?.trim()
@@ -193,61 +645,87 @@ function plainExcerpt(value: string | null | undefined, fallback: string) {
 }
 
 function articleToFeatured(article: ArticleSummary, index: number): FeaturedArticle {
-  const fallback = featuredArticles[index % featuredArticles.length] ?? featuredArticles[0]
+  const paletteSeed = defaultArticlePalettes[index % defaultArticlePalettes.length]
   const palette: [string, string] = [
-    firstTagColor(article.tags, fallback?.cover[0] ?? '#1b2b4d'),
-    fallback?.cover[1] ?? '#0a1326',
+    firstTagColor(article.tags, paletteSeed?.[0] ?? '#1b2b4d'),
+    paletteSeed?.[1] ?? '#0a1326',
   ]
   return {
     id: `article-${article.id}`,
     slug: article.slug,
     kind: index === 0 ? 'feature' : 'standard',
+    targetType: 'ARTICLE',
     title: article.title,
-    excerpt: article.summary ?? plainExcerpt(article.contentMarkdown, fallback?.excerpt ?? '这篇文章还在整理摘要。'),
+    excerpt: article.summary ?? plainExcerpt(article.contentMarkdown, '这篇文章还在整理摘要。'),
     tags: article.tags.length > 0
       ? article.tags.slice(0, 3).map((tag) => tag.name)
       : [article.category?.name ?? '主题文章'],
     readingMinutes: Math.max(1, Math.ceil((article.contentMarkdown?.length ?? article.summary?.length ?? 420) / 420)),
-    publishedAt: formatHomeDate(article.publishTime, fallback?.publishedAt),
+    publishedAt: formatHomeDate(article.publishTime),
     cover: palette,
-    coverImage: article.coverUrl ?? fallback?.coverImage ?? '',
+    coverImage: article.coverUrl ?? '',
+  }
+}
+
+function projectToFeatured(project: ProjectSummary, index: number): FeaturedArticle {
+  const paletteSeed = defaultProjectPalettes[index % defaultProjectPalettes.length]
+  const palette: [string, string] = [
+    firstTagColor(project.tags, paletteSeed?.from ?? '#16233f'),
+    paletteSeed?.to ?? '#080f1d',
+  ]
+  return {
+    id: `project-feature-${project.id}`,
+    slug: project.slug,
+    kind: index === 0 ? 'feature' : 'standard',
+    targetType: 'PROJECT',
+    title: project.title,
+    excerpt: project.description ?? plainExcerpt(project.contentMarkdown, '这个作品还在补充过程说明。'),
+    tags: project.tags.length > 0
+      ? project.tags.slice(0, 3).map((tag) => tag.name)
+      : [project.projectType || '创意作品'],
+    readingMinutes: Math.max(1, Math.ceil((project.contentMarkdown?.length ?? project.description?.length ?? 420) / 420)),
+    publishedAt: formatHomeDate(project.reviewedAt ?? project.submittedAt, '展示中'),
+    cover: palette,
+    coverImage: project.coverUrl ?? '',
   }
 }
 
 function projectToPortfolio(project: ProjectSummary, index: number): PortfolioProject {
-  const fallback = portfolioProjects[index % portfolioProjects.length] ?? portfolioProjects[0]
-  const accent = firstTagColor(project.tags, fallback?.palette.accent ?? '#6ea8ff')
+  const palette = defaultProjectPalettes[index % defaultProjectPalettes.length]
+  const accent = firstTagColor(project.tags, palette?.accent ?? '#6ea8ff')
   return {
     id: `project-${project.id}`,
     slug: project.slug,
     index: String(index + 1).padStart(2, '0'),
     title: project.title,
-    category: project.projectType || fallback?.category || 'PROJECT',
-    year: fallback?.year ?? '2026',
-    description: project.description ?? fallback?.description ?? '这个作品还在补充过程说明。',
+    category: project.projectType || 'PROJECT',
+    year: formatHomeDate(project.reviewedAt ?? project.submittedAt, 'LIVE'),
+    description: project.description ?? '这个作品还在补充过程说明。',
     stack: project.techStack.length > 0
       ? project.techStack.slice(0, 4)
       : project.tags.slice(0, 4).map((tag) => tag.name),
     palette: {
-      from: fallback?.palette.from ?? '#16233f',
-      to: fallback?.palette.to ?? '#080f1d',
+      from: palette?.from ?? '#16233f',
+      to: palette?.to ?? '#080f1d',
       accent,
     },
-    posterImage: project.coverUrl ?? fallback?.posterImage ?? '',
+    posterImage: project.coverUrl ?? '',
   }
 }
 
 function inspirationToFragment(card: InspirationCard, index: number): CreativeFragment {
-  const fallback = creativeFragments[index % creativeFragments.length] ?? creativeFragments[0]
-  const accent = safeHexColor(card.color, fallback?.palette?.[0] ?? '#263e70')
+  const layout = fragmentLayouts[index % fragmentLayouts.length]
+  const accent = safeHexColor(card.color, '#263e70')
+  const backgroundImage = homepageFragmentBackgrounds[index % homepageFragmentBackgrounds.length]
   return {
     id: `inspiration-${card.id}`,
     kind: fragmentKindMap[card.cardType],
-    span: fallback?.span ?? { col: 1, row: 1 },
+    span: layout?.span ?? { col: 1, row: 1 },
     label: card.tags[0]?.name ?? card.title,
     body: card.content ?? card.title,
-    meta: card.sourceUrl ? 'source link' : formatHomeDate(card.createdAt, fallback?.meta ?? '灵感卡片'),
-    palette: [accent, fallback?.palette?.[1] ?? '#0b1428'],
+    meta: card.sourceUrl ? 'source link' : formatHomeDate(card.createdAt, '灵感卡片'),
+    palette: [accent, layout?.to ?? '#0b1428'],
+    backgroundImage,
   }
 }
 
@@ -276,25 +754,24 @@ const HeroUniverse = defineComponent({
     const titleLine = (text: string) =>
       h('span', { class: 'cs-line' }, [h('span', text)])
 
-    return () =>
-      h('section', { ref: root, class: 'cs-hero cs-section' }, [
+    return () => {
+      const hero = runtimeHeroContent.value
+      const actions = [hero?.primary, hero?.secondary].filter((item): item is HomeHeroAction => item !== null && item !== undefined)
+      return h('section', { ref: root, class: 'cs-hero cs-section' }, [
         h(HeroWebGLScene),
         h('div', { class: 'cs-hero__grain' }),
         h('div', { class: 'cs-hero__inner' }, [
-          h('p', { class: 'cs-eyebrow cs-hero__kicker' }, heroContent.kicker),
-          h('h1', { class: 'cs-hero__title' }, heroContent.titleLines.map(titleLine)),
+          h('p', { class: 'cs-eyebrow cs-hero__kicker' }, hero?.kicker ?? ''),
+          h('h1', { class: 'cs-hero__title' }, (hero?.titleLines ?? []).map(titleLine)),
           h('p', { class: 'cs-hero__sub' }, [
-            heroContent.subtitle,
-            h('span', { class: 'cs-zh' }, heroContent.description),
+            hero?.subtitle ?? '',
+            h('span', { class: 'cs-zh' }, hero?.description ?? ''),
           ]),
-          h('div', { class: 'cs-hero__actions' }, [
-            heroButton(heroContent.primary.to, heroContent.primary.label),
-            heroButton(heroContent.secondary.to, heroContent.secondary.label, true),
-          ]),
+          h('div', { class: 'cs-hero__actions' }, actions.map((action, index) => heroButton(action, index > 0))),
           h(
             'div',
             { class: 'cs-hero__stats' },
-            heroContent.stats.map((stat) =>
+            (hero?.stats ?? []).map((stat) =>
               h('div', { class: 'cs-stat', key: stat.label }, [
                 h('div', { class: 'cs-stat__value' }, stat.value),
                 h('div', { class: 'cs-stat__label' }, stat.label),
@@ -304,6 +781,7 @@ const HeroUniverse = defineComponent({
         ]),
         h('div', { class: 'cs-hero__scroll' }, 'Scroll to explore'),
       ])
+    }
   },
 })
 
@@ -371,7 +849,8 @@ const MarqueeManifesto = defineComponent({
 
     // 渲染无缝滚动标语行。
     const marqueeRow = (reverse: boolean) => {
-      const items = [...marqueeWords, ...marqueeWords].map((word, i) =>
+      const words = runtimeMarqueeWords.value
+      const items = [...words, ...words].map((word, i) =>
         h('span', { key: `${word}-${i}`, class: 'cs-marquee__item' }, [
           word,
           h('i', { class: 'cs-marquee__star', 'aria-hidden': 'true' }, '✦'),
@@ -382,16 +861,19 @@ const MarqueeManifesto = defineComponent({
       ])
     }
 
-    return () =>
-      h('section', { ref: root, id: 'manifesto', class: 'cs-marquee-sec' }, [
+    return () => {
+      const content = runtimeManifesto.value
+      const segments = content?.segments ?? []
+      const cards = content?.cards ?? []
+      return h('section', { ref: root, id: 'manifesto', class: 'cs-marquee-sec' }, [
         h('div', { class: 'cs-marquee' }, [marqueeRow(false), marqueeRow(true)]),
         h('div', { class: 'cs-mani cs-section' }, [
           h('div', { class: 'cs-mani__copy' }, [
-            h('p', { class: 'cs-eyebrow' }, manifesto.lead),
+            h('p', { class: 'cs-eyebrow' }, content?.lead ?? ''),
             h(
               'p',
               { class: 'cs-mani__text' },
-              manifesto.segments.flatMap((segment) =>
+              segments.flatMap((segment) =>
                 segment.text.split(' ').filter(Boolean).map((word, wordIndex) =>
                   h(
                     'span',
@@ -408,7 +890,7 @@ const MarqueeManifesto = defineComponent({
           h(
             'div',
             { class: 'cs-mani__cards' },
-            manifesto.cards.map((card) =>
+            cards.map((card) =>
               h('article', { key: card.label, class: 'cs-mani-card' }, [
                 h('span', card.label),
                 h('strong', card.value),
@@ -418,6 +900,7 @@ const MarqueeManifesto = defineComponent({
           ),
         ]),
       ])
+    }
   },
 })
 
@@ -433,9 +916,8 @@ const FeaturedArticles = defineComponent({
   name: 'FeaturedArticles',
   setup() {
     const root = ref<HTMLElement | null>(null)
-    const articles = ref<FeaturedArticle[]>(featuredArticles)
+    const articles = runtimeArticles
     let articleRevealTweens: gsap.core.Tween[] = []
-    let disposed = false
 
     const killArticleReveal = () => {
       articleRevealTweens.forEach((tween) => tween.kill())
@@ -519,37 +1001,17 @@ const FeaturedArticles = defineComponent({
       })
     }
 
-    onMounted(async () => {
+    onMounted(() => {
       revealCurrentCards()
-      try {
-        const response = await fetchArticles()
-        if (disposed) {
-          return
-        }
-        const records = response.records.slice(0, featuredArticles.length)
-        if (records.length > 0) {
-          articles.value = records.map(articleToFeatured)
-          await nextTick()
-          if (disposed) {
-            return
-          }
-          revealCurrentCards()
-          requestAnimationFrame(() => {
-            if (!disposed) {
-              ScrollTrigger.refresh()
-            }
-          })
-        }
-      } catch {
-        if (disposed) {
-          return
-        }
-        articles.value = featuredArticles
-      }
     })
 
+    watch(articles, async () => {
+      await nextTick()
+      revealCurrentCards()
+      requestAnimationFrame(() => ScrollTrigger.refresh())
+    }, { flush: 'post' })
+
     onBeforeUnmount(() => {
-      disposed = true
       killArticleReveal()
     })
 
@@ -559,7 +1021,10 @@ const FeaturedArticles = defineComponent({
         RouterLink,
         {
           key: article.id,
-          to: { name: 'article-detail', params: { slug: article.slug } },
+          to: {
+            name: article.targetType === 'PROJECT' ? 'project-detail' : 'article-detail',
+            params: { slug: article.slug },
+          },
           class: spanClass(article, index),
           style: { '--cs-from': article.cover[0], '--cs-to': article.cover[1] },
           onPointermove: onTilt,
@@ -584,7 +1049,7 @@ const FeaturedArticles = defineComponent({
               h('h3', { class: 'cs-article__title' }, article.title),
               h('p', { class: 'cs-article__excerpt' }, article.excerpt),
               h('div', { class: 'cs-article__meta' }, [
-                h('span', `${article.readingMinutes} 分钟阅读`),
+                h('span', article.targetType === 'PROJECT' ? '作品记录' : `${article.readingMinutes} 分钟阅读`),
                 h('span', article.publishedAt),
               ]),
             ]),
@@ -618,7 +1083,7 @@ const PortfolioGallery = defineComponent({
   name: 'PortfolioGallery',
   setup() {
     const root = ref<HTMLElement | null>(null)
-    const projects = ref<PortfolioProject[]>(portfolioProjects)
+    const projects = runtimeProjects
     const stacked = ref(isStackedViewport())
     const stackQuery =
       typeof window !== 'undefined' ? window.matchMedia('(max-width: 900px)') : null
@@ -637,18 +1102,7 @@ const PortfolioGallery = defineComponent({
       stacked.value = event.matches
     }
 
-    onMounted(async () => {
-      try {
-        const response = await fetchProjects()
-        const records = response.records.slice(0, portfolioProjects.length)
-        if (records.length > 0) {
-          projects.value = records.map(projectToPortfolio)
-          await nextTick()
-        }
-      } catch {
-        projects.value = portfolioProjects
-      }
-
+    onMounted(() => {
       stackQuery?.addEventListener('change', onStackChange)
       matchMediaContext = gsap.matchMedia()
       matchMediaContext.add(
@@ -699,6 +1153,11 @@ const PortfolioGallery = defineComponent({
         root.value ?? undefined,
       )
     })
+
+    watch(projects, async () => {
+      await nextTick()
+      ScrollTrigger.refresh()
+    }, { flush: 'post' })
 
     onBeforeUnmount(() => {
       stackQuery?.removeEventListener('change', onStackChange)
@@ -888,6 +1347,12 @@ const SiteStructureShowcase = defineComponent({
       }
     })
 
+    watch(runtimeStructureCards, async () => {
+      await nextTick()
+      remeasure()
+      ScrollTrigger.refresh()
+    }, { flush: 'post' })
+
     onBeforeUnmount(() => {
       resizeObserver?.disconnect()
       resizeObserver = null
@@ -975,7 +1440,7 @@ const SiteStructureShowcase = defineComponent({
                 : []),
             ],
           ),
-          ...agentCapabilities.map(renderAgent),
+          ...runtimeStructureCards.value.map(renderAgent),
         ]),
       ])
   },
@@ -1043,24 +1508,6 @@ const ApproachProcess = defineComponent({
           })
         }
       })
-      gsap.utils.toArray<HTMLElement>('.cs-counter__value').forEach((el) => {
-        const target = Number(el.dataset.target || '0')
-        const suffix = el.dataset.suffix || ''
-        if (reduced) {
-          el.textContent = `${target}${suffix}`
-          return
-        }
-        const obj = { v: 0 }
-        gsap.to(obj, {
-          v: target,
-          duration: 1.8,
-          ease: 'power2.out',
-          scrollTrigger: { trigger: el, start: 'top 88%' },
-          onUpdate: () => {
-            el.textContent = `${Math.round(obj.v)}${suffix}`
-          },
-        })
-      })
     })
 
     onBeforeUnmount(() => {
@@ -1088,8 +1535,9 @@ const ApproachProcess = defineComponent({
         ),
       ])
 
-    return () =>
-      h('section', { ref: root, class: 'cs-approach cs-section', id: 'approach' }, [
+    return () => {
+      const steps = runtimeApproachSteps.value
+      return h('section', { ref: root, class: 'cs-approach cs-section', id: 'approach' }, [
         h('div', { class: 'cs-head' }, [
           h('div', [
             h('p', { class: 'cs-eyebrow' }, 'How It Works'),
@@ -1103,12 +1551,12 @@ const ApproachProcess = defineComponent({
         ]),
         h('div', { class: 'cs-approach__grid' }, [
           h('aside', { class: 'cs-rail' }, [
-            h('div', { class: 'cs-rail__num' }, approachSteps[activeIndex.value]?.no ?? '01'),
-            h('div', { class: 'cs-rail__label' }, approachSteps[activeIndex.value]?.en ?? ''),
+            h('div', { class: 'cs-rail__num' }, steps[activeIndex.value]?.no ?? '01'),
+            h('div', { class: 'cs-rail__label' }, steps[activeIndex.value]?.en ?? ''),
             h(
               'div',
               { class: 'cs-rail__track' },
-              approachSteps.map((step, index) =>
+              steps.map((step, index) =>
                 h('span', {
                   key: step.no,
                   class: ['cs-rail__tick', { 'is-active': index === activeIndex.value }],
@@ -1116,27 +1564,10 @@ const ApproachProcess = defineComponent({
               ),
             ),
           ]),
-          h('div', { class: 'cs-steps' }, approachSteps.map(renderStep)),
+          h('div', { class: 'cs-steps' }, steps.map(renderStep)),
         ]),
-        h(
-          'div',
-          { class: 'cs-counters' },
-          counters.map((counter) =>
-            h('div', { class: 'cs-counter', key: counter.label }, [
-              h(
-                'span',
-                {
-                  class: 'cs-counter__value',
-                  'data-target': String(counter.value),
-                  'data-suffix': counter.suffix,
-                },
-                `0${counter.suffix}`,
-              ),
-              h('span', { class: 'cs-counter__label' }, counter.label),
-            ]),
-          ),
-        ),
       ])
+    }
   },
 })
 
@@ -1144,7 +1575,7 @@ const CreativeWall = defineComponent({
   name: 'CreativeWall',
   setup() {
     const root = ref<HTMLElement | null>(null)
-    const fragments = ref<CreativeFragment[]>(creativeFragments)
+    const fragments = runtimeFragments
     const detachers: Array<() => void> = []
 
     const bindMagneticCards = () => {
@@ -1173,18 +1604,15 @@ const CreativeWall = defineComponent({
       }
     })
 
-    onMounted(async () => {
-      try {
-        const response = await fetchInspirations({ pageSize: 8 })
-        if (response.records.length > 0) {
-          fragments.value = response.records.map(inspirationToFragment)
-          await nextTick()
-        }
-      } catch {
-        fragments.value = creativeFragments
-      }
+    onMounted(() => {
       bindMagneticCards()
     })
+
+    watch(fragments, async () => {
+      await nextTick()
+      bindMagneticCards()
+      ScrollTrigger.refresh()
+    }, { flush: 'post' })
 
     onBeforeUnmount(() => {
       detachers.forEach((off) => off())
@@ -1201,6 +1629,9 @@ const CreativeWall = defineComponent({
         style['--cs-from'] = fragment.palette[0]
         style['--cs-to'] = fragment.palette[1]
       }
+      if (fragment.backgroundImage) {
+        style['--cs-frag-bg'] = toCssImageUrl(fragment.backgroundImage)
+      }
 
       const inner = [
         h('span', { class: 'cs-frag__kind' }, fragment.label),
@@ -1216,7 +1647,7 @@ const CreativeWall = defineComponent({
         'div',
         { key: fragment.id, class: `cs-frag cs-frag--${fragment.kind}`, style },
         [
-          fragment.palette ? h('span', { class: 'cs-frag__wash' }) : null,
+          fragment.palette || fragment.backgroundImage ? h('span', { class: 'cs-frag__wash' }) : null,
           h('div', { class: 'cs-frag__inner' }, inner),
         ],
       )
@@ -1243,8 +1674,7 @@ const CreativeWall = defineComponent({
 const ThemeUniverse = defineComponent({
   name: 'ThemeUniverse',
   setup() {
-    const activeId = ref<string>(themePresets[0]?.id ?? '')
-    const currentThemeName = ref('读取中')
+    const activeId = ref<string>('')
     const preview = ref<HTMLElement | null>(null)
 
     // 把主题变量写入预览容器。
@@ -1283,7 +1713,7 @@ const ThemeUniverse = defineComponent({
     // 保存主题预览容器引用。
     const setPreviewRef = (el: Element | null) => {
       preview.value = el as HTMLElement | null
-      const first = themePresets.find((preset) => preset.id === activeId.value)
+      const first = runtimeThemePresets.value.find((preset) => preset.id === activeId.value)
       if (first) {
         applyVars(first)
       }
@@ -1295,14 +1725,20 @@ const ThemeUniverse = defineComponent({
       }
     })
 
-    onMounted(async () => {
-      try {
-        const theme = await fetchCurrentTheme()
-        currentThemeName.value = theme?.displayName ?? '默认主题'
-      } catch {
-        currentThemeName.value = '本地默认'
+    watch(runtimeThemePresets, (presets) => {
+      if (presets.length === 0) {
+        activeId.value = ''
+        return
       }
-    })
+      const active = presets.find((preset) => preset.name === runtimeCurrentThemeName.value) ?? presets[0]
+      if (active && !presets.some((preset) => preset.id === activeId.value)) {
+        activeId.value = active.id
+      }
+      const selected = presets.find((preset) => preset.id === activeId.value) ?? active
+      if (selected) {
+        applyVars(selected)
+      }
+    }, { immediate: true, flush: 'post' })
 
     // 渲染主题切换按钮。
     const renderThemeButton = (preset: ThemePreset) =>
@@ -1328,10 +1764,16 @@ const ThemeUniverse = defineComponent({
       )
 
     // 读取当前激活主题配置。
-    const activePreset = () => themePresets.find((preset) => preset.id === activeId.value) ?? themePresets[0]
+    const activePreset = () =>
+      runtimeThemePresets.value.find((preset) => preset.id === activeId.value) ?? runtimeThemePresets.value[0]
+
+    const previewCount = (keyword: string) =>
+      runtimeCounters.value.find((counter) => counter.label.includes(keyword))
 
     return () => {
       const active = activePreset()
+      const articleCounter = previewCount('文章')
+      const projectCounter = previewCount('作品')
       return h('section', { class: 'cs-themes cs-section', id: 'themes' }, [
         h('div', { class: 'cs-head' }, [
           h('div', [
@@ -1345,7 +1787,7 @@ const ThemeUniverse = defineComponent({
           ),
         ]),
         h('div', { class: 'cs-themes__layout' }, [
-          h('div', { class: 'cs-themes__list' }, themePresets.map(renderThemeButton)),
+          h('div', { class: 'cs-themes__list' }, runtimeThemePresets.value.map(renderThemeButton)),
           h('div', { class: 'cs-theme-preview', ref: setPreviewRef }, [
             h('p', { class: 'cs-theme-preview__eyebrow cs-tp-fade' }, active?.mood ?? ''),
             h('h3', { class: 'cs-theme-preview__title cs-tp-fade' }, active?.name ?? ''),
@@ -1356,81 +1798,19 @@ const ThemeUniverse = defineComponent({
             ),
             h('div', { class: 'cs-theme-preview__cards cs-tp-fade' }, [
               h('div', { class: 'cs-theme-preview__card' }, [
-                h('strong', '128'),
-                h('span', '文章'),
+                h('strong', articleCounter ? `${articleCounter.value}${articleCounter.suffix}` : '0'),
+                h('span', articleCounter?.label ?? '文章'),
               ]),
               h('div', { class: 'cs-theme-preview__card' }, [
-                h('strong', '36'),
-                h('span', '作品'),
+                h('strong', projectCounter ? `${projectCounter.value}${projectCounter.suffix}` : '0'),
+                h('span', projectCounter?.label ?? '作品'),
               ]),
             ]),
-            h('span', { class: 'cs-theme-preview__chip cs-tp-fade' }, `当前启用 · ${currentThemeName.value}`),
+            h('span', { class: 'cs-theme-preview__chip cs-tp-fade' }, `当前启用 · ${runtimeCurrentThemeName.value}`),
           ]),
         ]),
       ])
     }
-  },
-})
-
-const FieldNotes = defineComponent({
-  name: 'FieldNotes',
-  setup() {
-    const root = ref<HTMLElement | null>(null)
-
-    useGsapContext(root, ({ reduced }) => {
-      if (reduced) {
-        return
-      }
-      gsap.utils.toArray<HTMLElement>('.cs-note').forEach((row, index) => {
-        gsap.from(row, {
-          yPercent: 40,
-          opacity: 0,
-          duration: 0.7,
-          ease: 'power3.out',
-          delay: (index % 4) * 0.05,
-          scrollTrigger: { trigger: row, start: 'top 88%' },
-        })
-        const rule = row.querySelector('.cs-note__rule')
-        if (rule) {
-          gsap.from(rule, {
-            scaleX: 0,
-            transformOrigin: 'left',
-            duration: 0.9,
-            ease: 'power3.inOut',
-            scrollTrigger: { trigger: row, start: 'top 88%' },
-          })
-        }
-      })
-    })
-
-    // 渲染创作记录条目。
-    const renderNote = (note: FieldNote, index: number) =>
-      h('article', { key: index, class: 'cs-note' }, [
-        h('span', { class: 'cs-note__rule' }),
-        h('div', { class: 'cs-note__row' }, [
-          h('span', { class: 'cs-note__date' }, note.date),
-          h('span', { class: 'cs-note__tag' }, note.tag),
-          h('h3', { class: 'cs-note__title' }, note.title),
-          h('span', { class: 'cs-note__arrow', 'aria-hidden': 'true' }, '→'),
-        ]),
-        h('p', { class: 'cs-note__detail' }, note.detail),
-      ])
-
-    return () =>
-      h('section', { ref: root, class: 'cs-notes cs-section', id: 'notes' }, [
-        h('div', { class: 'cs-head' }, [
-          h('div', [
-            h('p', { class: 'cs-eyebrow' }, 'Development Log'),
-            h('h2', { class: 'cs-head__title' }, '按模块记录开发历程'),
-          ]),
-          h(
-            'p',
-            { class: 'cs-head__note' },
-            '这里只记录模块级进展，方便回看这个个人博客与作品平台是怎样一步步搭起来的。',
-          ),
-        ]),
-        h('div', { class: 'cs-notes__list' }, fieldNotes.map(renderNote)),
-      ])
   },
 })
 
@@ -1502,7 +1882,7 @@ const FinalCTA = defineComponent({
       h('section', { ref: root, class: 'cs-cta-wrap', id: 'enter', onPointermove: onMove }, [
         h('div', { class: 'cs-cta' }, [
           h('div', { ref: glow, class: 'cs-cta__glow' }),
-          h('p', { class: 'cs-eyebrow cs-cta__eyebrow' }, closing.eyebrow),
+          h('p', { class: 'cs-eyebrow cs-cta__eyebrow' }, runtimeSiteConfig.value?.brand ?? ''),
           h('h2', { class: 'cs-cta__line', onPointerover: onCharOver }, chars()),
           h(
             'p',
@@ -1530,26 +1910,22 @@ const FinalCTA = defineComponent({
 
 // 渲染首页页脚。
 function renderFooter() {
-  const github = siteConfig.social.find((item) => item.label === 'GitHub')
-  const mail = siteConfig.social.find((item) => item.label === 'Mail')
+  const site = runtimeSiteConfig.value
+  const links = (site?.social ?? []).slice(0, 2)
 
   return h('footer', { class: 'cs-footer' }, [
-    h('span', `© ${new Date().getFullYear()} ${siteConfig.wordmark}`),
-    h(
-      'a',
-      {
-        href: 'https://github.com/SakuraCianna/CreatorSpace',
-        target: '_blank',
-        rel: 'noreferrer',
-      },
-      `GitHub · ${github?.handle ?? 'github.com/SakuraCianna/CreatorSpace'}`,
-    ),
-    h(
-      'a',
-      {
-        href: 'mailto:754515922@qq.com',
-      },
-      `Mail · ${mail?.handle ?? '754515922@qq.com'}`,
+    h('span', `© ${new Date().getFullYear()} ${site?.wordmark ?? ''}`),
+    ...links.map((link) =>
+      h(
+        'a',
+        {
+          key: link.href,
+          href: link.href,
+          target: link.href && isMailtoHref(link.href) ? undefined : '_blank',
+          rel: link.href && isMailtoHref(link.href) ? undefined : 'noreferrer',
+        },
+        `${link.label} · ${link.handle}`,
+      ),
     ),
   ])
 }
@@ -2574,6 +2950,7 @@ function renderFooter() {
   flex-direction: column;
   height: 100%;
   justify-content: space-between;
+  text-shadow: 0 1px 16px rgba(2, 6, 18, 0.52);
   will-change: transform;
 }
 
@@ -2641,7 +3018,11 @@ function renderFooter() {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background: linear-gradient(155deg, var(--cs-from), var(--cs-to));
+  background-image:
+    linear-gradient(155deg, rgba(6, 9, 20, 0.18), rgba(6, 9, 20, 0.74)),
+    var(--cs-frag-bg, linear-gradient(155deg, var(--cs-from), var(--cs-to)));
+  background-size: cover;
+  background-position: center;
 }
 
 .cs-home :deep(.cs-frag--image .cs-frag__body),
@@ -3225,35 +3606,6 @@ function renderFooter() {
   background: var(--cs-accent);
 }
 
-.cs-home :deep(.cs-counters) {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: clamp(16px, 2vw, 28px);
-  margin-top: clamp(60px, 9vh, 120px);
-  padding-top: 44px;
-  border-top: 1px solid var(--cs-line);
-}
-
-.cs-home :deep(.cs-counter__value) {
-  display: block;
-  font-family: var(--cs-font-display);
-  font-weight: 700;
-  font-size: clamp(36px, 5vw, 70px);
-  line-height: 1;
-  letter-spacing: -0.03em;
-  color: var(--cs-ink);
-}
-
-.cs-home :deep(.cs-counter__label) {
-  display: block;
-  margin-top: 10px;
-  font-family: var(--cs-font-mono);
-  font-size: 11px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--cs-ink-faint);
-}
-
 @media (max-width: 860px) {
   .cs-home :deep(.cs-approach__grid) {
     grid-template-columns: 1fr;
@@ -3270,129 +3622,6 @@ function renderFooter() {
   }
   .cs-home :deep(.cs-rail__track) {
     display: none;
-  }
-  .cs-home :deep(.cs-counters) {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 28px 16px;
-  }
-}
-
-
-.cs-home :deep(.cs-notes__list) {
-  padding-bottom: clamp(50px, 8vh, 110px);
-}
-
-.cs-home :deep(.cs-note) {
-  position: relative;
-  padding: clamp(22px, 3vh, 34px) 0;
-  cursor: default;
-}
-
-.cs-home :deep(.cs-note__rule) {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 1px;
-  background: var(--cs-line);
-  transform-origin: left;
-}
-
-.cs-home :deep(.cs-note__row) {
-  display: grid;
-  grid-template-columns: 120px 110px minmax(0, 1fr) 40px;
-  align-items: center;
-  gap: 20px;
-}
-
-.cs-home :deep(.cs-note__date) {
-  font-family: var(--cs-font-mono);
-  font-size: 13px;
-  letter-spacing: 0.06em;
-  color: var(--cs-ink-faint);
-}
-
-.cs-home :deep(.cs-note__tag) {
-  justify-self: start;
-  padding: 4px 12px;
-  border: 1px solid var(--cs-line);
-  border-radius: 999px;
-  font-family: var(--cs-font-mono);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  color: var(--cs-ink-dim);
-}
-
-.cs-home :deep(.cs-note__title) {
-  margin: 0;
-  font-family: var(--cs-font-display);
-  font-weight: 500;
-  font-size: clamp(18px, 2.2vw, 28px);
-  line-height: 1.2;
-  letter-spacing: -0.01em;
-  color: var(--cs-ink);
-  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), color 0.3s ease;
-}
-
-.cs-home :deep(.cs-note__arrow) {
-  justify-self: end;
-  font-size: 20px;
-  color: var(--cs-ink-faint);
-  opacity: 0;
-  transform: translateX(-8px);
-  transition: opacity 0.4s ease, transform 0.4s ease, color 0.3s ease;
-}
-
-.cs-home :deep(.cs-note__detail) {
-  max-width: 60ch;
-  margin: 0;
-  padding-left: 250px;
-  font-size: 14px;
-  line-height: 1.6;
-  color: var(--cs-ink-dim);
-
-  max-height: 0;
-  opacity: 0;
-  overflow: hidden;
-  transform: translateY(-6px);
-  transition: max-height 0.5s ease, opacity 0.4s ease, margin 0.4s ease, transform 0.4s ease;
-}
-
-.cs-home :deep(.cs-note:hover .cs-note__title) {
-  transform: translateX(10px);
-  color: var(--cs-accent);
-}
-
-.cs-home :deep(.cs-note:hover .cs-note__arrow) {
-  opacity: 1;
-  transform: translateX(0);
-  color: var(--cs-accent);
-}
-
-.cs-home :deep(.cs-note:hover .cs-note__detail) {
-  max-height: 120px;
-  opacity: 1;
-  margin-top: 16px;
-  transform: translateY(0);
-}
-
-@media (max-width: 720px) {
-  .cs-home :deep(.cs-note__row) {
-    grid-template-columns: 1fr auto;
-    grid-template-areas:
-      'date tag'
-      'title title';
-    gap: 10px;
-  }
-  .cs-home :deep(.cs-note__date) { grid-area: date; }
-  .cs-home :deep(.cs-note__tag) { grid-area: tag; justify-self: end; }
-  .cs-home :deep(.cs-note__title) { grid-area: title; }
-  .cs-home :deep(.cs-note__arrow) { display: none; }
-  .cs-home :deep(.cs-note__detail) {
-    padding-left: 0;
-  }
-  .cs-home :deep(.cs-note:hover .cs-note__title) {
-    transform: none;
   }
 }
 
@@ -3436,12 +3665,5 @@ function renderFooter() {
     color: var(--cs-ink) !important;
   }
 
-
-  .cs-home :deep(.cs-note__detail) {
-    max-height: none !important;
-    opacity: 1 !important;
-    margin-top: 14px !important;
-    transform: none !important;
-  }
 }
 </style>

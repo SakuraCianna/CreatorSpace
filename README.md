@@ -133,10 +133,11 @@ Copy-Item .\.env.example .\.env
 
 2. 编辑 `.env`，至少配置:
 
-- `JWT_SECRET`
 - `ADMIN_PASSWORD_HASH`
 - `POSTGRES_PASSWORD`
 - `REDIS_PASSWORD`
+
+本地 `APP_ENV=local` 时，`JWT_SECRET` 可以先保留占位值；非本地环境必须替换为强随机字符串。
 
 3. 安装前端依赖。
 
@@ -155,6 +156,10 @@ mvn -f backend/pom.xml spring-boot:run
 ```powershell
 npm run dev --prefix frontend
 ```
+
+后端已接入 Spring Boot DevTools，本地通过 `spring-boot:run` 启动时，代码变更会触发开发重启。
+
+前端保持 Vite 本机开发服务的简单配置，未额外增加局域网访问配置。
 
 6. 验证健康检查。
 
@@ -243,7 +248,7 @@ Invoke-RestMethod -Uri "http://localhost/api/health"
 
 | 变量 | 说明 |
 | --- | --- |
-| `JWT_SECRET` | JWT 签名密钥，必须使用强随机字符串 |
+| `JWT_SECRET` | JWT 签名密钥，本地可使用占位值，非本地环境必须使用强随机字符串 |
 | `ADMIN_USERNAME` | 初始化管理员用户名 |
 | `ADMIN_PASSWORD_HASH` | 初始化管理员 BCrypt 密码哈希 |
 | `POSTGRES_DB` | PostgreSQL 数据库名 |
@@ -252,7 +257,7 @@ Invoke-RestMethod -Uri "http://localhost/api/health"
 | `REDIS_PASSWORD` | Redis 密码 |
 | `WEB_BASE_URL` | 站点公网地址 |
 | `API_BASE_URL` | API 公网地址 |
-| `CORS_ALLOWED_ORIGINS` | 允许跨域来源 |
+| `CORS_ALLOWED_ORIGINS` | 允许跨域来源或来源模式，本地可使用 `*` 全开放 |
 | `LOCAL_FILE_STORAGE_ROOT` | 后端上传文件存储目录 |
 | `AI_ENABLED` | AI 功能开关 |
 
@@ -288,6 +293,7 @@ POST   /api/auth/register
 POST   /api/auth/login
 GET    /api/site/config
 GET    /api/theme/current
+GET    /api/themes
 GET    /api/search
 GET    /api/categories
 GET    /api/tags
@@ -402,7 +408,7 @@ CI 当前覆盖:
 - 不在 README、PR 描述或 commit message 中写入真实密钥
 - 生产环境更新前先备份 PostgreSQL 和上传文件
 - 不在生产环境执行 `docker compose down -v`，除非确认要删除数据库、Redis 和上传文件
-- 后端启动必须配置不少于 32 位的 `JWT_SECRET`
+- 非本地环境后端启动必须配置不少于 32 位的 `JWT_SECRET`
 - 管理员密码只以 BCrypt 哈希形式进入配置
 - 已运行过的 Flyway 迁移不要原地修改
 

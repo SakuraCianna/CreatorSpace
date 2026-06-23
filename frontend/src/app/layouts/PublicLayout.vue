@@ -11,13 +11,13 @@
       <span :style="{ transform: `scaleY(${scrollProgress})` }" />
     </div>
     <header class="public-header">
-      <RouterLink class="brand" to="/" aria-label="返回 CreatorSpace 首页">
+      <RouterLink class="brand" to="/" :aria-label="`返回 ${siteName} 首页`">
         <span class="brand-mark">
           <img src="/public.svg" alt="" aria-hidden="true" />
         </span>
         <span class="brand-copy">
-          <strong>CreatorSpace</strong>
-          <small>Personal Theme Archive</small>
+          <strong>{{ siteName }}</strong>
+          <small>{{ siteSlogan }}</small>
         </span>
       </RouterLink>
 
@@ -28,10 +28,22 @@
       </button>
 
       <nav class="public-nav" :class="{ 'is-open': navOpen }" aria-label="前台导航">
-        <RouterLink v-for="item in navItems" :key="item.to" :to="item.to" @click="navOpen = false">
-          <component :is="item.icon" :size="16" />
-          <span>{{ item.label }}</span>
-        </RouterLink>
+        <template v-for="item in navItems" :key="item.to">
+          <a
+            v-if="item.external"
+            :href="item.to"
+            target="_blank"
+            rel="noreferrer"
+            @click="navOpen = false"
+          >
+            <component :is="item.icon" :size="16" />
+            <span>{{ item.label }}</span>
+          </a>
+          <RouterLink v-else :to="item.to" @click="navOpen = false">
+            <component :is="item.icon" :size="16" />
+            <span>{{ item.label }}</span>
+          </RouterLink>
+        </template>
         <RouterLink
           v-if="!session.isAuthenticated"
           class="mobile-auth-action mobile-auth-action--tonal"
@@ -51,10 +63,10 @@
         <RouterLink
           v-if="session.isAuthenticated"
           class="mobile-auth-action mobile-auth-action--tonal"
-          to="/creator"
+          :to="accountActionRoute"
           @click="navOpen = false"
         >
-          创作中心
+          {{ accountActionLabel }}
         </RouterLink>
         <button
           v-if="session.isAuthenticated"
@@ -68,7 +80,10 @@
 
       <div class="public-actions">
         <template v-if="session.isAuthenticated">
-          <RouterLink class="button button-tonal button-compact" to="/creator">{{ currentUsername }}</RouterLink>
+          <RouterLink class="button button-tonal button-compact" :to="accountActionRoute">
+            <ShieldCheck v-if="session.isAdmin" :size="16" />
+            {{ accountActionLabel }}
+          </RouterLink>
           <button class="button button-filled button-compact" type="button" @click="handleLogout">退出</button>
         </template>
         <template v-else>
@@ -87,11 +102,12 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type Component } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { BookOpen, Home, Images, Info, Lightbulb, Menu, PenLine, Search, X } from '@lucide/vue'
+import { BookOpen, Home, Images, Info, Lightbulb, Menu, Palette, PenLine, Search, ShieldCheck, X } from '@lucide/vue'
 
 import { fetchSiteConfig } from '@/services/content'
 import { prefersReducedMotion } from '@/shared/composables/useReducedMotion'
 import { useSessionStore } from '@/shared/sessionStore'
+import { syncSiteIdentityFromConfig, useSiteIdentity } from '@/shared/siteIdentity'
 
 const navOpen = ref(false)
 const sceneHost = ref<HTMLElement | null>(null)
@@ -100,6 +116,8 @@ const route = useRoute()
 const router = useRouter()
 const session = useSessionStore()
 const currentUsername = computed(() => session.currentUser?.username ?? '创作中心')
+const accountActionRoute = computed(() => (session.isAdmin ? '/admin' : '/creator'))
+const accountActionLabel = computed(() => (session.isAdmin ? '返回后台' : currentUsername.value))
 let disposeScene: (() => void) | null = null
 let setScenePaused: ((paused: boolean) => void) | null = null
 let setScenePointer: ((nx: number, ny: number) => void) | null = null
@@ -109,6 +127,7 @@ interface PublicNavItem {
   to: string
   label: string
   icon: Component
+  external: boolean
 }
 
 const iconMap: Record<string, Component> = {
@@ -117,21 +136,14 @@ const iconMap: Record<string, Component> = {
   images: Images,
   info: Info,
   lightbulb: Lightbulb,
+  palette: Palette,
   'pen-line': PenLine,
   pen: PenLine,
   search: Search,
 }
 
-const fallbackNavItems: PublicNavItem[] = [
-  { to: '/articles', label: '文章', icon: BookOpen },
-  { to: '/projects', label: '作品', icon: Images },
-  { to: '/inspirations', label: '灵感', icon: Lightbulb },
-  { to: '/creator', label: '创作', icon: PenLine },
-  { to: '/search', label: '搜索', icon: Search },
-  { to: '/about', label: '关于', icon: Info },
-]
-
-const navItems = ref<PublicNavItem[]>(fallbackNavItems)
+const { siteName, siteSlogan } = useSiteIdentity({ load: false })
+const navItems = ref<PublicNavItem[]>(withRequiredPublicEntries([]))
 
 onMounted(() => {
   mountFrontstageScene()
@@ -143,12 +155,13 @@ onMounted(() => {
 onMounted(async () => {
   try {
     const config = await fetchSiteConfig()
+    syncSiteIdentityFromConfig(config)
     const configuredItems = readConfiguredNavigation(config['site.navigationItems'])
     if (configuredItems.length > 0) {
-      navItems.value = withCreatorEntry(configuredItems)
+      navItems.value = withRequiredPublicEntries(configuredItems)
     }
   } catch {
-    navItems.value = fallbackNavItems
+    navItems.value = withRequiredPublicEntries([])
   }
 })
 
@@ -233,6 +246,10 @@ function readConfiguredNavigation(value: unknown): PublicNavItem[] {
     .filter((item): item is PublicNavItem => item !== null)
 }
 
+function readString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
 function readNavigationItem(value: unknown): PublicNavItem | null {
   if (!isRecord(value)) {
     return null
@@ -247,18 +264,33 @@ function readNavigationItem(value: unknown): PublicNavItem | null {
     to: path,
     label,
     icon: iconMap[iconName] ?? Info,
+    external: isExternalUrl(path),
   }
 }
 
-function withCreatorEntry(items: PublicNavItem[]): PublicNavItem[] {
-  if (items.some((item) => item.to === '/creator' || item.to.startsWith('/creator/'))) {
-    return items
+function withRequiredPublicEntries(items: PublicNavItem[]): PublicNavItem[] {
+  const nextItems = items.length > 0 ? [...items] : [
+    { to: '/articles', label: '文章', icon: BookOpen, external: false },
+    { to: '/projects', label: '作品', icon: Images, external: false },
+    { to: '/inspirations', label: '灵感', icon: Lightbulb, external: false },
+    { to: '/search', label: '搜索', icon: Search, external: false },
+    { to: '/about', label: '关于', icon: Info, external: false },
+  ]
+  if (!nextItems.some((item) => item.to === '/themes')) {
+    const aboutIndex = nextItems.findIndex((item) => item.to === '/about')
+    const insertAt = aboutIndex >= 0 ? aboutIndex : nextItems.length
+    nextItems.splice(insertAt, 0, { to: '/themes', label: '主题', icon: Palette, external: false })
   }
-  const searchIndex = items.findIndex((item) => item.to === '/search')
-  const nextItems = [...items]
-  const insertAt = searchIndex >= 0 ? searchIndex : nextItems.length
-  nextItems.splice(insertAt, 0, { to: '/creator', label: '创作', icon: PenLine })
+  if (!nextItems.some((item) => item.to === '/creator' || item.to.startsWith('/creator/'))) {
+    const searchIndex = nextItems.findIndex((item) => item.to === '/search')
+    const insertAt = searchIndex >= 0 ? searchIndex : nextItems.length
+    nextItems.splice(insertAt, 0, { to: '/creator', label: '创作', icon: PenLine, external: false })
+  }
   return nextItems
+}
+
+function isExternalUrl(value: string) {
+  return /^https?:\/\//i.test(value)
 }
 
 function handleLogout() {

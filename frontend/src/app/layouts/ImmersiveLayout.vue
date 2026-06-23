@@ -5,10 +5,10 @@
         <span class="cs-nav__mark">
           <img src="/public.svg" alt="" aria-hidden="true" />
         </span>
-        <span>{{ siteConfig.brand }}</span>
+        <span>{{ siteName }}</span>
       </RouterLink>
       <div class="cs-nav__links">
-        <RouterLink v-for="item in siteConfig.navigation" :key="item.to" :to="item.to">
+        <RouterLink v-for="item in immersiveNavItems" :key="item.to" :to="item.to">
           {{ item.label }}
         </RouterLink>
       </div>
@@ -22,7 +22,19 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
 
-import { siteConfig } from '@/content/home'
+import { useSiteIdentity } from '@/shared/siteIdentity'
+
+interface ImmersiveNavItem {
+  label: string
+  to: string
+}
+
+const { siteName } = useSiteIdentity({ load: false })
+const immersiveNavItems: ImmersiveNavItem[] = [
+  { label: '游客', to: '/articles' },
+  { label: '登录', to: '/login' },
+  { label: '注册', to: '/register' },
+]
 </script>
 
 <style scoped>

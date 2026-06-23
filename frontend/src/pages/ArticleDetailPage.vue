@@ -61,37 +61,57 @@
           </button>
         </div>
         <div class="comments-card">
-          <p class="page-kicker">Comments</p>
-          <form class="comment-form" @submit.prevent="postComment">
-            <textarea v-model="commentDraft" rows="4" placeholder="写下你的想法，审核后公开展示。" />
-            <button class="button button-filled button-compact" :disabled="!canComment" type="submit">
-              {{ canComment ? '提交评论' : '登录后评论' }}
-            </button>
-          </form>
-          <article v-for="comment in comments" :key="comment.id" class="comment-item" :style="{ '--depth': comment.depth }">
-            <div class="comment-header">
-              <strong>{{ comment.username }}</strong>
-              <span class="comment-time">{{ formatDate(comment.createdAt) }}</span>
-            </div>
-            <p class="comment-body">{{ comment.content }}</p>
-            <div class="comment-actions">
-              <button
-                class="comment-action-btn"
-                type="button"
-                :disabled="!canComment"
-                @click="replyTo(comment)"
-              >
-                <MessageCircle :size="14" />
-                回复
-              </button>
-              <span v-if="comment.likeCount > 0" class="comment-likes">{{ comment.likeCount }} 赞</span>
-            </div>
-          </article>
-          <form v-if="replyTarget" class="reply-hint" @submit.prevent="() => {}">
-            <span>回复 {{ replyTarget.username }}：</span>
+          <div class="comments-head">
+            <p class="page-kicker">Comments</p>
+            <span>{{ comments.length }} 条公开评论</span>
+          </div>
+          <div v-if="replyTarget" class="reply-hint">
+            <span>正在回复 {{ replyTarget.username }}</span>
             <button class="text-link" type="button" @click="cancelReply">取消</button>
+          </div>
+          <form class="comment-form" @submit.prevent="postComment">
+            <label class="sr-only" for="article-comment">写评论</label>
+            <textarea
+              id="article-comment"
+              v-model="commentDraft"
+              rows="4"
+              :placeholder="replyTarget ? `回复 ${replyTarget.username}，审核后公开展示。` : '写下你的想法，审核后公开展示。'"
+            />
+            <div class="comment-form__footer">
+              <span>{{ canComment ? '审核通过后会公开展示' : '登录后即可参与讨论' }}</span>
+              <button class="button button-filled button-compact" :disabled="!canComment || !commentDraft.trim()" type="submit">
+                {{ canComment ? '提交评论' : '登录后评论' }}
+              </button>
+            </div>
           </form>
-          <span v-if="comments.length === 0">还没有公开评论。</span>
+          <div v-if="comments.length > 0" class="comment-list">
+            <article v-for="comment in comments" :key="comment.id" class="comment-item" :style="{ '--depth': comment.depth }">
+              <span class="comment-avatar" aria-hidden="true">{{ commentInitial(comment.username) }}</span>
+              <div class="comment-content">
+                <div class="comment-header">
+                  <strong>{{ comment.username }}</strong>
+                  <span class="comment-time">{{ formatDate(comment.createdAt) }}</span>
+                </div>
+                <p class="comment-body">{{ comment.content }}</p>
+                <div class="comment-actions">
+                  <button
+                    class="comment-action-btn"
+                    type="button"
+                    :disabled="!canComment"
+                    @click="replyTo(comment)"
+                  >
+                    <MessageCircle :size="14" />
+                    回复
+                  </button>
+                  <span v-if="comment.likeCount > 0" class="comment-likes">{{ comment.likeCount }} 赞</span>
+                </div>
+              </div>
+            </article>
+          </div>
+          <div v-else class="comment-empty">
+            <strong>还没有公开评论</strong>
+            <span>成为第一个留下想法的人。</span>
+          </div>
           <p v-if="commentNotice" class="inline-notice">{{ commentNotice }}</p>
         </div>
         <p v-if="notice" class="inline-notice">{{ notice }}</p>
@@ -118,7 +138,6 @@ import {
   MessageCircle,
 } from '@lucide/vue'
 
-import { fallbackArticles } from '@/content/studio'
 import {
   fetchArticleBySlug,
   fetchComments,
@@ -128,11 +147,12 @@ import {
   favoriteTarget,
   unfavoriteTarget,
 } from '@/services/content'
+import { toUserMessage } from '@/services/http'
 import { useCinematicPageMotion } from '@/shared/composables/useCinematicPageMotion'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import { toCssImageUrl } from '@/shared/cssImage'
 import type { ArticleSummary, CommentSummary } from '@/shared/domain'
-import { renderSafeMarkdown } from '@/shared/markdown'
+import { normalizeMarkdownSource, renderSafeMarkdown } from '@/shared/markdown'
 import { useSessionStore } from '@/shared/sessionStore'
 
 const route = useRoute()
@@ -153,10 +173,11 @@ const cinematic = useCinematicPageMotion(root)
 usePageReveal(root)
 
 const canComment = computed(() => Boolean(session.accessToken))
-const htmlContent = computed(() => renderSafeMarkdown(article.value?.contentMarkdown ?? article.value?.summary))
-const readingMinutes = computed(() => Math.max(1, Math.ceil((article.value?.contentMarkdown?.length ?? 500) / 420)))
+const articleMarkdown = computed(() => normalizeMarkdownSource(article.value?.contentMarkdown ?? article.value?.summary))
+const htmlContent = computed(() => renderSafeMarkdown(articleMarkdown.value))
+const readingMinutes = computed(() => Math.max(1, Math.ceil(articleMarkdown.value.length / 420)))
 const toc = computed(() =>
-  (article.value?.contentMarkdown ?? '')
+  articleMarkdown.value
     .split(/\r?\n/)
     .filter((line) => line.startsWith('## '))
     .map((line) => line.replace(/^##\s*/, '').trim())
@@ -183,8 +204,8 @@ async function loadArticle() {
     article.value = await fetchArticleBySlug(slug.value)
     await loadComments()
   } catch (error) {
-    article.value = fallbackArticles.find((item) => item.slug === slug.value) ?? null
-    notice.value = error instanceof Error ? `后端暂不可用，已尝试本地样例：${error.message}` : '后端暂不可用，已尝试本地样例。'
+    article.value = null
+    notice.value = toUserMessage(error, '文章暂时无法打开，请稍后再试')
   } finally {
     isLoading.value = false
     void cinematic.play()
@@ -227,7 +248,7 @@ async function postComment() {
     commentNotice.value = '评论已提交，审核通过后会公开展示'
     await loadComments()
   } catch (error) {
-    commentNotice.value = error instanceof Error ? error.message : '评论提交失败'
+    commentNotice.value = toUserMessage(error, '评论提交失败')
   }
 }
 
@@ -268,6 +289,10 @@ function replyTo(comment: CommentSummary) {
 
 function cancelReply() {
   replyTarget.value = null
+}
+
+function commentInitial(username: string): string {
+  return username.trim().slice(0, 1).toUpperCase() || 'U'
 }
 
 function readRouteParam(value: string | string[] | undefined): string {
@@ -347,8 +372,8 @@ watch(slug, loadArticle)
 .detail-hero {
   position: relative;
   display: grid;
-  gap: 18px;
-  padding: 48px;
+  gap: 16px;
+  padding: clamp(30px, 4vw, 46px);
   background:
     linear-gradient(135deg, rgba(6, 8, 18, 0.96), rgba(6, 8, 18, 0.84) 48%, rgba(6, 8, 18, 0.7)),
     var(--detail-cover),
@@ -388,11 +413,12 @@ watch(slug, loadArticle)
 }
 
 .detail-hero h1 {
-  max-width: 820px;
+  max-width: 860px;
   margin: 0;
-  font-size: 58px;
+  font-size: clamp(34px, 4.4vw, 52px);
   font-weight: 860;
-  line-height: 1.04;
+  line-height: 1.12;
+  letter-spacing: 0;
   text-shadow: 0 16px 34px rgba(0, 0, 0, 0.42);
 }
 
@@ -409,6 +435,24 @@ watch(slug, loadArticle)
 .detail-hero .detail-meta,
 .detail-hero .tag-row {
   text-shadow: 0 10px 24px rgba(0, 0, 0, 0.38);
+}
+
+.detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.detail-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 720;
 }
 
 .detail-hero .detail-meta span {
@@ -428,45 +472,67 @@ watch(slug, loadArticle)
 }
 
 .markdown-body {
-  display: grid;
-  gap: 18px;
-  padding: 34px 48px 52px;
+  display: block;
+  padding: clamp(32px, 4vw, 54px);
   color: #1f2937;
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .markdown-body :deep(h1),
 .markdown-body :deep(h2),
 .markdown-body :deep(h3) {
   max-width: 780px;
-  margin: 14px 0 0;
+  margin: 32px 0 12px;
   color: var(--tone-ink);
-  line-height: 1.18;
+  line-height: 1.24;
+}
+
+.markdown-body :deep(h1:first-child),
+.markdown-body :deep(h2:first-child),
+.markdown-body :deep(h3:first-child) {
+  margin-top: 0;
 }
 
 .markdown-body :deep(h2) {
-  font-size: 30px;
+  font-size: 28px;
 }
 
 .markdown-body :deep(p),
 .markdown-body :deep(li),
 .markdown-body :deep(blockquote) {
   max-width: 780px;
-  margin: 0;
+  margin: 0 0 16px;
   color: #475569;
-  font-size: 16px;
-  line-height: 1.88;
+  font-size: 17px;
+  line-height: 1.86;
 }
 
 .markdown-body :deep(blockquote) {
-  padding: 14px 18px;
+  padding: 16px 18px;
+  border: 1px solid color-mix(in srgb, var(--tone-teal) 20%, transparent);
   border-left: 4px solid var(--tone-teal);
-  background: rgba(0, 124, 114, 0.08);
+  border-radius: 8px;
+  background: rgba(0, 124, 114, 0.07);
+}
+
+.markdown-body :deep(a) {
+  color: var(--tone-primary);
+  font-weight: 720;
+}
+
+.markdown-body :deep(code:not(pre code)) {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(11, 87, 208, 0.08);
+  color: #0b57d0;
+  font-size: 0.92em;
 }
 
 .markdown-body :deep(pre) {
   max-width: 100%;
   overflow-x: auto;
   border-radius: 8px;
+  margin: 18px 0;
 }
 
 .reading-aside {
@@ -474,6 +540,18 @@ watch(slug, loadArticle)
   top: 100px;
   display: grid;
   gap: 12px;
+}
+
+.toc-card,
+.reaction-card,
+.comments-card {
+  border: 1px solid var(--tone-line);
+  border-radius: var(--app-radius-sm);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.72)),
+    var(--tone-panel);
+  box-shadow: 0 16px 40px rgba(32, 33, 36, 0.08);
+  backdrop-filter: blur(18px);
 }
 
 .toc-card,
@@ -506,10 +584,79 @@ watch(slug, loadArticle)
   background: rgba(49, 91, 255, 0.1);
 }
 
+.comments-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.comments-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.comments-head span {
+  color: var(--tone-faint);
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.comment-form {
+  display: grid;
+  gap: 10px;
+}
+
+.comment-form textarea {
+  width: 100%;
+  min-height: 112px;
+  padding: 12px 14px;
+  border: 1px solid var(--tone-line-strong);
+  border-radius: 8px;
+  outline: none;
+  resize: vertical;
+  background: rgba(255, 255, 255, 0.84);
+  color: var(--tone-ink);
+  font: inherit;
+  line-height: 1.65;
+  transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.comment-form textarea:focus {
+  border-color: color-mix(in srgb, var(--tone-primary) 48%, var(--tone-line-strong));
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(11, 87, 208, 0.08);
+}
+
+.comment-form__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.comment-form__footer span {
+  color: var(--tone-faint);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.comment-list {
+  display: grid;
+  gap: 10px;
+}
+
 .comment-item {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
   padding: 12px;
   margin-left: calc(var(--depth, 0) * 20px);
-  border-left: 2px solid var(--tone-line);
+  border: 1px solid color-mix(in srgb, var(--tone-line) 76%, transparent);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .comment-item[style*="--depth: 1"],
@@ -519,8 +666,25 @@ watch(slug, loadArticle)
   background: rgba(0, 0, 0, 0.02);
 }
 
+.comment-avatar {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tone-primary) 12%, #ffffff);
+  color: var(--tone-primary);
+  font-size: 13px;
+  font-weight: 820;
+}
+
+.comment-content {
+  min-width: 0;
+}
+
 .comment-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   margin-bottom: 4px;
@@ -573,12 +737,33 @@ watch(slug, loadArticle)
 .reply-hint {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  padding: 8px 12px;
-  border-radius: 6px;
+  padding: 10px 12px;
+  border: 1px solid rgba(49, 91, 255, 0.14);
+  border-radius: 8px;
   background: rgba(49, 91, 255, 0.06);
   font-size: 13px;
   color: var(--tone-muted);
+}
+
+.comment-empty {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border: 1px dashed var(--tone-line-strong);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.46);
+}
+
+.comment-empty strong {
+  color: var(--tone-ink);
+  font-size: 14px;
+}
+
+.comment-empty span {
+  color: var(--tone-muted);
+  font-size: 13px;
 }
 
 @media (max-width: 1020px) {

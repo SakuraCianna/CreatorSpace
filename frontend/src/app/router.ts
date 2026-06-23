@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 import { ACCESS_TOKEN_KEY } from '@/services/http'
+import { normalizeAuthRedirect } from '@/shared/authRedirect'
 import { USER_SUMMARY_KEY } from '@/shared/sessionStore'
 
 const router = createRouter({
@@ -40,6 +41,12 @@ const router = createRouter({
       path: '/inspirations',
       name: 'inspirations',
       component: () => import('@/pages/InspirationsPage.vue'),
+      meta: { layout: 'public' },
+    },
+    {
+      path: '/themes',
+      name: 'themes',
+      component: () => import('@/pages/ThemeShowcasePage.vue'),
       meta: { layout: 'public' },
     },
     {
@@ -129,7 +136,7 @@ router.beforeEach((to) => {
   }
 
   if (to.name === 'login' && hasToken) {
-    const redirect = readRedirect(to.query.redirect)
+    const redirect = normalizeAuthRedirect(to.query.redirect, roles.includes('ADMIN') ? '/admin' : '/articles')
     if (redirect.startsWith('/admin') && !roles.includes('ADMIN')) {
       return true
     }
@@ -158,13 +165,6 @@ function readStoredRoles(): string[] {
   } catch {
     return []
   }
-}
-
-function readRedirect(value: unknown): string {
-  if (Array.isArray(value)) {
-    return typeof value[0] === 'string' ? value[0] : ''
-  }
-  return typeof value === 'string' ? value : ''
 }
 
 export default router
