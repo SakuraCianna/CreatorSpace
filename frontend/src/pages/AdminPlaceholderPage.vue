@@ -2,7 +2,6 @@
   <section ref="root" class="admin-module">
     <header class="module-hero" data-reveal>
       <div>
-        <p class="eyebrow">{{ moduleConfig.eyebrow }}</p>
         <h2>{{ moduleConfig.title }}</h2>
         <p>{{ moduleConfig.description }}</p>
       </div>
@@ -16,7 +15,7 @@
       <form class="workspace-panel admin-form" data-reveal @submit.prevent="saveArticle">
         <div class="panel-title">
           <h2>{{ editingArticleId ? '编辑文章' : '新建文章' }}</h2>
-          <span>{{ articleForm.privacyType }}</span>
+          <span>{{ privacyLabel(articleForm.privacyType) }}</span>
         </div>
         <div class="form-line">
           <label>
@@ -41,7 +40,9 @@
           <label>
             可见性
             <select v-model="articleForm.privacyType">
-              <option v-for="privacy in articlePrivacies" :key="privacy" :value="privacy">{{ privacy }}</option>
+              <option v-for="privacy in articlePrivacies" :key="privacy" :value="privacy">
+                {{ privacyLabel(privacy) }}
+              </option>
             </select>
           </label>
         </div>
@@ -72,7 +73,7 @@
       <div class="workspace-panel" data-reveal>
         <div class="panel-title">
           <h2>文章队列</h2>
-          <span>{{ articles.length }} items</span>
+          <span>共 {{ articles.length }} 篇</span>
         </div>
         <div class="filter-bar">
           <input v-model="articleKeyword" placeholder="搜索文章" @keyup.enter="loadArticles" />
@@ -91,11 +92,11 @@
           <div>
             <strong>{{ article.title }}</strong>
             <span>
-              {{ article.category?.name ?? '未分类' }} · {{ article.privacyType }} · {{ article.slug }}
+              {{ article.category?.name ?? '未分类' }} · {{ privacyLabel(article.privacyType) }} · {{ article.slug }}
             </span>
           </div>
           <div class="row-actions">
-            <span class="status-chip">{{ article.status }}</span>
+            <span class="status-chip">{{ contentStatusLabel(article.status) }}</span>
             <button class="icon-text-button" type="button" @click="editArticle(article.id)">编辑</button>
             <button
               v-if="article.status === 'PENDING_REVIEW'"
@@ -132,7 +133,7 @@
       <form class="workspace-panel admin-form" data-reveal @submit.prevent="saveProject">
         <div class="panel-title">
           <h2>{{ editingProjectId ? '编辑作品' : '新增作品' }}</h2>
-          <span>{{ projectForm.projectType || 'PROJECT' }}</span>
+          <span>{{ projectTypeLabel(projectForm.projectType) }}</span>
         </div>
         <div class="form-line">
           <label>
@@ -147,7 +148,7 @@
         <div class="form-line">
           <label>
             类型
-            <input v-model="projectForm.projectType" maxlength="60" placeholder="WEB_APP" />
+            <input v-model="projectForm.projectType" maxlength="60" placeholder="例如：Web 应用" />
           </label>
           <label>
             技术栈
@@ -195,7 +196,7 @@
       <div class="workspace-panel" data-reveal>
         <div class="panel-title">
           <h2>作品队列</h2>
-          <span>{{ projects.length }} items</span>
+          <span>共 {{ projects.length }} 个</span>
         </div>
         <div class="filter-bar">
           <input v-model="projectKeyword" placeholder="搜索作品" @keyup.enter="loadProjects" />
@@ -213,10 +214,10 @@
         <article v-for="project in projects" :key="project.id" class="table-row table-row--rich">
           <div>
             <strong>{{ project.title }}</strong>
-            <span>{{ project.projectType }} · {{ project.techStack.join(' / ') || '未维护技术栈' }} · {{ project.slug }}</span>
+            <span>{{ projectTypeLabel(project.projectType) }} · {{ project.techStack.join(' / ') || '未维护技术栈' }} · {{ project.slug }}</span>
           </div>
           <div class="row-actions">
-            <span class="status-chip">{{ project.status }}</span>
+            <span class="status-chip">{{ projectStatusLabel(project.status) }}</span>
             <button class="icon-text-button" type="button" @click="editProject(project.id)">编辑</button>
             <button
               v-if="project.status === 'PENDING_REVIEW'"
@@ -250,7 +251,7 @@
       <form class="workspace-panel admin-form" data-reveal @submit.prevent="saveInspiration">
         <div class="panel-title">
           <h2>{{ editingInspirationId ? '编辑灵感卡片' : '添加灵感卡片' }}</h2>
-          <span>{{ inspirationForm.isPublic ? 'PUBLIC' : 'PRIVATE' }}</span>
+          <span>{{ inspirationForm.isPublic ? '公开' : '私密' }}</span>
         </div>
         <label>
           标题
@@ -259,7 +260,9 @@
         <label>
           类型
           <select v-model="inspirationForm.cardType">
-            <option v-for="type in inspirationTypes" :key="type" :value="type">{{ type }}</option>
+            <option v-for="type in inspirationTypes" :key="type" :value="type">
+              {{ inspirationTypeLabel(type) }}
+            </option>
           </select>
         </label>
         <label>
@@ -293,12 +296,12 @@
       <div class="workspace-panel" data-reveal>
         <div class="panel-title">
           <h2>灵感队列</h2>
-          <span>{{ inspirations.length }} items</span>
+          <span>共 {{ inspirations.length }} 条</span>
         </div>
         <article v-for="card in inspirations" :key="card.id" class="table-row table-row--rich">
           <div>
             <strong>{{ card.title }}</strong>
-            <span>{{ card.cardType }} · {{ card.isPublic ? '公开' : '私密' }} · {{ card.createdAt ?? '未记录时间' }}</span>
+            <span>{{ inspirationTypeLabel(card.cardType) }} · {{ card.isPublic ? '公开' : '私密' }} · {{ card.createdAt ?? '未记录时间' }}</span>
           </div>
           <div class="row-actions">
             <button class="icon-text-button" type="button" @click="editInspiration(card)">编辑</button>
@@ -312,7 +315,7 @@
       <div class="workspace-panel" data-reveal>
         <div class="panel-title">
           <h2>审核队列</h2>
-          <span>{{ comments.length }} items</span>
+          <span>共 {{ comments.length }} 条</span>
         </div>
         <div class="filter-bar">
           <select v-model="commentStatus" @change="loadComments">
@@ -332,10 +335,10 @@
         <article v-for="comment in comments" :key="comment.id" class="table-row table-row--rich">
           <div>
             <strong>{{ comment.username }}: {{ comment.content }}</strong>
-            <span>{{ comment.targetType }} #{{ comment.targetId }} · {{ comment.createdAt ?? '未记录时间' }}</span>
+            <span>{{ targetTypeLabel(comment.targetType) }} #{{ comment.targetId }} · {{ comment.createdAt ?? '未记录时间' }}</span>
           </div>
           <div class="row-actions">
-            <span class="status-chip">{{ comment.status }}</span>
+            <span class="status-chip">{{ reviewStatusLabel(comment.status) }}</span>
             <button class="icon-text-button" type="button" @click="review(comment.id, 'approve')">通过</button>
             <button class="icon-text-button danger" type="button" @click="review(comment.id, 'reject')">驳回</button>
           </div>
@@ -345,11 +348,11 @@
       <aside class="workspace-panel" data-reveal>
         <div class="panel-title">
           <h2>审核原则</h2>
-          <span>Policy</span>
+          <span>审核规范</span>
         </div>
         <ul class="rule-list">
-          <li>公开评论只展示 APPROVED 状态</li>
-          <li>敏感词 REJECT 会在提交时直接拒绝</li>
+          <li>公开评论只展示已通过状态</li>
+          <li>命中敏感词会在提交时直接拒绝</li>
           <li>回复必须挂在已通过评论下，避免噪音扩散</li>
         </ul>
       </aside>
@@ -359,7 +362,7 @@
       <div class="workspace-panel" data-reveal>
         <div class="panel-title">
           <h2>留言审核</h2>
-          <span>{{ guestbookEntries.length }} items</span>
+          <span>共 {{ guestbookEntries.length }} 条</span>
         </div>
         <div class="filter-bar">
           <select v-model="guestbookStatus" @change="loadGuestbook">
@@ -376,7 +379,7 @@
             <span>{{ entry.createdAt ?? '未记录时间' }} · {{ entry.likeCount }} 赞</span>
           </div>
           <div class="row-actions">
-            <span class="status-chip">{{ entry.status }}</span>
+            <span class="status-chip">{{ reviewStatusLabel(entry.status) }}</span>
             <button class="icon-text-button" type="button" @click="reviewGuestbookEntry(entry.id, 'approve')">通过</button>
             <button class="icon-text-button danger" type="button" @click="reviewGuestbookEntry(entry.id, 'reject')">驳回</button>
           </div>
@@ -388,12 +391,14 @@
       <form class="workspace-panel admin-form" data-reveal @submit.prevent="uploadFile">
         <div class="panel-title">
           <h2>上传资源</h2>
-          <span>LOCAL</span>
+          <span>本地存储</span>
         </div>
         <label>
           模块
           <select v-model="fileModule">
-            <option v-for="module in fileModules" :key="module" :value="module">{{ module }}</option>
+            <option v-for="module in fileModules" :key="module" :value="module">
+              {{ fileModuleLabel(module) }}
+            </option>
           </select>
         </label>
         <input type="file" @change="selectFile" />
@@ -403,12 +408,12 @@
       <div class="workspace-panel" data-reveal>
         <div class="panel-title">
           <h2>资源列表</h2>
-          <span>{{ files.length }} files</span>
+          <span>共 {{ files.length }} 个</span>
         </div>
         <article v-for="file in files" :key="file.id" class="table-row table-row--rich">
           <div>
             <strong>{{ file.originalName }}</strong>
-            <span>{{ file.module }} · {{ formatSize(file.fileSize) }} · {{ file.fileType }}</span>
+            <span>{{ fileModuleLabel(file.module) }} · {{ formatSize(file.fileSize) }} · {{ file.fileType }}</span>
           </div>
           <a class="icon-text-button" :href="file.publicUrl" target="_blank" rel="noreferrer">预览</a>
         </article>
@@ -419,7 +424,7 @@
       <form class="workspace-panel admin-form" data-reveal @submit.prevent="saveTheme">
         <div class="panel-title">
           <h2>{{ editingThemeId ? '编辑主题' : '选择主题' }}</h2>
-          <span>{{ themeForm.primaryColor || 'M3' }}</span>
+          <span>{{ themeForm.primaryColor || '主题色' }}</span>
         </div>
         <div class="form-line">
           <label>
@@ -439,12 +444,12 @@
           <label>
             背景类型
             <select v-model="themeForm.backgroundType">
-              <option value="color">color</option>
-              <option value="solid">solid</option>
-              <option value="image">image</option>
-              <option value="gradient">gradient</option>
-              <option value="star">star</option>
-              <option value="webgl">webgl</option>
+              <option value="color">纯色</option>
+              <option value="solid">实色</option>
+              <option value="image">图片</option>
+              <option value="gradient">渐变</option>
+              <option value="star">星空</option>
+              <option value="webgl">动效</option>
             </select>
           </label>
         </div>
@@ -481,7 +486,7 @@
       <div class="workspace-panel" data-reveal>
         <div class="panel-title">
           <h2>主题库</h2>
-          <span>{{ themes.length }} themes</span>
+          <span>共 {{ themes.length }} 套</span>
         </div>
         <article v-for="theme in themes" :key="theme.id" class="table-row table-row--rich">
           <div>
@@ -492,7 +497,7 @@
             <span>{{ theme.themeName }} · {{ theme.layoutType }} · {{ theme.cardStyle }}</span>
           </div>
           <div class="row-actions">
-            <span class="status-chip">{{ theme.active ? 'ACTIVE' : 'PRESET' }}</span>
+            <span class="status-chip">{{ theme.active ? '当前启用' : '预设' }}</span>
             <button class="icon-text-button" type="button" @click="editTheme(theme)">编辑</button>
             <button class="icon-text-button" type="button" @click="switchCurrentTheme(theme.id)">启用</button>
           </div>
@@ -775,21 +780,21 @@
       <div class="workspace-panel" data-reveal>
         <div class="panel-title">
           <h2>内容队列</h2>
-          <span>{{ moduleConfig.rows.length }} items</span>
+          <span>共 {{ moduleConfig.rows.length }} 条</span>
         </div>
         <article v-for="row in moduleConfig.rows" :key="row.title" class="table-row table-row--rich">
           <div>
             <strong>{{ row.title }}</strong>
             <span>{{ row.meta }}</span>
           </div>
-          <span class="status-chip">{{ row.status }}</span>
+          <span class="status-chip">{{ generalStatusLabel(row.status) }}</span>
         </article>
       </div>
 
       <aside class="workspace-panel" data-reveal>
         <div class="panel-title">
           <h2>模块能力</h2>
-          <span>Next</span>
+          <span>待扩展</span>
         </div>
         <ul class="rule-list">
           <li v-for="capability in moduleConfig.capabilities" :key="capability">{{ capability }}</li>
@@ -872,7 +877,6 @@ import type {
 import { syncSiteIdentityFromSettings, useSiteIdentity } from '@/shared/siteIdentity'
 
 interface ModuleConfig {
-  eyebrow: string
   title: string
   description: string
   primaryAction: string
@@ -1016,6 +1020,105 @@ const moduleConfig = computed(() => {
     )),
   }
 })
+
+function valueLabel(value: string, labels: Record<string, string>) {
+  return labels[value] ?? value
+}
+
+function privacyLabel(value: string) {
+  return valueLabel(value, {
+    PUBLIC: '公开',
+    SELF: '仅自己',
+    FRIENDS: '好友可见',
+    SELECTED_FRIENDS: '指定好友',
+    EXCLUDED_FRIENDS: '排除好友',
+    PRIVATE: '私密',
+  })
+}
+
+function contentStatusLabel(value: string) {
+  return valueLabel(value, {
+    DRAFT: '草稿',
+    PENDING_REVIEW: '待审核',
+    PUBLISHED: '已公开',
+    PRIVATE: '私密',
+    REJECTED: '已驳回',
+    SCHEDULED: '定时发布',
+    ARCHIVED: '已归档',
+  })
+}
+
+function projectStatusLabel(value: string) {
+  return valueLabel(value, {
+    DRAFT: '草稿',
+    PENDING_REVIEW: '待审核',
+    VISIBLE: '展示中',
+    HIDDEN: '已隐藏',
+    REJECTED: '已驳回',
+    ARCHIVED: '已归档',
+  })
+}
+
+function reviewStatusLabel(value: string) {
+  return valueLabel(value, {
+    PENDING: '待审核',
+    APPROVED: '已通过',
+    REJECTED: '已驳回',
+    SPAM: '垃圾内容',
+  })
+}
+
+function inspirationTypeLabel(value: string) {
+  return valueLabel(value, {
+    TEXT: '文本',
+    PROMPT: '提示词',
+    IMAGE: '图片',
+    CODE: '代码',
+    LINK: '链接',
+  })
+}
+
+function targetTypeLabel(value: string) {
+  return valueLabel(value, {
+    ARTICLE: '文章',
+    PROJECT: '作品',
+    MESSAGE: '留言',
+  })
+}
+
+function fileModuleLabel(value: string) {
+  return valueLabel(value, {
+    AVATAR: '头像',
+    COVER: '封面',
+    ARTICLE: '文章',
+    PROJECT: '作品',
+    INSPIRATION: '灵感',
+    OTHER: '其他',
+  })
+}
+
+function projectTypeLabel(value: string | null | undefined) {
+  const cleaned = cleanText(value)
+  return valueLabel(cleaned || 'PROJECT', {
+    WEB_APP: 'Web 应用',
+    PROJECT: '作品',
+    TOOL: '工具',
+    DESIGN: '设计',
+    ARTICLE: '文章',
+  })
+}
+
+function generalStatusLabel(value: string) {
+  return valueLabel(value, {
+    ACTIVE: '当前启用',
+    PRESET: '预设',
+    READY: '已就绪',
+    VISIBLE: '展示中',
+    DRAFT: '草稿',
+    PUBLISHED: '已公开',
+    PRIVATE: '私密',
+  })
+}
 
 watch(activeSection, () => {
   notice.value = ''
@@ -1948,7 +2051,6 @@ const DEFAULT_SETTINGS_IDENTITY_META = '站点身份配置'
 
 const configs: Record<string, ModuleConfig> = {
   articles: {
-    eyebrow: 'Writing Desk',
     title: '文章管理',
     description: '草稿、发布、私密可见性、分类、标签和版本记录都在这里完成。',
     primaryAction: '新建文章',
@@ -1960,19 +2062,17 @@ const configs: Record<string, ModuleConfig> = {
     ],
   },
   projects: {
-    eyebrow: 'Gallery Desk',
     title: '作品管理',
     description: '维护作品封面、截图、过程、时间线、技术栈和外部链接。',
     primaryAction: '新增作品',
     capabilities: ['作品截图', 'Demo/GitHub/视频链接', '过程记录', '里程碑时间线', '推荐展示'],
     rows: [
-      { title: '内容整理后台', meta: 'CMS Console · Vue 3 / Spring Boot', status: 'VISIBLE' },
-      { title: '主题博客前台', meta: 'Blog Frontstage · WebGL / GSAP', status: 'VISIBLE' },
-      { title: '阅读动效实验', meta: 'Motion Study · anime.js', status: 'DRAFT' },
+      { title: '内容整理后台', meta: '管理控制台 · Vue 3 / Spring Boot', status: 'VISIBLE' },
+      { title: '主题博客前台', meta: '主题前台 · WebGL / GSAP', status: 'VISIBLE' },
+      { title: '阅读动效实验', meta: '动效研究 · anime.js', status: 'DRAFT' },
     ],
   },
   inspirations: {
-    eyebrow: 'Idea Box',
     title: '灵感墙管理',
     description: '摘句、图片、链接、Prompt、草图和参考资料可以快速沉淀。',
     primaryAction: '重置表单',
@@ -1980,7 +2080,6 @@ const configs: Record<string, ModuleConfig> = {
     rows: [],
   },
   comments: {
-    eyebrow: 'Review Flow',
     title: '评论审核',
     description: '评论、回复、点赞和敏感词审核进入统一互动工作流。',
     primaryAction: '查看待审',
@@ -1988,7 +2087,6 @@ const configs: Record<string, ModuleConfig> = {
     rows: [],
   },
   guestbook: {
-    eyebrow: 'Guestbook',
     title: '留言板管理',
     description: '审核用户留言，管理公开留言列表。',
     primaryAction: '查看待审',
@@ -1996,7 +2094,6 @@ const configs: Record<string, ModuleConfig> = {
     rows: [],
   },
   files: {
-    eyebrow: 'Asset Library',
     title: '文件资源',
     description: '本地文件、封面、截图、附件和引用关系集中管理。',
     primaryAction: '刷新列表',
@@ -2004,19 +2101,17 @@ const configs: Record<string, ModuleConfig> = {
     rows: [],
   },
   themes: {
-    eyebrow: 'Theme Lab',
     title: '主题配置',
     description: '主题不仅是换色，还包含字体、密度、卡片、动效和首页模块顺序。',
     primaryAction: '保存主题',
     capabilities: ['主题变量 JSON', '主题版本', '资源绑定', '预览模式', '当前主题切换'],
     rows: [
-      { title: 'Glass Space', meta: '玻璃星空风 · 当前启用', status: 'ACTIVE' },
-      { title: 'Cyber Night', meta: '暗色科技风 · 预设', status: 'PRESET' },
-      { title: 'Minimal White', meta: '极简阅读风 · 预设', status: 'PRESET' },
+      { title: '玻璃空间', meta: '玻璃星空风 · 当前启用', status: 'ACTIVE' },
+      { title: '赛博夜色', meta: '暗色科技风 · 预设', status: 'PRESET' },
+      { title: '极简白', meta: '极简阅读风 · 预设', status: 'PRESET' },
     ],
   },
   settings: {
-    eyebrow: 'Site Config',
     title: '站点设置',
     description: '站点身份、导航、社交链接、SEO、首页编排和关于页内容从后台配置。',
     primaryAction: '保存配置',
@@ -2034,9 +2129,9 @@ const configs: Record<string, ModuleConfig> = {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 22px;
-  min-height: clamp(220px, 23vw, 292px);
-  padding: clamp(24px, 3vw, 42px);
+  gap: 16px;
+  min-height: 152px;
+  padding: 24px 28px;
   border: 1px solid var(--tone-line);
   border-radius: var(--app-radius-sm);
   background:
@@ -2051,16 +2146,17 @@ const configs: Record<string, ModuleConfig> = {
   max-width: 830px;
   margin: 0;
   color: var(--tone-ink);
-  font-size: 44px;
+  font-size: 32px;
   font-weight: 860;
-  line-height: 1.08;
+  line-height: 1.16;
 }
 
-.module-hero p:not(.eyebrow) {
+.module-hero p {
   max-width: 680px;
+  margin: 10px 0 0;
   color: var(--tone-muted);
-  font-size: 17px;
-  line-height: 1.72;
+  font-size: 14px;
+  line-height: 1.65;
 }
 
 .admin-dashboard,
@@ -2107,8 +2203,8 @@ const configs: Record<string, ModuleConfig> = {
 .workspace-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
-  gap: 14px;
-  margin-top: 16px;
+  gap: 12px;
+  margin-top: 12px;
 }
 
 .workspace-grid--even {
@@ -2116,12 +2212,12 @@ const configs: Record<string, ModuleConfig> = {
 }
 
 .workspace-panel {
-  padding: 20px;
+  padding: 16px;
 }
 
 .admin-form {
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .admin-form label,
@@ -2304,21 +2400,21 @@ const configs: Record<string, ModuleConfig> = {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
-  margin-bottom: 14px;
+  gap: 14px;
+  margin-bottom: 12px;
 }
 
 .panel-title h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .table-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 14px;
+  gap: 12px;
+  padding: 12px;
   border-radius: 8px;
   background: rgba(20, 21, 29, 0.04);
 }
@@ -2330,6 +2426,7 @@ const configs: Record<string, ModuleConfig> = {
 .table-row div {
   display: grid;
   gap: 4px;
+  min-width: 0;
 }
 
 .theme-dot {
@@ -2370,62 +2467,6 @@ const configs: Record<string, ModuleConfig> = {
   color: #b91c1c;
 }
 
-.comments-card {
-  display: grid;
-  gap: 12px;
-  margin-top: 16px;
-  padding: 16px;
-  border: 1px solid var(--tone-line);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.72);
-}
-
-.comment-item {
-  display: grid;
-  gap: 4px;
-  padding: 12px 0;
-  border-top: 1px solid var(--tone-line);
-}
-
-.comment-item p {
-  margin: 0;
-}
-
-.comment-item span,
-.comments-card > span {
-  color: var(--tone-muted);
-  font-size: 13px;
-}
-
-.trend-bars {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  align-items: end;
-  gap: 10px;
-  min-height: 230px;
-}
-
-.trend-bars span {
-  display: grid;
-  align-items: end;
-  gap: 8px;
-  height: 210px;
-}
-
-.trend-bars i {
-  display: block;
-  height: var(--bar-height);
-  min-height: 18px;
-  border-radius: 8px 8px 3px 3px;
-  background: linear-gradient(180deg, var(--tone-primary), var(--tone-teal));
-}
-
-.trend-bars small {
-  text-align: center;
-  color: var(--tone-faint);
-  font-size: 11px;
-}
-
 @media (min-width: 761px) {
   .module-hero h2 {
     max-width: 100%;
@@ -2449,11 +2490,12 @@ const configs: Record<string, ModuleConfig> = {
 
 @media (max-width: 760px) {
   .module-hero {
-    padding: 22px;
+    align-items: flex-start;
+    padding: 18px;
   }
 
   .module-hero h2 {
-    font-size: 30px;
+    font-size: 28px;
   }
 
   .dashboard-grid {
@@ -2463,6 +2505,18 @@ const configs: Record<string, ModuleConfig> = {
   .panel-title {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .table-row,
+  .row-actions,
+  .filter-bar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .row-actions,
+  .filter-bar > * {
+    width: 100%;
   }
 }
 

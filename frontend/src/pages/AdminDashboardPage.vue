@@ -12,27 +12,18 @@
       <div class="workspace-panel" data-reveal>
         <div class="panel-title">
           <div>
-            <p class="eyebrow">7 day visits</p>
+            <p class="eyebrow">近七日访问</p>
             <h2>访问趋势</h2>
           </div>
-          <span>{{ totalPv }} PV</span>
+          <span>累计 {{ totalPv }} 次</span>
         </div>
-        <div class="trend-bars">
-          <span
-            v-for="point in overview.visitTrend"
-            :key="point.date"
-            :style="{ '--bar-height': `${barHeight(point.pv)}%` }"
-          >
-            <i />
-            <small>{{ formatDay(point.date) }}</small>
-          </span>
-        </div>
+        <div ref="visitChartRef" class="visit-chart" aria-label="近七日访问趋势图" />
       </div>
 
       <div class="workspace-panel" data-reveal>
         <div class="panel-title">
           <div>
-            <p class="eyebrow">Review Queue</p>
+            <p class="eyebrow">操作记录</p>
             <h2>最近操作</h2>
           </div>
           <span>审计留痕</span>
@@ -42,7 +33,7 @@
             <strong>{{ activity.operation }}</strong>
             <span>{{ activity.module }} · {{ activity.createdAt }}</span>
           </div>
-          <span class="status-chip">LOG</span>
+          <span class="status-chip">记录</span>
         </article>
       </div>
     </section>
@@ -51,12 +42,12 @@
       <div class="workspace-panel" data-reveal>
         <div class="panel-title">
           <h2>热门文章</h2>
-          <span>Top 5</span>
+          <span>前 5 条</span>
         </div>
         <article v-for="item in overview.hotArticles" :key="item.slug" class="table-row">
           <div>
             <strong>{{ item.title }}</strong>
-            <span>{{ item.views }} views · {{ item.likes }} likes</span>
+            <span>{{ item.views }} 次浏览 · {{ item.likes }} 次点赞</span>
           </div>
           <RouterLink class="text-link" :to="{ name: 'article-detail', params: { slug: item.slug } }">查看</RouterLink>
         </article>
@@ -64,7 +55,7 @@
       <div class="workspace-panel" data-reveal>
         <div class="panel-title">
           <h2>推荐作品</h2>
-          <span>Gallery</span>
+          <span>展厅推荐</span>
         </div>
         <article v-for="item in overview.hotProjects" :key="item.slug" class="table-row">
           <div>
@@ -80,21 +71,21 @@
       <div class="workspace-panel" data-reveal>
         <div class="panel-title">
           <h2>热门搜索</h2>
-          <span>Top 10</span>
+          <span>前 10 条</span>
         </div>
         <article v-for="item in overview.hotSearchKeywords" :key="item.keyword" class="table-row">
           <div>
             <strong>{{ item.keyword }}</strong>
             <span>{{ item.count }} 次搜索</span>
           </div>
-          <span class="status-chip">HOT</span>
+          <span class="status-chip">热门</span>
         </article>
         <span v-if="overview.hotSearchKeywords.length === 0" class="empty-hint">暂无搜索记录</span>
       </div>
       <div class="workspace-panel" data-reveal>
         <div class="panel-title">
           <h2>内容统计</h2>
-          <span>Summary</span>
+          <span>数据汇总</span>
         </div>
         <div class="summary-grid">
           <div v-for="metric in overview.metrics" :key="metric.label" class="summary-item">
@@ -110,7 +101,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import type { EChartsType } from 'echarts/core'
+import { graphic, init, use } from 'echarts/core'
+import { BarChart } from 'echarts/charts'
+import { GridComponent, TooltipComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 
 import { fetchDashboardOverview } from '@/services/content'
@@ -120,6 +116,9 @@ import type { DashboardOverview } from '@/shared/domain'
 import { useSessionStore } from '@/shared/sessionStore'
 
 const root = ref<HTMLElement | null>(null)
+const visitChartRef = ref<HTMLDivElement | null>(null)
+let visitChart: EChartsType | null = null
+let visitChartObserver: ResizeObserver | null = null
 const emptyOverview: DashboardOverview = {
   metrics: [],
   hotArticles: [],
@@ -133,15 +132,17 @@ const notice = ref('')
 const router = useRouter()
 const session = useSessionStore()
 
+use([BarChart, GridComponent, TooltipComponent, CanvasRenderer])
 usePageReveal(root)
 
-const maxPv = computed(() => Math.max(...overview.value.visitTrend.map((item) => item.pv), 1))
 const totalPv = computed(() => overview.value.visitTrend.reduce((sum, item) => sum + item.pv, 0))
 
 async function loadOverview() {
   notice.value = ''
   try {
     overview.value = await fetchDashboardOverview()
+    await nextTick()
+    renderVisitChart()
   } catch (error) {
     overview.value = emptyOverview
     if (error instanceof HttpError && [401, 403].includes(error.status)) {
@@ -153,10 +154,6 @@ async function loadOverview() {
   }
 }
 
-function barHeight(value: number) {
-  return Math.max(12, Math.round((value / maxPv.value) * 100))
-}
-
 function formatDay(value: string) {
   if (value.includes('-')) {
     return value.slice(5)
@@ -164,7 +161,97 @@ function formatDay(value: string) {
   return value
 }
 
-onMounted(loadOverview)
+function renderVisitChart() {
+  if (!visitChartRef.value) {
+    return
+  }
+  visitChart ??= init(visitChartRef.value)
+  const trend = overview.value.visitTrend
+  const values = trend.map((item) => item.pv)
+  const maxValue = Math.max(...values, 1)
+  visitChart.setOption({
+    color: ['#0f766e'],
+    grid: { top: 24, right: 18, bottom: 34, left: 34 },
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(17, 24, 39, 0.92)',
+      borderWidth: 0,
+      textStyle: { color: '#fff', fontSize: 12 },
+      axisPointer: { type: 'shadow', shadowStyle: { color: 'rgba(49, 91, 255, 0.08)' } },
+      formatter(params: unknown) {
+        const [point] = params as Array<{ axisValue: string; value: number }>
+        return `${point.axisValue}<br/>访问量：${point.value} 次`
+      },
+    },
+    xAxis: {
+      type: 'category',
+      data: trend.map((item) => formatDay(item.date)),
+      axisTick: { show: false },
+      axisLine: { lineStyle: { color: 'rgba(15, 23, 42, 0.12)' } },
+      axisLabel: { color: '#7b8495', fontSize: 11 },
+    },
+    yAxis: {
+      type: 'value',
+      minInterval: 1,
+      max: Math.max(1, Math.ceil(maxValue * 1.25)),
+      splitLine: { lineStyle: { color: 'rgba(15, 23, 42, 0.08)', type: 'dashed' } },
+      axisLabel: { color: '#8b93a3', fontSize: 11 },
+    },
+    series: [
+      {
+        name: '访问量',
+        type: 'bar',
+        data: values,
+        barMaxWidth: 38,
+        itemStyle: {
+          borderRadius: [8, 8, 3, 3],
+          color: new graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: '#2563eb' },
+            { offset: 0.56, color: '#0f7c86' },
+            { offset: 1, color: '#047857' },
+          ]),
+        },
+        emphasis: {
+          itemStyle: {
+            color: new graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: '#38bdf8' },
+              { offset: 1, color: '#0f766e' },
+            ]),
+          },
+        },
+      },
+    ],
+  })
+}
+
+function resizeVisitChart() {
+  visitChart?.resize()
+}
+
+watch(
+  () => overview.value.visitTrend,
+  () => {
+    nextTick(renderVisitChart)
+  },
+  { deep: true },
+)
+
+onMounted(() => {
+  loadOverview()
+  window.addEventListener('resize', resizeVisitChart)
+  if (visitChartRef.value) {
+    visitChartObserver = new ResizeObserver(resizeVisitChart)
+    visitChartObserver.observe(visitChartRef.value)
+  }
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', resizeVisitChart)
+  visitChartObserver?.disconnect()
+  visitChartObserver = null
+  visitChart?.dispose()
+  visitChart = null
+})
 </script>
 
 <style scoped>
@@ -196,8 +283,8 @@ onMounted(loadOverview)
 }
 
 .metric-card {
-  min-height: 136px;
-  padding: 20px;
+  min-height: 112px;
+  padding: 16px;
 }
 
 .metric-card span,
@@ -210,8 +297,8 @@ onMounted(loadOverview)
 
 .metric-card strong {
   display: block;
-  margin-top: 18px;
-  font-size: 36px;
+  margin-top: 12px;
+  font-size: 30px;
   line-height: 1;
 }
 
@@ -227,7 +314,7 @@ onMounted(loadOverview)
 }
 
 .workspace-panel {
-  padding: 20px;
+  padding: 16px;
 }
 
 .admin-form {
@@ -323,7 +410,7 @@ onMounted(loadOverview)
 
 .panel-title h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .table-row {
@@ -410,33 +497,10 @@ onMounted(loadOverview)
   font-size: 13px;
 }
 
-.trend-bars {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  align-items: end;
-  gap: 10px;
-  min-height: 230px;
-}
-
-.trend-bars span {
-  display: grid;
-  align-items: end;
-  gap: 8px;
-  height: 210px;
-}
-
-.trend-bars i {
-  display: block;
-  height: var(--bar-height);
-  min-height: 18px;
-  border-radius: 8px 8px 3px 3px;
-  background: linear-gradient(180deg, var(--tone-primary), var(--tone-teal));
-}
-
-.trend-bars small {
-  text-align: center;
-  color: var(--tone-faint);
-  font-size: 11px;
+.visit-chart {
+  width: 100%;
+  height: 254px;
+  min-height: 220px;
 }
 
 .summary-grid {
