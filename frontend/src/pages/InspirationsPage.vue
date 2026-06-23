@@ -2,13 +2,13 @@
   <section ref="root" class="wall-page">
     <header class="wall-hero page-hero" data-reveal>
       <div class="hero-copy">
-        <p class="page-kicker">Inspiration Wall</p>
+        <p class="page-kicker">灵感收集墙</p>
         <h1>灵感墙</h1>
-        <p>摘句、Prompt、图片、代码和链接都在这里先被保存成碎片，再慢慢长成文章或作品。</p>
+        <p>摘句、提示词、图片、代码和链接都在这里先被保存成碎片，再慢慢长成文章或作品。</p>
       </div>
       <form class="wall-search" @submit.prevent="loadInspirations">
         <Search :size="18" />
-        <input v-model="keyword" placeholder="搜索灵感、来源或 Prompt" aria-label="搜索灵感" />
+        <input v-model="keyword" placeholder="搜索灵感、来源或提示词" aria-label="搜索灵感" />
         <button class="button button-filled button-compact" type="submit">检索</button>
       </form>
     </header>
@@ -67,16 +67,18 @@
         data-reveal
       >
         <img v-if="card.imageUrl" :src="card.imageUrl" alt="" loading="lazy" />
-        <span class="card-kind">
-          <component :is="typeIcon(card.cardType)" :size="14" />
-          {{ typeName(card.cardType) }}
-        </span>
+        <div class="card-head">
+          <span class="card-kind">
+            <component :is="typeIcon(card.cardType)" :size="14" />
+            {{ typeName(card.cardType) }}
+          </span>
+          <span class="card-order">优先级 {{ card.sortOrder }}</span>
+        </div>
         <h2>{{ card.title }}</h2>
         <pre v-if="card.cardType === 'CODE'">{{ card.content }}</pre>
         <p v-else>{{ card.content || '这张灵感卡还没有正文。' }}</p>
-        <div class="card-meta">
-          <span v-if="card.createdAt"><CalendarDays :size="14" />{{ formatDate(card.createdAt) }}</span>
-          <span>{{ card.sortOrder }} sort</span>
+        <div v-if="card.createdAt" class="card-meta">
+          <span><CalendarDays :size="14" />{{ formatDate(card.createdAt) }}</span>
         </div>
         <div class="tag-row">
           <span v-for="tag in card.tags.slice(0, 3)" :key="tag.id">#{{ tag.name }}</span>
@@ -137,7 +139,7 @@ usePageReveal(root)
 const filters: InspirationFilterItem[] = [
   { value: 'ALL', label: '全部', icon: StickyNote },
   { value: 'TEXT', label: '摘句', icon: MessageSquareQuote },
-  { value: 'PROMPT', label: 'Prompt', icon: StickyNote },
+  { value: 'PROMPT', label: '提示词', icon: StickyNote },
   { value: 'IMAGE', label: '图片', icon: Image },
   { value: 'CODE', label: '代码', icon: Code2 },
   { value: 'LINK', label: '链接', icon: Link },
@@ -220,7 +222,7 @@ function typeIcon(type: InspirationType): Component {
 function typeName(type: InspirationType): string {
   const names: Record<InspirationType, string> = {
     TEXT: '摘句',
-    PROMPT: 'Prompt',
+    PROMPT: '提示词',
     IMAGE: '图片',
     CODE: '代码',
     LINK: '链接',
@@ -419,8 +421,10 @@ onMounted(loadInspirations)
 .inspiration-card {
   border: 1px solid var(--tone-line);
   border-radius: var(--app-radius-sm);
-  background: var(--tone-panel);
-  box-shadow: var(--tone-shadow);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.76)),
+    var(--tone-panel);
+  box-shadow: 0 18px 52px rgba(20, 21, 29, 0.08);
   backdrop-filter: blur(18px);
 }
 
@@ -437,8 +441,8 @@ onMounted(loadInspirations)
   place-items: center;
   overflow: hidden;
   background:
-    linear-gradient(140deg, color-mix(in srgb, var(--card-accent) 24%, #10131f), rgba(6, 8, 18, 0.88)),
-    color-mix(in srgb, var(--card-accent) 22%, transparent);
+    linear-gradient(140deg, color-mix(in srgb, var(--card-accent, #315bff) 24%, #10131f), rgba(6, 8, 18, 0.88)),
+    color-mix(in srgb, var(--card-accent, #315bff) 22%, transparent);
   color: #fff;
 }
 
@@ -466,6 +470,10 @@ onMounted(loadInspirations)
   font-size: clamp(28px, 3vw, 42px);
 }
 
+.inspiration-card h2 {
+  font-size: clamp(22px, 2vw, 28px);
+}
+
 .featured-inspiration p,
 .inspiration-card p {
   margin: 0;
@@ -482,12 +490,15 @@ onMounted(loadInspirations)
   position: relative;
   display: inline-grid;
   width: 100%;
-  gap: 12px;
+  gap: 13px;
   margin: 0 0 16px;
-  padding: 18px;
+  padding: 20px;
   break-inside: avoid;
-  border-top: 5px solid var(--card-accent);
   overflow: hidden;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
 }
 
 .inspiration-card::before {
@@ -496,9 +507,25 @@ onMounted(loadInspirations)
   inset: 0;
   pointer-events: none;
   background:
-    linear-gradient(140deg, color-mix(in srgb, var(--card-accent) 18%, transparent), transparent 38%),
-    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0 1px, transparent 1px 14px);
-  opacity: 0.54;
+    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--card-accent, #315bff) 12%, transparent), transparent 34%),
+    linear-gradient(135deg, color-mix(in srgb, var(--card-accent, #315bff) 7%, transparent), transparent 48%);
+  opacity: 0.9;
+}
+
+.inspiration-card::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  pointer-events: none;
+  background: linear-gradient(90deg, var(--card-accent, #315bff), color-mix(in srgb, var(--card-accent, #315bff) 22%, transparent), transparent 84%);
+  opacity: 0.7;
+}
+
+.inspiration-card:hover {
+  border-color: color-mix(in srgb, var(--card-accent, #315bff) 30%, var(--tone-line));
+  box-shadow: 0 24px 60px rgba(20, 21, 29, 0.12);
+  transform: translateY(-2px);
 }
 
 .inspiration-card > * {
@@ -508,6 +535,7 @@ onMounted(loadInspirations)
 
 .inspiration-card img {
   width: 100%;
+  max-height: 260px;
   border-radius: 8px;
   object-fit: cover;
 }
@@ -515,18 +543,31 @@ onMounted(loadInspirations)
 .inspiration-card pre {
   max-width: 100%;
   margin: 0;
-  overflow-x: auto;
+  overflow: hidden;
   border-radius: 8px;
-  padding: 12px;
-  background: rgba(7, 12, 18, 0.9);
-  color: #a7f3d0;
+  padding: 14px;
+  border: 1px solid rgba(167, 243, 208, 0.1);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent),
+    rgba(7, 12, 18, 0.92);
+  color: #b7f7d4;
   font-family: "SFMono-Regular", Consolas, monospace;
   font-size: 13px;
   line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .card-kind,
 .card-meta,
+.card-order,
 .inspiration-card a,
 .featured-inspiration a {
   display: inline-flex;
@@ -536,11 +577,9 @@ onMounted(loadInspirations)
 
 .card-kind {
   width: fit-content;
-  color: var(--tone-faint);
+  color: color-mix(in srgb, var(--card-accent, #315bff) 74%, var(--tone-muted));
   font-size: 12px;
   font-weight: 820;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
 }
 
 .card-meta {
@@ -549,9 +588,20 @@ onMounted(loadInspirations)
   font-size: 12px;
 }
 
+.card-order {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--card-accent, #315bff) 9%, rgba(255, 255, 255, 0.78));
+  color: var(--tone-faint);
+  font-size: 11px;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
 .inspiration-card a,
 .featured-inspiration a {
-  color: var(--tone-primary);
+  width: fit-content;
+  color: color-mix(in srgb, var(--card-accent, #315bff) 76%, var(--tone-primary));
   font-size: 13px;
   font-weight: 760;
 }
@@ -565,8 +615,8 @@ onMounted(loadInspirations)
 .tag-row span {
   padding: 6px 10px;
   border-radius: 6px;
-  background: rgba(0, 124, 114, 0.1);
-  color: #055f57;
+  background: color-mix(in srgb, var(--card-accent, #315bff) 10%, rgba(255, 255, 255, 0.84));
+  color: color-mix(in srgb, var(--card-accent, #315bff) 74%, #12312f);
   font-size: 12px;
   font-weight: 740;
 }
@@ -613,6 +663,11 @@ onMounted(loadInspirations)
 
   .inspiration-masonry {
     column-count: 1;
+  }
+
+  .card-head {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 </style>

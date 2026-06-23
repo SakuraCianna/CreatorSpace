@@ -36,7 +36,7 @@
           <h1>{{ currentTitle }}</h1>
         </div>
         <div class="admin-topbar__actions">
-          <RouterLink class="button button-tonal button-compact" to="/">
+          <RouterLink class="button button-tonal button-compact" to="/articles">
             <Home :size="16" />
             返回前台
           </RouterLink>
