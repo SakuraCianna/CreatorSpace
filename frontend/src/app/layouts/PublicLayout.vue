@@ -99,7 +99,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type Component } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { BookOpen, Home, Images, Info, Lightbulb, Menu, PenLine, Search, X } from '@lucide/vue'
+import { BookOpen, Home, Images, Info, Lightbulb, Menu, Palette, PenLine, Search, X } from '@lucide/vue'
 
 import { fetchSiteConfig } from '@/services/content'
 import { prefersReducedMotion } from '@/shared/composables/useReducedMotion'
@@ -131,13 +131,14 @@ const iconMap: Record<string, Component> = {
   images: Images,
   info: Info,
   lightbulb: Lightbulb,
+  palette: Palette,
   'pen-line': PenLine,
   pen: PenLine,
   search: Search,
 }
 
 const { siteName, siteSlogan } = useSiteIdentity({ load: false })
-const navItems = ref<PublicNavItem[]>([])
+const navItems = ref<PublicNavItem[]>(withRequiredPublicEntries([]))
 
 onMounted(() => {
   mountFrontstageScene()
@@ -152,10 +153,10 @@ onMounted(async () => {
     syncSiteIdentityFromConfig(config)
     const configuredItems = readConfiguredNavigation(config['site.navigationItems'])
     if (configuredItems.length > 0) {
-      navItems.value = withCreatorEntry(configuredItems)
+      navItems.value = withRequiredPublicEntries(configuredItems)
     }
   } catch {
-    navItems.value = []
+    navItems.value = withRequiredPublicEntries([])
   }
 })
 
@@ -262,14 +263,24 @@ function readNavigationItem(value: unknown): PublicNavItem | null {
   }
 }
 
-function withCreatorEntry(items: PublicNavItem[]): PublicNavItem[] {
-  if (items.some((item) => item.to === '/creator' || item.to.startsWith('/creator/'))) {
-    return items
+function withRequiredPublicEntries(items: PublicNavItem[]): PublicNavItem[] {
+  const nextItems = items.length > 0 ? [...items] : [
+    { to: '/articles', label: '文章', icon: BookOpen, external: false },
+    { to: '/projects', label: '作品', icon: Images, external: false },
+    { to: '/inspirations', label: '灵感', icon: Lightbulb, external: false },
+    { to: '/search', label: '搜索', icon: Search, external: false },
+    { to: '/about', label: '关于', icon: Info, external: false },
+  ]
+  if (!nextItems.some((item) => item.to === '/themes')) {
+    const aboutIndex = nextItems.findIndex((item) => item.to === '/about')
+    const insertAt = aboutIndex >= 0 ? aboutIndex : nextItems.length
+    nextItems.splice(insertAt, 0, { to: '/themes', label: '主题', icon: Palette, external: false })
   }
-  const searchIndex = items.findIndex((item) => item.to === '/search')
-  const nextItems = [...items]
-  const insertAt = searchIndex >= 0 ? searchIndex : nextItems.length
-  nextItems.splice(insertAt, 0, { to: '/creator', label: '创作', icon: PenLine, external: false })
+  if (!nextItems.some((item) => item.to === '/creator' || item.to.startsWith('/creator/'))) {
+    const searchIndex = nextItems.findIndex((item) => item.to === '/search')
+    const insertAt = searchIndex >= 0 ? searchIndex : nextItems.length
+    nextItems.splice(insertAt, 0, { to: '/creator', label: '创作', icon: PenLine, external: false })
+  }
   return nextItems
 }
 

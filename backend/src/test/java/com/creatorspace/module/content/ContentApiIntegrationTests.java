@@ -34,8 +34,10 @@ import static org.hamcrest.Matchers.empty;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -600,12 +602,51 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                                 "name", "未授权",
                                 "slug", "anonymous"
                         ))))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().doesNotExist("WWW-Authenticate"))
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.message", is("请先登录后再访问")));
 
         mockMvc.perform(get("/api/categories")
                         .param("module", "ARTICLE"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success", is(true)));
+    }
+
+    // 验证普通用户访问后台接口时返回明确 JSON 权限错误。
+    @Test
+    void regularUserGetsJsonForbiddenWhenUsingAdminApis() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "username", "regular-admin-denied",
+                                "password", "regular-secret"
+                        ))))
+                .andExpect(status().isOk());
+        String userToken = loginAsUser("regular-admin-denied", "regular-secret");
+
+        mockMvc.perform(get("/api/admin/dashboard/overview")
+                        .header("Authorization", bearer(userToken)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.message", is("当前账号没有后台权限或登录状态不匹配")));
+    }
+
+    // 验证本地开发 CORS 使用来源模式全开放，并覆盖整个后端路径。
+    @Test
+    void localCorsAllowsAnyOriginPatternForBackendPaths() throws Exception {
+        mockMvc.perform(options("/api/admin/auth/login")
+                        .header("Origin", "http://random.local.test:5173")
+                        .header("Access-Control-Request-Method", "POST")
+                        .header("Access-Control-Request-Headers", "content-type"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "http://random.local.test:5173"));
+
+        mockMvc.perform(options("/uploads/example.png")
+                        .header("Origin", "http://assets.local.test:5173")
+                        .header("Access-Control-Request-Method", "GET"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "http://assets.local.test:5173"));
     }
 
     // 验证公开列表拒绝非法分页参数。

@@ -44,6 +44,12 @@ const router = createRouter({
       meta: { layout: 'public' },
     },
     {
+      path: '/themes',
+      name: 'themes',
+      component: () => import('@/pages/ThemeShowcasePage.vue'),
+      meta: { layout: 'public' },
+    },
+    {
       path: '/search',
       name: 'search',
       component: () => import('@/pages/SearchPage.vue'),
