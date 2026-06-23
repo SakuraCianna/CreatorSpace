@@ -63,10 +63,10 @@
         <RouterLink
           v-if="session.isAuthenticated"
           class="mobile-auth-action mobile-auth-action--tonal"
-          to="/creator"
+          :to="accountActionRoute"
           @click="navOpen = false"
         >
-          创作中心
+          {{ accountActionLabel }}
         </RouterLink>
         <button
           v-if="session.isAuthenticated"
@@ -80,7 +80,10 @@
 
       <div class="public-actions">
         <template v-if="session.isAuthenticated">
-          <RouterLink class="button button-tonal button-compact" to="/creator">{{ currentUsername }}</RouterLink>
+          <RouterLink class="button button-tonal button-compact" :to="accountActionRoute">
+            <ShieldCheck v-if="session.isAdmin" :size="16" />
+            {{ accountActionLabel }}
+          </RouterLink>
           <button class="button button-filled button-compact" type="button" @click="handleLogout">退出</button>
         </template>
         <template v-else>
@@ -99,7 +102,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type Component } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { BookOpen, Home, Images, Info, Lightbulb, Menu, Palette, PenLine, Search, X } from '@lucide/vue'
+import { BookOpen, Home, Images, Info, Lightbulb, Menu, Palette, PenLine, Search, ShieldCheck, X } from '@lucide/vue'
 
 import { fetchSiteConfig } from '@/services/content'
 import { prefersReducedMotion } from '@/shared/composables/useReducedMotion'
@@ -113,6 +116,8 @@ const route = useRoute()
 const router = useRouter()
 const session = useSessionStore()
 const currentUsername = computed(() => session.currentUser?.username ?? '创作中心')
+const accountActionRoute = computed(() => (session.isAdmin ? '/admin' : '/creator'))
+const accountActionLabel = computed(() => (session.isAdmin ? '返回后台' : currentUsername.value))
 let disposeScene: (() => void) | null = null
 let setScenePaused: ((paused: boolean) => void) | null = null
 let setScenePointer: ((nx: number, ny: number) => void) | null = null

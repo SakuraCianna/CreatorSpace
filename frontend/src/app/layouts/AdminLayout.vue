@@ -130,6 +130,14 @@ function toggleSidebar() {
   display: grid;
   gap: 2px;
   min-width: 0;
+  max-width: 168px;
+  overflow: hidden;
+  opacity: 1;
+  transform: translateX(0);
+  transition:
+    max-width 240ms cubic-bezier(0.2, 0, 0, 1),
+    opacity 180ms ease,
+    transform 240ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 .admin-brand small {
@@ -153,6 +161,9 @@ function toggleSidebar() {
     linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(235, 242, 255, 0.78)),
     var(--md-sys-color-surface-container-lowest);
   box-shadow: var(--md-sys-elevation-2);
+  transition:
+    transform 240ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 180ms ease;
 }
 
 .brand-mark img {
@@ -180,7 +191,31 @@ function toggleSidebar() {
   color: var(--tone-muted);
   font-size: 14px;
   font-weight: 690;
-  transition: background 180ms ease, color 180ms ease, transform 180ms ease;
+  overflow: hidden;
+  transition:
+    grid-template-columns 240ms cubic-bezier(0.2, 0, 0, 1),
+    background 180ms ease,
+    color 180ms ease,
+    padding 240ms cubic-bezier(0.2, 0, 0, 1),
+    transform 180ms ease;
+}
+
+.admin-nav a span {
+  min-width: 0;
+  max-width: 88px;
+  overflow: hidden;
+  opacity: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transform: translateX(0);
+  transition:
+    max-width 240ms cubic-bezier(0.2, 0, 0, 1),
+    opacity 180ms ease,
+    transform 240ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.admin-nav a svg {
+  transition: transform 220ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 .admin-nav a.router-link-active,
@@ -202,6 +237,7 @@ function toggleSidebar() {
   background:
     linear-gradient(120deg, rgba(49, 91, 255, 0.08), transparent 36%),
     #f7f4f0;
+  transition: grid-template-columns 280ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 .admin-shell--collapsed {
@@ -215,17 +251,28 @@ function toggleSidebar() {
   padding: 18px 16px;
   border-right: 1px solid var(--tone-line);
   background: rgba(255, 255, 255, 0.82);
-  transition: width 180ms ease, padding 180ms ease;
+  transition:
+    padding 280ms cubic-bezier(0.2, 0, 0, 1),
+    background 180ms ease;
 }
 
 .admin-rail__note {
   display: grid;
   gap: 10px;
   margin-top: auto;
+  max-height: 160px;
   padding: 16px;
   border-radius: 8px;
   background: var(--tone-night);
   color: #fff;
+  overflow: hidden;
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition:
+    max-height 240ms cubic-bezier(0.2, 0, 0, 1),
+    padding 240ms cubic-bezier(0.2, 0, 0, 1),
+    opacity 160ms ease,
+    transform 220ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 .admin-rail__note p {
@@ -249,10 +296,25 @@ function toggleSidebar() {
   justify-content: center;
 }
 
+.admin-shell--collapsed .brand-mark {
+  transform: scale(0.94);
+}
+
 .admin-shell--collapsed .brand-copy,
-.admin-shell--collapsed .admin-nav a span,
+.admin-shell--collapsed .admin-nav a span {
+  max-width: 0;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-8px);
+}
+
 .admin-shell--collapsed .admin-rail__note {
-  display: none;
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px) scale(0.98);
 }
 
 .admin-shell--collapsed .admin-nav {
@@ -264,6 +326,10 @@ function toggleSidebar() {
   justify-items: center;
   padding-right: 0;
   padding-left: 0;
+}
+
+.admin-shell--collapsed .admin-nav a svg {
+  transform: scale(1.04);
 }
 
 .admin-topbar {
@@ -304,10 +370,26 @@ function toggleSidebar() {
 
   .admin-shell--collapsed .brand-copy {
     display: grid;
+    max-width: 168px;
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
   }
 
   .admin-shell--collapsed .admin-nav a span {
     display: inline;
+    max-width: 88px;
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+  }
+
+  .admin-shell--collapsed .admin-rail__note {
+    max-height: 160px;
+    padding: 16px;
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
   }
 
   .admin-nav {
@@ -331,6 +413,20 @@ function toggleSidebar() {
   .admin-topbar {
     padding-right: 20px;
     padding-left: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-shell,
+  .admin-rail,
+  .admin-brand,
+  .brand-copy,
+  .brand-mark,
+  .admin-nav a,
+  .admin-nav a span,
+  .admin-nav a svg,
+  .admin-rail__note {
+    transition: none;
   }
 }
 </style>
