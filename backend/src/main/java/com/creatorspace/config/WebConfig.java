@@ -15,7 +15,7 @@ import java.util.Arrays;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    @Value("${app.cors.allowed-origins:http://localhost:5173}")
+    @Value("${app.cors.allowed-origins:*}")
     private String allowedOrigins;
 
     @Value("${app.storage.local-root:storage/uploads}")
@@ -24,14 +24,16 @@ public class WebConfig implements WebMvcConfigurer {
     @Value("${app.storage.public-prefix:/uploads}")
     private String publicPrefix;
 
-    // 注册前后端跨域规则。
+    // 注册前后端跨域规则，本地开发允许使用 * 覆盖所有来源模式。
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/api/**")
-                .allowedOrigins(split(allowedOrigins))
-                .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+        registry.addMapping("/**")
+                .allowedOriginPatterns(split(allowedOrigins))
+                .allowedMethods("*")
                 .allowedHeaders("*")
-                .allowCredentials(true);
+                .exposedHeaders("*")
+                .allowCredentials(true)
+                .maxAge(3600);
     }
 
     // 注册本地上传文件的静态访问路径。

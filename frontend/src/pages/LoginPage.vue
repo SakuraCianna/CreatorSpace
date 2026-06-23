@@ -120,22 +120,28 @@ function loginErrorMessage(error: unknown, mode: 'ADMIN' | 'USER') {
   if (error.status === 0) {
     return `登录请求没有连上后端：${error.message}`
   }
+  const backendText = describeBackendError(error)
   if (mode === 'ADMIN') {
     if (error.status === 401) {
-      return '管理员登录失败：用户名或密码错误。后端返回 401，说明账号不存在或密码不匹配。'
+      return `管理员登录失败：${backendText}。这是账号或密码校验失败，不是后台权限问题。`
     }
     if (error.status === 403) {
-      return '管理员登录失败：账号密码已通过，但这个账号没有后台权限或已被禁用。后端返回 403。'
+      return `管理员登录失败：${backendText}。这代表密码已通过，但账号被禁用、缺少 ADMIN 角色，或登录态和后台权限不匹配。`
     }
     return `管理员登录失败：${error.message}`
   }
   if (error.status === 401) {
-    return '普通用户登录失败：用户名或密码错误。后端返回 401，请检查账号是否存在以及密码是否输入正确。'
+    return `普通用户登录失败：${backendText}。请检查账号是否存在以及密码是否输入正确。`
   }
   if (error.status === 403) {
-    return '普通用户登录失败：账号存在但当前不可用，可能已被禁用或锁定。后端返回 403。'
+    return `普通用户登录失败：${backendText}。账号存在但当前不可用，可能已被禁用或锁定。`
   }
   return toUserMessage(error, mode === 'ADMIN' ? '管理员登录失败' : '登录失败')
+}
+
+function describeBackendError(error: HttpError) {
+  const backendMessage = error.backendMessage.trim()
+  return backendMessage ? `后端返回：${backendMessage}` : `后端返回 ${error.status}`
 }
 
 function readPublicRedirectPath() {
