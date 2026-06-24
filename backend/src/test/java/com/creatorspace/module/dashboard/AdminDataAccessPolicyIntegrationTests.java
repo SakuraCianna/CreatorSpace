@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -16,6 +17,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import java.util.Map;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.hasItems;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
@@ -40,6 +43,9 @@ class AdminDataAccessPolicyIntegrationTests extends PostgresIntegrationTestSuppo
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -121,6 +127,122 @@ class AdminDataAccessPolicyIntegrationTests extends PostgresIntegrationTestSuppo
                 .andExpect(jsonPath("$.success", is(false)));
     }
 
+    @Test
+    void dashboardOverviewReturnsRealOperationalData() throws Exception {
+        String adminToken = loginAsAdmin();
+        seedDashboardOverviewSentinels();
+
+        mockMvc.perform(get("/api/admin/dashboard/overview")
+                        .header("Authorization", bearer(adminToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.metrics.length()", is(13)))
+                .andExpect(jsonPath("$.data.metrics[*].label", hasItems(
+                        "文章总数",
+                        "作品总数",
+                        "灵感总数",
+                        "留言总数",
+                        "文件总数",
+                        "待审核文章",
+                        "待审核作品",
+                        "待审核评论",
+                        "总访问量",
+                        "总搜索次数",
+                        "总点赞数",
+                        "总收藏数"
+                )))
+                .andExpect(jsonPath("$.data.visitTrend.length()", is(7)))
+                .andExpect(jsonPath("$.data.searchTrend.length()", is(7)))
+                .andExpect(jsonPath("$.data.visitTrend[6].pv", greaterThanOrEqualTo(2)))
+                .andExpect(jsonPath("$.data.searchTrend[6].pv", greaterThanOrEqualTo(12)))
+                .andExpect(jsonPath("$.data.hotArticles[0].slug", is("p1-dashboard-hot-article")))
+                .andExpect(jsonPath("$.data.hotProjects[0].slug", is("p1-dashboard-hot-project")))
+                .andExpect(jsonPath("$.data.hotSearchKeywords[0].keyword", is("p1-dashboard-keyword")))
+                .andExpect(jsonPath("$.data.hotSearchKeywords[0].count", greaterThanOrEqualTo(12)))
+                .andExpect(jsonPath("$.data.recentActivities[0].operation", is("P1_DASHBOARD_SENTINEL")))
+                .andExpect(jsonPath("$.data.recentActivities[0].module", is("DASHBOARD_TEST")));
+    }
+    private void seedDashboardOverviewSentinels() {
+        jdbcTemplate.update("delete from search_logs where keyword in ('p1-dashboard-keyword', 'p1-dashboard-other')");
+        jdbcTemplate.update("delete from visit_logs where path like '/p1-dashboard/%'");
+        jdbcTemplate.update("delete from operation_logs where operation = 'P1_DASHBOARD_SENTINEL'");
+        jdbcTemplate.update("""
+                delete from content_statistics
+                where target_type = 'ARTICLE'
+                  and target_id in (select id from articles where slug like 'p1-dashboard-%')
+                """);
+        jdbcTemplate.update("""
+                delete from content_statistics
+                where target_type = 'PROJECT'
+                  and target_id in (select id from portfolio_projects where slug like 'p1-dashboard-%')
+                """);
+        jdbcTemplate.update("delete from articles where slug like 'p1-dashboard-%'");
+        jdbcTemplate.update("delete from portfolio_projects where slug like 'p1-dashboard-%'");
+
+        Long hotArticleId = jdbcTemplate.queryForObject("""
+                        insert into articles (title, slug, summary, content_markdown, status, privacy_type, view_count, like_count, comment_count, publish_time)
+                        values ('P1 看板热门文章', 'p1-dashboard-hot-article', '真实统计文章', '正文', 'PUBLISHED', 'PUBLIC', 1, 1, 1, now())
+                        returning id
+                        """,
+                Long.class);
+        Long privateArticleId = jdbcTemplate.queryForObject("""
+                        insert into articles (title, slug, summary, content_markdown, status, privacy_type, view_count, like_count, comment_count, publish_time)
+                        values ('P1 看板私密文章', 'p1-dashboard-private-article', '不应进入热门', '正文', 'PUBLISHED', 'SELF', 9999999, 9999999, 9999999, now())
+                        returning id
+                        """,
+                Long.class);
+        Long hotProjectId = jdbcTemplate.queryForObject("""
+                        insert into portfolio_projects (title, slug, description, project_type, tech_stack, status, is_recommend)
+                        values ('P1 看板热门作品', 'p1-dashboard-hot-project', '真实统计作品', 'WEB_APP', '[]'::jsonb, 'VISIBLE', false)
+                        returning id
+                        """,
+                Long.class);
+        Long hiddenProjectId = jdbcTemplate.queryForObject("""
+                        insert into portfolio_projects (title, slug, description, project_type, tech_stack, status, is_recommend)
+                        values ('P1 看板隐藏作品', 'p1-dashboard-hidden-project', '不应进入热门', 'WEB_APP', '[]'::jsonb, 'HIDDEN', true)
+                        returning id
+                        """,
+                Long.class);
+
+        jdbcTemplate.update("""
+                        insert into content_statistics (target_type, target_id, view_count, like_count, favorite_count, comment_count, last_viewed_at)
+                        values ('ARTICLE', ?, 900000, 800000, 0, 700000, now())
+                        """,
+                hotArticleId);
+        jdbcTemplate.update("""
+                        insert into content_statistics (target_type, target_id, view_count, like_count, favorite_count, comment_count, last_viewed_at)
+                        values ('ARTICLE', ?, 9999999, 9999999, 0, 9999999, now())
+                        """,
+                privateArticleId);
+        jdbcTemplate.update("""
+                        insert into content_statistics (target_type, target_id, view_count, like_count, favorite_count, comment_count, last_viewed_at)
+                        values ('PROJECT', ?, 910000, 810000, 710000, 0, now())
+                        """,
+                hotProjectId);
+        jdbcTemplate.update("""
+                        insert into content_statistics (target_type, target_id, view_count, like_count, favorite_count, comment_count, last_viewed_at)
+                        values ('PROJECT', ?, 9999999, 9999999, 9999999, 0, now())
+                        """,
+                hiddenProjectId);
+
+        jdbcTemplate.update("""
+                        insert into search_logs (keyword, result_count, created_at)
+                        select 'p1-dashboard-keyword', 3, now()
+                        from generate_series(1, 12)
+                        """);
+        jdbcTemplate.update("insert into search_logs (keyword, result_count, created_at) values ('p1-dashboard-other', 1, now())");
+        jdbcTemplate.update("""
+                        insert into visit_logs (path, target_type, target_id, created_at)
+                        values ('/p1-dashboard/article', 'ARTICLE', ?, now()),
+                               ('/p1-dashboard/project', 'PROJECT', ?, now())
+                        """,
+                hotArticleId, hotProjectId);
+        jdbcTemplate.update("""
+                        insert into operation_logs (operation, module, target_type, target_id, request_method, request_path, created_at)
+                        values ('P1_DASHBOARD_SENTINEL', 'DASHBOARD_TEST', 'ARTICLE', ?, 'POST', '/api/admin/dashboard/overview-test', now())
+                        """,
+                hotArticleId);
+    }
     private String loginAsAdmin() throws Exception {
         String response = mockMvc.perform(post("/api/admin/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)

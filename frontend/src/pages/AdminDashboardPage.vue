@@ -12,12 +12,12 @@
       <div class="workspace-panel" data-reveal>
         <div class="panel-title">
           <div>
-            <p class="eyebrow">近七日访问</p>
-            <h2>访问趋势</h2>
+            <p class="eyebrow">近七日趋势</p>
+            <h2>访问与搜索趋势</h2>
           </div>
-          <span>累计 {{ totalPv }} 次</span>
+          <span>访问 {{ totalPv }} 次 · 搜索 {{ totalSearch }} 次</span>
         </div>
-        <div ref="visitChartRef" class="visit-chart" aria-label="近七日访问趋势图" />
+        <div ref="visitChartRef" class="visit-chart" aria-label="近七日访问与搜索趋势图" />
       </div>
 
       <div class="workspace-panel" data-reveal>
@@ -35,6 +35,7 @@
           </div>
           <span class="status-chip">记录</span>
         </article>
+        <span v-if="overview.recentActivities.length === 0" class="empty-hint">暂无操作记录</span>
       </div>
     </section>
 
@@ -51,19 +52,21 @@
           </div>
           <RouterLink class="text-link" :to="{ name: 'article-detail', params: { slug: item.slug } }">查看</RouterLink>
         </article>
+        <span v-if="overview.hotArticles.length === 0" class="empty-hint">暂无热门文章</span>
       </div>
       <div class="workspace-panel" data-reveal>
         <div class="panel-title">
-          <h2>推荐作品</h2>
-          <span>展厅推荐</span>
+          <h2>热门作品</h2>
+          <span>前 5 条</span>
         </div>
         <article v-for="item in overview.hotProjects" :key="item.slug" class="table-row">
           <div>
             <strong>{{ item.title }}</strong>
-            <span>作品档案 · {{ item.slug }}</span>
+            <span>{{ item.views }} 次浏览 · {{ item.likes }} 次点赞</span>
           </div>
           <RouterLink class="text-link" :to="{ name: 'project-detail', params: { slug: item.slug } }">查看</RouterLink>
         </article>
+        <span v-if="overview.hotProjects.length === 0" class="empty-hint">暂无热门作品</span>
       </div>
     </section>
 
@@ -99,7 +102,6 @@
     <p v-if="notice" class="inline-notice">{{ notice }}</p>
   </section>
 </template>
-
 <script setup lang="ts">
 import type { EChartsType } from 'echarts/core'
 import { graphic, init, use } from 'echarts/core'
@@ -125,6 +127,7 @@ const emptyOverview: DashboardOverview = {
   hotProjects: [],
   hotSearchKeywords: [],
   visitTrend: [],
+  searchTrend: [],
   recentActivities: [],
 }
 const overview = ref<DashboardOverview>(emptyOverview)
@@ -136,6 +139,7 @@ use([BarChart, GridComponent, TooltipComponent, CanvasRenderer])
 usePageReveal(root)
 
 const totalPv = computed(() => overview.value.visitTrend.reduce((sum, item) => sum + item.pv, 0))
+const totalSearch = computed(() => overview.value.searchTrend.reduce((sum, item) => sum + item.pv, 0))
 
 async function loadOverview() {
   notice.value = ''
@@ -167,10 +171,12 @@ function renderVisitChart() {
   }
   visitChart ??= init(visitChartRef.value)
   const trend = overview.value.visitTrend
+  const searchTrend = overview.value.searchTrend
   const values = trend.map((item) => item.pv)
-  const maxValue = Math.max(...values, 1)
+  const searchValues = trend.map((item, index) => searchTrend[index]?.pv ?? 0)
+  const maxValue = Math.max(...values, ...searchValues, 1)
   visitChart.setOption({
-    color: ['#0f766e'],
+    color: ['#0f766e', '#f59e0b'],
     grid: { top: 24, right: 18, bottom: 34, left: 34 },
     tooltip: {
       trigger: 'axis',
@@ -179,8 +185,10 @@ function renderVisitChart() {
       textStyle: { color: '#fff', fontSize: 12 },
       axisPointer: { type: 'shadow', shadowStyle: { color: 'rgba(49, 91, 255, 0.08)' } },
       formatter(params: unknown) {
-        const [point] = params as Array<{ axisValue: string; value: number }>
-        return `${point.axisValue}<br/>访问量：${point.value} 次`
+        const points = params as Array<{ axisValue: string; seriesName: string; value: number }>
+        return points
+          .map((point, index) => `${index === 0 ? `${point.axisValue}<br/>` : ''}${point.seriesName}：${point.value} 次`)
+          .join('<br/>')
       },
     },
     xAxis: {
@@ -220,16 +228,25 @@ function renderVisitChart() {
           },
         },
       },
+      {
+        name: '搜索量',
+        type: 'bar',
+        data: searchValues,
+        barMaxWidth: 38,
+        itemStyle: {
+          borderRadius: [8, 8, 3, 3],
+          color: '#f59e0b',
+        },
+      },
     ],
   })
 }
-
 function resizeVisitChart() {
   visitChart?.resize()
 }
 
 watch(
-  () => overview.value.visitTrend,
+  () => [overview.value.visitTrend, overview.value.searchTrend],
   () => {
     nextTick(renderVisitChart)
   },

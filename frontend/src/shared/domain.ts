@@ -1,4 +1,4 @@
-﻿export type UserRole = 'ADMIN' | 'USER'
+export type UserRole = 'ADMIN' | 'USER'
 
 export type ArticlePrivacy =
   | 'PUBLIC'
@@ -344,6 +344,7 @@ export interface DashboardOverview {
   hotProjects: DashboardRank[]
   hotSearchKeywords: DashboardSearchKeyword[]
   visitTrend: DashboardTrendPoint[]
+  searchTrend: DashboardTrendPoint[]
   recentActivities: DashboardActivity[]
 }
 
@@ -359,5 +360,3 @@ export interface AdminMetric {
   value: string
   trend: string
 }
-
-
