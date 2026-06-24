@@ -3,10 +3,12 @@ package com.creatorspace.module.search;
 import com.creatorspace.common.exception.BusinessException;
 import com.creatorspace.common.result.ApiResponse;
 import com.creatorspace.common.result.PageResponse;
+import com.creatorspace.security.LoginUser;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -28,10 +30,12 @@ public class SearchController {
     private static final Set<String> SORT_TYPES = Set.of("RELEVANCE", "LATEST", "POPULAR");
 
     private final JdbcTemplate jdbcTemplate;
+    private final SearchLogService searchLogService;
 
     // 通过 JdbcTemplate 组织跨内容类型查询，后续可以替换成专用搜索服务。
-    public SearchController(JdbcTemplate jdbcTemplate) {
+    public SearchController(JdbcTemplate jdbcTemplate, SearchLogService searchLogService) {
         this.jdbcTemplate = jdbcTemplate;
+        this.searchLogService = searchLogService;
     }
 
     // 搜索公开文章、可见作品、公开灵感、标签、分类和公开页面配置。
@@ -42,7 +46,8 @@ public class SearchController {
             @RequestParam(defaultValue = "relevance") String sort,
             @RequestParam(defaultValue = "1") @Min(1) long page,
             @RequestParam(defaultValue = "12") @Min(1) @Max(50) long pageSize,
-            HttpServletRequest servletRequest
+            HttpServletRequest servletRequest,
+            @AuthenticationPrincipal LoginUser loginUser
     ) {
         String normalizedKeyword = keyword.trim();
         if (normalizedKeyword.isEmpty()) {
@@ -77,7 +82,7 @@ public class SearchController {
                 normalizedType, normalizedType, normalizedSort, normalizedSort,
                 pageSize, offset);
         long total = countSearchResults(pattern, normalizedType);
-        recordSearchLog(normalizedKeyword, (int) total, servletRequest);
+        searchLogService.record(normalizedKeyword, (int) total, servletRequest, loginUser);
         return ApiResponse.ok(new PageResponse<>(records, page, pageSize, total));
     }
 
@@ -239,21 +244,6 @@ public class SearchController {
                 """;
     }
 
-    // 记录搜索日志，用于后台热门搜索关键词分析。
-    private void recordSearchLog(String keyword, int resultCount, HttpServletRequest request) {
-        try {
-            jdbcTemplate.update("""
-                    insert into search_logs (keyword, result_count, ip_address, user_agent)
-                    values (?, ?, cast(? as inet), ?)
-                    """,
-                    keyword,
-                    resultCount,
-                    request.getRemoteAddr(),
-                    request.getHeader("User-Agent"));
-        } catch (Exception ignored) {
-            // 搜索日志记录失败不应影响搜索结果返回
-        }
-    }
 
     private String normalizeType(String value) {
         if (value == null || value.isBlank()) {
