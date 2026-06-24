@@ -212,7 +212,7 @@ async function loadArticle() {
   }
 }
 
-async function loadComments() {
+async function loadComments(options: { keepCurrentNotice?: boolean } = {}) {
   if (!article.value?.id) {
     comments.value = []
     return
@@ -220,10 +220,14 @@ async function loadComments() {
   try {
     const page = await fetchComments({ targetType: 'ARTICLE', targetId: article.value.id, pageSize: 20 })
     comments.value = page.records
-    commentNotice.value = ''
+    if (!options.keepCurrentNotice) {
+      commentNotice.value = ''
+    }
   } catch {
     comments.value = []
-    commentNotice.value = '评论暂时不可用'
+    if (!options.keepCurrentNotice) {
+      commentNotice.value = '评论暂时不可用'
+    }
   }
 }
 
@@ -246,7 +250,7 @@ async function postComment() {
     commentDraft.value = ''
     replyTarget.value = null
     commentNotice.value = '评论已提交，审核通过后会公开展示'
-    await loadComments()
+    await loadComments({ keepCurrentNotice: true })
   } catch (error) {
     commentNotice.value = toUserMessage(error, '评论提交失败')
   }

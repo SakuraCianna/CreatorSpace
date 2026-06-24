@@ -21,25 +21,38 @@
         </div>
         <label class="md-field">
           <span>用户名</span>
-          <input v-model="form.username" autocomplete="username" name="username" />
+          <input
+            v-model="form.username"
+            autocomplete="username"
+            maxlength="64"
+            minlength="3"
+            name="username"
+          />
         </label>
         <label class="md-field">
           <span>密码</span>
-          <input v-model="form.password" autocomplete="new-password" name="password" type="password" />
+          <input
+            v-model="form.password"
+            autocomplete="new-password"
+            maxlength="72"
+            minlength="6"
+            name="password"
+            type="password"
+          />
         </label>
         <button class="button button-filled" :disabled="isSubmitting || isRedirecting" type="submit">
           <LoaderCircle v-if="isSubmitting" class="spin" :size="16" />
           {{ isSubmitting ? '创建中...' : isRedirecting ? '正在前往登录页' : '创建账号' }}
         </button>
         <RouterLink class="auth-switch" :to="loginRoute">已有账号，去登录</RouterLink>
-        <p v-if="message" class="form-message">{{ message }}</p>
+        <p v-if="message" class="form-message" :class="`form-message--${messageType}`">{{ message }}</p>
       </div>
     </form>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { LoaderCircle, UserPlus } from '@lucide/vue'
 
@@ -58,9 +71,15 @@ const form = reactive({
   password: '',
 })
 const message = ref('')
+const messageType = ref<'idle' | 'success' | 'error'>('idle')
 const isSubmitting = ref(false)
 const isRedirecting = ref(false)
+const registerAttemptId = ref(0)
 let redirectTimer: number | undefined
+const USERNAME_MIN_LENGTH = 3
+const USERNAME_MAX_LENGTH = 64
+const PASSWORD_MIN_LENGTH = 6
+const PASSWORD_MAX_LENGTH = 72
 const loginRoute = computed(() => ({
   name: 'login',
   query: {
@@ -70,33 +89,81 @@ const loginRoute = computed(() => ({
 
 usePageReveal(root)
 onBeforeUnmount(clearRedirectTimer)
+watch([() => form.username, () => form.password], () => {
+  if (isRedirecting.value) {
+    return
+  }
+  registerAttemptId.value += 1
+  if (!isSubmitting.value) {
+    clearMessage()
+  }
+})
 
 async function submitRegister() {
   clearRedirectTimer()
   isRedirecting.value = false
-  if (!form.username.trim() || form.password.length < 6) {
-    message.value = '请输入用户名，并保证密码至少 6 位'
+  const username = form.username.trim()
+  const validationMessage = validateRegisterForm(username, form.password)
+  if (validationMessage) {
+    registerAttemptId.value += 1
+    setMessage(validationMessage, 'error')
     return
   }
 
   isSubmitting.value = true
-  message.value = ''
+  clearMessage()
+  const attemptId = ++registerAttemptId.value
   try {
     const user = await registerUser({
-      username: form.username.trim(),
+      username,
       password: form.password,
     })
-    message.value = `账号 ${user.username} 创建成功，正在前往登录页完成登录。`
-    form.password = ''
+    if (!isCurrentRegisterAttempt(attemptId, username)) {
+      return
+    }
     isRedirecting.value = true
+    form.password = ''
+    setMessage(`账号 ${user.username} 创建成功，正在前往登录页完成登录。`, 'success')
     redirectTimer = window.setTimeout(() => {
       router.push(loginRoute.value)
     }, 900)
   } catch (error) {
-    message.value = toUserMessage(error, '注册失败，请稍后重试')
+    if (isCurrentRegisterAttempt(attemptId, username)) {
+      setMessage(toUserMessage(error, '注册失败，请稍后重试'), 'error')
+    }
   } finally {
     isSubmitting.value = false
   }
+}
+
+function validateRegisterForm(username: string, password: string): string {
+  if (!username) {
+    return '请输入用户名'
+  }
+  if (username.length < USERNAME_MIN_LENGTH || username.length > USERNAME_MAX_LENGTH) {
+    return `用户名长度必须是 ${USERNAME_MIN_LENGTH} 到 ${USERNAME_MAX_LENGTH} 个字符`
+  }
+  if (!password) {
+    return '请输入密码'
+  }
+  if (password.length < PASSWORD_MIN_LENGTH || password.length > PASSWORD_MAX_LENGTH) {
+    return `密码长度必须是 ${PASSWORD_MIN_LENGTH} 到 ${PASSWORD_MAX_LENGTH} 个字符`
+  }
+  return ''
+}
+
+function setMessage(value: string, type: 'success' | 'error') {
+  message.value = value
+  messageType.value = type
+}
+
+function clearMessage() {
+  message.value = ''
+  messageType.value = 'idle'
+}
+
+function isCurrentRegisterAttempt(attemptId: number, username: string): boolean {
+  return attemptId === registerAttemptId.value && username === form.username.trim()
 }
 
 function clearRedirectTimer() {
@@ -311,9 +378,23 @@ function readRegisterRedirectPath() {
 
 .form-message {
   margin: 0;
-  color: var(--tone-coral);
+  padding: 10px 12px;
+  border-left: 3px solid transparent;
+  border-radius: 8px;
   font-size: 14px;
   line-height: 1.55;
+}
+
+.form-message--error {
+  border-left-color: var(--tone-coral);
+  background: rgba(194, 95, 58, 0.08);
+  color: #754226;
+}
+
+.form-message--success {
+  border-left-color: var(--tone-teal);
+  background: rgba(0, 124, 114, 0.08);
+  color: #055f57;
 }
 
 @media (max-width: 1020px) {
