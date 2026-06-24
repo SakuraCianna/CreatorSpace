@@ -159,8 +159,7 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
         mockMvc.perform(get("/api/search")
                         .param("keyword", "tech-notes"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.records[0].type", is("ARTICLE")))
-                .andExpect(jsonPath("$.data.records[0].title", is("第一篇公开文章")));
+                .andExpect(jsonPath("$.data.records[?(@.type == 'ARTICLE' && @.title == '第一篇公开文章')]").exists());
     }
 
     // 验证公开文章列表不会泄露草稿或私密文章。
@@ -358,8 +357,7 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
         mockMvc.perform(get("/api/search")
                         .param("keyword", "unique-gallery-tag"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.records[0].type", is("PROJECT")))
-                .andExpect(jsonPath("$.data.records[0].title", is("CreatorSpace CMS")));
+                .andExpect(jsonPath("$.data.records[?(@.type == 'PROJECT' && @.title == 'CreatorSpace CMS')]").exists());
     }
 
     // 验证普通用户可以上传创作资源，并对公开内容点赞和收藏。

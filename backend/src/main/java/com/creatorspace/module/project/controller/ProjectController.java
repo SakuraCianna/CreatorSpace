@@ -6,6 +6,7 @@ import com.creatorspace.module.project.dto.ProjectCreateRequest;
 import com.creatorspace.module.project.service.ProjectService;
 import com.creatorspace.module.project.vo.ProjectVO;
 import com.creatorspace.security.LoginUser;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -187,8 +188,8 @@ public class ProjectController {
 
     // 按 URL 标识读取公开作品详情。
     @GetMapping("/api/projects/slug/{slug}")
-    public ApiResponse<ProjectVO> getBySlug(@PathVariable String slug) {
-        return ApiResponse.ok(projectService.getPublicBySlug(slug));
+    public ApiResponse<ProjectVO> getBySlug(@PathVariable String slug, HttpServletRequest request) {
+        return ApiResponse.ok(projectService.getPublicBySlug(slug, request));
     }
 
     public record ReviewRequest(String reviewNote) {

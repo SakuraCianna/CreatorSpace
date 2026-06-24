@@ -13,8 +13,10 @@ import com.creatorspace.module.article.service.ArticleService;
 import com.creatorspace.module.article.vo.ArticleVO;
 import com.creatorspace.module.category.service.CategoryService;
 import com.creatorspace.module.category.vo.CategoryVO;
+import com.creatorspace.module.statistics.VisitLogService;
 import com.creatorspace.module.tag.service.TagService;
 import com.creatorspace.module.tag.vo.TagVO;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +40,7 @@ public class ArticleServiceImpl implements ArticleService {
     private final CategoryService categoryService;
     private final TagService tagService;
     private final JdbcTemplate jdbcTemplate;
+    private final VisitLogService visitLogService;
 
     // 通过构造器注入文章、分类和标签协作服务。
     public ArticleServiceImpl(
@@ -45,13 +48,15 @@ public class ArticleServiceImpl implements ArticleService {
             ArticleTagMapper articleTagMapper,
             CategoryService categoryService,
             TagService tagService,
-            JdbcTemplate jdbcTemplate
+            JdbcTemplate jdbcTemplate,
+            VisitLogService visitLogService
     ) {
         this.articleMapper = articleMapper;
         this.articleTagMapper = articleTagMapper;
         this.categoryService = categoryService;
         this.tagService = tagService;
         this.jdbcTemplate = jdbcTemplate;
+        this.visitLogService = visitLogService;
     }
 
     // 创建草稿文章，并在同一个事务内写入标签绑定。
@@ -390,13 +395,16 @@ public class ArticleServiceImpl implements ArticleService {
 
     // 按 URL 标识读取公开文章详情，并自增阅读量。
     @Override
-    public ArticleVO getPublicBySlug(String slug) {
+    public ArticleVO getPublicBySlug(String slug, HttpServletRequest request) {
         ArticleEntity article = articleMapper.selectOne(publicArticleQuery()
                 .eq(ArticleEntity::getSlug, normalizeSlug(slug)));
         if (article == null) {
             throw BusinessException.notFound("文章不存在或不可见");
         }
-        incrementViewCount(article.getId());
+        if (visitLogService.recordContentVisit("ARTICLE", article.getId(), request)) {
+            incrementViewCount(article.getId());
+            article.setViewCount(article.getViewCount() + 1);
+        }
         return toVO(article, true);
     }
 

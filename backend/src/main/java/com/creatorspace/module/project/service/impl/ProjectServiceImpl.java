@@ -11,10 +11,12 @@ import com.creatorspace.module.project.mapper.ProjectMapper;
 import com.creatorspace.module.project.mapper.ProjectTagMapper;
 import com.creatorspace.module.project.service.ProjectService;
 import com.creatorspace.module.project.vo.ProjectVO;
+import com.creatorspace.module.statistics.VisitLogService;
 import com.creatorspace.module.tag.service.TagService;
 import com.creatorspace.module.tag.vo.TagVO;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,18 +40,21 @@ public class ProjectServiceImpl implements ProjectService {
     private final ProjectTagMapper projectTagMapper;
     private final TagService tagService;
     private final JdbcTemplate jdbcTemplate;
+    private final VisitLogService visitLogService;
 
     // 通过构造器注入作品、标签和 JSON 序列化协作对象。
     public ProjectServiceImpl(
             ProjectMapper projectMapper,
             ProjectTagMapper projectTagMapper,
             TagService tagService,
-            JdbcTemplate jdbcTemplate
+            JdbcTemplate jdbcTemplate,
+            VisitLogService visitLogService
     ) {
         this.projectMapper = projectMapper;
         this.projectTagMapper = projectTagMapper;
         this.tagService = tagService;
         this.jdbcTemplate = jdbcTemplate;
+        this.visitLogService = visitLogService;
     }
 
     // 创建作品草稿，并在同一个事务内写入标签绑定。
@@ -347,13 +352,15 @@ public class ProjectServiceImpl implements ProjectService {
 
     // 按 URL 标识读取公开作品详情。
     @Override
-    public ProjectVO getPublicBySlug(String slug) {
+    public ProjectVO getPublicBySlug(String slug, HttpServletRequest request) {
         ProjectEntity project = projectMapper.selectOne(publicProjectQuery()
                 .eq(ProjectEntity::getSlug, normalizeSlug(slug)));
         if (project == null) {
             throw BusinessException.notFound("作品不存在或不可见");
         }
-        incrementViewCount(project.getId());
+        if (visitLogService.recordContentVisit("PROJECT", project.getId(), request)) {
+            incrementViewCount(project.getId());
+        }
         return toVO(project, true);
     }
 

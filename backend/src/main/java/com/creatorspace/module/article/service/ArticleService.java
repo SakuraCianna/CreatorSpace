@@ -3,6 +3,7 @@ package com.creatorspace.module.article.service;
 import com.creatorspace.common.result.PageResponse;
 import com.creatorspace.module.article.dto.ArticleCreateRequest;
 import com.creatorspace.module.article.vo.ArticleVO;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * 文章业务编排接口。
@@ -61,5 +62,5 @@ public interface ArticleService {
     PageResponse<ArticleVO> listPublic(String keyword, Long tagId, long page, long pageSize);
 
     // 按 URL 标识读取公开文章。
-    ArticleVO getPublicBySlug(String slug);
+    ArticleVO getPublicBySlug(String slug, HttpServletRequest request);
 }

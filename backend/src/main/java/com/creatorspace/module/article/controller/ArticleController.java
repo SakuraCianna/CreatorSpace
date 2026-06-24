@@ -6,6 +6,7 @@ import com.creatorspace.module.article.dto.ArticleCreateRequest;
 import com.creatorspace.module.article.service.ArticleService;
 import com.creatorspace.module.article.vo.ArticleVO;
 import com.creatorspace.security.LoginUser;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -206,8 +207,8 @@ public class ArticleController {
 
     // 按 URL 标识读取公开文章详情。
     @GetMapping("/api/articles/slug/{slug}")
-    public ApiResponse<ArticleVO> getBySlug(@PathVariable String slug) {
-        return ApiResponse.ok(articleService.getPublicBySlug(slug));
+    public ApiResponse<ArticleVO> getBySlug(@PathVariable String slug, HttpServletRequest request) {
+        return ApiResponse.ok(articleService.getPublicBySlug(slug, request));
     }
 
     public record ReviewRequest(String reviewNote) {
