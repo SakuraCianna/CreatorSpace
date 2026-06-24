@@ -1,4 +1,4 @@
-﻿package com.creatorspace.module.search;
+package com.creatorspace.module.search;
 
 import com.creatorspace.common.exception.BusinessException;
 import com.creatorspace.common.result.ApiResponse;
