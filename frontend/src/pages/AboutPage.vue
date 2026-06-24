@@ -1,4 +1,6 @@
 <template>
+<!-- 关于创作者及内容边界介绍页面 -->
+<!-- 关于创作者及内容边界介绍页面 -->
   <section ref="root" class="about-page">
     <header class="about-hero page-hero" data-reveal>
       <div class="hero-copy">
@@ -16,6 +18,8 @@
       </div>
     </header>
 
+    <!-- 双列响应式内容看板网格 -->
+    <!-- 双列响应式内容看板网格 -->
     <section class="about-grid">
       <article class="about-panel about-panel--bio" data-reveal>
         <UserRound :size="22" />
@@ -68,6 +72,8 @@
       </article>
     </section>
 
+    <!-- 从碎片到公开展品的创作流水线 -->
+    <!-- 从碎片到公开展品的创作流水线 -->
     <section class="workflow-band" data-reveal>
       <div>
         <p class="page-kicker">Creator Flow</p>
@@ -156,6 +162,8 @@ const workflowSteps = computed<WorkflowStep[]>(() => [
   { index: '03', title: '审核公开', body: policySummary.value },
 ])
 
+// 并发异步获取当前配置的站点基本设置与全站可用主题列表, 数据成功就绪后触发入场显影动效
+// 并发异步获取当前配置的站点基本设置与全站可用主题列表, 数据成功就绪后触发入场显影动效
 async function loadAbout() {
   const [configResult, themesResult] = await Promise.allSettled([fetchSiteConfig(), fetchThemes()])
   if (configResult.status === 'fulfilled') {
@@ -175,7 +183,9 @@ async function loadAbout() {
   void cinematic.play()
 }
 
-// 把公开站点配置收敛成页面可直接消费的字段，后端新增字段时不会破坏页面。
+// 把公开站点配置收敛成页面可直接消费的字段, 后端新增字段时不会破坏页面
+// 将后端取得的全局站点基础配置反序列化并格式化为页面可直接渲染消费的个人资料属性
+// 将后端取得的全局站点基础配置反序列化并格式化为页面可直接渲染消费的个人资料属性
 function readProfile(value: unknown): AboutProfile | null {
   const record = readRecord(value)
   if (Object.keys(record).length === 0) {
@@ -191,6 +201,8 @@ function readProfile(value: unknown): AboutProfile | null {
   }
 }
 
+// 格式化解析个人社交链接, 过滤掉不安全的非 http 或 mailto 协议
+// 格式化解析个人社交链接, 过滤掉不安全的非 http 或 mailto 协议
 function readContactLink(value: unknown): ContactLink | null {
   const record = readRecord(value)
   const url = safeContactUrl(readString(record.url))

@@ -6,6 +6,8 @@ import type { UserSummary } from '@/shared/domain'
 
 export const USER_SUMMARY_KEY = 'creatorspace.currentUser'
 
+// 读者和管理员会话状态仓储, 保存凭证 Token 与简要画像并同步到 localStorage 缓存中
+// 读者和管理员会话状态仓储, 保存凭证 Token 与简要画像并同步到 localStorage 缓存中
 export const useSessionStore = defineStore('session', () => {
   const currentUser = ref<UserSummary | null>(readStoredUser())
   const accessToken = ref(window.localStorage.getItem(ACCESS_TOKEN_KEY) ?? '')
@@ -13,7 +15,7 @@ export const useSessionStore = defineStore('session', () => {
   const isAuthenticated = computed(() => currentUser.value !== null)
   const isAdmin = computed(() => currentUser.value?.roles.includes('ADMIN') ?? false)
 
-  // 保存登录态，供后台接口自动携带 JWT。
+  // 保存登录态, 供后台接口自动携带 JWT
   function setSession(token: string, user: UserSummary) {
     accessToken.value = token
     currentUser.value = user
@@ -21,7 +23,7 @@ export const useSessionStore = defineStore('session', () => {
     window.localStorage.setItem(USER_SUMMARY_KEY, JSON.stringify(user))
   }
 
-  // 清空当前会话。
+  // 清空当前会话
   function logout() {
     currentUser.value = null
     accessToken.value = ''

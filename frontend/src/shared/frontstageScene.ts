@@ -10,7 +10,7 @@ import {
   WebGLRenderer,
 } from 'three'
 
-const VERTEX_SHADER = /* glsl */ `
+const VERTEX_SHADER =  `
 uniform float uTime;
 uniform float uDrift;
 attribute float aSize;
@@ -29,7 +29,7 @@ void main() {
 }
 `
 
-const FRAGMENT_SHADER = /* glsl */ `
+const FRAGMENT_SHADER =  `
 uniform vec3 uColorA;
 uniform vec3 uColorB;
 varying float vPulse;
@@ -49,7 +49,8 @@ export interface FrontstageSceneHandles {
   setPaused: (paused: boolean) => void
 }
 
-// 创建公开页面的轻量 WebGL 氛围层。粒子数量和像素比都刻意收敛，避免抢走内容阅读性能。
+// 创建公开页面的轻量 WebGL 氛围层, 粒子数量和像素比都刻意收敛, 避免抢走内容阅读性能
+// 初始化前台大背景的 WebGL 氛围粒子层渲染世界, 控制生命周期内的粒子更新与消隐
 export function createFrontstageScene(container: HTMLElement): FrontstageSceneHandles {
   const renderer = new WebGLRenderer({ alpha: true, antialias: false, powerPreference: 'high-performance' })
   renderer.setClearColor(0x000000, 0)

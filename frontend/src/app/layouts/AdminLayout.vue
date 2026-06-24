@@ -1,5 +1,10 @@
 <template>
+<!-- 后台管理中心布局容器 -->
+<!-- 后台管理中心布局容器 -->
+<!-- 后台布局侧边栏与主工作区容器 -->
   <div class="admin-shell" :class="{ 'admin-shell--collapsed': sidebarCollapsed }">
+    <!-- 侧边栏导航铁轨区域 -->
+    <!-- 侧边栏导航铁轨区域 -->
     <aside class="admin-rail" aria-label="后台导航">
       <button
         class="admin-brand"
@@ -30,6 +35,8 @@
       </div>
     </aside>
 
+    <!-- 主工作区内容展示面板 -->
+    <!-- 主工作区内容展示面板 -->
     <section class="admin-workspace">
       <header class="admin-topbar">
         <div>
@@ -74,12 +81,18 @@ import {
 import { useSessionStore } from '@/shared/sessionStore'
 import { useSiteIdentity } from '@/shared/siteIdentity'
 
+// 初始化后台导航状态和路由相关参数
+// 初始化后台导航状态和路由相关参数
+// 初始化后台导航状态和路由相关参数
 const route = useRoute()
 const router = useRouter()
 const session = useSessionStore()
 const { siteSlogan } = useSiteIdentity()
 const sidebarCollapsed = ref(false)
 
+// 后台菜单配置项
+// 后台侧边栏菜单项及图标配置映射表
+// 后台侧边栏菜单项及图标配置映射表
 const navItems = [
   { to: '/admin', label: '概览', icon: BarChart3 },
   { to: '/admin/articles', label: '文章', icon: FileText },
@@ -94,6 +107,8 @@ const navItems = [
 ]
 
 const titleMap = new Map(navItems.map((item) => [item.to, item.label]))
+// 根据当前激活的路由路径映射解析出后台顶栏显示的主页签管理标题
+// 根据当前激活的路由路径映射解析出后台顶栏显示的主页签管理标题
 const currentTitle = computed(() => {
   if (route.path === '/admin') {
     return '内容运营工作台'
@@ -101,11 +116,15 @@ const currentTitle = computed(() => {
   return `${titleMap.get(route.path) ?? '模块'}管理`
 })
 
+// 清除当前管理员的登录状态缓存和凭证令牌, 并重定向跳转回登录页
+// 清除当前管理员的登录状态缓存和凭证令牌, 并重定向跳转回登录页
 function logout() {
   session.logout()
   router.push('/login')
 }
 
+// 切换左侧导航铁轨侧边栏的展开收起状态
+// 切换左侧导航铁轨侧边栏的展开收起状态
 function toggleSidebar() {
   sidebarCollapsed.value = !sidebarCollapsed.value
 }

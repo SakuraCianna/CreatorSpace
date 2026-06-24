@@ -46,7 +46,7 @@ interface LoginPayload {
   password: string
 }
 
-// 调用注册接口创建用户。
+// 调用注册接口创建用户
 export async function registerUser(payload: RegisterPayload): Promise<UserSummary> {
   const response = await requestJson<ApiEnvelope<UserSummary>>('/api/auth/register', {
     method: 'POST',
@@ -55,7 +55,7 @@ export async function registerUser(payload: RegisterPayload): Promise<UserSummar
   return response.data
 }
 
-// 调用普通用户登录接口。
+// 调用普通用户登录接口
 export async function loginUser(payload: LoginPayload): Promise<AuthToken> {
   const response = await requestJson<ApiEnvelope<AuthToken>>('/api/auth/login', {
     method: 'POST',
@@ -64,7 +64,7 @@ export async function loginUser(payload: LoginPayload): Promise<AuthToken> {
   return response.data
 }
 
-// 调用后台管理员登录接口。
+// 调用后台管理员登录接口
 export async function loginAdmin(payload: LoginPayload): Promise<AuthToken> {
   const response = await requestJson<ApiEnvelope<AuthToken>>('/api/admin/auth/login', {
     method: 'POST',
@@ -73,7 +73,7 @@ export async function loginAdmin(payload: LoginPayload): Promise<AuthToken> {
   return response.data
 }
 
-// 调用公开文章列表接口。
+// 调用公开文章列表接口
 export async function fetchArticles(keyword = '', tagId?: number): Promise<PageResponse<ArticleSummary>> {
   const params = new URLSearchParams()
   if (keyword.trim()) {
@@ -87,7 +87,9 @@ export async function fetchArticles(keyword = '', tagId?: number): Promise<PageR
   return response.data
 }
 
-// 按 URL 标识读取公开文章详情。
+// 按 URL 标识读取公开文章详情
+// 通过特定的 slug 标识符异步拉取指定文章的详细信息
+// 通过特定的 slug 标识符异步拉取指定文章的详细信息
 export async function fetchArticleBySlug(slug: string): Promise<ArticleSummary> {
   const response = await requestJson<ApiEnvelope<ArticleSummary>>(
     `/api/articles/slug/${encodeURIComponent(slug)}`,
@@ -95,7 +97,7 @@ export async function fetchArticleBySlug(slug: string): Promise<ArticleSummary> 
   return response.data
 }
 
-// 管理员查询全部文章。
+// 管理员查询全部文章
 export async function fetchAdminArticles(options: {
   keyword?: string
   status?: ArticleStatusFilter
@@ -122,13 +124,13 @@ export async function fetchAdminArticles(options: {
   return response.data
 }
 
-// 管理员读取文章详情。
+// 管理员读取文章详情
 export async function fetchAdminArticle(id: number): Promise<ArticleSummary> {
   const response = await requestJson<ApiEnvelope<ArticleSummary>>(`/api/admin/articles/${id}`)
   return response.data
 }
 
-// 管理员创建文章。
+// 管理员创建文章
 export async function createArticle(payload: ArticlePayload): Promise<ArticleSummary> {
   const response = await requestJson<ApiEnvelope<ArticleSummary>>('/api/admin/articles', {
     method: 'POST',
@@ -137,7 +139,7 @@ export async function createArticle(payload: ArticlePayload): Promise<ArticleSum
   return response.data
 }
 
-// 创作者查询自己的文章队列。
+// 创作者查询自己的文章队列
 export async function fetchCreatorArticles(options: {
   keyword?: string
   status?: ArticleStatusFilter
@@ -164,7 +166,7 @@ export async function fetchCreatorArticles(options: {
   return response.data
 }
 
-// 创作者创建文章草稿。
+// 创作者创建文章草稿
 export async function createCreatorArticle(payload: ArticlePayload): Promise<ArticleSummary> {
   const response = await requestJson<ApiEnvelope<ArticleSummary>>('/api/creator/articles', {
     method: 'POST',
@@ -173,13 +175,13 @@ export async function createCreatorArticle(payload: ArticlePayload): Promise<Art
   return response.data
 }
 
-// 创作者读取自己的文章详情。
+// 创作者读取自己的文章详情
 export async function fetchCreatorArticle(id: number): Promise<ArticleSummary> {
   const response = await requestJson<ApiEnvelope<ArticleSummary>>(`/api/creator/articles/${id}`)
   return response.data
 }
 
-// 创作者更新自己的文章。
+// 创作者更新自己的文章
 export async function updateCreatorArticle(id: number, payload: ArticlePayload): Promise<ArticleSummary> {
   const response = await requestJson<ApiEnvelope<ArticleSummary>>(`/api/creator/articles/${id}`, {
     method: 'PUT',
@@ -188,7 +190,7 @@ export async function updateCreatorArticle(id: number, payload: ArticlePayload):
   return response.data
 }
 
-// 创作者提交文章审核。
+// 创作者提交文章审核
 export async function submitCreatorArticle(id: number): Promise<ArticleSummary> {
   const response = await requestJson<ApiEnvelope<ArticleSummary>>(`/api/creator/articles/${id}/submit`, {
     method: 'PUT',
@@ -196,12 +198,12 @@ export async function submitCreatorArticle(id: number): Promise<ArticleSummary> 
   return response.data
 }
 
-// 创作者删除自己的未公开文章。
+// 创作者删除自己的未公开文章
 export async function deleteCreatorArticle(id: number): Promise<void> {
   await requestJson<ApiEnvelope<null>>(`/api/creator/articles/${id}`, { method: 'DELETE' })
 }
 
-// 管理员更新文章。
+// 管理员更新文章
 export async function updateArticle(id: number, payload: ArticlePayload): Promise<ArticleSummary> {
   const response = await requestJson<ApiEnvelope<ArticleSummary>>(`/api/admin/articles/${id}`, {
     method: 'PUT',
@@ -210,12 +212,12 @@ export async function updateArticle(id: number, payload: ArticlePayload): Promis
   return response.data
 }
 
-// 管理员删除文章。
+// 管理员删除文章
 export async function deleteArticle(id: number): Promise<void> {
   await requestJson<ApiEnvelope<null>>(`/api/admin/articles/${id}`, { method: 'DELETE' })
 }
 
-// 管理员发布或撤回文章。
+// 管理员发布或撤回文章
 export async function changeArticlePublishState(id: number, action: 'publish' | 'unpublish'): Promise<ArticleSummary> {
   const response = await requestJson<ApiEnvelope<ArticleSummary>>(`/api/admin/articles/${id}/${action}`, {
     method: 'PUT',
@@ -223,7 +225,7 @@ export async function changeArticlePublishState(id: number, action: 'publish' | 
   return response.data
 }
 
-// 管理员审核通过文章。
+// 管理员审核通过文章
 export async function approveArticle(id: number): Promise<ArticleSummary> {
   const response = await requestJson<ApiEnvelope<ArticleSummary>>(`/api/admin/articles/${id}/approve`, {
     method: 'PUT',
@@ -231,7 +233,7 @@ export async function approveArticle(id: number): Promise<ArticleSummary> {
   return response.data
 }
 
-// 管理员驳回文章。
+// 管理员驳回文章
 export async function rejectArticle(id: number, reviewNote: string): Promise<ArticleSummary> {
   const response = await requestJson<ApiEnvelope<ArticleSummary>>(`/api/admin/articles/${id}/reject`, {
     method: 'PUT',
@@ -240,7 +242,7 @@ export async function rejectArticle(id: number, reviewNote: string): Promise<Art
   return response.data
 }
 
-// 管理员切换文章置顶。
+// 管理员切换文章置顶
 export async function setArticleTop(id: number, enabled: boolean): Promise<ArticleSummary> {
   const params = new URLSearchParams({ enabled: String(enabled) })
   const response = await requestJson<ApiEnvelope<ArticleSummary>>(`/api/admin/articles/${id}/top?${params.toString()}`, {
@@ -249,7 +251,7 @@ export async function setArticleTop(id: number, enabled: boolean): Promise<Artic
   return response.data
 }
 
-// 管理员切换文章推荐。
+// 管理员切换文章推荐
 export async function setArticleRecommend(id: number, enabled: boolean): Promise<ArticleSummary> {
   const params = new URLSearchParams({ enabled: String(enabled) })
   const response = await requestJson<ApiEnvelope<ArticleSummary>>(
@@ -259,7 +261,7 @@ export async function setArticleRecommend(id: number, enabled: boolean): Promise
   return response.data
 }
 
-// 调用公开作品列表接口。
+// 调用公开作品列表接口
 export async function fetchProjects(keyword = ''): Promise<PageResponse<ProjectSummary>> {
   const params = new URLSearchParams()
   if (keyword.trim()) {
@@ -270,7 +272,7 @@ export async function fetchProjects(keyword = ''): Promise<PageResponse<ProjectS
   return response.data
 }
 
-// 按 URL 标识读取公开作品详情。
+// 按 URL 标识读取公开作品详情
 export async function fetchProjectBySlug(slug: string): Promise<ProjectSummary> {
   const response = await requestJson<ApiEnvelope<ProjectSummary>>(
     `/api/projects/slug/${encodeURIComponent(slug)}`,
@@ -278,7 +280,7 @@ export async function fetchProjectBySlug(slug: string): Promise<ProjectSummary> 
   return response.data
 }
 
-// 管理员查询全部作品。
+// 管理员查询全部作品
 export async function fetchAdminProjects(options: {
   keyword?: string
   status?: ProjectStatusFilter
@@ -305,13 +307,13 @@ export async function fetchAdminProjects(options: {
   return response.data
 }
 
-// 管理员读取作品详情。
+// 管理员读取作品详情
 export async function fetchAdminProject(id: number): Promise<ProjectSummary> {
   const response = await requestJson<ApiEnvelope<ProjectSummary>>(`/api/admin/projects/${id}`)
   return response.data
 }
 
-// 管理员创建作品。
+// 管理员创建作品
 export async function createProject(payload: ProjectPayload): Promise<ProjectSummary> {
   const response = await requestJson<ApiEnvelope<ProjectSummary>>('/api/admin/projects', {
     method: 'POST',
@@ -320,7 +322,7 @@ export async function createProject(payload: ProjectPayload): Promise<ProjectSum
   return response.data
 }
 
-// 创作者查询自己的作品队列。
+// 创作者查询自己的作品队列
 export async function fetchCreatorProjects(options: {
   keyword?: string
   status?: ProjectStatusFilter
@@ -347,7 +349,7 @@ export async function fetchCreatorProjects(options: {
   return response.data
 }
 
-// 创作者创建作品草稿。
+// 创作者创建作品草稿
 export async function createCreatorProject(payload: ProjectPayload): Promise<ProjectSummary> {
   const response = await requestJson<ApiEnvelope<ProjectSummary>>('/api/creator/projects', {
     method: 'POST',
@@ -356,13 +358,13 @@ export async function createCreatorProject(payload: ProjectPayload): Promise<Pro
   return response.data
 }
 
-// 创作者读取自己的作品详情。
+// 创作者读取自己的作品详情
 export async function fetchCreatorProject(id: number): Promise<ProjectSummary> {
   const response = await requestJson<ApiEnvelope<ProjectSummary>>(`/api/creator/projects/${id}`)
   return response.data
 }
 
-// 创作者更新自己的作品。
+// 创作者更新自己的作品
 export async function updateCreatorProject(id: number, payload: ProjectPayload): Promise<ProjectSummary> {
   const response = await requestJson<ApiEnvelope<ProjectSummary>>(`/api/creator/projects/${id}`, {
     method: 'PUT',
@@ -371,7 +373,7 @@ export async function updateCreatorProject(id: number, payload: ProjectPayload):
   return response.data
 }
 
-// 创作者提交作品审核。
+// 创作者提交作品审核
 export async function submitCreatorProject(id: number): Promise<ProjectSummary> {
   const response = await requestJson<ApiEnvelope<ProjectSummary>>(`/api/creator/projects/${id}/submit`, {
     method: 'PUT',
@@ -379,12 +381,12 @@ export async function submitCreatorProject(id: number): Promise<ProjectSummary> 
   return response.data
 }
 
-// 创作者删除自己的未公开作品。
+// 创作者删除自己的未公开作品
 export async function deleteCreatorProject(id: number): Promise<void> {
   await requestJson<ApiEnvelope<null>>(`/api/creator/projects/${id}`, { method: 'DELETE' })
 }
 
-// 管理员更新作品。
+// 管理员更新作品
 export async function updateProject(id: number, payload: ProjectPayload): Promise<ProjectSummary> {
   const response = await requestJson<ApiEnvelope<ProjectSummary>>(`/api/admin/projects/${id}`, {
     method: 'PUT',
@@ -393,12 +395,12 @@ export async function updateProject(id: number, payload: ProjectPayload): Promis
   return response.data
 }
 
-// 管理员删除作品。
+// 管理员删除作品
 export async function deleteProject(id: number): Promise<void> {
   await requestJson<ApiEnvelope<null>>(`/api/admin/projects/${id}`, { method: 'DELETE' })
 }
 
-// 管理员切换作品状态。
+// 管理员切换作品状态
 export async function setProjectStatus(id: number, status: string): Promise<ProjectSummary> {
   const params = new URLSearchParams({ status })
   const response = await requestJson<ApiEnvelope<ProjectSummary>>(`/api/admin/projects/${id}/status?${params.toString()}`, {
@@ -407,7 +409,7 @@ export async function setProjectStatus(id: number, status: string): Promise<Proj
   return response.data
 }
 
-// 管理员审核通过作品。
+// 管理员审核通过作品
 export async function approveProject(id: number): Promise<ProjectSummary> {
   const response = await requestJson<ApiEnvelope<ProjectSummary>>(`/api/admin/projects/${id}/approve`, {
     method: 'PUT',
@@ -415,7 +417,7 @@ export async function approveProject(id: number): Promise<ProjectSummary> {
   return response.data
 }
 
-// 管理员驳回作品。
+// 管理员驳回作品
 export async function rejectProject(id: number, reviewNote: string): Promise<ProjectSummary> {
   const response = await requestJson<ApiEnvelope<ProjectSummary>>(`/api/admin/projects/${id}/reject`, {
     method: 'PUT',
@@ -424,7 +426,7 @@ export async function rejectProject(id: number, reviewNote: string): Promise<Pro
   return response.data
 }
 
-// 管理员切换作品推荐。
+// 管理员切换作品推荐
 export async function setProjectRecommend(id: number, enabled: boolean): Promise<ProjectSummary> {
   const params = new URLSearchParams({ enabled: String(enabled) })
   const response = await requestJson<ApiEnvelope<ProjectSummary>>(
@@ -434,20 +436,20 @@ export async function setProjectRecommend(id: number, enabled: boolean): Promise
   return response.data
 }
 
-// 查询指定模块分类。
+// 查询指定模块分类
 export async function fetchCategories(module: CategorySummary['module']): Promise<CategorySummary[]> {
   const params = new URLSearchParams({ module })
   const response = await requestJson<ApiEnvelope<CategorySummary[]>>(`/api/categories?${params.toString()}`)
   return response.data
 }
 
-// 查询标签列表。
+// 查询标签列表
 export async function fetchTags(): Promise<TagSummary[]> {
   const response = await requestJson<ApiEnvelope<TagSummary[]>>('/api/tags')
   return response.data
 }
 
-// 查询公开灵感墙。
+// 查询公开灵感墙
 export async function fetchInspirations(options: {
   keyword?: string
   type?: InspirationType | 'ALL'
@@ -474,7 +476,7 @@ export async function fetchInspirations(options: {
   return response.data
 }
 
-// 管理员查询灵感卡片。
+// 管理员查询灵感卡片
 export async function fetchAdminInspirations(options: {
   keyword?: string
   type?: InspirationType | 'ALL'
@@ -501,7 +503,7 @@ export async function fetchAdminInspirations(options: {
   return response.data
 }
 
-// 管理员创建灵感卡片。
+// 管理员创建灵感卡片
 export async function createInspiration(payload: InspirationPayload): Promise<InspirationCard> {
   const response = await requestJson<ApiEnvelope<InspirationCard>>('/api/admin/inspirations', {
     method: 'POST',
@@ -510,7 +512,7 @@ export async function createInspiration(payload: InspirationPayload): Promise<In
   return response.data
 }
 
-// 管理员更新灵感卡片。
+// 管理员更新灵感卡片
 export async function updateInspiration(id: number, payload: InspirationPayload): Promise<InspirationCard> {
   const response = await requestJson<ApiEnvelope<InspirationCard>>(`/api/admin/inspirations/${id}`, {
     method: 'PUT',
@@ -519,12 +521,12 @@ export async function updateInspiration(id: number, payload: InspirationPayload)
   return response.data
 }
 
-// 管理员删除灵感卡片。
+// 管理员删除灵感卡片
 export async function deleteInspiration(id: number): Promise<void> {
   await requestJson<ApiEnvelope<null>>(`/api/admin/inspirations/${id}`, { method: 'DELETE' })
 }
 
-// 查询公开评论。
+// 查询公开评论
 export async function fetchComments(options: {
   targetType: 'ARTICLE' | 'PROJECT' | 'MESSAGE'
   targetId: number
@@ -545,7 +547,7 @@ export async function fetchComments(options: {
   return response.data
 }
 
-// 登录用户提交评论。
+// 登录用户提交评论
 export async function submitComment(payload: {
   targetType: 'ARTICLE' | 'PROJECT' | 'MESSAGE'
   targetId: number
@@ -559,7 +561,7 @@ export async function submitComment(payload: {
   return response.data
 }
 
-// 管理员查询评论审核队列。
+// 管理员查询评论审核队列
 export async function fetchAdminComments(options: {
   status?: CommentSummary['status'] | 'ALL'
   targetType?: CommentSummary['targetType'] | 'ALL'
@@ -586,7 +588,7 @@ export async function fetchAdminComments(options: {
   return response.data
 }
 
-// 管理员审核评论。
+// 管理员审核评论
 export async function reviewComment(id: number, action: 'approve' | 'reject'): Promise<CommentSummary> {
   const response = await requestJson<ApiEnvelope<CommentSummary>>(`/api/admin/comments/${id}/${action}`, {
     method: 'PUT',
@@ -594,7 +596,7 @@ export async function reviewComment(id: number, action: 'approve' | 'reject'): P
   return response.data
 }
 
-// 管理员查询文件资源。
+// 管理员查询文件资源
 export async function fetchAdminFiles(options: {
   module?: string
   page?: number
@@ -617,7 +619,7 @@ export async function fetchAdminFiles(options: {
   return response.data
 }
 
-// 创作者查询自己的文件资源。
+// 创作者查询自己的文件资源
 export async function fetchCreatorFiles(options: {
   module?: string
   page?: number
@@ -640,7 +642,7 @@ export async function fetchCreatorFiles(options: {
   return response.data
 }
 
-// 管理员上传文件资源。
+// 管理员上传文件资源
 export async function uploadAdminFile(file: File, module: string): Promise<FileResource> {
   const formData = new FormData()
   formData.append('file', file)
@@ -652,7 +654,7 @@ export async function uploadAdminFile(file: File, module: string): Promise<FileR
   return response.data
 }
 
-// 创作者上传自己的文件资源。
+// 创作者上传自己的文件资源
 export async function uploadCreatorFile(file: File, module: string): Promise<FileResource> {
   const formData = new FormData()
   formData.append('file', file)
@@ -664,7 +666,7 @@ export async function uploadCreatorFile(file: File, module: string): Promise<Fil
   return response.data
 }
 
-// 登录用户点赞公开内容。
+// 登录用户点赞公开内容
 export async function likeTarget(targetType: InteractionTargetType, targetId: number): Promise<InteractionRecord> {
   const response = await requestJson<ApiEnvelope<InteractionRecord>>('/api/me/likes', {
     method: 'POST',
@@ -673,13 +675,13 @@ export async function likeTarget(targetType: InteractionTargetType, targetId: nu
   return response.data
 }
 
-// 登录用户取消点赞。
+// 登录用户取消点赞
 export async function unlikeTarget(targetType: InteractionTargetType, targetId: number): Promise<void> {
   const params = new URLSearchParams({ targetType, targetId: String(targetId) })
   await requestJson<ApiEnvelope<null>>(`/api/me/likes?${params.toString()}`, { method: 'DELETE' })
 }
 
-// 登录用户收藏公开内容。
+// 登录用户收藏公开内容
 export async function favoriteTarget(targetType: Exclude<InteractionTargetType, 'COMMENT'>, targetId: number): Promise<InteractionRecord> {
   const response = await requestJson<ApiEnvelope<InteractionRecord>>('/api/me/favorites', {
     method: 'POST',
@@ -688,13 +690,13 @@ export async function favoriteTarget(targetType: Exclude<InteractionTargetType, 
   return response.data
 }
 
-// 登录用户取消收藏。
+// 登录用户取消收藏
 export async function unfavoriteTarget(targetType: Exclude<InteractionTargetType, 'COMMENT'>, targetId: number): Promise<void> {
   const params = new URLSearchParams({ targetType, targetId: String(targetId) })
   await requestJson<ApiEnvelope<null>>(`/api/me/favorites?${params.toString()}`, { method: 'DELETE' })
 }
 
-// 登录用户查询自己的收藏。
+// 登录用户查询自己的收藏
 export async function fetchMyFavorites(targetType?: Exclude<InteractionTargetType, 'COMMENT'>): Promise<PageResponse<InteractionRecord>> {
   const params = new URLSearchParams()
   if (targetType) {
@@ -707,7 +709,7 @@ export async function fetchMyFavorites(targetType?: Exclude<InteractionTargetTyp
   return response.data
 }
 
-// 查询站内公开内容。
+// 查询站内公开内容
 export async function searchContent(options: SearchParams | string): Promise<PageResponse<SearchResult>> {
   const params = new URLSearchParams()
   if (typeof options === 'string') {
@@ -723,13 +725,13 @@ export async function searchContent(options: SearchParams | string): Promise<Pag
   return response.data
 }
 
-// 读取后台概览。
+// 读取后台概览
 export async function fetchDashboardOverview(): Promise<DashboardOverview> {
   const response = await requestJson<ApiEnvelope<DashboardOverview>>('/api/admin/dashboard/overview')
   return response.data
 }
 
-// 查询公开留言。
+// 查询公开留言
 export async function fetchGuestbook(options: {
   page?: number
   pageSize?: number
@@ -744,7 +746,7 @@ export async function fetchGuestbook(options: {
   return response.data
 }
 
-// 登录用户提交留言。
+// 登录用户提交留言
 export async function submitGuestbook(content: string): Promise<{ id: number; displayName: string; content: string; status: string; createdAt?: string | null }> {
   const response = await requestJson<ApiEnvelope<{ id: number; displayName: string; content: string; status: string; createdAt?: string | null }>>('/api/guestbook', {
     method: 'POST',
@@ -753,7 +755,7 @@ export async function submitGuestbook(content: string): Promise<{ id: number; di
   return response.data
 }
 
-// 管理员查询留言。
+// 管理员查询留言
 export async function fetchAdminGuestbook(options: {
   status?: string
   page?: number
@@ -770,36 +772,36 @@ export async function fetchAdminGuestbook(options: {
   return response.data
 }
 
-// 管理员审核留言。
+// 管理员审核留言
 export async function reviewGuestbook(id: number, action: 'approve' | 'reject'): Promise<void> {
   await requestJson<ApiEnvelope<null>>(`/api/admin/guestbook/${id}/${action}`, { method: 'PUT' })
 }
 
-// 读取站点配置 JSON。
+// 读取站点配置 JSON
 export async function fetchSiteConfig(): Promise<Record<string, unknown>> {
   const response = await requestJson<ApiEnvelope<Record<string, unknown>>>('/api/site/config')
   return response.data
 }
 
-// 读取当前主题配置。
+// 读取当前主题配置
 export async function fetchCurrentTheme(): Promise<ThemeConfig | null> {
   const response = await requestJson<ApiEnvelope<ThemeConfig | null>>('/api/theme/current')
   return response.data
 }
 
-// 读取公开主题列表，供前台主题展示区使用。
+// 读取公开主题列表, 供前台主题展示区使用
 export async function fetchThemes(): Promise<PublicThemeConfig[]> {
   const response = await requestJson<ApiEnvelope<PublicThemeConfig[]>>('/api/themes')
   return response.data
 }
 
-// 管理员查询全部主题配置。
+// 管理员查询全部主题配置
 export async function fetchAdminThemes(): Promise<AdminThemeConfig[]> {
   const response = await requestJson<ApiEnvelope<AdminThemeConfig[]>>('/api/admin/themes')
   return response.data
 }
 
-// 管理员更新主题基础信息和扩展配置。
+// 管理员更新主题基础信息和扩展配置
 export async function updateTheme(id: number, payload: ThemePayload): Promise<AdminThemeConfig> {
   const response = await requestJson<ApiEnvelope<AdminThemeConfig>>(`/api/admin/themes/${id}`, {
     method: 'PUT',
@@ -808,7 +810,7 @@ export async function updateTheme(id: number, payload: ThemePayload): Promise<Ad
   return response.data
 }
 
-// 管理员切换当前启用主题。
+// 管理员切换当前启用主题
 export async function switchTheme(id: number): Promise<AdminThemeConfig> {
   const response = await requestJson<ApiEnvelope<AdminThemeConfig>>(`/api/admin/themes/${id}/switch`, {
     method: 'PUT',
@@ -816,13 +818,13 @@ export async function switchTheme(id: number): Promise<AdminThemeConfig> {
   return response.data
 }
 
-// 管理员读取站点设置工作台数据。
+// 管理员读取站点设置工作台数据
 export async function fetchAdminSiteSettings(): Promise<SiteSettings> {
   const response = await requestJson<ApiEnvelope<SiteSettings>>('/api/admin/site/settings')
   return response.data
 }
 
-// 管理员保存站点身份、导航、社交链接、页面和 JSON 配置。
+// 管理员保存站点身份、导航、社交链接、页面和 JSON 配置
 export async function updateSiteSettings(payload: SiteSettingsPayload): Promise<SiteSettings> {
   const response = await requestJson<ApiEnvelope<SiteSettings>>('/api/admin/site/settings', {
     method: 'PUT',

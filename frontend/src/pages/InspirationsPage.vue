@@ -1,4 +1,7 @@
 <template>
+<!-- 瀑布流灵感板页面 -->
+<!-- 瀑布流灵感板页面 -->
+<!-- 创作者公开灵感墙的瀑布流展厅 -->
   <section ref="root" class="wall-page">
     <header class="wall-hero page-hero" data-reveal>
       <div class="hero-copy">
@@ -95,6 +98,7 @@
 </template>
 
 <script setup lang="ts">
+// 导入所需的组件和 Vue 钩子
 import { computed, onMounted, ref, type Component } from 'vue'
 import {
   CalendarDays,
@@ -122,6 +126,7 @@ interface InspirationFilterItem {
   icon: Component
 }
 
+// 初始化灵感墙的查询参数和卡片数据列表
 const root = ref<HTMLElement | null>(null)
 const cards = ref<InspirationCard[]>([])
 const countCards = ref<InspirationCard[]>([])
@@ -149,6 +154,8 @@ const sortedCards = computed(() => [...cards.value].sort((left, right) => right.
 const featuredCard = computed(() => sortedCards.value[0] ?? null)
 const masonryCards = computed(() => sortedCards.value.slice(featuredCard.value ? 1 : 0))
 
+// 切换灵感过滤分类页签并重新发起数据拉取
+// 切换灵感过滤分类页签并重新发起数据拉取
 function selectType(type: InspirationFilter) {
   if (activeType.value === type) {
     return
@@ -157,6 +164,8 @@ function selectType(type: InspirationFilter) {
   loadInspirations()
 }
 
+// 并发发起当前分类列表拉取和全部类别总数统计拉取, 数据就绪后触发入场显影动效
+// 并发发起当前分类列表拉取和全部类别总数统计拉取, 数据就绪后触发入场显影动效
 async function loadInspirations() {
   isLoading.value = true
   notice.value = ''
@@ -194,6 +203,8 @@ async function loadInspirations() {
   }
 }
 
+// 根据拉取的灵感集合数据过滤出指定类型卡片的具体计数
+// 根据拉取的灵感集合数据过滤出指定类型卡片的具体计数
 function typeCount(type: InspirationFilter): number {
   const source = countCards.value.length > 0 ? countCards.value : cards.value
   if (type === 'ALL') {
@@ -202,6 +213,8 @@ function typeCount(type: InspirationFilter): number {
   return source.filter((card) => card.cardType === type).length
 }
 
+// 动态绑定单张灵感卡片的色调变体样式
+// 动态绑定单张灵感卡片的色调变体样式
 function cardStyle(card: InspirationCard) {
   return {
     '--card-accent': card.color ?? typeColor(card.cardType),
@@ -422,7 +435,7 @@ onMounted(loadInspirations)
   border: 1px solid var(--tone-line);
   border-radius: var(--app-radius-sm);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.76)),
+    linear-gradient(180deg, color-mix(in srgb, var(--tone-panel-solid) 92%, transparent), color-mix(in srgb, var(--tone-panel-solid) 76%, transparent)),
     var(--tone-panel);
   box-shadow: 0 18px 52px rgba(20, 21, 29, 0.08);
   backdrop-filter: blur(18px);
@@ -483,7 +496,7 @@ onMounted(loadInspirations)
 
 .inspiration-masonry {
   column-count: 3;
-  column-gap: 16px;
+  column-gap: var(--theme-density-spacing, 16px);
 }
 
 .inspiration-card {
@@ -491,14 +504,14 @@ onMounted(loadInspirations)
   display: inline-grid;
   width: 100%;
   gap: 13px;
-  margin: 0 0 16px;
-  padding: 20px;
+  margin: 0 0 var(--theme-density-spacing, 16px);
+  padding: calc(var(--theme-density-spacing, 16px) * 1.25);
   break-inside: avoid;
   overflow: hidden;
   transition:
-    border-color 180ms ease,
-    box-shadow 180ms ease,
-    transform 180ms ease;
+    border-color var(--transition-time, 180ms) ease,
+    box-shadow var(--transition-time, 180ms) ease,
+    transform var(--transition-time, 180ms) ease;
 }
 
 .inspiration-card::before {
@@ -536,7 +549,7 @@ onMounted(loadInspirations)
 .inspiration-card img {
   width: 100%;
   max-height: 260px;
-  border-radius: 8px;
+  border-radius: var(--app-radius-sm, 8px);
   object-fit: cover;
 }
 
@@ -544,7 +557,7 @@ onMounted(loadInspirations)
   max-width: 100%;
   margin: 0;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: var(--app-radius-sm, 8px);
   padding: 14px;
   border: 1px solid rgba(167, 243, 208, 0.1);
   background:

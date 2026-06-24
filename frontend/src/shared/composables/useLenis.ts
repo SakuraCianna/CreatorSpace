@@ -7,7 +7,9 @@ import { prefersReducedMotion } from '@/shared/composables/useReducedMotion'
 
 gsap.registerPlugin(ScrollTrigger)
 
-// 初始化平滑滚动，并把 Lenis 滚动事件同步给 ScrollTrigger。
+// 初始化平滑滚动, 并把 Lenis 滚动事件同步给 ScrollTrigger
+// 初始化并绑定全局 Lenis 平滑滚动实例
+// 初始化并绑定全局 Lenis 平滑滚动实例
 export function useLenis() {
   const lenis = shallowRef<Lenis | null>(null)
 

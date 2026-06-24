@@ -1,5 +1,10 @@
 <template>
+<!-- 沉浸式无边框排版布局 -->
+<!-- 沉浸式无边框排版布局 -->
+<!-- 沉浸式布局外壳容器 -->
   <div class="cs-shell">
+    <!-- 顶部固定透明导航条 -->
+    <!-- 顶部固定透明导航条 -->
     <nav class="cs-nav" aria-label="主导航">
       <RouterLink to="/" class="cs-nav__brand">
         <span class="cs-nav__mark">
@@ -16,12 +21,14 @@
     <main>
       <slot />
     </main>
+    <ThemeHUD />
   </div>
 </template>
 
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
 
+import ThemeHUD from '@/shared/components/ThemeHUD.vue'
 import { useSiteIdentity } from '@/shared/siteIdentity'
 
 interface ImmersiveNavItem {
@@ -29,6 +36,9 @@ interface ImmersiveNavItem {
   to: string
 }
 
+// 获取站点名称并声明导航菜单项
+// 获取全局配置中的站点名称并声明导航菜单项
+// 获取全局配置中的站点名称并声明导航菜单项
 const { siteName } = useSiteIdentity({ load: false })
 const immersiveNavItems: ImmersiveNavItem[] = [
   { label: '游客', to: '/articles' },

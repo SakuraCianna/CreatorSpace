@@ -8,7 +8,8 @@ interface MagneticOptions {
   innerStrength?: number
 }
 
-// 给元素绑定磁吸跟随效果，并返回清理函数。
+// 给元素绑定磁吸跟随效果, 并返回清理函数
+// 对指定组件节点应用带平滑阻尼感的鼠标指针引力吸附微动效
 export function attachMagnetic(el: HTMLElement, options: MagneticOptions = {}) {
   const coarse =
     typeof window !== 'undefined' &&
@@ -28,7 +29,7 @@ export function attachMagnetic(el: HTMLElement, options: MagneticOptions = {}) {
   const setIX = inner ? gsap.quickTo(inner, 'x', { duration: 0.7, ease: 'power3.out' }) : null
   const setIY = inner ? gsap.quickTo(inner, 'y', { duration: 0.7, ease: 'power3.out' }) : null
 
-  // 根据指针位置移动卡片和内部元素。
+  // 根据指针位置移动卡片和内部元素
   const onMove = (event: PointerEvent) => {
     const rect = el.getBoundingClientRect()
     const relX = event.clientX - (rect.left + rect.width / 2)
@@ -39,7 +40,7 @@ export function attachMagnetic(el: HTMLElement, options: MagneticOptions = {}) {
     setIY?.(relY * innerStrength)
   }
 
-  // 指针离开后复位磁吸偏移。
+  // 指针离开后复位磁吸偏移
   const onLeave = () => {
     setX(0)
     setY(0)
@@ -50,7 +51,7 @@ export function attachMagnetic(el: HTMLElement, options: MagneticOptions = {}) {
   el.addEventListener('pointermove', onMove)
   el.addEventListener('pointerleave', onLeave)
 
-  // 解除监听并清理 GSAP 动画。
+  // 解除监听并清理 GSAP 动画
   return () => {
     el.removeEventListener('pointermove', onMove)
     el.removeEventListener('pointerleave', onLeave)

@@ -1,4 +1,7 @@
 <template>
+<!-- 作品展厅前台列表与多维检索页面 -->
+<!-- 作品展厅前台列表与多维检索页面 -->
+<!-- 作品展厅前台列表与多维检索页面 -->
   <section ref="root" class="projects-page">
     <header class="projects-hero page-hero" data-reveal>
       <div class="hero-copy">
@@ -114,6 +117,7 @@
 </template>
 
 <script setup lang="ts">
+// 导入 Vue 生命周期钩子和路由支持
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { ArrowRight, Bookmark, Eye, Heart, LoaderCircle, MessageCircle, Search } from '@lucide/vue'
@@ -134,6 +138,7 @@ const coverPalettes = [
   ['#111827', '#a3e635'],
 ] as const
 
+// 初始化作品展示与检索过滤相关的状态变量
 const root = ref<HTMLElement | null>(null)
 const projects = ref<ProjectSummary[]>([])
 const keyword = ref('')
@@ -151,6 +156,8 @@ const filteredProjects = computed(() => sortedProjects.value.filter(matchesFilte
 const featuredProject = computed(() => filteredProjects.value[0] ?? null)
 const visibleProjects = computed(() => filteredProjects.value.slice(featuredProject.value ? 1 : 0))
 
+// 向后端发起 API 查询请求拉取所有公开作品列表
+// 向后端发起 API 查询请求拉取所有公开作品列表
 async function loadProjects() {
   isLoading.value = true
   notice.value = ''
@@ -165,6 +172,10 @@ async function loadProjects() {
   }
 }
 
+// 校验某个作品实例是否匹配当前所选择的类型过滤项和技术栈过滤项
+// 返回布尔类型代表是否通过匹配
+// 校验某个作品实例是否匹配当前所选择的类型过滤项和技术栈过滤项
+// 返回布尔类型代表是否通过匹配
 function matchesFilters(project: ProjectSummary): boolean {
   const matchesType = activeType.value === 'ALL' || project.projectType === activeType.value
   const matchesTech = activeTech.value === 'ALL' || project.techStack.includes(activeTech.value)
@@ -175,6 +186,8 @@ function projectSort(left: ProjectSummary, right: ProjectSummary): number {
   return scoreProject(right) - scoreProject(left)
 }
 
+// 依据作品是否为推荐状态以及各项浏览、点赞、收藏、评论次数加权计算出它的热度权重评分
+// 依据作品是否为推荐状态以及各项浏览、点赞、收藏、评论次数加权计算出它的热度权重评分
 function scoreProject(project: ProjectSummary): number {
   return (project.recommended ? 1000 : 0)
     + (project.viewCount ?? 0)
@@ -184,13 +197,15 @@ function scoreProject(project: ProjectSummary): number {
 }
 
 function projectCoverStyle(project: ProjectSummary, index: number) {
-  const palette = coverPalettes[index % coverPalettes.length]
+  const palette = coverPalettes[index % coverPalettes.length] ?? coverPalettes[0]
   return {
     '--cover-from': palette[0],
     '--cover-accent': project.tags[0]?.color ?? palette[1],
   }
 }
 
+// 计算指针在卡片内所处的坐标比例, 动态调整 CSS 变形变量以渲染 3D 悬浮倾斜动效
+// 计算指针在卡片内所处的坐标比例, 动态调整 CSS 变形变量以渲染 3D 悬浮倾斜动效
 function tiltCard(event: PointerEvent) {
   const card = event.currentTarget as HTMLElement
   const rect = card.getBoundingClientRect()
@@ -200,6 +215,8 @@ function tiltCard(event: PointerEvent) {
   card.style.setProperty('--tilt-y', `${x * 5}deg`)
 }
 
+// 指针移出作品卡片时复位 3D 倾斜变形变量
+// 指针移出作品卡片时复位 3D 倾斜变形变量
 function resetTilt(event: PointerEvent) {
   const card = event.currentTarget as HTMLElement
   card.style.setProperty('--tilt-x', '0deg')
@@ -387,7 +404,7 @@ onMounted(loadProjects)
 .showcase-card {
   border: 1px solid var(--tone-line);
   border-radius: var(--app-radius-sm);
-  background: rgba(255, 255, 255, 0.78);
+  background: var(--tone-panel);
   box-shadow: var(--tone-shadow);
   backdrop-filter: blur(18px);
 }
@@ -474,7 +491,7 @@ onMounted(loadProjects)
 .showcase-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  gap: var(--theme-density-spacing, 16px);
   perspective: 1200px;
 }
 
@@ -483,7 +500,7 @@ onMounted(loadProjects)
   grid-template-rows: 214px minmax(0, 1fr);
   overflow: hidden;
   transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
-  transition: transform 180ms ease, border-color 180ms ease;
+  transition: transform var(--transition-time, 180ms) ease, border-color var(--transition-time, 180ms) ease;
 }
 
 .showcase-card:hover {
@@ -515,7 +532,7 @@ onMounted(loadProjects)
 .showcase-card__body {
   display: grid;
   gap: 12px;
-  padding: 20px;
+  padding: calc(var(--theme-density-spacing, 16px) * 1.25);
 }
 
 .showcase-card__meta {

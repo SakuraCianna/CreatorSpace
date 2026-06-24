@@ -1,4 +1,7 @@
 <template>
+<!-- 作品详情页面布局外壳 -->
+<!-- 作品详情页面布局外壳 -->
+<!-- 作品详情页排版布局 -->
   <section ref="root" class="detail-page">
     <RouterLink class="detail-back text-link" :to="{ name: 'projects' }" data-reveal>
       <ArrowLeft :size="16" />
@@ -36,6 +39,8 @@
           <span><MessageCircle :size="16" />{{ formatCount(project.commentCount) }} 评论</span>
         </section>
 
+        <!-- 技术栈展示区块 -->
+        <!-- 技术栈展示区块 -->
         <section class="project-stack" aria-label="技术栈">
           <span v-for="tech in project.techStack" :key="tech">{{ tech }}</span>
         </section>
@@ -112,6 +117,8 @@
         <div class="markdown-body" v-html="htmlContent" />
       </article>
 
+      <!-- 3D 交互侧栏控制面板 -->
+      <!-- 3D 交互侧栏控制面板 -->
       <aside class="process-panel" data-reveal>
         <section class="side-card">
           <p class="page-kicker">Archive Path</p>
@@ -197,6 +204,7 @@
 </template>
 
 <script setup lang="ts">
+// 导入所需的组件和 Vue 钩子
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import {
@@ -259,6 +267,7 @@ interface ProjectDetailExtras {
   relatedArticleSlug: string
 }
 
+// 声明页面的各类交互控制状态变量
 const route = useRoute()
 const root = ref<HTMLElement | null>(null)
 const project = ref<ProjectSummary | null>(null)
@@ -276,19 +285,41 @@ const cinematic = useCinematicPageMotion(root)
 
 usePageReveal(root)
 
+// 检查用户是否具备发表评论和互动的权限, 即本地缓存中是否存在有效的访问令牌
+// 检查用户是否具备发表评论和互动的权限, 即本地缓存中是否存在有效的访问令牌
+// 检查用户是否具备发表评论和互动的权限, 即本地缓存中是否存在有效的访问令牌
 const canComment = computed(() => Boolean(session.accessToken))
+
+// 将作品的 Markdown 描述正文或简介通过 DOMPurify 净化转译为安全的 HTML 结构以防 XSS 攻击
 const htmlContent = computed(() => renderSafeMarkdown(project.value?.contentMarkdown ?? project.value?.description))
+
+// 过滤并规范化外部演示链接, 防止包含恶意脚本的 URL 协议注入
 const safeDemoUrl = computed(() => safeExternalUrl(project.value?.demoUrl))
+
+// 过滤并规范化 GitHub 源码仓库链接, 保障前台跳转安全
 const safeGithubUrl = computed(() => safeExternalUrl(project.value?.githubUrl))
+
+// 过滤并规范化视频记录地址链接, 确保视频展位数据来源合法
 const safeVideoUrl = computed(() => safeExternalUrl(project.value?.videoUrl))
+
+// 动态生成作品详情页的主题封面样式, 提取作品首个标签颜色作为主调色, 并映射封面图到 CSS 变量
+// 动态生成作品详情页的主题封面样式, 提取作品首个标签颜色作为主调色, 并映射封面图到 CSS 变量
+// 动态生成作品详情页的主题封面样式, 提取作品首个标签颜色作为主调色, 并映射封面图到 CSS 变量
 const projectCoverStyle = computed(() => ({
   '--detail-accent': project.value?.tags[0]?.color ?? '#6d3fd2',
   '--detail-cover': toCssImageUrl(project.value?.coverUrl),
 }))
+
+// 从后端返回的作品对象中反序列化并读取截图、时间线以及扩展链接等 JSON 附加属性
 const detailExtras = computed(() => readProjectExtras(project.value))
+
+// 优先采用后端存储的自定义里程碑时间线, 若不存在则调用本地函数稳定生成基础三阶段侧栏档案
 const timeline = computed(() => detailExtras.value.timeline.length ? detailExtras.value.timeline : buildTimeline(project.value))
+
+// 合并常规的演示、代码、视频链接与后端自定义配置的扩展链接列表, 并去除重复项
 const resourceLinks = computed(() => buildResourceLinks(project.value, detailExtras.value.resources))
 
+// 主函数: 根据路由参数中的唯一 slug 标识向后端获取作品的全部详情数据, 并在就绪后拉取评论列表并播放入场动效
 async function loadProject() {
   if (!slug.value) {
     project.value = null
@@ -302,6 +333,7 @@ async function loadProject() {
   comments.value = []
   commentNotice.value = ''
   try {
+    // 异步拉取作品信息, 渲染成功后调用评论加载方法
     project.value = await fetchProjectBySlug(slug.value)
     await loadComments()
   } catch (error) {
@@ -309,16 +341,19 @@ async function loadProject() {
     notice.value = toUserMessage(error, '作品暂时无法打开，请稍后再试')
   } finally {
     isLoading.value = false
+    // 释放并触发电影式页面显影过渡动画
     void cinematic.play()
   }
 }
 
+// 异步加载当前作品绑定的已通过审核的评论列表, 并根据传参决定是否保留已有的提示信息
 async function loadComments(options: { keepCurrentNotice?: boolean } = {}) {
   if (!project.value?.id) {
     comments.value = []
     return
   }
   try {
+    // 拉取前 20 条已审核公开的作品反馈评论数据
     const page = await fetchComments({ targetType: 'PROJECT', targetId: project.value.id, pageSize: 20 })
     comments.value = page.records
     if (!options.keepCurrentNotice) {
@@ -332,6 +367,7 @@ async function loadComments(options: { keepCurrentNotice?: boolean } = {}) {
   }
 }
 
+// 提交用户对作品的想法评论或指定楼层的回复, 校验输入内容并在提交成功后重置输入框并刷新评论队列
 async function postComment() {
   if (!canComment.value) {
     commentNotice.value = '请先登录账号再评论'
@@ -342,6 +378,7 @@ async function postComment() {
     return
   }
   try {
+    // 调用通用评论发表接口, 绑定目标为作品且可挂载父评论 ID 形成回复嵌套
     await submitComment({
       targetType: 'PROJECT',
       targetId: project.value.id,
@@ -351,19 +388,23 @@ async function postComment() {
     commentDraft.value = ''
     replyTarget.value = null
     commentNotice.value = '评论已提交，审核通过后会公开展示'
+    // 保持提示信息并重新拉取列表以表现最新状态
     await loadComments({ keepCurrentNotice: true })
   } catch (error) {
     commentNotice.value = toUserMessage(error, '评论提交失败')
   }
 }
 
+// 切换当前登录用户对该作品的点赞状态, 实现即时喜欢与取消喜欢, 并更新页面响应状态
 async function toggleLike() {
   if (!project.value?.id || !canComment.value) return
   try {
     if (liked.value) {
+      // 若已喜欢则发送 DELETE 请求注销点赞记录
       await unlikeTarget('PROJECT', project.value.id)
       liked.value = false
     } else {
+      // 若未喜欢则发送 POST 请求登记点赞记录
       await likeTarget('PROJECT', project.value.id)
       liked.value = true
     }
@@ -400,7 +441,7 @@ function buildTimeline(value: ProjectSummary | null): DetailTimelineItem[] {
   if (!value) {
     return []
   }
-  // 公开 ProjectVO 还没有暴露截图和里程碑，先用现有字段稳定生成侧栏档案。
+  // 公开 ProjectVO 还没有暴露截图和里程碑, 先用现有字段稳定生成侧栏档案
   return [
     {
       phase: '01',
@@ -609,7 +650,7 @@ watch(slug, loadProject)
 <style scoped>
 .detail-page {
   display: grid;
-  gap: 18px;
+  gap: var(--theme-density-spacing, 16px);
   padding: 46px 0 84px;
 }
 
@@ -620,7 +661,7 @@ watch(slug, loadProject)
 .project-record {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 18px;
+  gap: var(--theme-density-spacing, 16px);
   align-items: start;
 }
 
@@ -629,8 +670,8 @@ watch(slug, loadProject)
   border: 1px solid var(--tone-line);
   border-radius: var(--app-radius-sm);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.78)),
-    rgba(255, 255, 255, 0.88);
+    linear-gradient(180deg, color-mix(in srgb, var(--tone-panel-solid) 92%, transparent), color-mix(in srgb, var(--tone-panel-solid) 78%, transparent)),
+    color-mix(in srgb, var(--tone-panel-solid) 88%, transparent);
   box-shadow: var(--tone-shadow);
   backdrop-filter: blur(22px);
 }
@@ -824,8 +865,8 @@ watch(slug, loadProject)
   margin: 0;
   padding: 14px 16px;
   border: 1px dashed var(--tone-line-strong);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.46);
+  border-radius: var(--app-radius-sm, 8px);
+  background: color-mix(in srgb, var(--tone-panel-solid) 46%, transparent);
   color: var(--tone-muted);
   font-size: 13px;
   line-height: 1.62;
@@ -887,8 +928,8 @@ watch(slug, loadProject)
   align-content: end;
   padding: 14px;
   border: 1px solid var(--tone-line);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.58);
+  border-radius: var(--app-radius-sm, 8px);
+  background: color-mix(in srgb, var(--tone-panel-solid) 58%, transparent);
   color: var(--tone-ink);
 }
 
@@ -911,9 +952,9 @@ watch(slug, loadProject)
 
 .markdown-body {
   display: grid;
-  gap: 18px;
+  gap: var(--theme-density-spacing, 18px);
   padding: 34px clamp(24px, 4vw, 48px) 52px;
-  color: #1f2937;
+  color: var(--tone-ink);
 }
 
 .markdown-body :deep(h1),
@@ -934,7 +975,7 @@ watch(slug, loadProject)
 .markdown-body :deep(blockquote) {
   max-width: 780px;
   margin: 0;
-  color: #475569;
+  color: var(--tone-muted);
   font-size: 16px;
   line-height: 1.88;
 }
@@ -1043,9 +1084,9 @@ watch(slug, loadProject)
   min-height: 112px;
   resize: vertical;
   border: 1px solid var(--tone-line);
-  border-radius: 8px;
+  border-radius: var(--app-radius-sm, 8px);
   padding: 12px;
-  background: rgba(255, 255, 255, 0.82);
+  background: color-mix(in srgb, var(--tone-panel-solid) 82%, transparent);
   color: var(--tone-ink);
   line-height: 1.6;
 }
@@ -1061,8 +1102,8 @@ watch(slug, loadProject)
   margin-left: calc(var(--depth, 0) * 16px);
   padding: 12px;
   border: 1px solid var(--tone-line);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.62);
+  border-radius: var(--app-radius-sm, 8px);
+  background: color-mix(in srgb, var(--tone-panel-solid) 62%, transparent);
 }
 
 .comment-header,

@@ -1,4 +1,6 @@
 <template>
+<!-- 全局动态布局容器组件 -->
+<!-- 全局动态布局容器组件 -->
   <component :is="layout">
     <RouterView />
   </component>
@@ -16,7 +18,9 @@ import { applyThemeConfig } from '@/shared/theme'
 
 const route = useRoute()
 
-// 根据路由元信息选择前台、后台或沉浸式布局。
+// 根据路由元信息选择前台、后台或沉浸式布局
+// 根据路由元信息动态判断切换后台布局、沉浸式布局或前台公共布局
+// 根据路由元信息动态判断切换后台布局、沉浸式布局或前台公共布局
 const layout = computed(() => {
   if (route.meta.layout === 'admin') {
     return AdminLayout
@@ -27,7 +31,20 @@ const layout = computed(() => {
   return PublicLayout
 })
 
+// 挂载时首先读取本地临时缓存预览的主题配置, 若无则向后端发起 API 请求获取当前正式启用的全站主题并渲染应用
+// 挂载时首先读取本地临时缓存预览的主题配置, 若无则向后端发起 API 请求获取当前正式启用的全站主题并渲染应用
 onMounted(async () => {
+  const localPreview = window.localStorage.getItem('creatorspace_preview_theme')
+  if (localPreview) {
+    try {
+      const theme = JSON.parse(localPreview)
+      applyThemeConfig(theme)
+      return
+    } catch {
+      window.localStorage.removeItem('creatorspace_preview_theme')
+    }
+  }
+
   try {
     const theme = await fetchCurrentTheme()
     applyThemeConfig(theme)

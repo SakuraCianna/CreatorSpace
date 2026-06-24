@@ -15,7 +15,8 @@ export class HttpError extends Error {
   }
 }
 
-// 发送 JSON 请求并处理超时、请求头和统一错误信息。
+// 发送 JSON 请求并处理超时、请求头和统一错误信息
+// 安全发送 JSON 请求并自动挂载授权 Token 请求头, 针对超时及后端连接异常进行统一拦截处理
 export async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const controller = new AbortController()
   const timeoutId = window.setTimeout(() => controller.abort(), appConfig.apiTimeoutMs)
@@ -71,7 +72,7 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
   }
 }
 
-// 从失败响应中读取错误信息。
+// 从失败响应中读取错误信息
 async function readErrorMessage(response: Response): Promise<string> {
   try {
     const contentType = response.headers.get('content-type') ?? ''
@@ -142,6 +143,7 @@ function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
 }
 
+// 把任意异常格式转化为用户可直接阅读的友善错误提示消息
 export function toUserMessage(error: unknown, fallback: string): string {
   if (error instanceof HttpError && error.message) {
     return error.message

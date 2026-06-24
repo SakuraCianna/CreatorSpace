@@ -5,7 +5,8 @@ import { prefersReducedMotion } from '@/shared/composables/useReducedMotion'
 
 type ScopeEl = Ref<HTMLElement | null | undefined>
 
-// 给非首页公开页面补一层电影式显影，和首页 GSAP 叙事保持同一动效气质。
+// 给非首页公开页面补一层电影式显影, 和首页 GSAP 叙事保持同一动效气质
+// 页面无缝电影开场转场特效, 注入淡入与微型上移浮现动画
 export function useCinematicPageMotion(root: ScopeEl) {
   let context: gsap.Context | null = null
 

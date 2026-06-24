@@ -1,3 +1,6 @@
+// 定义全站共享的数据实体和接口模型
+// 站点角色分为系统管理员与普通授权读者
+// 站点角色分为系统管理员与普通授权读者
 export type UserRole = 'ADMIN' | 'USER'
 
 export type ArticlePrivacy =
@@ -148,6 +151,8 @@ export interface ProjectPayload {
   recommended: boolean
 }
 
+// 站点评论实体卡片接口模型
+// 站点评论实体卡片接口模型
 export interface CommentSummary {
   id: number
   targetType: 'ARTICLE' | 'PROJECT' | 'MESSAGE'

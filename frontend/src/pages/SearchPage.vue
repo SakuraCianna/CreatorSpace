@@ -1,4 +1,7 @@
-﻿<template>
+<template>
+<!-- 全站全文检索结果页面 -->
+<!-- 全站全文检索结果页面 -->
+<!-- 站内多维检索页面 -->
   <section ref="root" class="search-page">
     <header class="archive-hero page-hero page-hero--search" data-reveal>
       <div>
@@ -52,6 +55,7 @@
 </template>
 
 <script setup lang="ts">
+// 导入所需的组件和 Vue 钩子
 import { ref } from 'vue'
 import { RouterLink, type RouteLocationRaw } from 'vue-router'
 import { ArrowRight, LoaderCircle, Search } from '@lucide/vue'
@@ -61,6 +65,7 @@ import { toUserMessage } from '@/services/http'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import type { SearchResult, SearchResultType, SearchSortType } from '@/shared/domain'
 
+// 声明检索输入和搜索结果的响应式数据
 const root = ref<HTMLElement | null>(null)
 const keyword = ref('')
 const activeType = ref<SearchResultType | ''>('')
@@ -91,6 +96,8 @@ const typeOptions: Array<{ label: string; value: SearchResultType | '' }> = [
   { label: '页面', value: 'PAGE' },
 ]
 
+// 发起站内多维全文搜索, 覆盖文章、作品和灵感等多类型, 支持相关度、时间及流行度排序
+// 发起站内多维全文搜索, 覆盖文章、作品和灵感等多类型, 支持相关度、时间及流行度排序
 async function runSearch() {
   const value = keyword.value.trim()
   if (!value) {
@@ -123,6 +130,8 @@ function rerunIfSearched() {
   }
 }
 
+// 根据搜索结果的目标类型构建对应的路由跳转信息
+// 根据搜索结果的目标类型构建对应的路由跳转信息
 function resultTarget(result: SearchResult): RouteLocationRaw {
   if (result.type === 'ARTICLE') {
     return { name: 'article-detail', params: { slug: result.slug } }

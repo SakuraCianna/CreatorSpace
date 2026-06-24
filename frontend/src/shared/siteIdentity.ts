@@ -29,6 +29,8 @@ interface UseSiteIdentityOptions {
 const currentSiteIdentity = ref<SiteIdentity>({ ...DEFAULT_SITE_IDENTITY })
 let siteIdentityRequest: Promise<SiteIdentity> | null = null
 
+// 用于在组件内获取站点标识的组合式钩子
+// 站点身份品牌标志全局仓储, 同步更新前台展示的标题、宣传语和 Logo 配置
 export function useSiteIdentity(options: UseSiteIdentityOptions = {}): SiteIdentityBindings {
   if (options.load !== false) {
     onMounted(() => {
@@ -65,6 +67,7 @@ async function fetchAndSyncSiteIdentity(): Promise<SiteIdentity> {
   }
 }
 
+// 从配置对象中同步站点标识信息并更新网页 document 标题
 export function syncSiteIdentityFromConfig(config: Record<string, unknown>): SiteIdentity {
   const identity = resolveSiteIdentity(config)
   currentSiteIdentity.value = identity

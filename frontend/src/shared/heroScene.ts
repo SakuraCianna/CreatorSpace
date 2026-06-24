@@ -13,7 +13,7 @@ import {
   ShaderMaterial,
   WebGLRenderer,
 } from 'three'
-const GLSL_NOISE = /* glsl */ `
+const GLSL_NOISE =  `
 vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x,289.0);}
 vec4 taylorInvSqrt(vec4 r){return 1.79284291400159-0.85373472095314*r;}
 float snoise(vec3 v){
@@ -60,7 +60,7 @@ float snoise(vec3 v){
 }
 `
 
-const VERTEX_SHADER = /* glsl */ `
+const VERTEX_SHADER =  `
 uniform float uTime;
 uniform float uAmp;
 varying float vDisp;
@@ -82,7 +82,7 @@ void main(){
 }
 `
 
-const FRAGMENT_SHADER = /* glsl */ `
+const FRAGMENT_SHADER =  `
 uniform vec3 uColorA;
 uniform vec3 uColorB;
 uniform vec3 uColorC;
@@ -106,7 +106,8 @@ export interface HeroSceneHandles {
   setPaused: (paused: boolean) => void
 }
 
-// 创建首页英雄区 WebGL 场景，并返回外部可控的生命周期句柄。
+// 创建首页英雄区 WebGL 场景, 并返回外部可控的生命周期句柄
+// 初始化首页引力 3D 网状模型交互场景并绑定窗口 resize 侦听
 export function createHeroScene(container: HTMLElement): HeroSceneHandles {
   const renderer = new WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' })
   renderer.setClearColor(0x000000, 0)
@@ -152,7 +153,7 @@ export function createHeroScene(container: HTMLElement): HeroSceneHandles {
   const halo = new Points(haloGeo, haloMat)
   scene.add(halo)
 
-  // 根据容器尺寸更新渲染器和相机比例。
+  // 根据容器尺寸更新渲染器和相机比例
   const resize = () => {
     const w = container.clientWidth || 1
     const h = container.clientHeight || 1
@@ -170,7 +171,7 @@ export function createHeroScene(container: HTMLElement): HeroSceneHandles {
   const pointer = { x: 0, y: 0 }
   const target = { x: 0, y: 0 }
 
-  // 保存最新指针位置，渲染循环中会做缓动插值。
+  // 保存最新指针位置, 渲染循环中会做缓动插值
   const setPointer = (nx: number, ny: number) => {
     target.x = nx
     target.y = ny
@@ -180,7 +181,7 @@ export function createHeroScene(container: HTMLElement): HeroSceneHandles {
   let raf = 0
   let paused = false
 
-  // 渲染一帧并安排下一帧动画。
+  // 渲染一帧并安排下一帧动画
   const render = () => {
     const now = performance.now()
     const dt = Math.min((now - lastTime) / 1000, 0.05)
@@ -201,7 +202,7 @@ export function createHeroScene(container: HTMLElement): HeroSceneHandles {
   }
   raf = requestAnimationFrame(render)
 
-  // 根据可见性暂停或恢复动画，减少不可见区域的渲染开销。
+  // 根据可见性暂停或恢复动画, 减少不可见区域的渲染开销
   const setPaused = (next: boolean) => {
     if (next === paused) {
       return
@@ -211,13 +212,13 @@ export function createHeroScene(container: HTMLElement): HeroSceneHandles {
       cancelAnimationFrame(raf)
       raf = 0
     } else {
-      // 丢弃暂停期间的长时间差，避免恢复时动画突然跳变。
+      // 丢弃暂停期间的长时间差, 避免恢复时动画突然跳变
       lastTime = performance.now()
       raf = requestAnimationFrame(render)
     }
   }
 
-  // 释放 Three.js 资源和挂载到容器内的 canvas。
+  // 释放 Three.js 资源和挂载到容器内的 canvas
   const dispose = () => {
     if (raf) {
       cancelAnimationFrame(raf)

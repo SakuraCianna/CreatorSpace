@@ -1,4 +1,7 @@
 <template>
+<!-- 读者注册表单页面 -->
+<!-- 读者注册表单页面 -->
+<!-- 读者用户账号注册页面 -->
   <section ref="root" class="auth-page auth-page--material">
     <form class="auth-card auth-card--material" data-reveal @submit.prevent="submitRegister">
       <div class="auth-card__visual auth-card__visual--material auth-card__visual--warm">
@@ -52,6 +55,7 @@
 </template>
 
 <script setup lang="ts">
+// 导入所需的 Composition API 和 Vue 依赖
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { LoaderCircle, UserPlus } from '@lucide/vue'
@@ -62,6 +66,7 @@ import { normalizeAuthRedirect } from '@/shared/authRedirect'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import { useSiteIdentity } from '@/shared/siteIdentity'
 
+// 声明读者账号注册表单和处理状态变量
 const root = ref<HTMLElement | null>(null)
 const route = useRoute()
 const router = useRouter()
@@ -99,6 +104,8 @@ watch([() => form.username, () => form.password], () => {
   }
 })
 
+// 提交读者注册表单, 校验通过后向后端创建新用户, 注册成功后自动延时跳转登录页
+// 提交读者注册表单, 校验通过后向后端创建新用户, 注册成功后自动延时跳转登录页
 async function submitRegister() {
   clearRedirectTimer()
   isRedirecting.value = false
@@ -136,6 +143,8 @@ async function submitRegister() {
   }
 }
 
+// 对注册表单输入进行前台基础长度与合法性限制校验
+// 对注册表单输入进行前台基础长度与合法性限制校验
 function validateRegisterForm(username: string, password: string): string {
   if (!username) {
     return '请输入用户名'

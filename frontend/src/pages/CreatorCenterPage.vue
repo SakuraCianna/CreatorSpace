@@ -1,4 +1,7 @@
 <template>
+<!-- 创作者中心个人工作台 -->
+<!-- 创作者中心个人工作台 -->
+<!-- 创作者个人控制台工作台 -->
   <section ref="root" class="creator-page">
     <header class="creator-hero page-hero" data-reveal>
       <div>
@@ -262,6 +265,7 @@
 </template>
 
 <script setup lang="ts">
+// 导入 Composition API 与路由依赖
 import { computed, onMounted, reactive, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { BookOpen, FileImage, Images, Star } from '@lucide/vue'
@@ -298,6 +302,7 @@ import type {
   TagSummary,
 } from '@/shared/domain'
 
+// 初始化创作者工作台的响应式状态数据
 const root = ref<HTMLElement | null>(null)
 const route = useRoute()
 const notice = ref('')
@@ -357,6 +362,7 @@ onMounted(async () => {
   await Promise.all([loadBaseData(), loadArticles(), loadProjects(), loadFiles(), loadFavorites()])
 })
 
+// 异步加载后台分类列表和全部标签数据, 并进行多字段映射绑定
 async function loadBaseData() {
   try {
     const [articleCategoryList, tagList] = await Promise.all([fetchCategories('ARTICLE'), fetchTags()])
@@ -367,6 +373,7 @@ async function loadBaseData() {
   }
 }
 
+// 异步加载当前登录创作者本人的文章列表队列, 每次最多拉取前 50 条数据
 async function loadArticles() {
   try {
     articles.value = (await fetchCreatorArticles({ pageSize: 50 })).records
@@ -375,6 +382,7 @@ async function loadArticles() {
   }
 }
 
+// 异步加载当前登录创作者本人的创意作品列表, 限制一次最多返回 50 条
 async function loadProjects() {
   try {
     projects.value = (await fetchCreatorProjects({ pageSize: 50 })).records
@@ -383,6 +391,7 @@ async function loadProjects() {
   }
 }
 
+// 异步加载当前创作者已上传的文件资源素材队列, 便于插入文章或作为封面
 async function loadFiles() {
   try {
     files.value = (await fetchCreatorFiles({ pageSize: 50 })).records
@@ -391,6 +400,7 @@ async function loadFiles() {
   }
 }
 
+// 异步拉取当前登录读者的收藏历史记录列表, 发生异常时静默降级为空数组
 async function loadFavorites() {
   try {
     favorites.value = (await fetchMyFavorites()).records
@@ -399,6 +409,7 @@ async function loadFavorites() {
   }
 }
 
+// 保存当前正在编辑的文章草稿, 根据是否带有编辑 ID 决定是发起 PUT 还是 POST 请求
 async function saveArticle() {
   if (!articleForm.title.trim() || !articleForm.slug.trim() || !articleForm.contentMarkdown.trim()) {
     notice.value = '请填写文章标题、URL 标识和正文'
@@ -406,9 +417,11 @@ async function saveArticle() {
   }
   try {
     if (editingArticleId.value) {
+      // 执行 PUT 操作更新已有草稿
       await updateCreatorArticle(editingArticleId.value, { ...articleForm })
       notice.value = '文章草稿已保存'
     } else {
+      // 执行 POST 操作创建全新草稿
       await createCreatorArticle({ ...articleForm })
       notice.value = '文章草稿已创建'
     }
@@ -419,6 +432,7 @@ async function saveArticle() {
   }
 }
 
+// 获取创作者指定草稿的完整正文和配置参数, 并将反序列化后的字段绑定回输入表单
 async function editArticle(article: ArticleSummary) {
   try {
     const detail = await fetchCreatorArticle(article.id)
@@ -436,6 +450,7 @@ async function editArticle(article: ArticleSummary) {
   }
 }
 
+// 提交创作者草稿申请审核, 改变草稿状态为 PENDING_REVIEW 待管理员批复
 async function submitArticle(id: number) {
   try {
     await submitCreatorArticle(id)
@@ -446,6 +461,7 @@ async function submitArticle(id: number) {
   }
 }
 
+// 创作者物理删除自己未公开的草稿或被驳回的记录, 并重置当前表单输入框
 async function removeArticle(id: number) {
   try {
     await deleteCreatorArticle(id)
@@ -457,6 +473,7 @@ async function removeArticle(id: number) {
   }
 }
 
+// 清理表单响应式状态字段, 重置表单为新建的默认参数
 function resetArticleForm() {
   editingArticleId.value = null
   articleForm.title = ''
