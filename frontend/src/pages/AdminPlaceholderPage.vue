@@ -1011,8 +1011,8 @@ const activeSection = computed(() => route.params.section?.toString() || 'articl
 const siteIdentityMeta = computed(() => (
   identity.value.slogan ? `${identity.value.name} · ${identity.value.slogan}` : identity.value.name
 ))
-const moduleConfig = computed(() => {
-  const config = configs[activeSection.value] ?? configs.articles
+const moduleConfig = computed<ModuleConfig>(() => {
+  const config = (configs[activeSection.value] ?? configs.articles) as ModuleConfig
   if (activeSection.value !== 'settings') {
     return config
   }

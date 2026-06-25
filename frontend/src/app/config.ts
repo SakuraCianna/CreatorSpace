@@ -1,12 +1,9 @@
-// 读取数字配置并在无效时使用默认值
 // 解析数字类型的环境变量, 在解析失败或无效时返回安全默认值
 function readNumber(value: string | undefined, fallback: number): number {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
-// 规范化 API 基础地址
-// 格式化并去除 API 基础路径末尾的斜杠以保障请求路径的规整性
 // 格式化并去除 API 基础路径末尾的斜杠以保障请求路径 of 规整性
 function normalizeBaseUrl(value: string | undefined): string {
   if (!value) {

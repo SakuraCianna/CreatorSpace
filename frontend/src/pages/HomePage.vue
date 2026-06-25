@@ -305,7 +305,7 @@ function readNavigation(value: unknown): SiteConfig['navigation'] {
       }
       return { label, to, external: isExternalUrl(to) }
     })
-    .filter((item): item is SiteConfig['navigation'][number] => item !== null)
+    .filter((item): item is { label: string; to: string; external: boolean } => item !== null)
 }
 
 function readSocial(value: unknown): SiteConfig['social'] {
@@ -319,7 +319,7 @@ function readSocial(value: unknown): SiteConfig['social'] {
       }
       return { label, handle: socialHandle(href), href }
     })
-    .filter((item): item is SiteConfig['social'][number] => item !== null)
+    .filter((item): item is { label: string; handle: string; href: string } => item !== null)
 }
 
 function safeSocialHref(value: string): string {
@@ -1711,7 +1711,7 @@ const ThemeUniverse = defineComponent({
     }
 
     // 保存主题预览容器引用。
-    const setPreviewRef = (el: Element | null) => {
+    const setPreviewRef = (el: any) => {
       preview.value = el as HTMLElement | null
       const first = runtimeThemePresets.value.find((preset) => preset.id === activeId.value)
       if (first) {
