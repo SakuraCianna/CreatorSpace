@@ -1,6 +1,5 @@
 <template>
 <!-- 创作者中心个人工作台 -->
-<!-- 创作者中心个人工作台 -->
 <!-- 创作者个人控制台工作台 -->
   <section ref="root" class="creator-page">
     <header class="creator-hero page-hero" data-reveal>

@@ -89,7 +89,6 @@ export async function fetchArticles(keyword = '', tagId?: number): Promise<PageR
 
 // 按 URL 标识读取公开文章详情
 // 通过特定的 slug 标识符异步拉取指定文章的详细信息
-// 通过特定的 slug 标识符异步拉取指定文章的详细信息
 export async function fetchArticleBySlug(slug: string): Promise<ArticleSummary> {
   const response = await requestJson<ApiEnvelope<ArticleSummary>>(
     `/api/articles/slug/${encodeURIComponent(slug)}`,

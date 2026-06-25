@@ -6,7 +6,6 @@ import { USER_SUMMARY_KEY } from '@/shared/sessionStore'
 
 // 统一路由表配置
 // 统一路由表配置, 包含前端公共页面、后台管理页和创作者中心页签的路径分配与布局映射
-// 统一路由表配置, 包含前端公共页面、后台管理页和创作者中心页签的路径分配与布局映射
 const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -115,7 +114,6 @@ const router = createRouter({
 
 // 全局前置导航守卫进行角色和登录态鉴权
 // 全局前置导航守卫, 校验各路由页签的管理员和认证权限, 执行 Token 过期自动注销及非法访问重定向
-// 全局前置导航守卫, 校验各路由页签的管理员和认证权限, 执行 Token 过期自动注销及非法访问重定向
 router.beforeEach((to) => {
   const requiresAdmin = to.matched.some((record) => record.meta.requiresAdmin)
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
@@ -158,7 +156,6 @@ router.beforeEach((to) => {
   return true
 })
 
-// 从本地 LocalStorage 中安全提取当前登录用户的角色数组
 // 从本地 LocalStorage 中安全提取当前登录用户的角色数组
 function readStoredRoles(): string[] {
   try {

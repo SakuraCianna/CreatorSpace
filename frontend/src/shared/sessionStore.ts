@@ -7,7 +7,6 @@ import type { UserSummary } from '@/shared/domain'
 export const USER_SUMMARY_KEY = 'creatorspace.currentUser'
 
 // 读者和管理员会话状态仓储, 保存凭证 Token 与简要画像并同步到 localStorage 缓存中
-// 读者和管理员会话状态仓储, 保存凭证 Token 与简要画像并同步到 localStorage 缓存中
 export const useSessionStore = defineStore('session', () => {
   const currentUser = ref<UserSummary | null>(readStoredUser())
   const accessToken = ref(window.localStorage.getItem(ACCESS_TOKEN_KEY) ?? '')

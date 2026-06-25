@@ -1,6 +1,5 @@
 <template>
 <!-- 前台文章归档列表检索页 -->
-<!-- 前台文章归档列表检索页 -->
 <!-- 公开文章归档与检索引导页面 -->
   <section ref="root" class="archive-page">
     <header class="archive-hero page-hero page-hero--articles" data-reveal>
@@ -163,7 +162,6 @@ const featuredArticle = computed(() => visibleArticles.value[0] ?? null)
 const regularArticles = computed(() => visibleArticles.value.slice(1))
 
 // 点击标签卡片切换当前激活 of 过滤分类节点, 并触发列表重载与滚屏复位
-// 点击标签卡片切换当前激活 of 过滤分类节点, 并触发列表重载与滚屏复位
 function selectTag(tagId: number | null) {
   activeTagId.value = tagId
   if (tagId !== null) {
@@ -172,7 +170,6 @@ function selectTag(tagId: number | null) {
   loadArticles()
 }
 
-// 向后端异步请求拉取当前分类标签或关键词匹配的公开文章归档列表数据
 // 向后端异步请求拉取当前分类标签或关键词匹配的公开文章归档列表数据
 async function loadArticles() {
   isLoading.value = true

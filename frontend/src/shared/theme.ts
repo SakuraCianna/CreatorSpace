@@ -37,7 +37,6 @@ export interface AppliedThemeSnapshot {
 
 // 将后台配置的主题映射到前台 CSS 变量, 未知配置项不写入 DOM
 // 全局解析主题快照, 将色彩、字体、间距和圆角样式动态注入到 HTML 根 DOM 中以重新渲染整站皮肤
-// 全局解析主题快照, 将色彩、字体、间距和圆角样式动态注入到 HTML 根 DOM 中以重新渲染整站皮肤
 export function applyThemeConfig(theme: ThemeConfig | null): AppliedThemeSnapshot | null {
   const root = document.documentElement
   root.removeAttribute('data-theme-layout')

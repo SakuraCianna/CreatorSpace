@@ -1,6 +1,5 @@
 <template>
 <!-- 内容管理规则与发布协议页 -->
-<!-- 内容管理规则与发布协议页 -->
 <!-- 确认的业务规则列表页面 -->
   <section ref="root" class="rules-page">
     <header class="module-hero" data-reveal>
@@ -31,7 +30,6 @@ import { usePageReveal } from '@/shared/composables/usePageReveal'
 // 声明根节点引用以执行入场动效
 const root = ref<HTMLElement | null>(null)
 
-// 触发电影式页面入场显影动效
 // 触发电影式页面入场显影动效
 usePageReveal(root)
 

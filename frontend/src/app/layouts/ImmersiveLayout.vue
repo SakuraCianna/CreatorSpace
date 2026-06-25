@@ -1,9 +1,7 @@
 <template>
 <!-- 沉浸式无边框排版布局 -->
-<!-- 沉浸式无边框排版布局 -->
 <!-- 沉浸式布局外壳容器 -->
   <div class="cs-shell">
-    <!-- 顶部固定透明导航条 -->
     <!-- 顶部固定透明导航条 -->
     <nav class="cs-nav" aria-label="主导航">
       <RouterLink to="/" class="cs-nav__brand">
@@ -37,7 +35,6 @@ interface ImmersiveNavItem {
 }
 
 // 获取站点名称并声明导航菜单项
-// 获取全局配置中的站点名称并声明导航菜单项
 // 获取全局配置中的站点名称并声明导航菜单项
 const { siteName } = useSiteIdentity({ load: false })
 const immersiveNavItems: ImmersiveNavItem[] = [

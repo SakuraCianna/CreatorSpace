@@ -1,6 +1,5 @@
 <template>
 <!-- 预览模式下方常驻主题 HUD 指示栏与 JSON 面板 -->
-<!-- 预览模式下方常驻主题 HUD 指示栏与 JSON 面板 -->
   <!-- 将 HUD 状态栏与配置窗口渲染挂载到 body 根元素下 -->
   <Teleport to="body">
     <!-- 主题预览底部指示栏的淡入淡出动画过渡 -->
@@ -89,7 +88,6 @@ const copyBtnText = ref('复制配置')
 
 // 动态计算并返回当前布局密度所对应的中文标签
 // 计算布局密度的中文标签
-// 计算布局密度的中文标签
 const densityLabel = computed(() => {
   const density = previewTheme.value?.config?.density
   if (density === 'compact') return '紧凑'
@@ -99,7 +97,6 @@ const densityLabel = computed(() => {
 })
 
 // 动态计算并返回当前动效强度所对应的中文标签
-// 计算动效程度的中文标签
 // 计算动效程度的中文标签
 const motionLabel = computed(() => {
   const motion = previewTheme.value?.config?.motion

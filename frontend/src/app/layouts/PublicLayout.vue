@@ -1,6 +1,5 @@
 <template>
 <!-- 前台公共浏览页面布局外壳 -->
-<!-- 前台公共浏览页面布局外壳 -->
   <div class="public-shell">
     <div ref="sceneHost" class="frontstage-webgl" aria-hidden="true" />
     <div class="public-frame" aria-hidden="true">
@@ -10,11 +9,9 @@
       <span class="public-frame__line public-frame__line--left" />
     </div>
     <!-- 顶端垂直滚动进度指示条 -->
-    <!-- 顶端垂直滚动进度指示条 -->
     <div class="scroll-rail" aria-hidden="true">
       <span :style="{ transform: `scaleY(${scrollProgress})` }" />
     </div>
-    <!-- 响应式前台头部导航栏 -->
     <!-- 响应式前台头部导航栏 -->
     <header class="public-header">
       <RouterLink class="brand" to="/" :aria-label="`返回 ${siteName} 首页`">
@@ -157,7 +154,6 @@ const navItems = ref<PublicNavItem[]>(withRequiredPublicEntries([]))
 
 // 页面加载时初始化氛围背景和滚动进度计算
 // 页面加载时初始化 WebGL 氛围背景粒子和滚动进度计算监听器
-// 页面加载时初始化 WebGL 氛围背景粒子和滚动进度计算监听器
 onMounted(() => {
   mountFrontstageScene()
   requestScrollProgressUpdate()
@@ -202,7 +198,6 @@ watch(
 )
 
 // 使用 rAF 节流机制实时计算当前页面垂直滚动的进度比例, 渲染顶端阅读进度指示条
-// 使用 rAF 节流机制实时计算当前页面垂直滚动的进度比例, 渲染顶端阅读进度指示条
 function requestScrollProgressUpdate() {
   if (progressRaf) {
     return
@@ -216,7 +211,6 @@ function requestScrollProgressUpdate() {
 }
 
 // 动态按需加载 WebGL 氛围粒子层场景
-// 动态按需加载 WebGL 氛围粒子层场景, 并注册鼠标移动和页面可见性切换的监听器
 // 动态按需加载 WebGL 氛围粒子层场景, 并注册鼠标移动和页面可见性切换的监听器
 async function mountFrontstageScene() {
   const host = sceneHost.value
@@ -241,7 +235,6 @@ async function mountFrontstageScene() {
 }
 
 // 将鼠标在视口中的绝对坐标映射为 -1 到 1 的标准化 3D 空间坐标以投递给粒子系统
-// 将鼠标在视口中的绝对坐标映射为 -1 到 1 的标准化 3D 空间坐标以投递给粒子系统
 function handlePointerMove(event: PointerEvent) {
   const nx = (event.clientX / window.innerWidth) * 2 - 1
   const ny = -((event.clientY / window.innerHeight) * 2 - 1)
@@ -249,12 +242,10 @@ function handlePointerMove(event: PointerEvent) {
 }
 
 // 当标签页切到后台或标签隐藏时暂停 WebGL 渲染循环, 以节省显卡功耗
-// 当标签页切到后台或标签隐藏时暂停 WebGL 渲染循环, 以节省显卡功耗
 function handleVisibilityChange() {
   setScenePaused?.(document.visibilityState !== 'visible')
 }
 
-// 创建临时 canvas 上下文校验当前运行浏览器是否支持 WebGL 渲染
 // 创建临时 canvas 上下文校验当前运行浏览器是否支持 WebGL 渲染
 function hasWebGL(): boolean {
   const canvas = document.createElement('canvas')

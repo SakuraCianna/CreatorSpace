@@ -1,6 +1,5 @@
 <template>
 <!-- 文章详情长文阅读页面 -->
-<!-- 文章详情长文阅读页面 -->
 <!-- 文章详情浏览排版布局 -->
   <section ref="root" class="detail-page">
     <RouterLink class="detail-back text-link" :to="{ name: 'articles' }" data-reveal>
@@ -19,7 +18,6 @@
           <h1>{{ article.title }}</h1>
           <p v-if="article.summary" class="detail-summary">{{ article.summary }}</p>
           <!-- 文章标题区与作者元信息 -->
-            <!-- 文章标题区与作者元信息 -->
             <div class="detail-meta">
             <span><CalendarDays :size="15" />{{ formatDate(article.publishTime) }}</span>
             <span><Eye :size="15" />公开阅读</span>
@@ -196,7 +194,6 @@ const articleCoverStyle = computed(() => ({
 }))
 
 // 依据路由 slug 标识读取文章全量详情数据, 渲染完成后加载关联评论并播放电影式页面入场显影动效
-// 依据路由 slug 标识读取文章全量详情数据, 渲染完成后加载关联评论并播放电影式页面入场显影动效
 async function loadArticle() {
   if (!slug.value) {
     article.value = null
@@ -222,7 +219,6 @@ async function loadArticle() {
 }
 
 // 向后端异步获取针对本文章审核通过的已公开评论反馈列表
-// 向后端异步获取针对本文章审核通过的已公开评论反馈列表
 async function loadComments(options: { keepCurrentNotice?: boolean } = {}) {
   if (!article.value?.id) {
     comments.value = []
@@ -242,7 +238,6 @@ async function loadComments(options: { keepCurrentNotice?: boolean } = {}) {
   }
 }
 
-// 提交用户对本文章的观点评论或指定楼层的回复, 校验完成后清空输入框并刷新评论流列表
 // 提交用户对本文章的观点评论或指定楼层的回复, 校验完成后清空输入框并刷新评论流列表
 async function postComment() {
   if (!canComment.value) {
@@ -270,7 +265,6 @@ async function postComment() {
 }
 
 // 切换当前用户对该文章的点赞状态, 实现即时喜欢与取消喜欢
-// 切换当前用户对该文章的点赞状态, 实现即时喜欢与取消喜欢
 async function toggleLike() {
   if (!article.value?.id || !canComment.value) return
   try {
@@ -286,7 +280,6 @@ async function toggleLike() {
   }
 }
 
-// 切换当前用户对该文章的收藏状态, 实现即时收藏与取消收藏
 // 切换当前用户对该文章的收藏状态, 实现即时收藏与取消收藏
 async function toggleFavorite() {
   if (!article.value?.id || !canComment.value) return

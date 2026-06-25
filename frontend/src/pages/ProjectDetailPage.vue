@@ -1,6 +1,5 @@
 <template>
 <!-- 作品详情页面布局外壳 -->
-<!-- 作品详情页面布局外壳 -->
 <!-- 作品详情页排版布局 -->
   <section ref="root" class="detail-page">
     <RouterLink class="detail-back text-link" :to="{ name: 'projects' }" data-reveal>
@@ -39,7 +38,6 @@
           <span><MessageCircle :size="16" />{{ formatCount(project.commentCount) }} 评论</span>
         </section>
 
-        <!-- 技术栈展示区块 -->
         <!-- 技术栈展示区块 -->
         <section class="project-stack" aria-label="技术栈">
           <span v-for="tech in project.techStack" :key="tech">{{ tech }}</span>
@@ -117,7 +115,6 @@
         <div class="markdown-body" v-html="htmlContent" />
       </article>
 
-      <!-- 3D 交互侧栏控制面板 -->
       <!-- 3D 交互侧栏控制面板 -->
       <aside class="process-panel" data-reveal>
         <section class="side-card">
@@ -286,8 +283,6 @@ const cinematic = useCinematicPageMotion(root)
 usePageReveal(root)
 
 // 检查用户是否具备发表评论和互动的权限, 即本地缓存中是否存在有效的访问令牌
-// 检查用户是否具备发表评论和互动的权限, 即本地缓存中是否存在有效的访问令牌
-// 检查用户是否具备发表评论和互动的权限, 即本地缓存中是否存在有效的访问令牌
 const canComment = computed(() => Boolean(session.accessToken))
 
 // 将作品的 Markdown 描述正文或简介通过 DOMPurify 净化转译为安全的 HTML 结构以防 XSS 攻击
@@ -302,8 +297,6 @@ const safeGithubUrl = computed(() => safeExternalUrl(project.value?.githubUrl))
 // 过滤并规范化视频记录地址链接, 确保视频展位数据来源合法
 const safeVideoUrl = computed(() => safeExternalUrl(project.value?.videoUrl))
 
-// 动态生成作品详情页的主题封面样式, 提取作品首个标签颜色作为主调色, 并映射封面图到 CSS 变量
-// 动态生成作品详情页的主题封面样式, 提取作品首个标签颜色作为主调色, 并映射封面图到 CSS 变量
 // 动态生成作品详情页的主题封面样式, 提取作品首个标签颜色作为主调色, 并映射封面图到 CSS 变量
 const projectCoverStyle = computed(() => ({
   '--detail-accent': project.value?.tags[0]?.color ?? '#6d3fd2',

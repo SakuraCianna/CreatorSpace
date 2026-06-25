@@ -1,7 +1,5 @@
 <template>
 <!-- 作品展厅前台列表与多维检索页面 -->
-<!-- 作品展厅前台列表与多维检索页面 -->
-<!-- 作品展厅前台列表与多维检索页面 -->
   <section ref="root" class="projects-page">
     <header class="projects-hero page-hero" data-reveal>
       <div class="hero-copy">
@@ -157,7 +155,6 @@ const featuredProject = computed(() => filteredProjects.value[0] ?? null)
 const visibleProjects = computed(() => filteredProjects.value.slice(featuredProject.value ? 1 : 0))
 
 // 向后端发起 API 查询请求拉取所有公开作品列表
-// 向后端发起 API 查询请求拉取所有公开作品列表
 async function loadProjects() {
   isLoading.value = true
   notice.value = ''
@@ -187,7 +184,6 @@ function projectSort(left: ProjectSummary, right: ProjectSummary): number {
 }
 
 // 依据作品是否为推荐状态以及各项浏览、点赞、收藏、评论次数加权计算出它的热度权重评分
-// 依据作品是否为推荐状态以及各项浏览、点赞、收藏、评论次数加权计算出它的热度权重评分
 function scoreProject(project: ProjectSummary): number {
   return (project.recommended ? 1000 : 0)
     + (project.viewCount ?? 0)
@@ -205,7 +201,6 @@ function projectCoverStyle(project: ProjectSummary, index: number) {
 }
 
 // 计算指针在卡片内所处的坐标比例, 动态调整 CSS 变形变量以渲染 3D 悬浮倾斜动效
-// 计算指针在卡片内所处的坐标比例, 动态调整 CSS 变形变量以渲染 3D 悬浮倾斜动效
 function tiltCard(event: PointerEvent) {
   const card = event.currentTarget as HTMLElement
   const rect = card.getBoundingClientRect()
@@ -215,7 +210,6 @@ function tiltCard(event: PointerEvent) {
   card.style.setProperty('--tilt-y', `${x * 5}deg`)
 }
 
-// 指针移出作品卡片时复位 3D 倾斜变形变量
 // 指针移出作品卡片时复位 3D 倾斜变形变量
 function resetTilt(event: PointerEvent) {
   const card = event.currentTarget as HTMLElement

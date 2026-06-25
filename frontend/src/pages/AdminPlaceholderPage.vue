@@ -1,6 +1,5 @@
 <template>
 <!-- 后台管理表格占位框架面 -->
-<!-- 后台管理表格占位框架面 -->
 <!-- 后台各项业务管理的整合看板组件 -->
   <section ref="root" class="admin-module">
     <header class="module-hero" data-reveal>
@@ -1133,7 +1132,6 @@ watch(activeSection, () => {
 onMounted(loadActiveModule)
 
 // 依据侧边栏激活的子页签模块类型, 动态分流调用对应的子模块列表和过滤器加载方法
-// 依据侧边栏激活的子页签模块类型, 动态分流调用对应的子模块列表和过滤器加载方法
 async function loadActiveModule() {
   if (activeSection.value === 'articles') {
     await loadArticles()
@@ -1164,7 +1162,6 @@ async function ensureTaxonomies() {
 }
 
 // 异步拉取后台文章管理列表, 支持按状态筛选和关键词匹配
-// 异步拉取后台文章管理列表, 支持按状态筛选和关键词匹配
 async function loadArticles() {
   try {
     await ensureTaxonomies()
@@ -1179,7 +1176,6 @@ async function loadArticles() {
   }
 }
 
-// 提交或更新文章草稿, 根据是否存在编辑中 ID 执行 PUT 或 POST 接口更新并刷新文章队列
 // 提交或更新文章草稿, 根据是否存在编辑中 ID 执行 PUT 或 POST 接口更新并刷新文章队列
 async function saveArticle() {
   if (!articleForm.title.trim() || !articleForm.slug.trim() || !articleForm.contentMarkdown.trim()) {

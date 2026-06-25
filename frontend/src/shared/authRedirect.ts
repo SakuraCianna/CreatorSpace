@@ -2,7 +2,6 @@ const FALLBACK_PUBLIC_PATH = '/articles'
 
 // 过滤并规范化登录成功后的重定向路径, 保障安全性
 // 校验登录重定向地址参数是否安全, 避开非斜杠开头的第三方钓鱼 URL
-// 校验登录重定向地址参数是否安全, 避开非斜杠开头的第三方钓鱼 URL
 export function normalizeAuthRedirect(value: unknown, fallback = FALLBACK_PUBLIC_PATH): string {
   const redirect = readFirstQueryValue(value).trim()
   if (!isSafeInternalPath(redirect) || isAuthPagePath(redirect)) {
@@ -22,7 +21,6 @@ function readFirstQueryValue(value: unknown): string {
   return typeof value === 'string' ? value : ''
 }
 
-// 判断重定向路由是否为站点内部合规路径
 // 判断重定向路由是否为站点内部合规路径
 function isSafeInternalPath(path: string): boolean {
   return path.startsWith('/') && !path.startsWith('// ')

@@ -1,6 +1,5 @@
 <template>
 <!-- 全站全文检索结果页面 -->
-<!-- 全站全文检索结果页面 -->
 <!-- 站内多维检索页面 -->
   <section ref="root" class="search-page">
     <header class="archive-hero page-hero page-hero--search" data-reveal>
@@ -97,7 +96,6 @@ const typeOptions: Array<{ label: string; value: SearchResultType | '' }> = [
 ]
 
 // 发起站内多维全文搜索, 覆盖文章、作品和灵感等多类型, 支持相关度、时间及流行度排序
-// 发起站内多维全文搜索, 覆盖文章、作品和灵感等多类型, 支持相关度、时间及流行度排序
 async function runSearch() {
   const value = keyword.value.trim()
   if (!value) {
@@ -130,7 +128,6 @@ function rerunIfSearched() {
   }
 }
 
-// 根据搜索结果的目标类型构建对应的路由跳转信息
 // 根据搜索结果的目标类型构建对应的路由跳转信息
 function resultTarget(result: SearchResult): RouteLocationRaw {
   if (result.type === 'ARTICLE') {

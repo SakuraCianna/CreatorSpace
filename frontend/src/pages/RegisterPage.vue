@@ -1,6 +1,5 @@
 <template>
 <!-- 读者注册表单页面 -->
-<!-- 读者注册表单页面 -->
 <!-- 读者用户账号注册页面 -->
   <section ref="root" class="auth-page auth-page--material">
     <form class="auth-card auth-card--material" data-reveal @submit.prevent="submitRegister">
@@ -105,7 +104,6 @@ watch([() => form.username, () => form.password], () => {
 })
 
 // 提交读者注册表单, 校验通过后向后端创建新用户, 注册成功后自动延时跳转登录页
-// 提交读者注册表单, 校验通过后向后端创建新用户, 注册成功后自动延时跳转登录页
 async function submitRegister() {
   clearRedirectTimer()
   isRedirecting.value = false
@@ -143,7 +141,6 @@ async function submitRegister() {
   }
 }
 
-// 对注册表单输入进行前台基础长度与合法性限制校验
 // 对注册表单输入进行前台基础长度与合法性限制校验
 function validateRegisterForm(username: string, password: string): string {
   if (!username) {

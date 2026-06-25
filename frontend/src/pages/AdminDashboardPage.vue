@@ -1,8 +1,6 @@
 <template>
 <!-- 后台指标数据概览面板 -->
-<!-- 后台指标数据概览面板 -->
   <section ref="root" class="admin-dashboard">
-    <!-- 核心数据度量网格 -->
     <!-- 核心数据度量网格 -->
     <div class="dashboard-grid">
       <article v-for="metric in overview.metrics" :key="metric.label" class="metric-card" data-reveal>
@@ -21,7 +19,6 @@
           </div>
           <span>访问 {{ totalPv }} 次 · 搜索 {{ totalSearch }} 次</span>
         </div>
-        <!-- 近七日流量与搜索趋势图表卡片 -->
         <!-- 近七日流量与搜索趋势图表卡片 -->
         <div ref="visitChartRef" class="visit-chart" aria-label="近七日访问与搜索趋势图" />
       </div>
@@ -149,7 +146,6 @@ const totalSearch = computed(() => overview.value.searchTrend.reduce((sum, item)
 
 // 获取并渲染后台概览统计数据
 // 向后端发起 API 请求获取总计访问、热门文章和热门作品等核心度量概览数据, 并渲染 ECharts 趋势图
-// 向后端发起 API 请求获取总计访问、热门文章和热门作品等核心度量概览数据, 并渲染 ECharts 趋势图
 async function loadOverview() {
   notice.value = ''
   try {
@@ -175,7 +171,6 @@ function formatDay(value: string) {
 }
 
 // 使用 ECharts 配置并绘制访问和搜索趋势柱状图
-// 初始化并实例化 ECharts 图表, 绘制过去 7 日内的全站浏览量与搜索量的柱状趋势对比图
 // 初始化并实例化 ECharts 图表, 绘制过去 7 日内的全站浏览量与搜索量的柱状趋势对比图
 function renderVisitChart() {
   if (!visitChartRef.value) {
