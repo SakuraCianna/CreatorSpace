@@ -710,8 +710,8 @@ function readError(error: unknown, fallback: string) {
 .creator-grid {
   display: grid;
   grid-template-columns: minmax(0, 0.92fr) minmax(360px, 1.08fr);
-  gap: 16px;
   align-items: start;
+  gap: 16px;
 }
 
 .creator-panel {
@@ -730,6 +730,7 @@ function readError(error: unknown, fallback: string) {
 
 .creator-form {
   display: grid;
+  align-content: start;
   gap: 14px;
 }
 
@@ -813,6 +814,12 @@ function readError(error: unknown, fallback: string) {
     100% 100%;
   background-repeat: no-repeat;
   cursor: pointer;
+}
+
+.creator-form select option {
+  background: #fff;
+  color: var(--tone-strong);
+  font-size: 14px;
 }
 
 .creator-form input[type="file"] {

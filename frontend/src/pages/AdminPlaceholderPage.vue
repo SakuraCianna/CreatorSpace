@@ -2196,6 +2196,7 @@ const configs: Record<string, ModuleConfig> = {
 .workspace-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
+  align-items: start;
   gap: 12px;
   margin-top: 12px;
 }

@@ -245,6 +245,7 @@ function moduleLabel(module: CategorySummary['module']) {
 .cms-grid {
   display: grid;
   grid-template-columns: minmax(300px, 0.7fr) minmax(0, 1fr);
+  align-items: start;
   gap: 14px;
 }
 
@@ -268,6 +269,12 @@ function moduleLabel(module: CategorySummary['module']) {
   .cms-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+}
+
+@media (max-width: 640px) {
+  .cms-grid {
+    gap: 12px;
   }
 }
 </style>

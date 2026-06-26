@@ -469,7 +469,7 @@ button.mobile-auth-action {
   width: min(1200px, calc(100vw - 40px));
   margin: 0 auto;
 }
-@media (max-width: 760px) {
+@media (max-width: 1040px) {
   .public-header {
     grid-template-columns: auto auto;
   }
@@ -512,6 +512,12 @@ button.mobile-auth-action {
   .public-nav.is-open .mobile-auth-action--filled {
     background: var(--md-sys-color-primary);
     color: var(--md-sys-color-on-primary);
+  }
+}
+
+@media (max-width: 760px) {
+  .public-nav.is-open {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

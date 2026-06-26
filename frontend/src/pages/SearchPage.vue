@@ -329,13 +329,47 @@ function fallbackDescription(result: SearchResult) {
 }
 
 .search-controls select {
+  appearance: none;
   min-height: 40px;
+  padding: 0 38px 0 12px;
   border: 1px solid var(--tone-line);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.82);
+  background:
+    linear-gradient(45deg, transparent 50%, #315bff 50%),
+    linear-gradient(135deg, #315bff 50%, transparent 50%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(246, 248, 255, 0.9));
+  background-position:
+    calc(100% - 18px) 50%,
+    calc(100% - 13px) 50%,
+    0 0;
+  background-size:
+    5px 5px,
+    5px 5px,
+    100% 100%;
+  background-repeat: no-repeat;
   color: var(--tone-ink);
   font: inherit;
-  padding: 0 12px;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
+}
+
+.search-controls select:hover {
+  border-color: rgba(49, 91, 255, 0.28);
+}
+
+.search-controls select:focus {
+  border-color: rgba(49, 91, 255, 0.48);
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(49, 91, 255, 0.1);
+}
+
+.search-controls select option {
+  background: #fff;
+  color: var(--tone-ink);
+  font-size: 14px;
 }
 
 .search-page,

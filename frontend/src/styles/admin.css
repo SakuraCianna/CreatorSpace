@@ -46,6 +46,11 @@
   gap: 12px;
 }
 
+.admin-shell .admin-form,
+.admin-shell .form-panel {
+  align-content: start;
+}
+
 .admin-shell .admin-form label,
 .admin-shell .comment-form {
   display: grid;
@@ -129,6 +134,14 @@
     100% 100%;
   background-repeat: no-repeat;
   cursor: pointer;
+}
+
+.admin-shell .admin-form select option,
+.admin-shell .filter-bar select option,
+.admin-shell .form-panel select option {
+  background: #fff;
+  color: var(--admin-ink);
+  font-size: 14px;
 }
 
 .admin-shell .admin-form input[type="file"],
