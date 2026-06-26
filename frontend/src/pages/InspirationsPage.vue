@@ -168,6 +168,7 @@ import { fetchAdminInspirations, fetchInspirations } from '@/services/content'
 import { toUserMessage } from '@/services/http'
 import { useCinematicPageMotion } from '@/shared/composables/useCinematicPageMotion'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
+import { formatMonthDay } from '@/shared/datetime'
 import { useSessionStore } from '@/shared/sessionStore'
 import type { InspirationCard, InspirationRelation, InspirationType } from '@/shared/domain'
 
@@ -384,8 +385,7 @@ function safeSource(value?: string | null): string {
 }
 
 function formatDate(value?: string | null): string {
-  if (!value) return ''
-  return new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit' }).format(new Date(value))
+  return formatMonthDay(value, '')
 }
 
 onMounted(loadInspirations)
@@ -543,8 +543,8 @@ onMounted(loadInspirations)
 .topic-chip.is-active,
 .topic-chip:hover {
   border-color: rgba(49, 91, 255, 0.36);
-  background: rgba(49, 91, 255, 0.1);
-  color: var(--tone-ink);
+  background: #e8efff;
+  color: #174ea6;
 }
 
 .featured-inspiration,

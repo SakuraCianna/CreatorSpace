@@ -253,7 +253,7 @@
       <article v-for="favorite in favorites" :key="favorite.id" class="desk-row">
         <div>
           <strong>{{ favorite.targetType }} #{{ favorite.targetId }}</strong>
-          <span>{{ favorite.createdAt ?? '刚刚' }}</span>
+          <span>{{ formatDateTimeToSecond(favorite.createdAt, '刚刚') }}</span>
         </div>
       </article>
       <p v-if="favorites.length === 0" class="muted-line">还没有收藏内容。</p>
@@ -290,6 +290,7 @@ import {
 } from '@/services/content'
 import { toUserMessage } from '@/services/http'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
+import { formatDateTimeToSecond } from '@/shared/datetime'
 import type {
   ArticlePayload,
   ArticleSummary,

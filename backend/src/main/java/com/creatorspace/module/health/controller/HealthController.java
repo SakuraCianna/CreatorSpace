@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 
 /**
@@ -21,7 +22,7 @@ public class HealthController {
         return ApiResponse.ok(Map.of(
                 "application", "CreatorSpace",
                 "status", "UP",
-                "timestamp", OffsetDateTime.now().toString()
+                "timestamp", OffsetDateTime.now().truncatedTo(ChronoUnit.SECONDS).toString()
         ));
     }
 }

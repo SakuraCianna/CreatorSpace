@@ -170,9 +170,9 @@ public class DashboardController {
     // 最近后台操作。
     private List<ActivityVO> recentActivities() {
         return jdbcTemplate.query("""
-                        select operation, module, created_at::text as created_at
+                        select operation, module, to_char(created_at, 'YYYY-MM-DD HH24:MI:SS') as created_at
                         from operation_logs
-                        order by created_at desc
+                        order by created_at desc, id desc
                         limit 8
                         """,
                 (rs, rowNum) -> new ActivityVO(

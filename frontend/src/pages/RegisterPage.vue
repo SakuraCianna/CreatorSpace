@@ -247,6 +247,12 @@ function readRegisterRedirectPath() {
   font: inherit;
   font-weight: 760;
   cursor: pointer;
+  transition: background 180ms ease, color 180ms ease;
+}
+
+.auth-mode-switch button:hover {
+  background: #e8efff;
+  color: #174ea6;
 }
 
 .auth-mode-switch button.is-active {

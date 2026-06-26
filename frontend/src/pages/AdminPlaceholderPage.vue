@@ -303,7 +303,7 @@
         <article v-for="card in inspirations" :key="card.id" class="table-row table-row--rich">
           <div>
             <strong>{{ card.title }}</strong>
-            <span>{{ inspirationTypeLabel(card.cardType) }} · {{ card.isPublic ? '公开' : '私密' }} · {{ card.createdAt ?? '未记录时间' }}</span>
+            <span>{{ inspirationTypeLabel(card.cardType) }} · {{ card.isPublic ? '公开' : '私密' }} · {{ formatDateTimeToSecond(card.createdAt) }}</span>
           </div>
           <div class="row-actions">
             <button class="icon-text-button" type="button" @click="editInspiration(card)">编辑</button>
@@ -337,7 +337,7 @@
         <article v-for="comment in comments" :key="comment.id" class="table-row table-row--rich">
           <div>
             <strong>{{ comment.username }}: {{ comment.content }}</strong>
-            <span>{{ targetTypeLabel(comment.targetType) }} #{{ comment.targetId }} · {{ comment.createdAt ?? '未记录时间' }}</span>
+            <span>{{ targetTypeLabel(comment.targetType) }} #{{ comment.targetId }} · {{ formatDateTimeToSecond(comment.createdAt) }}</span>
           </div>
           <div class="row-actions">
             <span class="status-chip">{{ reviewStatusLabel(comment.status) }}</span>
@@ -378,7 +378,7 @@
         <article v-for="entry in guestbookEntries" :key="entry.id" class="table-row table-row--rich">
           <div>
             <strong>{{ entry.displayName }}: {{ entry.content }}</strong>
-            <span>{{ entry.createdAt ?? '未记录时间' }} · {{ entry.likeCount }} 赞</span>
+            <span>{{ formatDateTimeToSecond(entry.createdAt) }} · {{ entry.likeCount }} 赞</span>
           </div>
           <div class="row-actions">
             <span class="status-chip">{{ reviewStatusLabel(entry.status) }}</span>
@@ -854,6 +854,7 @@ import {
 } from '@/services/content'
 import { toUserMessage } from '@/services/http'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
+import { formatDateTimeToSecond } from '@/shared/datetime'
 import type {
   AdminThemeConfig,
   ArticlePayload,
@@ -2154,7 +2155,7 @@ const configs: Record<string, ModuleConfig> = {
 .module-hero h2 {
   max-width: 830px;
   margin: 0;
-  color: var(--tone-ink);
+  color: var(--admin-ink);
   font-size: 32px;
   font-weight: 860;
   line-height: 1.16;
@@ -2176,10 +2177,12 @@ const configs: Record<string, ModuleConfig> = {
 
 .workspace-panel,
 .metric-card {
-  border: 1px solid var(--tone-line);
+  border: 1px solid var(--admin-line);
   border-radius: var(--app-radius-sm);
-  background: var(--tone-panel);
-  box-shadow: var(--tone-shadow);
+  background:
+    linear-gradient(180deg, var(--admin-panel), var(--admin-panel-soft));
+  color: var(--admin-ink);
+  box-shadow: var(--admin-shadow);
   backdrop-filter: blur(18px);
 }
 
@@ -2198,13 +2201,14 @@ const configs: Record<string, ModuleConfig> = {
 .metric-card p,
 .panel-title span,
 .table-row span {
-  color: var(--tone-muted);
+  color: var(--admin-muted);
   font-size: 13px;
 }
 
 .metric-card strong {
   display: block;
   margin-top: 18px;
+  color: var(--admin-ink);
   font-size: 36px;
   line-height: 1;
 }
@@ -2242,10 +2246,10 @@ const configs: Record<string, ModuleConfig> = {
 .filter-bar select,
 .comment-form textarea {
   width: 100%;
-  border: 1px solid rgba(17, 24, 39, 0.12);
+  border: 1px solid rgba(17, 24, 39, 0.16);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.86);
-  color: var(--tone-strong);
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--admin-ink);
   font: inherit;
 }
 
@@ -2310,7 +2314,7 @@ const configs: Record<string, ModuleConfig> = {
 
 .settings-section-heading h3 {
   margin: 0;
-  color: var(--tone-ink);
+  color: var(--admin-ink);
   font-size: 15px;
   font-weight: 860;
 }
@@ -2321,7 +2325,7 @@ const configs: Record<string, ModuleConfig> = {
   padding: 14px;
   border: 1px solid rgba(17, 24, 39, 0.1);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.64);
+  background: rgba(255, 255, 255, 0.9);
 }
 
 .settings-card-title strong {
@@ -2335,7 +2339,7 @@ const configs: Record<string, ModuleConfig> = {
 
 .settings-check {
   justify-content: flex-start;
-  color: var(--tone-muted);
+  color: #344154;
   font-size: 13px;
   font-weight: 760;
 }
@@ -2387,8 +2391,8 @@ const configs: Record<string, ModuleConfig> = {
   padding: 6px 10px;
   border: 1px solid var(--tone-line);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.58);
-  color: var(--tone-muted);
+  background: rgba(255, 255, 255, 0.9);
+  color: #344154;
   font-size: 12px;
   font-weight: 760;
 }
@@ -2415,6 +2419,7 @@ const configs: Record<string, ModuleConfig> = {
 
 .panel-title h2 {
   margin: 0;
+  color: var(--admin-ink);
   font-size: 18px;
 }
 
@@ -2425,7 +2430,8 @@ const configs: Record<string, ModuleConfig> = {
   gap: 12px;
   padding: 12px;
   border-radius: 8px;
-  background: rgba(20, 21, 29, 0.04);
+  background: var(--admin-panel-soft);
+  color: var(--admin-ink);
 }
 
 .table-row + .table-row {
@@ -2454,17 +2460,20 @@ const configs: Record<string, ModuleConfig> = {
   min-height: 28px;
   padding: 0 10px;
   border-radius: 999px;
-  background: rgba(49, 91, 255, 0.12);
-  color: #172554;
+  background: var(--admin-primary-soft);
+  color: #173b87;
   font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
 }
 
 .icon-text-button {
+  min-height: 30px;
+  padding: 0 10px;
   border: 0;
+  border-radius: 999px;
   background: transparent;
-  color: #315bff;
+  color: var(--admin-primary);
   font: inherit;
   font-size: 13px;
   font-weight: 800;
@@ -2472,8 +2481,18 @@ const configs: Record<string, ModuleConfig> = {
   cursor: pointer;
 }
 
+.icon-text-button:hover {
+  background: var(--admin-primary-soft);
+  color: var(--admin-primary-strong);
+}
+
 .icon-text-button.danger {
-  color: #b91c1c;
+  color: var(--admin-danger);
+}
+
+.icon-text-button.danger:hover {
+  background: var(--admin-danger-soft);
+  color: #991b1b;
 }
 
 @media (min-width: 761px) {

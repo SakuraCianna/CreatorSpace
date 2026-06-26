@@ -170,10 +170,12 @@ function normalizePayload(): TagPayload | null {
 
 .cms-header,
 .cms-panel {
-  border: 1px solid var(--tone-line);
+  border: 1px solid var(--admin-line);
   border-radius: var(--app-radius-sm);
-  background: var(--tone-panel);
-  box-shadow: var(--tone-shadow);
+  background:
+    linear-gradient(180deg, var(--admin-panel), var(--admin-panel-soft));
+  color: var(--admin-ink);
+  box-shadow: var(--admin-shadow);
 }
 
 .cms-header {
@@ -187,11 +189,12 @@ function normalizePayload(): TagPayload | null {
 .cms-header h2,
 .panel-title h3 {
   margin: 0;
+  color: var(--admin-ink);
 }
 
 .cms-header p {
   margin: 8px 0 0;
-  color: var(--tone-muted);
+  color: var(--admin-muted);
   font-size: 14px;
 }
 
@@ -223,7 +226,7 @@ function normalizePayload(): TagPayload | null {
 .panel-title span,
 .table-row span,
 .empty-hint {
-  color: var(--tone-muted);
+  color: var(--admin-muted);
   font-size: 13px;
 }
 
@@ -245,10 +248,10 @@ function normalizePayload(): TagPayload | null {
   width: 100%;
   min-height: 42px;
   padding: 0 12px;
-  border: 1px solid rgba(17, 24, 39, 0.12);
+  border: 1px solid rgba(17, 24, 39, 0.16);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.86);
-  color: var(--tone-strong);
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--admin-ink);
   font: inherit;
 }
 
@@ -259,7 +262,8 @@ function normalizePayload(): TagPayload | null {
   gap: 12px;
   padding: 12px;
   border-radius: 8px;
-  background: rgba(20, 21, 29, 0.04);
+  background: var(--admin-panel-soft);
+  color: var(--admin-ink);
 }
 
 .table-row div {
@@ -279,17 +283,30 @@ function normalizePayload(): TagPayload | null {
 }
 
 .text-button {
+  min-height: 30px;
+  padding: 0 10px;
   border: 0;
+  border-radius: 999px;
   background: transparent;
-  color: #315bff;
+  color: var(--admin-primary);
   font: inherit;
   font-size: 13px;
   font-weight: 800;
   cursor: pointer;
 }
 
+.text-button:hover {
+  background: var(--admin-primary-soft);
+  color: var(--admin-primary-strong);
+}
+
 .text-button.danger {
-  color: #b91c1c;
+  color: var(--admin-danger);
+}
+
+.text-button.danger:hover {
+  background: var(--admin-danger-soft);
+  color: #991b1b;
 }
 
 .inline-notice {

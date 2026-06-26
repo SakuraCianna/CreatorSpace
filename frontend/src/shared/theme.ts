@@ -102,11 +102,8 @@ function applySupportedConfig(config: Record<string, unknown>) {
     root.style.setProperty('--tone-accent-soft', accentSoft)
   }
 
-  // 提取并设置面板背景色
-  const surface = normalizeCssColor(readConfigString(config, 'surfaceColor'))
-  if (surface) {
-    root.style.setProperty('--tone-panel-solid', surface)
-  }
+  // 主题的 surfaceColor 只用于主题预览与主题编辑数据, 不写入全局面板色。
+  // 后台可能配置深色 surfaceColor, 若直接覆盖 --tone-panel-solid 会导致后台和公共页面暗底灰字。
 
   // 提取并设置全局背景底色
   const bg = normalizeCssColor(readConfigString(config, 'backgroundColor'))
@@ -114,17 +111,8 @@ function applySupportedConfig(config: Record<string, unknown>) {
     root.style.setProperty('--tone-paper', bg)
   }
 
-  // 提取并设置正文字体色
-  const ink = normalizeCssColor(readConfigString(config, 'inkColor'))
-  if (ink) {
-    root.style.setProperty('--tone-ink', ink)
-  }
-
-  // 提取并设置次要文字颜色
-  const muted = normalizeCssColor(readConfigString(config, 'mutedColor'))
-  if (muted) {
-    root.style.setProperty('--tone-muted', muted)
-  }
+  // 主题配置里的 inkColor/mutedColor 不写入全局文字色。
+  // 这些颜色适合主题预览容器, 直接覆盖全站会让标题和正文在部分主题下接近透明。
 
   // 根据间距配置应用不同的布局密度数值
   const density = readConfigString(config, 'density')

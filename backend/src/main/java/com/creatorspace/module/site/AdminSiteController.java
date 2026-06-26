@@ -161,8 +161,8 @@ public class AdminSiteController {
                                layout_type,
                                is_active,
                                config_json::text,
-                               created_at::text as created_at,
-                               updated_at::text as updated_at
+                               to_char(created_at, 'YYYY-MM-DD HH24:MI:SS') as created_at,
+                               to_char(updated_at, 'YYYY-MM-DD HH24:MI:SS') as updated_at
                         from theme_configs
                         order by is_active desc, id
                         """,
@@ -213,7 +213,7 @@ public class AdminSiteController {
                                location,
                                profile_json::text,
                                is_active,
-                               updated_at::text as updated_at
+                               to_char(updated_at, 'YYYY-MM-DD HH24:MI:SS') as updated_at
                         from site_profiles
                         order by is_active desc, updated_at desc, id
                         limit 1

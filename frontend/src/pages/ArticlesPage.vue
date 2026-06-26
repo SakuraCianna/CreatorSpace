@@ -114,6 +114,7 @@ import { LoaderCircle, Search } from '@lucide/vue'
 import { fetchArticles, fetchTags } from '@/services/content'
 import { toUserMessage } from '@/services/http'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
+import { formatMonthDay } from '@/shared/datetime'
 import type { ArticleSummary, TagSummary } from '@/shared/domain'
 
 const coverPalettes = [
@@ -342,13 +343,7 @@ function observeTopicStrip() {
 }
 
 function formatDate(value?: string | null): string {
-  if (!value) {
-    return '未定档'
-  }
-  return new Intl.DateTimeFormat('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date(value))
+  return formatMonthDay(value)
 }
 
 function articleCoverStyle(article: ArticleSummary, index: number) {
@@ -579,8 +574,8 @@ onBeforeUnmount(() => {
 .topic-chip.is-active,
 .topic-chip:hover {
   border-color: rgba(49, 91, 255, 0.36);
-  background: rgba(49, 91, 255, 0.1);
-  color: var(--tone-ink);
+  background: #e8efff;
+  color: #174ea6;
 }
 
 .journal-layout {

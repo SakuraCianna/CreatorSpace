@@ -34,7 +34,7 @@
         <article v-for="activity in overview.recentActivities" :key="activity.operation + activity.createdAt" class="table-row">
           <div>
             <strong>{{ activity.operation }}</strong>
-            <span>{{ activity.module }} · {{ activity.createdAt }}</span>
+            <span>{{ activity.module }} · {{ formatDateTimeToSecond(activity.createdAt) }}</span>
           </div>
           <span class="status-chip">记录</span>
         </article>
@@ -117,6 +117,7 @@ import { RouterLink, useRouter } from 'vue-router'
 import { fetchDashboardOverview } from '@/services/content'
 import { HttpError, toUserMessage } from '@/services/http'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
+import { formatDateTimeToSecond } from '@/shared/datetime'
 import type { DashboardOverview } from '@/shared/domain'
 import { useSessionStore } from '@/shared/sessionStore'
 
@@ -288,10 +289,12 @@ onBeforeUnmount(() => {
 
 .workspace-panel,
 .metric-card {
-  border: 1px solid var(--tone-line);
+  border: 1px solid var(--admin-line);
   border-radius: var(--app-radius-sm);
-  background: var(--tone-panel);
-  box-shadow: var(--tone-shadow);
+  background:
+    linear-gradient(180deg, var(--admin-panel), var(--admin-panel-soft));
+  color: var(--admin-ink);
+  box-shadow: var(--admin-shadow);
   backdrop-filter: blur(18px);
 }
 
@@ -312,17 +315,23 @@ onBeforeUnmount(() => {
   padding: 16px;
 }
 
+.metric-card span {
+  color: var(--admin-muted);
+  font-weight: 720;
+}
+
 .metric-card span,
 .metric-card p,
 .panel-title span,
 .table-row span {
-  color: var(--tone-muted);
+  color: var(--admin-muted);
   font-size: 13px;
 }
 
 .metric-card strong {
   display: block;
   margin-top: 12px;
+  color: var(--admin-ink);
   font-size: 30px;
   line-height: 1;
 }
@@ -360,10 +369,10 @@ onBeforeUnmount(() => {
 .filter-bar select,
 .comment-form textarea {
   width: 100%;
-  border: 1px solid rgba(17, 24, 39, 0.12);
+  border: 1px solid rgba(17, 24, 39, 0.16);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.86);
-  color: var(--tone-strong);
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--admin-ink);
   font: inherit;
 }
 
@@ -407,8 +416,8 @@ onBeforeUnmount(() => {
   padding: 6px 10px;
   border: 1px solid var(--tone-line);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.58);
-  color: var(--tone-muted);
+  background: rgba(255, 255, 255, 0.9);
+  color: #344154;
   font-size: 12px;
   font-weight: 760;
 }
@@ -435,6 +444,7 @@ onBeforeUnmount(() => {
 
 .panel-title h2 {
   margin: 0;
+  color: var(--admin-ink);
   font-size: 18px;
 }
 
@@ -445,7 +455,8 @@ onBeforeUnmount(() => {
   gap: 16px;
   padding: 14px;
   border-radius: 8px;
-  background: rgba(20, 21, 29, 0.04);
+  background: var(--admin-panel-soft);
+  color: var(--admin-ink);
 }
 
 .table-row + .table-row {
@@ -473,26 +484,39 @@ onBeforeUnmount(() => {
   min-height: 28px;
   padding: 0 10px;
   border-radius: 999px;
-  background: rgba(49, 91, 255, 0.12);
-  color: #172554;
+  background: var(--admin-primary-soft);
+  color: #173b87;
   font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
 }
 
 .icon-text-button {
+  min-height: 30px;
   border: 0;
+  border-radius: 999px;
   background: transparent;
-  color: #315bff;
+  color: var(--admin-primary);
   font: inherit;
   font-size: 13px;
   font-weight: 800;
+  padding: 0 10px;
   text-decoration: none;
   cursor: pointer;
 }
 
+.icon-text-button:hover {
+  background: var(--admin-primary-soft);
+  color: var(--admin-primary-strong);
+}
+
 .icon-text-button.danger {
-  color: #b91c1c;
+  color: var(--admin-danger);
+}
+
+.icon-text-button.danger:hover {
+  background: var(--admin-danger-soft);
+  color: #991b1b;
 }
 
 .comments-card {

@@ -211,10 +211,12 @@ function moduleLabel(module: CategorySummary['module']) {
 
 .cms-header,
 .cms-panel {
-  border: 1px solid var(--tone-line);
+  border: 1px solid var(--admin-line);
   border-radius: var(--app-radius-sm);
-  background: var(--tone-panel);
-  box-shadow: var(--tone-shadow);
+  background:
+    linear-gradient(180deg, var(--admin-panel), var(--admin-panel-soft));
+  color: var(--admin-ink);
+  box-shadow: var(--admin-shadow);
 }
 
 .cms-header {
@@ -228,11 +230,12 @@ function moduleLabel(module: CategorySummary['module']) {
 .cms-header h2,
 .panel-title h3 {
   margin: 0;
+  color: var(--admin-ink);
 }
 
 .cms-header p {
   margin: 8px 0 0;
-  color: var(--tone-muted);
+  color: var(--admin-muted);
   font-size: 14px;
 }
 
@@ -249,19 +252,20 @@ function moduleLabel(module: CategorySummary['module']) {
 .module-tabs button {
   min-height: 36px;
   padding: 0 14px;
-  border: 1px solid var(--tone-line);
+  border: 1px solid var(--admin-line);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.72);
-  color: var(--tone-muted);
+  color: #344154;
   font: inherit;
   font-weight: 760;
   cursor: pointer;
 }
 
-.module-tabs button.active {
-  border-color: color-mix(in srgb, var(--md-sys-color-primary) 34%, transparent);
-  background: color-mix(in srgb, var(--md-sys-color-primary) 12%, transparent);
-  color: var(--md-sys-color-primary);
+.module-tabs button.active,
+.module-tabs button:hover {
+  border-color: rgba(49, 91, 255, 0.36);
+  background: var(--admin-primary-soft);
+  color: var(--admin-primary-strong);
 }
 
 .cms-grid {
@@ -292,17 +296,17 @@ function moduleLabel(module: CategorySummary['module']) {
 .panel-title span,
 .table-row span,
 .empty-hint {
-  color: var(--tone-muted);
+  color: var(--admin-muted);
   font-size: 13px;
 }
 
 .form-panel input,
 .form-panel textarea {
   width: 100%;
-  border: 1px solid rgba(17, 24, 39, 0.12);
+  border: 1px solid rgba(17, 24, 39, 0.16);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.86);
-  color: var(--tone-strong);
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--admin-ink);
   font: inherit;
 }
 
@@ -339,7 +343,8 @@ function moduleLabel(module: CategorySummary['module']) {
   gap: 12px;
   padding: 12px;
   border-radius: 8px;
-  background: rgba(20, 21, 29, 0.04);
+  background: var(--admin-panel-soft);
+  color: var(--admin-ink);
 }
 
 .table-row div {
@@ -354,8 +359,8 @@ function moduleLabel(module: CategorySummary['module']) {
   min-height: 28px;
   padding: 0 10px;
   border-radius: 999px;
-  background: rgba(49, 91, 255, 0.12);
-  color: #172554;
+  background: var(--admin-primary-soft);
+  color: #173b87;
   font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
@@ -367,13 +372,21 @@ function moduleLabel(module: CategorySummary['module']) {
 }
 
 .text-button {
+  min-height: 30px;
+  padding: 0 10px;
   border: 0;
+  border-radius: 999px;
   background: transparent;
-  color: #315bff;
+  color: var(--admin-primary);
   font: inherit;
   font-size: 13px;
   font-weight: 800;
   cursor: pointer;
+}
+
+.text-button:hover {
+  background: var(--admin-primary-soft);
+  color: var(--admin-primary-strong);
 }
 
 .inline-notice {
