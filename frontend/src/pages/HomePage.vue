@@ -1974,10 +1974,10 @@ function renderFooter() {
   --cs-bg-raise: #0b0d18;
   --cs-bg-veil: #10131f;
   --cs-ink: #f3f5ff;
-  --cs-ink-dim: rgba(226, 230, 247, 0.66);
-  --cs-ink-faint: rgba(206, 212, 240, 0.4);
-  --cs-line: rgba(150, 165, 220, 0.16);
-  --cs-line-soft: rgba(150, 165, 220, 0.09);
+  --cs-ink-dim: rgba(226, 230, 247, 0.8);
+  --cs-ink-faint: rgba(206, 212, 240, 0.56);
+  --cs-line: rgba(150, 165, 220, 0.24);
+  --cs-line-soft: rgba(150, 165, 220, 0.14);
 
 
   --cs-accent: #6ea8ff;
@@ -2148,8 +2148,8 @@ function renderFooter() {
   z-index: 1;
   pointer-events: none;
   background:
-    radial-gradient(52% 72% at 20% 48%, rgba(6, 7, 13, 0.76), rgba(6, 7, 13, 0.18) 58%, transparent 76%),
-    linear-gradient(90deg, rgba(6, 7, 13, 0.24), transparent 38%, rgba(6, 7, 13, 0.08) 100%),
+    radial-gradient(56% 76% at 22% 48%, rgba(5, 7, 14, 0.9), rgba(5, 7, 14, 0.42) 58%, transparent 78%),
+    linear-gradient(90deg, rgba(6, 7, 13, 0.42), transparent 42%, rgba(6, 7, 13, 0.12) 100%),
     linear-gradient(180deg, transparent 60%, var(--cs-bg) 100%);
 }
 
@@ -2195,13 +2195,14 @@ function renderFooter() {
   font-size: clamp(16px, 1.5vw, 19px);
   line-height: 1.6;
   color: var(--cs-ink-dim);
+  text-shadow: 0 1px 18px rgba(0, 0, 0, 0.32);
 }
 
 .cs-home :deep(.cs-hero__sub .cs-zh) {
   display: block;
   margin-top: 10px;
   font-size: 15px;
-  color: var(--cs-ink-faint);
+  color: rgba(226, 230, 247, 0.68);
 }
 
 .cs-home :deep(.cs-hero__actions) {
@@ -2232,7 +2233,7 @@ function renderFooter() {
   font-size: 11px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--cs-ink-faint);
+  color: rgba(206, 212, 240, 0.62);
 }
 
 .cs-home :deep(.cs-hero__scroll) {
@@ -2271,19 +2272,26 @@ function renderFooter() {
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  min-height: 48px;
   padding: 14px 26px;
   border: 0;
   border-radius: 999px;
   font-family: var(--cs-font-display);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 760;
   letter-spacing: 0.01em;
   cursor: pointer;
   overflow: hidden;
   isolation: isolate;
   color: #070a16;
   background: var(--cs-btn-bg);
-  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.4s ease;
+  box-shadow: 0 12px 32px rgba(110, 168, 255, 0.22);
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.4s ease, border-color 0.25s ease;
+}
+
+.cs-home :deep(.cs-btn > span:not(.cs-btn__fill)) {
+  position: relative;
+  z-index: 1;
 }
 
 .cs-home :deep(.cs-btn__fill) {
@@ -2296,6 +2304,7 @@ function renderFooter() {
 }
 
 .cs-home :deep(.cs-btn:hover) {
+  color: #070a16;
   transform: translateY(-2px);
   box-shadow: 0 16px 40px rgba(110, 168, 255, 0.36);
 }
@@ -2313,8 +2322,9 @@ function renderFooter() {
 
 .cs-home :deep(.cs-btn--ghost) {
   color: var(--cs-ink);
-  background: transparent;
-  border: 1px solid var(--cs-line);
+  background: rgba(10, 13, 26, 0.54);
+  border: 1px solid rgba(150, 165, 220, 0.24);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .cs-home :deep(.cs-btn--ghost .cs-btn__dot) {
@@ -2322,12 +2332,18 @@ function renderFooter() {
 }
 
 .cs-home :deep(.cs-btn--ghost .cs-btn__fill) {
-  background: rgba(150, 165, 220, 0.12);
+  background: rgba(150, 165, 220, 0.18);
 }
 
 .cs-home :deep(.cs-btn--ghost:hover) {
-  box-shadow: none;
-  border-color: rgba(150, 165, 220, 0.4);
+  color: var(--cs-ink);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+  border-color: rgba(150, 165, 220, 0.48);
+}
+
+.cs-home :deep(.cs-btn:focus-visible) {
+  outline: 2px solid var(--cs-accent-3);
+  outline-offset: 4px;
 }
 
 

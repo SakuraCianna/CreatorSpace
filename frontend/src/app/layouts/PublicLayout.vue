@@ -340,10 +340,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   margin: 0;
   padding: 0 clamp(18px, 5vw, 72px);
   gap: 24px;
-  border-bottom: 1px solid rgba(196, 199, 207, 0.58);
-  background: color-mix(in srgb, var(--md-sys-color-surface) 88%, transparent);
+  border-bottom: 1px solid rgba(116, 119, 127, 0.18);
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(22px);
-  box-shadow: 0 1px 0 rgba(60, 64, 67, 0.04);
+  box-shadow: 0 10px 34px rgba(30, 38, 64, 0.08);
 }
 
 .brand {
@@ -352,6 +352,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   gap: 12px;
   min-width: 0;
   font-weight: 760;
+  color: var(--tone-ink);
 }
 
 .brand-copy {
@@ -359,10 +360,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   gap: 2px;
 }
 
+.brand-copy strong {
+  color: #1a2233;
+}
+
 .brand-copy small {
-  color: var(--tone-muted);
+  color: #566174;
   font-size: 11px;
-  font-weight: 650;
+  font-weight: 720;
 }
 
 .brand-mark {
@@ -402,16 +407,21 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   min-height: 40px;
   padding: 9px 12px;
   border-radius: 999px;
-  color: var(--tone-muted);
+  color: #3d4658;
   font-size: 14px;
-  font-weight: 690;
+  font-weight: 730;
   transition: background 180ms ease, color 180ms ease, transform 180ms ease;
 }
 
 .public-nav a.router-link-active,
 .public-nav a:hover {
-  background: color-mix(in srgb, var(--md-sys-color-primary) 12%, transparent);
-  color: var(--md-sys-color-primary);
+  background: color-mix(in srgb, var(--md-sys-color-primary) 13%, #ffffff);
+  color: #174ea6;
+}
+
+.public-nav a:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: 3px;
 }
 
 .public-actions {

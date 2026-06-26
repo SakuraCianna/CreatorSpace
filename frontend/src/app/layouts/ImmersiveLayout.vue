@@ -44,9 +44,9 @@ const immersiveNavItems: ImmersiveNavItem[] = [
   --cs-bg-raise: #0b0d18;
   --cs-bg-veil: #10131f;
   --cs-ink: #f3f5ff;
-  --cs-ink-dim: rgba(226, 230, 247, 0.66);
-  --cs-ink-faint: rgba(206, 212, 240, 0.4);
-  --cs-line: rgba(150, 165, 220, 0.16);
+  --cs-ink-dim: rgba(226, 230, 247, 0.78);
+  --cs-ink-faint: rgba(206, 212, 240, 0.52);
+  --cs-line: rgba(150, 165, 220, 0.24);
   --cs-line-soft: rgba(150, 165, 220, 0.09);
 
 
@@ -82,6 +82,7 @@ const immersiveNavItems: ImmersiveNavItem[] = [
   margin-inline: auto;
   inset-inline: 0;
   padding: 22px var(--cs-edge);
+  color: var(--cs-ink);
   transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -93,6 +94,7 @@ const immersiveNavItems: ImmersiveNavItem[] = [
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--cs-ink);
+  text-shadow: 0 1px 14px rgba(0, 0, 0, 0.42);
 }
 
 .cs-nav__mark {
@@ -121,22 +123,32 @@ const immersiveNavItems: ImmersiveNavItem[] = [
   padding: 6px;
   border: 1px solid var(--cs-line);
   border-radius: 999px;
-  background: rgba(12, 15, 26, 0.5);
-  backdrop-filter: blur(14px);
+  background: rgba(8, 11, 22, 0.72);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(18px);
 }
 
 .cs-nav__links a {
+  min-width: 54px;
   padding: 8px 16px;
   border-radius: 999px;
   font-size: 13px;
-  font-weight: 500;
-  color: var(--cs-ink-dim);
-  transition: color 0.25s ease, background 0.25s ease;
+  font-weight: 680;
+  color: rgba(243, 245, 255, 0.82);
+  text-align: center;
+  transition: color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
 }
 
+.cs-nav__links a.router-link-active,
 .cs-nav__links a:hover {
-  color: var(--cs-ink);
-  background: rgba(150, 165, 220, 0.12);
+  color: #06111f;
+  background: linear-gradient(135deg, var(--cs-accent), var(--cs-accent-3));
+  box-shadow: 0 10px 26px rgba(110, 168, 255, 0.28);
+}
+
+.cs-nav__links a:focus-visible {
+  outline: 2px solid var(--cs-accent-3);
+  outline-offset: 3px;
 }
 
 @media (max-width: 760px) {

@@ -184,6 +184,23 @@ img {
   transform: translateY(-1px);
   box-shadow: var(--md-sys-elevation-2);
 }
+
+.button-filled:hover {
+  background: color-mix(in srgb, var(--md-sys-color-primary) 88%, #050816);
+  color: var(--md-sys-color-on-primary);
+}
+
+.button-tonal:hover {
+  background: color-mix(in srgb, var(--md-sys-color-primary-container) 86%, #ffffff);
+  color: var(--md-sys-color-on-primary-container);
+}
+
+.button:focus-visible,
+.icon-button:focus-visible,
+.text-link:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: 3px;
+}
 .page-kicker,
 .eyebrow {
   margin: 0;
