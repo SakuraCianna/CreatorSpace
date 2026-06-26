@@ -61,6 +61,7 @@
 import { computed, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import {
+  Ban,
   BarChart3,
   FileImage,
   FileText,
@@ -97,6 +98,7 @@ const navItems = [
   { to: '/admin/files', label: '文件', icon: FileImage },
   { to: '/admin/themes', label: '主题', icon: Palette },
   { to: '/admin/content-rules', label: '规则', icon: ShieldCheck },
+  { to: '/admin/sensitive-words', label: '敏感词', icon: Ban },
   { to: '/admin/settings', label: '设置', icon: Settings },
 ]
 

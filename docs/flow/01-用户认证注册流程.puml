@@ -1,0 +1,32 @@
+﻿@startuml
+title 功能流程 01 - 用户认证注册流程
+
+|访客|
+:访问首页;
+if (已有账号?) then (否)
+  :填写注册信息;
+  :提交注册表单;
+endif
+:填写登录凭证;
+:提交登录请求;
+
+|后端|
+:查询用户并比对密码;
+if (验证通过?) then (是)
+  :生成 JWT Token;
+  :存入 Redis 缓存;
+  :返回 Token 及角色信息;
+else (否)
+  :返回 401 错误信息;
+endif
+
+|路由守卫|
+:校验 Token;
+if (角色?) then (ADMIN)
+  :跳转 /admin;
+else (USER)
+  :跳转 /articles;
+endif
+
+stop
+@enduml

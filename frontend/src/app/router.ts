@@ -103,10 +103,16 @@ const router = createRouter({
       meta: { layout: "admin", requiresAdmin: true },
     },
     {
-      path: "/admin/:section",
-      name: "admin-placeholder",
-      component: () => import("@/pages/AdminPlaceholderPage.vue"),
-      meta: { layout: "admin", requiresAdmin: true },
+      path: '/admin/sensitive-words',
+      name: 'admin-sensitive-words',
+      component: () => import('@/pages/AdminSensitiveWordsPage.vue'),
+      meta: { layout: 'admin', requiresAdmin: true },
+    },
+    {
+      path: '/admin/:section',
+      name: 'admin-placeholder',
+      component: () => import('@/pages/AdminPlaceholderPage.vue'),
+      meta: { layout: 'admin', requiresAdmin: true },
     },
   ],
 });

@@ -19,6 +19,7 @@ import type {
   PublicThemeConfig,
   SearchParams,
   SearchResult,
+  SensitiveWordSummary,
   SiteStatisticsSummary,
   SiteSettings,
   SiteSettingsPayload,
@@ -744,7 +745,63 @@ export async function searchContent(options: SearchParams | string): Promise<Pag
   return response.data
 }
 
-// 读取后台概览
+// 管理员查询敏感词列表。
+export async function fetchAdminSensitiveWords(options: {
+  page?: number
+  pageSize?: number
+} = {}): Promise<PageResponse<SensitiveWordSummary>> {
+  const params = new URLSearchParams()
+  if (options.page) params.set('page', String(options.page))
+  if (options.pageSize) params.set('pageSize', String(options.pageSize))
+  const query = params.toString()
+  const response = await requestJson<ApiEnvelope<PageResponse<SensitiveWordSummary>>>(
+    query ? `/api/admin/sensitive-words?${query}` : '/api/admin/sensitive-words',
+  )
+  return response.data
+}
+
+// 管理员新增敏感词。
+export async function createSensitiveWord(payload: {
+  word: string
+  matchType: string
+  severity: string
+  enabled: boolean
+}): Promise<SensitiveWordSummary> {
+  const response = await requestJson<ApiEnvelope<SensitiveWordSummary>>('/api/admin/sensitive-words', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return response.data
+}
+
+// 管理员编辑敏感词。
+export async function updateSensitiveWord(id: number, payload: {
+  word: string
+  matchType: string
+  severity: string
+  enabled: boolean
+}): Promise<SensitiveWordSummary> {
+  const response = await requestJson<ApiEnvelope<SensitiveWordSummary>>(`/api/admin/sensitive-words/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+  return response.data
+}
+
+// 管理员删除敏感词。
+export async function deleteSensitiveWord(id: number): Promise<void> {
+  await requestJson<ApiEnvelope<null>>(`/api/admin/sensitive-words/${id}`, { method: 'DELETE' })
+}
+
+// 管理员切换敏感词启用状态。
+export async function toggleSensitiveWord(id: number): Promise<SensitiveWordSummary> {
+  const response = await requestJson<ApiEnvelope<SensitiveWordSummary>>(`/api/admin/sensitive-words/${id}/toggle`, {
+    method: 'PUT',
+  })
+  return response.data
+}
+
+// 读取后台概览。
 export async function fetchDashboardOverview(): Promise<DashboardOverview> {
   const response = await requestJson<ApiEnvelope<DashboardOverview>>('/api/admin/dashboard/overview')
   return response.data

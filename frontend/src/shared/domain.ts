@@ -357,6 +357,18 @@ export interface SiteSettingsPayload {
   configs?: SiteConfigEntry[]
 }
 
+export type SensitiveWordMatchType = 'EXACT' | 'CONTAINS' | 'REGEX'
+export type SensitiveWordSeverity = 'REVIEW' | 'REJECT' | 'MASK'
+
+export interface SensitiveWordSummary {
+  id: number
+  word: string
+  matchType: SensitiveWordMatchType
+  severity: SensitiveWordSeverity
+  enabled: boolean
+  createdAt?: string | null
+}
+
 export interface DashboardMetric {
   label: string
   value: string
