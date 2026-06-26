@@ -73,6 +73,7 @@ import {
   Settings,
   ShieldCheck,
   Sparkles,
+  Tags,
 } from '@lucide/vue'
 
 import { useSessionStore } from '@/shared/sessionStore'
@@ -91,6 +92,8 @@ const navItems = [
   { to: '/admin', label: '概览', icon: BarChart3 },
   { to: '/admin/articles', label: '文章', icon: FileText },
   { to: '/admin/projects', label: '作品', icon: Images },
+  { to: '/admin/categories', label: '分类', icon: Tags },
+  { to: '/admin/tags', label: '标签', icon: Tags },
   { to: '/admin/inspirations', label: '灵感', icon: Lightbulb },
   { to: '/admin/comments', label: '评论', icon: MessageSquare },
   { to: '/admin/guestbook', label: '留言', icon: MessageSquare },

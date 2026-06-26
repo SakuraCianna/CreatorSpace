@@ -38,6 +38,7 @@ export interface CategorySummary {
   slug: string
   description?: string | null
   sortOrder: number
+  enabled?: boolean | null
 }
 
 export interface TagSummary {
@@ -46,6 +47,22 @@ export interface TagSummary {
   slug: string
   color?: string | null
   weight: number
+}
+
+export interface CategoryPayload {
+  module: CategorySummary['module']
+  name: string
+  slug: string
+  description?: string | null
+  sortOrder?: number | null
+  enabled?: boolean | null
+}
+
+export interface TagPayload {
+  name: string
+  slug: string
+  color?: string | null
+  weight?: number | null
 }
 
 export interface ArticleSummary {
