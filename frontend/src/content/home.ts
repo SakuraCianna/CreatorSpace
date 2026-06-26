@@ -1,3 +1,5 @@
+// 声明首页内容块相关的静态数据结构和接口类型
+// 声明文章的推荐类型, 分为精选与常规
 export type ArticleKind = 'feature' | 'standard'
 
 export interface FeaturedArticle {
@@ -52,6 +54,7 @@ export interface CreativeFragment {
   backgroundImage?: string
 }
 
+// 声明前台首屏展示的主题预设实体结构
 export interface ThemePreset {
   id: string
   name: string
@@ -69,6 +72,7 @@ export interface ThemePreset {
   swatches: string[]
 }
 
+// 站点基础身份描述的配置模型
 export interface SiteConfig {
   brand: string
   wordmark: string

@@ -1,4 +1,6 @@
 <template>
+  <!-- 读者与管理员安全登录页面 -->
+  <!-- 用户与管理员登录页 -->
   <section ref="root" class="auth-page auth-page--material">
     <form class="auth-card auth-card--material" data-reveal @submit.prevent="submitLogin">
       <div class="auth-card__visual auth-card__visual--material">
@@ -20,8 +22,10 @@
           <h2>{{ loginMode === 'ADMIN' ? '管理员登录' : '普通用户登录' }}</h2>
         </div>
         <div class="auth-mode-switch">
-          <button type="button" :class="{ 'is-active': loginMode === 'USER' }" @click="loginMode = 'USER'">普通用户登录</button>
-          <button type="button" :class="{ 'is-active': loginMode === 'ADMIN' }" @click="loginMode = 'ADMIN'">管理员登录</button>
+          <button type="button" :class="{ 'is-active': loginMode === 'USER' }"
+            @click="loginMode = 'USER'">普通用户登录</button>
+          <button type="button" :class="{ 'is-active': loginMode === 'ADMIN' }"
+            @click="loginMode = 'ADMIN'">管理员登录</button>
         </div>
         <label class="md-field">
           <span>用户名</span>
@@ -43,6 +47,7 @@
 </template>
 
 <script setup lang="ts">
+// 导入所需的组件和 Vue 钩子
 import { computed, reactive, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { LoaderCircle, ShieldCheck } from '@lucide/vue'
@@ -54,6 +59,7 @@ import { usePageReveal } from '@/shared/composables/usePageReveal'
 import { useSessionStore } from '@/shared/sessionStore'
 import { siteAccountLabel, useSiteIdentity } from '@/shared/siteIdentity'
 
+// 声明登录页面的状态数据与控制器
 const root = ref<HTMLElement | null>(null)
 const router = useRouter()
 const route = useRoute()
@@ -82,6 +88,7 @@ watch([loginMode, () => form.username, () => form.password], () => {
   message.value = ''
 })
 
+// 提交用户登录表单, 支持普通用户和管理员身份切换, 登录成功后写入 Token 到本地并跳转回原路由
 async function submitLogin() {
   if (!form.username.trim() || !form.password) {
     message.value = '请输入用户名和密码'
@@ -111,6 +118,7 @@ async function submitLogin() {
   }
 }
 
+// 根据后端返回的 Http 状态码及错误信息生成友好的用户提示文案
 function loginErrorMessage(error: unknown, mode: 'ADMIN' | 'USER') {
   if (!(error instanceof HttpError)) {
     return mode === 'ADMIN'
@@ -136,7 +144,7 @@ function loginErrorMessage(error: unknown, mode: 'ADMIN' | 'USER') {
   if (error.status === 403) {
     return `普通用户登录失败：${backendText}。账号存在但当前不可用，可能已被禁用或锁定。`
   }
-  return toUserMessage(error, mode === 'ADMIN' ? '管理员登录失败' : '登录失败')
+  return toUserMessage(error, '登录失败')
 }
 
 function describeBackendError(error: HttpError) {
@@ -144,6 +152,7 @@ function describeBackendError(error: HttpError) {
   return backendMessage ? `后端返回：${backendMessage}` : `后端返回 ${error.status}`
 }
 
+// 读取前台路径重定向地址, 避免管理员重定向去前台时被拦截
 function readPublicRedirectPath() {
   const redirect = normalizeAuthRedirect(route.query.redirect, '/articles')
   return redirect.startsWith('/admin') ? '/articles' : redirect
@@ -291,7 +300,7 @@ function readRedirectPath() {
     var(--md-sys-color-tertiary-container);
 }
 
-.auth-card__visual--material > * {
+.auth-card__visual--material>* {
   position: relative;
   z-index: 1;
 }
@@ -421,6 +430,7 @@ function readRedirectPath() {
 }
 
 @media (max-width: 1020px) {
+
   .auth-card--wide,
   .auth-card--material {
     grid-template-columns: 1fr;

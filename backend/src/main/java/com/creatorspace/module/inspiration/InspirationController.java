@@ -67,9 +67,14 @@ public class InspirationController {
         listParams.add(offset);
         List<InspirationVO> records = listCards(where, listParams);
 
-        Map<Long, List<TagVO>> tagsByCard = tagsByCard(records.stream().map(InspirationVO::id).toList());
+        List<Long> cardIds = records.stream().map(InspirationVO::id).toList();
+        Map<Long, List<TagVO>> tagsByCard = tagsByCard(cardIds);
+        Map<Long, List<InspirationRelationVO>> relationsByCard = relationsByCard(cardIds, true);
         List<InspirationVO> withTags = records.stream()
-                .map(card -> card.withTags(tagsByCard.getOrDefault(card.id(), Collections.emptyList())))
+                .map(card -> card.withDetails(
+                        tagsByCard.getOrDefault(card.id(), Collections.emptyList()),
+                        relationsByCard.getOrDefault(card.id(), Collections.emptyList())
+                ))
                 .toList();
         return ApiResponse.ok(new PageResponse<>(withTags, page, pageSize, total));
     }
@@ -93,10 +98,15 @@ public class InspirationController {
         listParams.add(pageSize);
         listParams.add(offset);
         List<InspirationVO> records = listCards(where, listParams);
-        Map<Long, List<TagVO>> tagsByCard = tagsByCard(records.stream().map(InspirationVO::id).toList());
+        List<Long> cardIds = records.stream().map(InspirationVO::id).toList();
+        Map<Long, List<TagVO>> tagsByCard = tagsByCard(cardIds);
+        Map<Long, List<InspirationRelationVO>> relationsByCard = relationsByCard(cardIds, false);
         return ApiResponse.ok(new PageResponse<>(
                 records.stream()
-                        .map(card -> card.withTags(tagsByCard.getOrDefault(card.id(), Collections.emptyList())))
+                        .map(card -> card.withDetails(
+                                tagsByCard.getOrDefault(card.id(), Collections.emptyList()),
+                                relationsByCard.getOrDefault(card.id(), Collections.emptyList())
+                        ))
                         .toList(),
                 page,
                 pageSize,
@@ -270,7 +280,10 @@ public class InspirationController {
                         """,
                 (rs, rowNum) -> toInspiration(rs),
                 id).stream().findFirst().orElseThrow(() -> BusinessException.notFound("灵感卡片不存在"));
-        return card.withTags(tagsByCard(List.of(id)).getOrDefault(id, Collections.emptyList()));
+        return card.withDetails(
+                tagsByCard(List.of(id)).getOrDefault(id, Collections.emptyList()),
+                relationsByCard(List.of(id), false).getOrDefault(id, Collections.emptyList())
+        );
     }
 
     // 查询指定灵感卡片的标签。
@@ -307,6 +320,72 @@ public class InspirationController {
         return result;
     }
 
+    // 查询灵感卡片关联的文章、作品或其他公开灵感。
+    private Map<Long, List<InspirationRelationVO>> relationsByCard(List<Long> cardIds, boolean publicOnly) {
+        if (cardIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        String placeholders = String.join(",", Collections.nCopies(cardIds.size(), "?"));
+        String articleVisibility = publicOnly ? "and a.status = 'PUBLISHED' and a.privacy_type = 'PUBLIC'" : "";
+        String projectVisibility = publicOnly ? "and p.status = 'VISIBLE'" : "";
+        String inspirationVisibility = publicOnly ? "and target_inspiration.is_public = true" : "";
+        String targetVisibility = publicOnly
+                ? """
+                   and (
+                       (ir.target_type = 'ARTICLE' and a.id is not null)
+                       or (ir.target_type = 'PROJECT' and p.id is not null)
+                       or (ir.target_type = 'INSPIRATION' and target_inspiration.id is not null)
+                   )
+                  """
+                : "";
+        Map<Long, List<InspirationRelationVO>> result = new LinkedHashMap<>();
+        jdbcTemplate.query("""
+                        select ir.inspiration_id,
+                               ir.target_type,
+                               ir.target_id,
+                               ir.relation_type,
+                               case
+                                   when ir.target_type = 'ARTICLE' then a.title
+                                   when ir.target_type = 'PROJECT' then p.title
+                                   when ir.target_type = 'INSPIRATION' then target_inspiration.title
+                               end as target_title,
+                               case
+                                   when ir.target_type = 'ARTICLE' then a.slug
+                                   when ir.target_type = 'PROJECT' then p.slug
+                                   when ir.target_type = 'INSPIRATION' then null
+                               end as target_slug
+                        from inspiration_relations ir
+                        left join articles a
+                               on ir.target_type = 'ARTICLE'
+                              and a.id = ir.target_id
+                              %s
+                        left join portfolio_projects p
+                               on ir.target_type = 'PROJECT'
+                              and p.id = ir.target_id
+                              %s
+                        left join inspiration_cards target_inspiration
+                               on ir.target_type = 'INSPIRATION'
+                              and target_inspiration.id = ir.target_id
+                              %s
+                        where ir.inspiration_id in (%s)
+                        %s
+                        order by ir.created_at desc, ir.id desc
+                        """.formatted(articleVisibility, projectVisibility, inspirationVisibility, placeholders, targetVisibility),
+                rs -> {
+                    Long inspirationId = rs.getLong("inspiration_id");
+                    result.computeIfAbsent(inspirationId, key -> new java.util.ArrayList<>())
+                            .add(new InspirationRelationVO(
+                                    rs.getString("target_type"),
+                                    rs.getLong("target_id"),
+                                    rs.getString("relation_type"),
+                                    rs.getString("target_title"),
+                                    rs.getString("target_slug")
+                            ));
+                },
+                cardIds.toArray());
+        return result;
+    }
+
     // 将结果集转换成公开灵感视图对象。
     private InspirationVO toInspiration(ResultSet rs) throws SQLException {
         return new InspirationVO(
@@ -320,6 +399,7 @@ public class InspirationController {
                 rs.getBoolean("is_public"),
                 rs.getInt("sort_order"),
                 rs.getObject("created_at", OffsetDateTime.class),
+                Collections.emptyList(),
                 Collections.emptyList()
         );
     }
@@ -362,7 +442,7 @@ public class InspirationController {
     // 规范化灵感卡片类型。
     private String normalizeCardType(String value) {
         String cardType = value.trim().toUpperCase();
-        if (!Set.of("IMAGE", "TEXT", "PROMPT", "CODE", "LINK").contains(cardType)) {
+        if (!Set.of("IMAGE", "TEXT", "PROMPT", "CODE", "LINK", "SKETCH", "REFERENCE").contains(cardType)) {
             throw BusinessException.badRequest("灵感类型不合法");
         }
         return cardType;
@@ -404,11 +484,21 @@ public class InspirationController {
             Boolean isPublic,
             Integer sortOrder,
             OffsetDateTime createdAt,
-            List<TagVO> tags
+            List<TagVO> tags,
+            List<InspirationRelationVO> relations
     ) {
-        InspirationVO withTags(List<TagVO> tags) {
-            return new InspirationVO(id, title, content, imageUrl, cardType, sourceUrl, color, isPublic, sortOrder, createdAt, tags);
+        InspirationVO withDetails(List<TagVO> tags, List<InspirationRelationVO> relations) {
+            return new InspirationVO(id, title, content, imageUrl, cardType, sourceUrl, color, isPublic, sortOrder, createdAt, tags, relations);
         }
+    }
+
+    public record InspirationRelationVO(
+            String targetType,
+            Long targetId,
+            String relationType,
+            String targetTitle,
+            String targetSlug
+    ) {
     }
 
     public record InspirationRequest(

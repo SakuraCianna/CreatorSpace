@@ -32,8 +32,15 @@ public class SiteController {
     );
     private static final Set<String> PUBLIC_PROFILE_JSON_KEYS = Set.of(
             "bio",
+            "career",
+            "education",
+            "experience",
+            "experienceSummary",
+            "experiences",
             "focus",
             "heroTitleSuffix",
+            "resumeLabel",
+            "resumeUrl",
             "signature"
     );
 
@@ -60,6 +67,18 @@ public class SiteController {
         Map<String, Object> configs = loadConfig();
         siteCacheService.write(SiteCacheService.SITE_CONFIG_KEY, configs);
         return ApiResponse.ok(configs);
+    }
+
+    // 返回首页可以公开展示的访问统计摘要，不暴露后台操作日志和管理指标。
+    @GetMapping("/api/site/statistics/summary")
+    public ApiResponse<SiteStatisticsSummaryVO> statisticsSummary() {
+        return ApiResponse.ok(new SiteStatisticsSummaryVO(
+                singleLong("select count(*) from visit_logs"),
+                singleLong("select count(distinct ip_address) from visit_logs"),
+                singleLong("select count(*) from visit_logs where created_at::date = current_date"),
+                singleLong("select count(distinct ip_address) from visit_logs where created_at::date = current_date"),
+                singleLong("select coalesce(sum(view_count), 0) from content_statistics")
+        ));
     }
 
     // 返回当前启用主题，供前台和后台预览保持同一套主题来源。
@@ -178,6 +197,11 @@ public class SiteController {
         }
     }
 
+    private long singleLong(String sql) {
+        Long total = jdbcTemplate.queryForObject(sql, Long.class);
+        return total == null ? 0 : total;
+    }
+
     private Map<String, Object> publicThemeConfig(Object value) {
         if (!(value instanceof Map<?, ?> source)) {
             return Map.of();
@@ -201,6 +225,23 @@ public class SiteController {
                 config.put(key, source.get(key));
             }
         });
+        Map<String, Object> resume = publicResumeConfig(source.get("resume"));
+        if (!resume.isEmpty()) {
+            config.put("resume", resume);
+        }
+        return config;
+    }
+
+    private Map<String, Object> publicResumeConfig(Object value) {
+        if (!(value instanceof Map<?, ?> source)) {
+            return Map.of();
+        }
+        Map<String, Object> config = new LinkedHashMap<>();
+        for (String key : List.of("url", "href", "label")) {
+            if (source.containsKey(key)) {
+                config.put(key, source.get(key));
+            }
+        }
         return config;
     }
 
@@ -346,6 +387,15 @@ public class SiteController {
             String layoutType,
             boolean active,
             Object config
+    ) {
+    }
+
+    public record SiteStatisticsSummaryVO(
+            Long totalPv,
+            Long totalUv,
+            Long todayPv,
+            Long todayUv,
+            Long contentViews
     ) {
     }
 }

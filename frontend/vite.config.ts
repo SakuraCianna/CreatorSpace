@@ -11,7 +11,7 @@ function readNumber(value: string | undefined, fallback: number): number {
 export default defineConfig(({ mode }) => {
   const envDir = fileURLToPath(new URL('..', import.meta.url))
   const env = loadEnv(mode, envDir, '')
-  const apiTarget = env.VITE_API_PROXY_TARGET || env.API_BASE_URL || 'http://localhost:8080'
+  const apiTarget = env.VITE_API_PROXY_TARGET || env.API_BASE_URL || 'http://127.0.0.1:8080'
 
   return {
     envDir,
@@ -45,6 +45,10 @@ export default defineConfig(({ mode }) => {
               {
                 name: 'vendor-motion',
                 test: /node_modules[\\/](gsap|lenis)[\\/]/,
+              },
+              {
+                name: 'vendor-charts',
+                test: /node_modules[\\/](echarts|zrender)[\\/]/,
               },
               {
                 name: 'vendor-vue',

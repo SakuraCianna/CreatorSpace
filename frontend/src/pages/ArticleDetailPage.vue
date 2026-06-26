@@ -1,4 +1,6 @@
 <template>
+<!-- 文章详情长文阅读页面 -->
+<!-- 文章详情浏览排版布局 -->
   <section ref="root" class="detail-page">
     <RouterLink class="detail-back text-link" :to="{ name: 'articles' }" data-reveal>
       <ArrowLeft :size="16" />
@@ -15,7 +17,8 @@
           <p class="page-kicker">{{ article.category?.name ?? 'Creator Journal' }}</p>
           <h1>{{ article.title }}</h1>
           <p v-if="article.summary" class="detail-summary">{{ article.summary }}</p>
-          <div class="detail-meta">
+          <!-- 文章标题区与作者元信息 -->
+            <div class="detail-meta">
             <span><CalendarDays :size="15" />{{ formatDate(article.publishTime) }}</span>
             <span><Eye :size="15" />公开阅读</span>
             <span><BookOpen :size="15" />{{ readingMinutes }} 分钟</span>
@@ -26,6 +29,25 @@
         </header>
 
         <div class="markdown-body" v-html="htmlContent" />
+
+        <nav v-if="previousArticle || nextArticle" class="article-neighbors" aria-label="上一篇和下一篇文章">
+          <RouterLink
+            v-if="previousArticle"
+            class="article-neighbor"
+            :to="{ name: 'article-detail', params: { slug: previousArticle.slug } }"
+          >
+            <span><ArrowLeft :size="15" />上一篇</span>
+            <strong>{{ previousArticle.title }}</strong>
+          </RouterLink>
+          <RouterLink
+            v-if="nextArticle"
+            class="article-neighbor article-neighbor--next"
+            :to="{ name: 'article-detail', params: { slug: nextArticle.slug } }"
+          >
+            <span>下一篇<ArrowRight :size="15" /></span>
+            <strong>{{ nextArticle.title }}</strong>
+          </RouterLink>
+        </nav>
       </article>
 
       <aside class="reading-aside" data-reveal>
@@ -125,10 +147,12 @@
 </template>
 
 <script setup lang="ts">
+// 引入状态生命周期钩子和相关组件
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import {
   ArrowLeft,
+  ArrowRight,
   Bookmark,
   BookOpen,
   CalendarDays,
@@ -139,6 +163,7 @@ import {
 } from '@lucide/vue'
 
 import {
+  fetchArticleNeighbors,
   fetchArticleBySlug,
   fetchComments,
   submitComment,
@@ -155,10 +180,13 @@ import type { ArticleSummary, CommentSummary } from '@/shared/domain'
 import { normalizeMarkdownSource, renderSafeMarkdown } from '@/shared/markdown'
 import { useSessionStore } from '@/shared/sessionStore'
 
+// 初始化文章数据与交互控制状态
 const route = useRoute()
 const root = ref<HTMLElement | null>(null)
 const article = ref<ArticleSummary | null>(null)
 const comments = ref<CommentSummary[]>([])
+const previousArticle = ref<ArticleSummary | null>(null)
+const nextArticle = ref<ArticleSummary | null>(null)
 const commentDraft = ref('')
 const commentNotice = ref('')
 const isLoading = ref(true)
@@ -188,6 +216,7 @@ const articleCoverStyle = computed(() => ({
   '--detail-cover': toCssImageUrl(article.value?.coverUrl),
 }))
 
+// 依据路由 slug 标识读取文章全量详情数据, 渲染完成后加载关联评论并播放电影式页面入场显影动效
 async function loadArticle() {
   if (!slug.value) {
     article.value = null
@@ -199,9 +228,17 @@ async function loadArticle() {
   isLoading.value = true
   notice.value = ''
   comments.value = []
+  previousArticle.value = null
+  nextArticle.value = null
   commentNotice.value = ''
   try {
-    article.value = await fetchArticleBySlug(slug.value)
+    const [detail, neighbors] = await Promise.all([
+      fetchArticleBySlug(slug.value),
+      fetchArticleNeighbors(slug.value),
+    ])
+    article.value = detail
+    previousArticle.value = neighbors.previousArticle ?? null
+    nextArticle.value = neighbors.nextArticle ?? null
     await loadComments()
   } catch (error) {
     article.value = null
@@ -212,7 +249,8 @@ async function loadArticle() {
   }
 }
 
-async function loadComments() {
+// 向后端异步获取针对本文章审核通过的已公开评论反馈列表
+async function loadComments(options: { keepCurrentNotice?: boolean } = {}) {
   if (!article.value?.id) {
     comments.value = []
     return
@@ -220,13 +258,18 @@ async function loadComments() {
   try {
     const page = await fetchComments({ targetType: 'ARTICLE', targetId: article.value.id, pageSize: 20 })
     comments.value = page.records
-    commentNotice.value = ''
+    if (!options.keepCurrentNotice) {
+      commentNotice.value = ''
+    }
   } catch {
     comments.value = []
-    commentNotice.value = '评论暂时不可用'
+    if (!options.keepCurrentNotice) {
+      commentNotice.value = '评论暂时不可用'
+    }
   }
 }
 
+// 提交用户对本文章的观点评论或指定楼层的回复, 校验完成后清空输入框并刷新评论流列表
 async function postComment() {
   if (!canComment.value) {
     commentNotice.value = '请先登录账号再评论'
@@ -246,12 +289,13 @@ async function postComment() {
     commentDraft.value = ''
     replyTarget.value = null
     commentNotice.value = '评论已提交，审核通过后会公开展示'
-    await loadComments()
+    await loadComments({ keepCurrentNotice: true })
   } catch (error) {
     commentNotice.value = toUserMessage(error, '评论提交失败')
   }
 }
 
+// 切换当前用户对该文章的点赞状态, 实现即时喜欢与取消喜欢
 async function toggleLike() {
   if (!article.value?.id || !canComment.value) return
   try {
@@ -267,6 +311,7 @@ async function toggleLike() {
   }
 }
 
+// 切换当前用户对该文章的收藏状态, 实现即时收藏与取消收藏
 async function toggleFavorite() {
   if (!article.value?.id || !canComment.value) return
   try {
@@ -326,7 +371,7 @@ watch(slug, loadArticle)
 <style scoped>
 .detail-page {
   display: grid;
-  gap: 18px;
+  gap: var(--theme-density-spacing, 16px);
   padding: 46px 0 84px;
 }
 
@@ -337,7 +382,7 @@ watch(slug, loadArticle)
 .reading-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 18px;
+  gap: var(--theme-density-spacing, 16px);
   align-items: start;
 }
 
@@ -347,8 +392,8 @@ watch(slug, loadArticle)
   border: 1px solid var(--tone-line);
   border-radius: var(--app-radius-sm);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.78)),
-    rgba(255, 255, 255, 0.88);
+    linear-gradient(180deg, color-mix(in srgb, var(--tone-panel-solid) 92%, transparent), color-mix(in srgb, var(--tone-panel-solid) 78%, transparent)),
+    color-mix(in srgb, var(--tone-panel-solid) 88%, transparent);
   box-shadow: var(--tone-shadow);
   backdrop-filter: blur(22px);
 }
@@ -474,8 +519,8 @@ watch(slug, loadArticle)
 .markdown-body {
   display: block;
   padding: clamp(32px, 4vw, 54px);
-  color: #1f2937;
-  background: rgba(255, 255, 255, 0.72);
+  color: var(--tone-ink);
+  background: color-mix(in srgb, var(--tone-panel-solid) 72%, transparent);
 }
 
 .markdown-body :deep(h1),
@@ -502,7 +547,7 @@ watch(slug, loadArticle)
 .markdown-body :deep(blockquote) {
   max-width: 780px;
   margin: 0 0 16px;
-  color: #475569;
+  color: var(--tone-muted);
   font-size: 17px;
   line-height: 1.86;
 }
@@ -535,11 +580,53 @@ watch(slug, loadArticle)
   margin: 18px 0;
 }
 
+.article-neighbors {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 0 clamp(32px, 4vw, 54px) clamp(32px, 4vw, 54px);
+  background: color-mix(in srgb, var(--tone-panel-solid) 72%, transparent);
+}
+
+.article-neighbor {
+  display: grid;
+  gap: 8px;
+  min-height: 118px;
+  padding: 16px;
+  border: 1px solid var(--tone-line);
+  border-radius: var(--app-radius-sm, 8px);
+  background: color-mix(in srgb, var(--tone-panel-solid) 84%, transparent);
+  color: var(--tone-ink);
+  text-decoration: none;
+}
+
+.article-neighbor--next {
+  text-align: right;
+}
+
+.article-neighbor span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--tone-faint);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.article-neighbor--next span {
+  justify-content: flex-end;
+}
+
+.article-neighbor strong {
+  font-size: 17px;
+  line-height: 1.36;
+}
+
 .reading-aside {
   position: sticky;
   top: 100px;
   display: grid;
-  gap: 12px;
+  gap: calc(var(--theme-density-spacing, 16px) * 0.75);
 }
 
 .toc-card,
@@ -548,7 +635,7 @@ watch(slug, loadArticle)
   border: 1px solid var(--tone-line);
   border-radius: var(--app-radius-sm);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.72)),
+    linear-gradient(180deg, color-mix(in srgb, var(--tone-panel-solid) 90%, transparent), color-mix(in srgb, var(--tone-panel-solid) 72%, transparent)),
     var(--tone-panel);
   box-shadow: 0 16px 40px rgba(32, 33, 36, 0.08);
   backdrop-filter: blur(18px);
@@ -556,7 +643,7 @@ watch(slug, loadArticle)
 
 .toc-card,
 .reaction-card {
-  padding: 18px;
+  padding: calc(var(--theme-density-spacing, 16px) * 1.125);
 }
 
 .toc-card {
@@ -586,8 +673,8 @@ watch(slug, loadArticle)
 
 .comments-card {
   display: grid;
-  gap: 14px;
-  padding: 18px;
+  gap: var(--theme-density-spacing, 16px);
+  padding: calc(var(--theme-density-spacing, 16px) * 1.125);
 }
 
 .comments-head {
@@ -613,19 +700,19 @@ watch(slug, loadArticle)
   min-height: 112px;
   padding: 12px 14px;
   border: 1px solid var(--tone-line-strong);
-  border-radius: 8px;
+  border-radius: var(--app-radius-sm, 8px);
   outline: none;
   resize: vertical;
-  background: rgba(255, 255, 255, 0.84);
+  background: color-mix(in srgb, var(--tone-panel-solid) 84%, transparent);
   color: var(--tone-ink);
   font: inherit;
   line-height: 1.65;
-  transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+  transition: border-color var(--transition-time, 180ms) ease, box-shadow var(--transition-time, 180ms) ease, background var(--transition-time, 180ms) ease;
 }
 
 .comment-form textarea:focus {
   border-color: color-mix(in srgb, var(--tone-primary) 48%, var(--tone-line-strong));
-  background: #ffffff;
+  background: var(--tone-panel-solid);
   box-shadow: 0 0 0 4px rgba(11, 87, 208, 0.08);
 }
 
@@ -655,8 +742,8 @@ watch(slug, loadArticle)
   padding: 12px;
   margin-left: calc(var(--depth, 0) * 20px);
   border: 1px solid color-mix(in srgb, var(--tone-line) 76%, transparent);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.72);
+  border-radius: var(--app-radius-sm, 8px);
+  background: color-mix(in srgb, var(--tone-panel-solid) 72%, transparent);
 }
 
 .comment-item[style*="--depth: 1"],
@@ -752,8 +839,8 @@ watch(slug, loadArticle)
   gap: 4px;
   padding: 14px;
   border: 1px dashed var(--tone-line-strong);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.46);
+  border-radius: var(--app-radius-sm, 8px);
+  background: color-mix(in srgb, var(--tone-panel-solid) 46%, transparent);
 }
 
 .comment-empty strong {
@@ -773,6 +860,18 @@ watch(slug, loadArticle)
 
   .reading-aside {
     position: static;
+  }
+
+  .article-neighbors {
+    grid-template-columns: 1fr;
+  }
+
+  .article-neighbor--next {
+    text-align: left;
+  }
+
+  .article-neighbor--next span {
+    justify-content: flex-start;
   }
 }
 

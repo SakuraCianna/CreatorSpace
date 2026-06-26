@@ -1,4 +1,6 @@
 <template>
+<!-- 内容管理规则与发布协议页 -->
+<!-- 确认的业务规则列表页面 -->
   <section ref="root" class="rules-page">
     <header class="module-hero" data-reveal>
       <div>
@@ -19,13 +21,16 @@
 </template>
 
 <script setup lang="ts">
+// 导入需要的 Vue 钩子和 Lucide 图标
 import { ref } from 'vue'
 import { FileLock2, MessageSquare, ShieldCheck, UploadCloud, UserPlus } from '@lucide/vue'
 
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 
+// 声明根节点引用以执行入场动效
 const root = ref<HTMLElement | null>(null)
 
+// 触发电影式页面入场显影动效
 usePageReveal(root)
 
 const rules = [

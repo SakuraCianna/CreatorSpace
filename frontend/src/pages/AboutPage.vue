@@ -1,10 +1,17 @@
 <template>
+<!-- 关于创作者及内容边界介绍页面 -->
   <section ref="root" class="about-page">
     <header class="about-hero page-hero" data-reveal>
       <div class="hero-copy">
         <p class="page-kicker">About Creator</p>
         <h1>{{ profile?.displayName || siteName }}</h1>
         <p>{{ profile?.headline || siteSlogan }}</p>
+        <div v-if="resumeLink" class="hero-actions">
+          <a class="button button-filled" :href="resumeLink.url" target="_blank" rel="noreferrer">
+            <FileText :size="15" />
+            {{ resumeLink.label }}
+          </a>
+        </div>
       </div>
       <div class="profile-card">
         <div class="profile-avatar">
@@ -16,6 +23,7 @@
       </div>
     </header>
 
+    <!-- 双列响应式内容看板网格 -->
     <section class="about-grid">
       <article class="about-panel about-panel--bio" data-reveal>
         <UserRound :size="22" />
@@ -68,6 +76,26 @@
       </article>
     </section>
 
+    <!-- 个人成长或工作经历时间线, 数据来自后台公开 profileJson -->
+    <section class="experience-band" data-reveal>
+      <div class="experience-band__intro">
+        <Briefcase :size="22" />
+        <p class="page-kicker">Experience</p>
+        <h2>成长与工作经历</h2>
+        <p>{{ experienceSummary }}</p>
+      </div>
+      <ol v-if="timelineItems.length" class="experience-timeline">
+        <li v-for="item in timelineItems" :key="`${item.period}-${item.title}-${item.organization}`">
+          <span class="experience-time">{{ item.period || item.kind }}</span>
+          <strong>{{ item.title }}</strong>
+          <em v-if="item.organization">{{ item.organization }}</em>
+          <p v-if="item.description">{{ item.description }}</p>
+        </li>
+      </ol>
+      <p v-else class="experience-empty">后台维护经历数据后，这里会展示教育、职业或阶段成长记录。</p>
+    </section>
+
+    <!-- 从碎片到公开展品的创作流水线 -->
     <section class="workflow-band" data-reveal>
       <div>
         <p class="page-kicker">Creator Flow</p>
@@ -90,7 +118,9 @@ import { RouterLink } from 'vue-router'
 import {
   ArrowRight,
   BookOpen,
+  Briefcase,
   ExternalLink,
+  FileText,
   Images,
   Lightbulb,
   Mail,
@@ -126,6 +156,19 @@ interface WorkflowStep {
   body: string
 }
 
+interface TimelineItem {
+  period: string
+  title: string
+  organization: string
+  description: string
+  kind: string
+}
+
+interface ResumeLink {
+  label: string
+  url: string
+}
+
 const root = ref<HTMLElement | null>(null)
 const cinematic = useCinematicPageMotion(root)
 const profile = ref<AboutProfile | null>(null)
@@ -137,6 +180,12 @@ const { siteName, siteSlogan } = useSiteIdentity({ load: false })
 usePageReveal(root)
 
 const focusTags = computed(() => readStringArray(profile.value?.profileJson.focus).slice(0, 12))
+const timelineItems = computed(() => readTimelineItems(profile.value?.profileJson).slice(0, 8))
+const resumeLink = computed(() => readResumeLink(profile.value?.profileJson))
+const experienceSummary = computed(() => {
+  const summary = readString(profile.value?.profileJson.experienceSummary)
+  return summary || '这些经历用于补足创作者背景，让读者知道内容经验和项目判断来自哪里。'
+})
 const activeTheme = computed(() => themes.value.find((theme) => theme.active) ?? themes.value[0] ?? null)
 const themeSummary = computed(() => {
   if (!activeTheme.value) {
@@ -156,6 +205,7 @@ const workflowSteps = computed<WorkflowStep[]>(() => [
   { index: '03', title: '审核公开', body: policySummary.value },
 ])
 
+// 并发异步获取当前配置的站点基本设置与全站可用主题列表, 数据成功就绪后触发入场显影动效
 async function loadAbout() {
   const [configResult, themesResult] = await Promise.allSettled([fetchSiteConfig(), fetchThemes()])
   if (configResult.status === 'fulfilled') {
@@ -175,7 +225,8 @@ async function loadAbout() {
   void cinematic.play()
 }
 
-// 把公开站点配置收敛成页面可直接消费的字段，后端新增字段时不会破坏页面。
+// 把公开站点配置收敛成页面可直接消费的字段, 后端新增字段时不会破坏页面
+// 将后端取得的全局站点基础配置反序列化并格式化为页面可直接渲染消费的个人资料属性
 function readProfile(value: unknown): AboutProfile | null {
   const record = readRecord(value)
   if (Object.keys(record).length === 0) {
@@ -191,6 +242,7 @@ function readProfile(value: unknown): AboutProfile | null {
   }
 }
 
+// 格式化解析个人社交链接, 过滤掉不安全的非 http 或 mailto 协议
 function readContactLink(value: unknown): ContactLink | null {
   const record = readRecord(value)
   const url = safeContactUrl(readString(record.url))
@@ -218,6 +270,72 @@ function readString(value: unknown): string {
 
 function readStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+}
+
+function readTimelineItems(value: unknown): TimelineItem[] {
+  const record = readRecord(value)
+  const directItems = readTimelineList(record.experiences, '经历')
+  if (directItems.length) {
+    return directItems
+  }
+  return [
+    ...readTimelineList(record.career, '工作'),
+    ...readTimelineList(record.education, '教育'),
+    ...readTimelineList(record.experience, '经历'),
+  ]
+}
+
+function readTimelineList(value: unknown, fallbackKind: string): TimelineItem[] {
+  return readArray(value)
+    .map((item) => readTimelineItem(item, fallbackKind))
+    .filter((item): item is TimelineItem => Boolean(item))
+}
+
+function readTimelineItem(value: unknown, fallbackKind: string): TimelineItem | null {
+  if (typeof value === 'string') {
+    const title = value.trim()
+    return title ? { period: '', title, organization: '', description: '', kind: fallbackKind } : null
+  }
+  const record = readRecord(value)
+  const title = readString(record.title) || readString(record.role) || readString(record.name)
+  const organization = readString(record.organization) || readString(record.company) || readString(record.school)
+  const description = readString(record.description) || readString(record.body) || readString(record.summary)
+  const period = readString(record.period) || readDateRange(record)
+  const kind = readString(record.kind) || fallbackKind
+  if (!title && !organization && !description) {
+    return null
+  }
+  return {
+    period,
+    title: title || organization || kind,
+    organization,
+    description,
+    kind,
+  }
+}
+
+function readDateRange(record: Record<string, unknown>): string {
+  const start = readString(record.start) || readString(record.startDate)
+  const end = readString(record.end) || readString(record.endDate)
+  if (start && end) {
+    return `${start} - ${end}`
+  }
+  return start || end
+}
+
+function readResumeLink(value: unknown): ResumeLink | null {
+  const record = readRecord(value)
+  const resumeRecord = readRecord(record.resume)
+  const url = safeAssetUrl(
+    readString(record.resumeUrl) || readString(resumeRecord.url) || readString(resumeRecord.href),
+  )
+  if (!url) {
+    return null
+  }
+  return {
+    label: readString(record.resumeLabel) || readString(resumeRecord.label) || '查看简历',
+    url,
+  }
 }
 
 function safeAssetUrl(value: string): string {
@@ -340,8 +458,15 @@ onMounted(loadAbout)
   line-height: 1.72;
 }
 
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .profile-card,
 .about-panel,
+.experience-band,
 .workflow-band {
   border: 1px solid var(--tone-line);
   border-radius: var(--app-radius-sm);
@@ -415,12 +540,14 @@ onMounted(loadAbout)
 }
 
 .about-panel h2,
+.experience-band h2,
 .workflow-band h2 {
   margin: 0;
   color: var(--tone-ink);
 }
 
 .about-panel p,
+.experience-band p,
 .workflow-band p {
   margin: 0;
   color: var(--tone-muted);
@@ -473,6 +600,92 @@ onMounted(loadAbout)
   color: #055f57;
 }
 
+.experience-band {
+  display: grid;
+  grid-template-columns: 0.42fr minmax(0, 1fr);
+  gap: 22px;
+  padding: 24px;
+}
+
+.experience-band__intro {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.experience-band__intro svg {
+  color: var(--tone-primary);
+}
+
+.experience-timeline {
+  position: relative;
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.experience-timeline::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 7px;
+  width: 2px;
+  background: color-mix(in srgb, var(--tone-primary) 22%, transparent);
+}
+
+.experience-timeline li {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  padding: 0 0 0 28px;
+}
+
+.experience-timeline li::before {
+  content: "";
+  position: absolute;
+  top: 7px;
+  left: 1px;
+  width: 14px;
+  height: 14px;
+  border: 3px solid color-mix(in srgb, var(--tone-primary) 32%, #fff);
+  border-radius: 50%;
+  background: var(--tone-panel-solid);
+}
+
+.experience-time {
+  color: var(--tone-faint);
+  font-size: 12px;
+  font-weight: 840;
+}
+
+.experience-timeline strong {
+  color: var(--tone-ink);
+  font-size: 16px;
+}
+
+.experience-timeline em {
+  color: var(--tone-muted);
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 740;
+}
+
+.experience-timeline p {
+  font-size: 13px;
+}
+
+.experience-empty {
+  align-self: center;
+  padding: 14px 16px;
+  border: 1px dashed color-mix(in srgb, var(--tone-primary) 28%, var(--tone-line));
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.56);
+  font-size: 13px;
+}
+
 .workflow-band {
   display: grid;
   grid-template-columns: 0.58fr minmax(0, 1fr);
@@ -515,6 +728,7 @@ onMounted(loadAbout)
 @media (max-width: 1020px) {
   .about-hero,
   .about-grid,
+  .experience-band,
   .workflow-band,
   .workflow-band ol {
     grid-template-columns: 1fr;

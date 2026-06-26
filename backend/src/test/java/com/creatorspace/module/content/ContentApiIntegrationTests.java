@@ -159,8 +159,7 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
         mockMvc.perform(get("/api/search")
                         .param("keyword", "tech-notes"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.records[0].type", is("ARTICLE")))
-                .andExpect(jsonPath("$.data.records[0].title", is("第一篇公开文章")));
+                .andExpect(jsonPath("$.data.records[?(@.type == 'ARTICLE' && @.title == '第一篇公开文章')]").exists());
     }
 
     // 验证公开文章列表不会泄露草稿或私密文章。
@@ -196,6 +195,18 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                         .param("keyword", "不应公开检索哨兵"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.records", empty()));
+    }
+
+    // 验证公开文章详情页上一篇/下一篇由后端按公开列表排序计算, 不依赖前端分页窗口。
+    @Test
+    void publicArticleNeighborsFollowPublicListOrder() throws Exception {
+        mockMvc.perform(get("/api/articles/slug/{slug}/neighbors", "creator-theme-blog"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.previousArticle.slug", is("redis-site-config-cache")))
+                .andExpect(jsonPath("$.data.nextArticle.slug", is("home-content-room")))
+                .andExpect(jsonPath("$.data.previousArticle.contentMarkdown").doesNotExist())
+                .andExpect(jsonPath("$.data.nextArticle.contentMarkdown").doesNotExist());
     }
 
     // 验证后台文章列表、更新、发布、撤回、推荐置顶和删除闭环。
@@ -358,8 +369,26 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
         mockMvc.perform(get("/api/search")
                         .param("keyword", "unique-gallery-tag"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.records[0].type", is("PROJECT")))
-                .andExpect(jsonPath("$.data.records[0].title", is("CreatorSpace CMS")));
+                .andExpect(jsonPath("$.data.records[?(@.type == 'PROJECT' && @.title == 'CreatorSpace CMS')]").exists());
+    }
+
+    // 验证公开作品详情返回截图、里程碑、资源链接和过程记录。
+    @Test
+    void publicProjectDetailIncludesExtendedShowcaseData() throws Exception {
+        mockMvc.perform(get("/api/projects/slug/{slug}", "creator-center-workbench"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.screenshots", not(empty())))
+                .andExpect(jsonPath("$.data.screenshots[0].imageUrl", not("")))
+                .andExpect(jsonPath("$.data.screenshots[0].caption", not("")))
+                .andExpect(jsonPath("$.data.milestones", not(empty())))
+                .andExpect(jsonPath("$.data.milestones[0].title", not("")))
+                .andExpect(jsonPath("$.data.milestones[0].description", not("")))
+                .andExpect(jsonPath("$.data.resources", not(empty())))
+                .andExpect(jsonPath("$.data.resources[0].label", not("")))
+                .andExpect(jsonPath("$.data.resources[0].url", not("")))
+                .andExpect(jsonPath("$.data.processNotes", not(empty())))
+                .andExpect(jsonPath("$.data.processNotes[0].phase", not("")))
+                .andExpect(jsonPath("$.data.processNotes[0].body", not("")));
     }
 
     // 验证普通用户可以上传创作资源，并对公开内容点赞和收藏。
@@ -1039,6 +1068,64 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                 .andExpect(jsonPath("$.data.records[0].originalName", is("cover.png")));
     }
 
+    // 验证公开灵感墙返回关联内容, 且后台支持草图和参考资料两种独立类型。
+    @Test
+    void inspirationsExposeRelationsAndSupportSketchAndReferenceTypes() throws Exception {
+        String token = loginAsAdmin();
+        long tagId = createTag(token, "灵感类型标签", "inspiration-type-tag");
+
+        mockMvc.perform(get("/api/inspirations")
+                        .param("keyword", "创作中心信息架构"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.records[0].relations", not(empty())))
+                .andExpect(jsonPath("$.data.records[0].relations[0].targetType", is("ARTICLE")))
+                .andExpect(jsonPath("$.data.records[0].relations[0].targetTitle", not("")))
+                .andExpect(jsonPath("$.data.records[0].relations[0].targetSlug", is("creator-theme-blog")));
+
+        mockMvc.perform(post("/api/admin/inspirations")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "title", "草图灵感卡片",
+                                "content", "界面草图说明。",
+                                "cardType", "SKETCH",
+                                "color", "#22c55e",
+                                "isPublic", true,
+                                "sortOrder", 21,
+                                "tagIds", new long[]{tagId}
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.cardType", is("SKETCH")));
+
+        mockMvc.perform(post("/api/admin/inspirations")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "title", "参考资料灵感卡片",
+                                "content", "公开阅读资料。",
+                                "cardType", "REFERENCE",
+                                "sourceUrl", "https://example.com/reference",
+                                "color", "#0ea5e9",
+                                "isPublic", true,
+                                "sortOrder", 22,
+                                "tagIds", new long[]{tagId}
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.cardType", is("REFERENCE")));
+
+        mockMvc.perform(get("/api/inspirations")
+                        .param("type", "SKETCH")
+                        .param("keyword", "草图灵感卡片"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.records[0].cardType", is("SKETCH")));
+
+        mockMvc.perform(get("/api/inspirations")
+                        .param("type", "REFERENCE")
+                        .param("keyword", "参考资料灵感卡片"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.records[0].cardType", is("REFERENCE")));
+    }
+
     // 验证上传接口拒绝伪造 Content-Type 的可执行扩展名。
     @Test
     void adminFileUploadRejectsSpoofedExecutableExtension() throws Exception {
@@ -1196,11 +1283,21 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                                          "bio", "测试公开站点资料会从后台同步。",
                                          "contactEmail", "creator@example.com",
                                          "location", "Shanghai",
-                                        "profileJson", Map.of(
-                                                "signature", "material-cms",
-                                                "focus", new String[]{"主题配置", "内容展示"},
-                                                "privateToken", "should-not-be-public"
-                                        )
+                                                "profileJson", Map.of(
+                                                        "signature", "material-cms",
+                                                        "focus", new String[]{"主题配置", "内容展示"},
+                                                        "experienceSummary", "公开经历摘要用于关于页时间线。",
+                                                        "experiences", new Object[]{
+                                                                Map.of(
+                                                                        "period", "2024 - 2025",
+                                                                        "title", "内容系统搭建",
+                                                                        "description", "把文章、作品和灵感拆成可审核的数据流。"
+                                                                )
+                                                        },
+                                                        "resumeUrl", "https://example.com/resume.pdf",
+                                                        "resumeLabel", "查看简历",
+                                                        "privateToken", "should-not-be-public"
+                                                )
                                  ),
                                 "configs", new Object[]{
                                         Map.of(
@@ -1267,6 +1364,10 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                 .andExpect(jsonPath("$.data['site.profile.active'].contactEmail").doesNotExist())
                 .andExpect(jsonPath("$.data['site.profile.active'].profileJson.signature", is("material-cms")))
                 .andExpect(jsonPath("$.data['site.profile.active'].profileJson.focus[0]", is("主题配置")))
+                .andExpect(jsonPath("$.data['site.profile.active'].profileJson.experienceSummary", is("公开经历摘要用于关于页时间线。")))
+                .andExpect(jsonPath("$.data['site.profile.active'].profileJson.experiences[0].title", is("内容系统搭建")))
+                .andExpect(jsonPath("$.data['site.profile.active'].profileJson.resumeUrl", is("https://example.com/resume.pdf")))
+                .andExpect(jsonPath("$.data['site.profile.active'].profileJson.resumeLabel", is("查看简历")))
                 .andExpect(jsonPath("$.data['site.profile.active'].profileJson.privateToken").doesNotExist())
                 .andExpect(jsonPath("$.data['site.identity'].name", is("CreatorSpace Test Lab")))
                 .andExpect(jsonPath("$.data['site.navigationItems'][0].label", is("实验室")))
@@ -1277,6 +1378,20 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                 .andExpect(jsonPath("$.data['home.contentBlocks'][0].blockKey", is("home.creatorHero")))
                 .andExpect(jsonPath("$.data['page.about'].title", is("关于测试创作者")));
         assertThat(Boolean.TRUE.equals(redisTemplate.hasKey(SiteCacheService.SITE_CONFIG_KEY))).isTrue();
+    }
+
+    // 验证公开首页可读取访问统计摘要, 但不会暴露后台操作明细。
+    @Test
+    void publicSiteStatisticsSummaryIsReadableWithoutAdminToken() throws Exception {
+        mockMvc.perform(get("/api/site/statistics/summary"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.totalPv").isNumber())
+                .andExpect(jsonPath("$.data.totalUv").isNumber())
+                .andExpect(jsonPath("$.data.todayPv").isNumber())
+                .andExpect(jsonPath("$.data.todayUv").isNumber())
+                .andExpect(jsonPath("$.data.contentViews").isNumber())
+                .andExpect(jsonPath("$.data.operationLogs").doesNotExist());
     }
 
     // 验证后台导航配置拒绝协议相对 URL，避免把 //evil.example 当作站内路径。

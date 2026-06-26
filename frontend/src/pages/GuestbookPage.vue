@@ -1,4 +1,5 @@
 <template>
+<!-- 留言板互动墙页面 -->
   <section ref="root" class="guestbook-page">
     <header class="archive-hero page-hero page-hero--guestbook" data-reveal>
       <div>
@@ -49,6 +50,7 @@
 </template>
 
 <script setup lang="ts">
+// 导入 Composition API 与 Lucide 图标资源
 import { computed, onMounted, ref } from 'vue'
 import { LoaderCircle } from '@lucide/vue'
 
@@ -66,6 +68,7 @@ interface GuestbookEntry {
   createdAt?: string | null
 }
 
+// 声明留言板所需的表单数据和响应式列表
 const root = ref<HTMLElement | null>(null)
 const entries = ref<GuestbookEntry[]>([])
 const draft = ref('')
@@ -77,6 +80,7 @@ usePageReveal(root)
 
 const canPost = computed(() => Boolean(session.accessToken))
 
+// 异步拉取留言板审核通过的已公开留言列表数据
 async function loadEntries() {
   isLoading.value = true
   try {
@@ -89,6 +93,7 @@ async function loadEntries() {
   }
 }
 
+// 提交用户留言, 限制留言字数并在成功后刷新留言流列表
 async function postMessage() {
   if (!canPost.value) {
     formNotice.value = '请先登录账号再留言'

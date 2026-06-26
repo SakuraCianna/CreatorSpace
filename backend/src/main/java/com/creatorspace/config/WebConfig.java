@@ -1,19 +1,20 @@
 package com.creatorspace.config;
 
+import com.creatorspace.module.audit.AdminOperationAuditInterceptor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.nio.file.Path;
 import java.util.Arrays;
 
-/**
- * Web 跨域和本地静态资源映射配置。
- */
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
+
+    private final AdminOperationAuditInterceptor adminOperationAuditInterceptor;
 
     @Value("${app.cors.allowed-origins:*}")
     private String allowedOrigins;
@@ -24,7 +25,10 @@ public class WebConfig implements WebMvcConfigurer {
     @Value("${app.storage.public-prefix:/uploads}")
     private String publicPrefix;
 
-    // 注册前后端跨域规则，本地开发允许使用 * 覆盖所有来源模式。
+    public WebConfig(AdminOperationAuditInterceptor adminOperationAuditInterceptor) {
+        this.adminOperationAuditInterceptor = adminOperationAuditInterceptor;
+    }
+
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
@@ -36,7 +40,11 @@ public class WebConfig implements WebMvcConfigurer {
                 .maxAge(3600);
     }
 
-    // 注册本地上传文件的静态访问路径。
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(adminOperationAuditInterceptor).addPathPatterns("/api/admin/**");
+    }
+
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         String prefix = publicPrefix.startsWith("/") ? publicPrefix : "/" + publicPrefix;
@@ -45,7 +53,6 @@ public class WebConfig implements WebMvcConfigurer {
                 .addResourceLocations(toDirectoryLocation(root));
     }
 
-    // 将相对存储路径解析到项目根目录。
     private static Path resolveFromProjectRoot(String value) {
         Path configured = Path.of(value);
         if (configured.isAbsolute()) {
@@ -62,13 +69,11 @@ public class WebConfig implements WebMvcConfigurer {
         return cwd.resolve(configured).normalize();
     }
 
-    // 将本地目录路径转换为 Spring 静态资源需要的目录 URI。
     static String toDirectoryLocation(Path root) {
         String location = root.toUri().toString();
         return location.endsWith("/") ? location : location + "/";
     }
 
-    // 拆分逗号分隔的配置项。
     private static String[] split(String value) {
         return Arrays.stream(value.split(","))
                 .map(String::trim)

@@ -1,25 +1,30 @@
 <template>
   <div class="cs-home">
-    <HeroUniverse />
-    <MarqueeManifesto />
-    <FeaturedArticles />
-    <PortfolioGallery />
-    <SiteStructureShowcase />
-    <ApproachProcess />
-    <CreativeWall />
-    <ThemeUniverse />
-    <FinalCTA />
+    <component
+      :is="homeModuleComponents[module]"
+      v-for="module in runtimeHomeModules"
+      :key="module"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { defineComponent, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { defineComponent, h, nextTick, onBeforeUnmount, onMounted, ref, watch, type Component } from 'vue'
 import { RouterLink } from 'vue-router'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
 import type { HeroSceneHandles } from '@/shared/heroScene'
-import { fetchArticles, fetchCurrentTheme, fetchInspirations, fetchProjects, fetchSiteConfig, fetchThemes } from '@/services/content'
+import {
+  fetchArticles,
+  fetchCurrentTheme,
+  fetchInspirations,
+  fetchProjects,
+  fetchSiteConfig,
+  fetchSiteStatisticsSummary,
+  fetchTags,
+  fetchThemes,
+} from '@/services/content'
 import { useGsapContext } from '@/shared/composables/useGsapScroll'
 import { useLenis } from '@/shared/composables/useLenis'
 import { attachMagnetic } from '@/shared/composables/useMagnetic'
@@ -50,7 +55,7 @@ import {
   type SiteConfig,
   type ThemePreset,
 } from '@/content/home'
-import type { ArticleSummary, InspirationCard, ProjectSummary, PublicThemeConfig, TagSummary } from '@/shared/domain'
+import type { ArticleSummary, InspirationCard, ProjectSummary, PublicThemeConfig, SiteStatisticsSummary, TagSummary } from '@/shared/domain'
 
 
 gsap.registerPlugin(ScrollTrigger)
@@ -63,8 +68,50 @@ const emptyTotals = {
   inspirationTotal: 0,
 }
 
+const defaultVisitSummary: SiteStatisticsSummary = {
+  totalPv: 0,
+  totalUv: 0,
+  todayPv: 0,
+  todayUv: 0,
+  contentViews: 0,
+}
+
+const DEFAULT_HOME_MODULES = [
+  'hero',
+  'manifesto',
+  'creatorArticles',
+  'creatorProjects',
+  'siteStructure',
+  'approach',
+  'recentActivity',
+  'tagCloud',
+  'inspirations',
+  'themes',
+  'finalCta',
+] as const
+
+type HomeModuleKey = typeof DEFAULT_HOME_MODULES[number]
+
+interface HomeProfile {
+  displayName: string
+  headline: string
+  avatarUrl: string
+  bio: string
+}
+
+interface RecentActivity {
+  id: string
+  type: string
+  title: string
+  detail: string
+  date: string
+  timestamp: number
+  to: string
+  accent: string
+}
+
 const runtimeSiteConfig = ref<SiteConfig | null>(null)
-const runtimeHeroContent = ref<HomeHeroContent>(resolveHeroContent(emptyTotals, DEFAULT_SITE_IDENTITY.name))
+const runtimeHeroContent = ref<HomeHeroContent>(resolveHeroContent(emptyTotals, DEFAULT_SITE_IDENTITY.name, defaultVisitSummary))
 const runtimeMarqueeWords = ref<string[]>(buildMarqueeWords())
 const runtimeManifesto = ref<ManifestoContent>(buildManifesto())
 const runtimeArticles = ref<FeaturedArticle[]>([])
@@ -75,6 +122,11 @@ const runtimeCounters = ref<CounterItem[]>(buildCounters(emptyTotals))
 const runtimeFragments = ref<CreativeFragment[]>([])
 const runtimeThemePresets = ref<ThemePreset[]>([])
 const runtimeCurrentThemeName = ref('读取中')
+const runtimeProfile = ref<HomeProfile | null>(null)
+const runtimeRecentActivities = ref<RecentActivity[]>([])
+const runtimeTags = ref<TagSummary[]>([])
+const runtimeVisitSummary = ref<SiteStatisticsSummary>(defaultVisitSummary)
+const runtimeHomeModules = ref<HomeModuleKey[]>([...DEFAULT_HOME_MODULES])
 
 onMounted(() => {
   document.body.classList.add('cs-dark-body')
@@ -184,7 +236,7 @@ function heroButton(action: HomeHeroAction, ghost = false) {
 }
 
 async function loadHomeRuntimeData() {
-  const [configResult, articlesResult, projectsResult, inspirationsResult, themesResult, currentThemeResult] =
+  const [configResult, articlesResult, projectsResult, inspirationsResult, themesResult, currentThemeResult, tagsResult, statisticsResult] =
     await Promise.allSettled([
       fetchSiteConfig(),
       fetchArticles(),
@@ -192,6 +244,8 @@ async function loadHomeRuntimeData() {
       fetchInspirations({ pageSize: HOME_INSPIRATION_LIMIT }),
       fetchThemes(),
       fetchCurrentTheme(),
+      fetchTags(),
+      fetchSiteStatisticsSummary(),
     ])
 
   const config = configResult.status === 'fulfilled' ? configResult.value : {}
@@ -200,6 +254,8 @@ async function loadHomeRuntimeData() {
   const inspirations = inspirationsResult.status === 'fulfilled' ? inspirationsResult.value.records : []
   const themes = themesResult.status === 'fulfilled' ? themesResult.value : []
   const currentTheme = currentThemeResult.status === 'fulfilled' ? currentThemeResult.value : null
+  const tags = tagsResult.status === 'fulfilled' ? tagsResult.value : []
+  const visitSummary = statisticsResult.status === 'fulfilled' ? statisticsResult.value : defaultVisitSummary
   const totals = {
     articleTotal: articlesResult.status === 'fulfilled' ? articlesResult.value.total : 0,
     projectTotal: projectsResult.status === 'fulfilled' ? projectsResult.value.total : 0,
@@ -211,11 +267,16 @@ async function loadHomeRuntimeData() {
   const nextSiteConfig = resolveSiteConfig(config, nextSiteIdentity)
 
   runtimeSiteConfig.value = nextSiteConfig
-  runtimeHeroContent.value = resolveHeroContent(totals, nextSiteConfig.brand)
+  runtimeProfile.value = readHomeProfile(config['site.profile.active'], nextSiteIdentity)
+  runtimeVisitSummary.value = visitSummary
+  runtimeHeroContent.value = resolveHeroContent(totals, nextSiteConfig.brand, visitSummary)
   runtimeArticles.value = buildFeaturedCards(articles, projects)
   runtimeProjects.value = buildPortfolioProjects(projects)
   runtimeCounters.value = buildCounters(totals)
   runtimeFragments.value = inspirations.slice(0, HOME_INSPIRATION_LIMIT).map(inspirationToFragment)
+  runtimeRecentActivities.value = buildRecentActivities(articles, projects, inspirations)
+  runtimeTags.value = tags.slice().sort((left, right) => right.weight - left.weight || left.name.localeCompare(right.name, 'zh-CN'))
+  runtimeHomeModules.value = resolveHomeModules(config['page.home'])
   runtimeThemePresets.value = themes.map(themeToPreset)
   runtimeCurrentThemeName.value = currentTheme?.displayName
     ?? themes.find((theme) => theme.active)?.displayName
@@ -251,6 +312,8 @@ const fragmentKindMap = {
   PROMPT: 'prompt',
   CODE: 'code',
   LINK: 'link',
+  SKETCH: 'image',
+  REFERENCE: 'link',
 } as const satisfies Record<InspirationCard['cardType'], CreativeFragment['kind']>
 const homepageFragmentBackgrounds = [
   inspirationBg01,
@@ -285,6 +348,83 @@ function readStringList(value: unknown): string[] {
     .filter(Boolean)
 }
 
+function readNumber(value: unknown, fallback = 0): number {
+  const parsed = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function safeAssetUrl(value: string): string {
+  if (!value) {
+    return ''
+  }
+  if (value.startsWith('/uploads/')) {
+    return value
+  }
+  try {
+    const url = new URL(value)
+    return ['http:', 'https:'].includes(url.protocol) ? url.toString() : ''
+  } catch {
+    return ''
+  }
+}
+
+function readHomeProfile(value: unknown, identity: SiteIdentity): HomeProfile {
+  const record = readRecord(value)
+  return {
+    displayName: readString(record.displayName) || identity.name,
+    headline: readString(record.headline) || identity.slogan,
+    avatarUrl: safeAssetUrl(readString(record.avatarUrl)),
+    bio: readString(record.bio),
+  }
+}
+
+function resolveHomeModules(value: unknown): HomeModuleKey[] {
+  const page = readRecord(value)
+  const content = readRecord(page.contentJson)
+  const configured = readStringList(content.modules)
+    .map(homeModuleKey)
+    .filter((item): item is HomeModuleKey => item !== null)
+
+  if (configured.length === 0) {
+    return [...DEFAULT_HOME_MODULES]
+  }
+
+  const seen = new Set<HomeModuleKey>()
+  const ordered = configured.filter((item) => {
+    if (seen.has(item)) {
+      return false
+    }
+    seen.add(item)
+    return true
+  })
+  return [
+    ...ordered,
+    ...DEFAULT_HOME_MODULES.filter((item) => !seen.has(item)),
+  ]
+}
+
+function homeModuleKey(value: string): HomeModuleKey | null {
+  const aliases: Record<string, HomeModuleKey> = {
+    approach: 'approach',
+    articles: 'creatorArticles',
+    creatorArticles: 'creatorArticles',
+    creatorProjects: 'creatorProjects',
+    finalCta: 'finalCta',
+    hero: 'hero',
+    inspirations: 'inspirations',
+    manifesto: 'manifesto',
+    projects: 'creatorProjects',
+    recent: 'recentActivity',
+    recentActivity: 'recentActivity',
+    siteStructure: 'siteStructure',
+    statistics: 'hero',
+    tagCloud: 'tagCloud',
+    tags: 'tagCloud',
+    themes: 'themes',
+  }
+  return aliases[value] ?? null
+}
+
 function resolveSiteConfig(config: Record<string, unknown>, identity: SiteIdentity = resolveSiteIdentity(config)): SiteConfig {
   return {
     brand: identity.name,
@@ -305,7 +445,7 @@ function readNavigation(value: unknown): SiteConfig['navigation'] {
       }
       return { label, to, external: isExternalUrl(to) }
     })
-    .filter((item): item is SiteConfig['navigation'][number] => item !== null)
+    .filter((item): item is { label: string; to: string; external: boolean } => item !== null)
 }
 
 function readSocial(value: unknown): SiteConfig['social'] {
@@ -319,7 +459,7 @@ function readSocial(value: unknown): SiteConfig['social'] {
       }
       return { label, handle: socialHandle(href), href }
     })
-    .filter((item): item is SiteConfig['social'][number] => item !== null)
+    .filter((item): item is { label: string; handle: string; href: string } => item !== null)
 }
 
 function safeSocialHref(value: string): string {
@@ -354,7 +494,14 @@ function isExternalUrl(value: string): boolean {
   return /^https?:\/\//i.test(value)
 }
 
-function resolveHeroContent(totals: SiteTotals, siteName: string): HomeHeroContent {
+function formatCompactNumber(value: number): string {
+  return new Intl.NumberFormat('zh-CN', {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(value)
+}
+
+function resolveHeroContent(totals: SiteTotals, siteName: string, visitSummary: SiteStatisticsSummary): HomeHeroContent {
   return {
     kicker: 'Personal Theme Blog · Creative Portfolio',
     titleLines: [siteName, '创作主页'],
@@ -363,9 +510,10 @@ function resolveHeroContent(totals: SiteTotals, siteName: string): HomeHeroConte
     primary: { label: '进入博客', to: '/articles' },
     secondary: { label: '浏览作品', to: '/projects' },
     stats: [
-      { value: String(totals.articleTotal), label: '主题文章' },
-      { value: String(totals.projectTotal), label: '创意作品' },
-      { value: String(totals.inspirationTotal), label: '灵感碎片' },
+      { value: formatCompactNumber(visitSummary.totalPv), label: 'PV 总访问' },
+      { value: formatCompactNumber(visitSummary.totalUv), label: 'UV 访客' },
+      { value: formatCompactNumber(visitSummary.todayPv), label: '今日浏览' },
+      { value: String(totals.articleTotal + totals.projectTotal + totals.inspirationTotal), label: '公开内容' },
     ],
   }
 }
@@ -555,6 +703,65 @@ function buildCounters(totals: SiteTotals): CounterItem[] {
     { value: totals.projectTotal, suffix: '', label: '创意作品' },
     { value: totals.inspirationTotal, suffix: '', label: '灵感碎片' },
   ]
+}
+
+function buildRecentActivities(
+  articles: ArticleSummary[],
+  projects: ProjectSummary[],
+  inspirations: InspirationCard[],
+): RecentActivity[] {
+  const articleItems = articles.map((article) => recentActivityItem({
+    id: `article-${article.id}`,
+    type: '文章',
+    title: article.title,
+    detail: article.summary ?? article.category?.name ?? '新文章已公开',
+    date: article.publishTime ?? article.reviewedAt ?? article.submittedAt,
+    to: `/articles/${article.slug}`,
+    accent: firstTagColor(article.tags, '#54e6c8'),
+  }))
+  const projectItems = projects.map((project) => recentActivityItem({
+    id: `project-${project.id}`,
+    type: '作品',
+    title: project.title,
+    detail: project.description ?? project.projectType,
+    date: project.reviewedAt ?? project.submittedAt,
+    to: `/projects/${project.slug}`,
+    accent: firstTagColor(project.tags, '#ff9d6e'),
+  }))
+  const inspirationItems = inspirations.map((card) => recentActivityItem({
+    id: `inspiration-${card.id}`,
+    type: '灵感',
+    title: card.title,
+    detail: card.content ?? card.tags[0]?.name ?? typeLabel(card.cardType),
+    date: card.createdAt,
+    to: '/inspirations',
+    accent: safeHexColor(card.color, '#b18cff'),
+  }))
+  return [...articleItems, ...projectItems, ...inspirationItems]
+    .sort((left, right) => right.timestamp - left.timestamp)
+    .slice(0, 6)
+}
+
+function recentActivityItem(input: Omit<RecentActivity, 'timestamp' | 'date'> & { date?: string | null }): RecentActivity {
+  const timestamp = input.date ? Date.parse(input.date) : 0
+  return {
+    ...input,
+    date: formatHomeDate(input.date, '刚刚'),
+    timestamp: Number.isFinite(timestamp) ? timestamp : 0,
+  }
+}
+
+function typeLabel(type: InspirationCard['cardType']): string {
+  const labels: Record<InspirationCard['cardType'], string> = {
+    CODE: '代码',
+    IMAGE: '图片',
+    LINK: '链接',
+    PROMPT: '提示词',
+    REFERENCE: '参考资料',
+    SKETCH: '草图',
+    TEXT: '摘句',
+  }
+  return labels[type]
 }
 
 function themeToPreset(theme: PublicThemeConfig): ThemePreset {
@@ -756,6 +963,7 @@ const HeroUniverse = defineComponent({
 
     return () => {
       const hero = runtimeHeroContent.value
+      const profile = runtimeProfile.value
       const actions = [hero?.primary, hero?.secondary].filter((item): item is HomeHeroAction => item !== null && item !== undefined)
       return h('section', { ref: root, class: 'cs-hero cs-section' }, [
         h(HeroWebGLScene),
@@ -768,6 +976,17 @@ const HeroUniverse = defineComponent({
             h('span', { class: 'cs-zh' }, hero?.description ?? ''),
           ]),
           h('div', { class: 'cs-hero__actions' }, actions.map((action, index) => heroButton(action, index > 0))),
+          profile
+            ? h('div', { class: 'cs-hero-profile' }, [
+                profile.avatarUrl
+                  ? h('img', { src: profile.avatarUrl, alt: '', loading: 'lazy' })
+                  : h('span', { class: 'cs-hero-profile__avatar' }, profile.displayName.slice(0, 1).toUpperCase()),
+                h('div', [
+                  h('strong', profile.displayName),
+                  h('span', profile.headline || profile.bio || '正在整理自己的创作空间'),
+                ]),
+              ])
+            : null,
           h(
             'div',
             { class: 'cs-hero__stats' },
@@ -1571,6 +1790,81 @@ const ApproachProcess = defineComponent({
   },
 })
 
+const RecentActivityStream = defineComponent({
+  name: 'RecentActivityStream',
+  setup() {
+    return () =>
+      h('section', { class: 'cs-recent cs-section', id: 'recent' }, [
+        h('div', { class: 'cs-head' }, [
+          h('div', [
+            h('p', { class: 'cs-eyebrow' }, 'Recent Updates'),
+            h('h2', { class: 'cs-head__title' }, '最近动态'),
+          ]),
+          h('p', { class: 'cs-head__note' }, '文章、作品和灵感按公开时间汇成一条最近创作记录。'),
+        ]),
+        runtimeRecentActivities.value.length > 0
+          ? h('div', { class: 'cs-recent__grid' }, runtimeRecentActivities.value.map((item) =>
+              h(
+                RouterLink,
+                {
+                  key: item.id,
+                  to: item.to,
+                  class: 'cs-recent-card',
+                  style: { '--cs-recent-accent': item.accent },
+                },
+                {
+                  default: () => [
+                    h('span', { class: 'cs-recent-card__type' }, item.type),
+                    h('strong', item.title),
+                    h('p', item.detail),
+                    h('time', item.date),
+                  ],
+                },
+              ),
+            ))
+          : h('p', { class: 'cs-empty-line' }, '最近还没有公开动态。'),
+      ])
+  },
+})
+
+const TagCloudSection = defineComponent({
+  name: 'TagCloudSection',
+  setup() {
+    const tagSize = (tag: TagSummary) => {
+      const weight = Math.max(0, Math.min(tag.weight, 100))
+      return `${0.86 + weight / 240}rem`
+    }
+
+    return () =>
+      h('section', { class: 'cs-tag-cloud cs-section', id: 'tags' }, [
+        h('div', { class: 'cs-head' }, [
+          h('div', [
+            h('p', { class: 'cs-eyebrow' }, 'Tech Cloud'),
+            h('h2', { class: 'cs-head__title' }, '全站技术栈标签云'),
+          ]),
+          h('p', { class: 'cs-head__note' }, '标签来自后台标签体系，会随文章、作品和灵感持续增长。'),
+        ]),
+        runtimeTags.value.length > 0
+          ? h('div', { class: 'cs-tag-cloud__body' }, runtimeTags.value.slice(0, 28).map((tag) =>
+              h(
+                RouterLink,
+                {
+                  key: tag.id,
+                  to: { name: 'articles', query: { tagId: String(tag.id) } },
+                  class: 'cs-cloud-tag',
+                  style: {
+                    '--cs-tag-color': safeHexColor(tag.color, '#6ea8ff'),
+                    fontSize: tagSize(tag),
+                  },
+                },
+                `#${tag.name}`,
+              ),
+            ))
+          : h('p', { class: 'cs-empty-line' }, '标签数据暂未公开。'),
+      ])
+  },
+})
+
 const CreativeWall = defineComponent({
   name: 'CreativeWall',
   setup() {
@@ -1711,7 +2005,7 @@ const ThemeUniverse = defineComponent({
     }
 
     // 保存主题预览容器引用。
-    const setPreviewRef = (el: Element | null) => {
+    const setPreviewRef = (el: any) => {
       preview.value = el as HTMLElement | null
       const first = runtimeThemePresets.value.find((preset) => preset.id === activeId.value)
       if (first) {
@@ -1907,6 +2201,20 @@ const FinalCTA = defineComponent({
       ])
   },
 })
+
+const homeModuleComponents: Record<HomeModuleKey, Component> = {
+  approach: ApproachProcess,
+  creatorArticles: FeaturedArticles,
+  creatorProjects: PortfolioGallery,
+  finalCta: FinalCTA,
+  hero: HeroUniverse,
+  inspirations: CreativeWall,
+  manifesto: MarqueeManifesto,
+  recentActivity: RecentActivityStream,
+  siteStructure: SiteStructureShowcase,
+  tagCloud: TagCloudSection,
+  themes: ThemeUniverse,
+}
 
 // 渲染首页页脚。
 function renderFooter() {
@@ -2210,6 +2518,50 @@ function renderFooter() {
   flex-wrap: wrap;
   gap: 14px;
   margin-top: 38px;
+}
+
+.cs-home :deep(.cs-hero-profile) {
+  display: inline-grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  width: min(100%, 520px);
+  margin-top: 26px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(6, 10, 24, 0.46);
+  backdrop-filter: blur(14px);
+}
+
+.cs-home :deep(.cs-hero-profile img),
+.cs-home :deep(.cs-hero-profile__avatar) {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--cs-accent), var(--cs-accent-2));
+  color: #ffffff;
+  object-fit: cover;
+  font-weight: 850;
+}
+
+.cs-home :deep(.cs-hero-profile strong),
+.cs-home :deep(.cs-hero-profile span) {
+  display: block;
+}
+
+.cs-home :deep(.cs-hero-profile strong) {
+  color: #ffffff;
+  font-size: 15px;
+}
+
+.cs-home :deep(.cs-hero-profile span) {
+  margin-top: 4px;
+  color: rgba(234, 241, 255, 0.72);
+  font-size: 13px;
+  line-height: 1.55;
 }
 
 .cs-home :deep(.cs-hero__stats) {
@@ -2936,6 +3288,81 @@ function renderFooter() {
   }
 }
 
+.cs-home :deep(.cs-recent__grid) {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(12px, 1.5vw, 18px);
+  padding-bottom: clamp(56px, 8vh, 108px);
+}
+
+.cs-home :deep(.cs-recent-card) {
+  display: grid;
+  min-height: 190px;
+  align-content: space-between;
+  gap: 14px;
+  padding: clamp(18px, 2vw, 24px);
+  border: 1px solid color-mix(in srgb, var(--cs-recent-accent, var(--cs-accent)) 34%, var(--cs-line));
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--cs-recent-accent, var(--cs-accent)) 18%, transparent), transparent 44%),
+    rgba(9, 15, 32, 0.78);
+  color: var(--cs-ink);
+  text-decoration: none;
+}
+
+.cs-home :deep(.cs-recent-card__type) {
+  width: fit-content;
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--cs-recent-accent, var(--cs-accent)) 22%, transparent);
+  color: var(--cs-recent-accent, var(--cs-accent));
+  font-size: 12px;
+  font-weight: 820;
+}
+
+.cs-home :deep(.cs-recent-card strong) {
+  font-size: clamp(18px, 2vw, 24px);
+  line-height: 1.18;
+}
+
+.cs-home :deep(.cs-recent-card p) {
+  margin: 0;
+  color: var(--cs-ink-dim);
+  line-height: 1.62;
+}
+
+.cs-home :deep(.cs-recent-card time) {
+  color: var(--cs-ink-faint);
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.cs-home :deep(.cs-tag-cloud__body) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  padding-bottom: clamp(60px, 9vh, 120px);
+}
+
+.cs-home :deep(.cs-cloud-tag) {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 8px 13px;
+  border: 1px solid color-mix(in srgb, var(--cs-tag-color, var(--cs-accent)) 38%, var(--cs-line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--cs-tag-color, var(--cs-accent)) 12%, transparent);
+  color: var(--cs-ink);
+  text-decoration: none;
+  font-weight: 780;
+}
+
+.cs-home :deep(.cs-empty-line) {
+  margin: 0 0 clamp(56px, 8vh, 104px);
+  color: var(--cs-ink-dim);
+}
+
 
 .cs-home :deep(.cs-wall__grid) {
   display: grid;
@@ -3054,12 +3481,20 @@ function renderFooter() {
 }
 
 @media (max-width: 900px) {
+  .cs-home :deep(.cs-recent__grid) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .cs-home :deep(.cs-wall__grid) {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
 @media (max-width: 520px) {
+  .cs-home :deep(.cs-recent__grid) {
+    grid-template-columns: 1fr;
+  }
+
   .cs-home :deep(.cs-wall__grid) {
     grid-template-columns: 1fr;
     grid-auto-rows: auto;
@@ -3385,13 +3820,11 @@ function renderFooter() {
   letter-spacing: -0.03em;
   color: transparent;
   -webkit-text-stroke: 1px rgba(170, 185, 235, 0.34);
-  text-stroke: 1px rgba(170, 185, 235, 0.34);
 }
 
 .cs-home :deep(.cs-marquee__row.is-reverse .cs-marquee__item) {
   color: var(--cs-ink);
   -webkit-text-stroke: 0;
-  text-stroke: 0;
   opacity: 0.94;
 }
 
@@ -3401,7 +3834,6 @@ function renderFooter() {
   font-style: normal;
   color: var(--cs-accent);
   -webkit-text-stroke: 0;
-  text-stroke: 0;
   transform: translateY(-0.2em);
 }
 

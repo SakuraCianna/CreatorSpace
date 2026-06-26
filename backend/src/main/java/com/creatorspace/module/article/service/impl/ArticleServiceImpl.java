@@ -10,16 +10,21 @@ import com.creatorspace.module.article.entity.ArticleEntity;
 import com.creatorspace.module.article.mapper.ArticleMapper;
 import com.creatorspace.module.article.mapper.ArticleTagMapper;
 import com.creatorspace.module.article.service.ArticleService;
+import com.creatorspace.module.article.vo.ArticleNeighborsVO;
 import com.creatorspace.module.article.vo.ArticleVO;
 import com.creatorspace.module.category.service.CategoryService;
 import com.creatorspace.module.category.vo.CategoryVO;
+import com.creatorspace.module.statistics.VisitLogService;
 import com.creatorspace.module.tag.service.TagService;
 import com.creatorspace.module.tag.vo.TagVO;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URI;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -38,6 +43,7 @@ public class ArticleServiceImpl implements ArticleService {
     private final CategoryService categoryService;
     private final TagService tagService;
     private final JdbcTemplate jdbcTemplate;
+    private final VisitLogService visitLogService;
 
     // 通过构造器注入文章、分类和标签协作服务。
     public ArticleServiceImpl(
@@ -45,13 +51,15 @@ public class ArticleServiceImpl implements ArticleService {
             ArticleTagMapper articleTagMapper,
             CategoryService categoryService,
             TagService tagService,
-            JdbcTemplate jdbcTemplate
+            JdbcTemplate jdbcTemplate,
+            VisitLogService visitLogService
     ) {
         this.articleMapper = articleMapper;
         this.articleTagMapper = articleTagMapper;
         this.categoryService = categoryService;
         this.tagService = tagService;
         this.jdbcTemplate = jdbcTemplate;
+        this.visitLogService = visitLogService;
     }
 
     // 创建草稿文章，并在同一个事务内写入标签绑定。
@@ -390,14 +398,56 @@ public class ArticleServiceImpl implements ArticleService {
 
     // 按 URL 标识读取公开文章详情，并自增阅读量。
     @Override
-    public ArticleVO getPublicBySlug(String slug) {
+    public ArticleVO getPublicBySlug(String slug, HttpServletRequest request) {
         ArticleEntity article = articleMapper.selectOne(publicArticleQuery()
                 .eq(ArticleEntity::getSlug, normalizeSlug(slug)));
         if (article == null) {
             throw BusinessException.notFound("文章不存在或不可见");
         }
-        incrementViewCount(article.getId());
+        if (visitLogService.recordContentVisit("ARTICLE", article.getId(), request)) {
+            incrementViewCount(article.getId());
+            article.setViewCount(article.getViewCount() + 1);
+        }
         return toVO(article, true);
+    }
+
+    // 按公开列表排序计算当前文章的上一篇和下一篇，不依赖前端分页窗口。
+    @Override
+    public ArticleNeighborsVO getPublicNeighbors(String slug) {
+        String normalizedSlug = normalizeSlug(slug);
+        List<ArticleNeighborIds> ids = jdbcTemplate.query("""
+                        select previous_id, next_id
+                        from (
+                            select id,
+                                   slug,
+                                   lead(id) over (
+                                       order by is_top desc, publish_time desc nulls last, id desc
+                                   ) as previous_id,
+                                   lag(id) over (
+                                       order by is_top desc, publish_time desc nulls last, id desc
+                                   ) as next_id
+                            from articles
+                            where status = ?
+                              and privacy_type = ?
+                        ) ranked_articles
+                        where slug = ?
+                        """,
+                (rs, rowNum) -> new ArticleNeighborIds(
+                        nullableLong(rs, "previous_id"),
+                        nullableLong(rs, "next_id")
+                ),
+                ContentConstants.STATUS_PUBLISHED,
+                ContentConstants.PRIVACY_PUBLIC,
+                normalizedSlug
+        );
+        if (ids.isEmpty()) {
+            throw BusinessException.notFound("文章不存在或不可见");
+        }
+        ArticleNeighborIds neighborIds = ids.getFirst();
+        return new ArticleNeighborsVO(
+                publicNeighborById(neighborIds.previousId()),
+                publicNeighborById(neighborIds.nextId())
+        );
     }
 
     // 自增文章阅读量，同步更新 articles 表和 content_statistics 表。
@@ -416,6 +466,22 @@ public class ArticleServiceImpl implements ArticleService {
                 """,
                 articleId
         );
+    }
+
+    private ArticleVO publicNeighborById(Long id) {
+        if (id == null) {
+            return null;
+        }
+        ArticleEntity article = articleMapper.selectById(id);
+        if (article == null) {
+            return null;
+        }
+        return toVO(article, false);
+    }
+
+    private Long nullableLong(ResultSet rs, String column) throws SQLException {
+        long value = rs.getLong(column);
+        return rs.wasNull() ? null : value;
     }
 
     // 构造公开文章基础查询条件，复用列表和详情的可见性规则。
@@ -599,5 +665,8 @@ public class ArticleServiceImpl implements ArticleService {
 
     private String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private record ArticleNeighborIds(Long previousId, Long nextId) {
     }
 }

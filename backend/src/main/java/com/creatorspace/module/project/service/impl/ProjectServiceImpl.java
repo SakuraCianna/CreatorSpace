@@ -11,15 +11,18 @@ import com.creatorspace.module.project.mapper.ProjectMapper;
 import com.creatorspace.module.project.mapper.ProjectTagMapper;
 import com.creatorspace.module.project.service.ProjectService;
 import com.creatorspace.module.project.vo.ProjectVO;
+import com.creatorspace.module.statistics.VisitLogService;
 import com.creatorspace.module.tag.service.TagService;
 import com.creatorspace.module.tag.vo.TagVO;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URI;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -38,18 +41,21 @@ public class ProjectServiceImpl implements ProjectService {
     private final ProjectTagMapper projectTagMapper;
     private final TagService tagService;
     private final JdbcTemplate jdbcTemplate;
+    private final VisitLogService visitLogService;
 
     // 通过构造器注入作品、标签和 JSON 序列化协作对象。
     public ProjectServiceImpl(
             ProjectMapper projectMapper,
             ProjectTagMapper projectTagMapper,
             TagService tagService,
-            JdbcTemplate jdbcTemplate
+            JdbcTemplate jdbcTemplate,
+            VisitLogService visitLogService
     ) {
         this.projectMapper = projectMapper;
         this.projectTagMapper = projectTagMapper;
         this.tagService = tagService;
         this.jdbcTemplate = jdbcTemplate;
+        this.visitLogService = visitLogService;
     }
 
     // 创建作品草稿，并在同一个事务内写入标签绑定。
@@ -347,13 +353,15 @@ public class ProjectServiceImpl implements ProjectService {
 
     // 按 URL 标识读取公开作品详情。
     @Override
-    public ProjectVO getPublicBySlug(String slug) {
+    public ProjectVO getPublicBySlug(String slug, HttpServletRequest request) {
         ProjectEntity project = projectMapper.selectOne(publicProjectQuery()
                 .eq(ProjectEntity::getSlug, normalizeSlug(slug)));
         if (project == null) {
             throw BusinessException.notFound("作品不存在或不可见");
         }
-        incrementViewCount(project.getId());
+        if (visitLogService.recordContentVisit("PROJECT", project.getId(), request)) {
+            incrementViewCount(project.getId());
+        }
         return toVO(project, true);
     }
 
@@ -469,7 +477,11 @@ public class ProjectServiceImpl implements ProjectService {
                 entity.getCreatedBy(),
                 entity.getSubmittedAt(),
                 entity.getReviewedAt(),
-                entity.getReviewNote()
+                entity.getReviewNote(),
+                includeContent ? projectImages(entity.getId()) : Collections.emptyList(),
+                includeContent ? projectMilestones(entity.getId()) : Collections.emptyList(),
+                includeContent ? projectLinks(entity.getId()) : Collections.emptyList(),
+                includeContent ? projectProcessNotes(entity.getId()) : Collections.emptyList()
         );
     }
 
@@ -492,6 +504,74 @@ public class ProjectServiceImpl implements ProjectService {
 
     private record ProjectStats(Long viewCount, Long likeCount, Long favoriteCount, Long commentCount) {
         static final ProjectStats ZERO = new ProjectStats(0L, 0L, 0L, 0L);
+    }
+
+    private List<ProjectVO.ProjectImageVO> projectImages(Long projectId) {
+        return jdbcTemplate.query("""
+                        select image_url, caption, sort_order
+                        from project_images
+                        where project_id = ?
+                        order by sort_order, id
+                        """,
+                (rs, rowNum) -> new ProjectVO.ProjectImageVO(
+                        rs.getString("image_url"),
+                        rs.getString("caption"),
+                        rs.getInt("sort_order")
+                ),
+                projectId
+        );
+    }
+
+    private List<ProjectVO.ProjectMilestoneVO> projectMilestones(Long projectId) {
+        return jdbcTemplate.query("""
+                        select title, description, milestone_date, sort_order
+                        from project_milestones
+                        where project_id = ?
+                        order by sort_order, id
+                        """,
+                (rs, rowNum) -> new ProjectVO.ProjectMilestoneVO(
+                        rs.getString("title"),
+                        rs.getString("description"),
+                        rs.getObject("milestone_date", LocalDate.class),
+                        rs.getInt("sort_order")
+                ),
+                projectId
+        );
+    }
+
+    private List<ProjectVO.ProjectLinkVO> projectLinks(Long projectId) {
+        return jdbcTemplate.query("""
+                        select link_type, label, url, sort_order
+                        from project_links
+                        where project_id = ?
+                          and safe_status = 'SAFE'
+                        order by sort_order, id
+                        """,
+                (rs, rowNum) -> new ProjectVO.ProjectLinkVO(
+                        rs.getString("link_type"),
+                        rs.getString("label"),
+                        rs.getString("url"),
+                        rs.getInt("sort_order")
+                ),
+                projectId
+        );
+    }
+
+    private List<ProjectVO.ProjectProcessNoteVO> projectProcessNotes(Long projectId) {
+        return jdbcTemplate.query("""
+                        select phase, title, body, sort_order
+                        from project_process_notes
+                        where project_id = ?
+                        order by sort_order, id
+                        """,
+                (rs, rowNum) -> new ProjectVO.ProjectProcessNoteVO(
+                        rs.getString("phase"),
+                        rs.getString("title"),
+                        rs.getString("body"),
+                        rs.getInt("sort_order")
+                ),
+                projectId
+        );
     }
 
     // 查询必须属于当前创作者的作品。

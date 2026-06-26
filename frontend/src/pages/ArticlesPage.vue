@@ -1,4 +1,6 @@
 <template>
+<!-- 前台文章归档列表检索页 -->
+<!-- 公开文章归档与检索引导页面 -->
   <section ref="root" class="archive-page">
     <header class="archive-hero page-hero page-hero--articles" data-reveal>
       <div>
@@ -104,8 +106,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+// 导入组件生命周期钩子和相关组件
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { LoaderCircle, Search } from '@lucide/vue'
 
 import { fetchArticles, fetchTags } from '@/services/content'
@@ -121,8 +124,11 @@ const coverPalettes = [
   ['#172554', '#60a5fa', '#eef6ff'],
 ] as const
 
+// 页面展示状态和交互控制的响应式数据
 const root = ref<HTMLElement | null>(null)
 const topicStrip = ref<HTMLElement | null>(null)
+const route = useRoute()
+const router = useRouter()
 const articles = ref<ArticleSummary[]>([])
 const tagCatalog = ref<TagSummary[]>([])
 const topicInterest = ref<Record<string, number>>({})
@@ -157,14 +163,17 @@ const visibleArticles = computed(() => articles.value)
 const featuredArticle = computed(() => visibleArticles.value[0] ?? null)
 const regularArticles = computed(() => visibleArticles.value.slice(1))
 
+// 点击标签卡片切换当前激活 of 过滤分类节点, 并触发列表重载与滚屏复位
 function selectTag(tagId: number | null) {
   activeTagId.value = tagId
   if (tagId !== null) {
     rememberTopicInterest(tagId)
   }
+  syncTagQuery(tagId)
   loadArticles()
 }
 
+// 向后端异步请求拉取当前分类标签或关键词匹配的公开文章归档列表数据
 async function loadArticles() {
   isLoading.value = true
   notice.value = ''
@@ -186,6 +195,25 @@ async function loadTags() {
   } catch {
     tagCatalog.value = []
   }
+}
+
+function syncTagQuery(tagId: number | null) {
+  const query = { ...route.query }
+  if (tagId === null) {
+    delete query.tagId
+  } else {
+    query.tagId = String(tagId)
+  }
+  void router.replace({ name: 'articles', query })
+}
+
+function readQueryTagId(value: unknown): number | null {
+  const raw = Array.isArray(value) ? value[0] : value
+  if (typeof raw !== 'string' || !raw.trim()) {
+    return null
+  }
+  const tagId = Number(raw)
+  return Number.isInteger(tagId) && tagId > 0 ? tagId : null
 }
 
 function topicScore(tag: TagSummary): number {
@@ -244,7 +272,7 @@ function writeTopicInterest(value: Record<string, number>) {
   try {
     localStorage.setItem('creatorspace:article-topic-interest', JSON.stringify(value))
   } catch {
-    // 本地偏好不可写时跳过，仍按内容热度排序推荐话题。
+    // 本地偏好不可写时跳过, 仍按内容热度排序推荐话题
   }
 }
 
@@ -267,13 +295,15 @@ function pickTwoRowTopicTags(tags: TagSummary[]): TagSummary[] {
     if (rowIndex > 1) {
       return
     }
+    const remaining = rowRemaining[rowIndex] ?? 0
     const chipWidth = estimateControlWidth(`#${tag.name}`)
-    if (chipWidth > rowRemaining[rowIndex] && rowIndex < 1) {
+    if (chipWidth > remaining && rowIndex < 1) {
       rowIndex += 1
     }
-    if (chipWidth <= rowRemaining[rowIndex]) {
+    const currentRemaining = rowRemaining[rowIndex] ?? 0
+    if (chipWidth <= currentRemaining) {
       visible.push(tag)
-      rowRemaining[rowIndex] -= chipWidth + rowGap
+      rowRemaining[rowIndex] = currentRemaining - (chipWidth + rowGap)
     }
   })
 
@@ -322,7 +352,7 @@ function formatDate(value?: string | null): string {
 }
 
 function articleCoverStyle(article: ArticleSummary, index: number) {
-  const palette = coverPalettes[index % coverPalettes.length]
+  const palette = coverPalettes[index % coverPalettes.length] ?? coverPalettes[0]
   return {
     '--cover-from': palette[0],
     '--cover-accent': article.tags[0]?.color ?? palette[1],
@@ -332,9 +362,22 @@ function articleCoverStyle(article: ArticleSummary, index: number) {
 
 onMounted(async () => {
   topicInterest.value = readTopicInterest()
+  activeTagId.value = readQueryTagId(route.query.tagId)
   observeTopicStrip()
   await Promise.all([loadArticles(), loadTags()])
 })
+
+watch(
+  () => route.query.tagId,
+  (value) => {
+    const tagId = readQueryTagId(value)
+    if (tagId === activeTagId.value) {
+      return
+    }
+    activeTagId.value = tagId
+    loadArticles()
+  },
+)
 
 onBeforeUnmount(() => {
   topicResizeObserver?.disconnect()
@@ -543,7 +586,7 @@ onBeforeUnmount(() => {
 .journal-layout {
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr);
-  gap: 28px;
+  gap: calc(var(--theme-density-spacing, 16px) * 1.75);
 }
 
 .journal-profile,
@@ -560,8 +603,8 @@ onBeforeUnmount(() => {
   top: 100px;
   align-self: start;
   display: grid;
-  gap: 16px;
-  padding: 22px;
+  gap: var(--theme-density-spacing, 16px);
+  padding: calc(var(--theme-density-spacing, 16px) * 1.375);
   overflow: hidden;
 }
 
@@ -609,16 +652,16 @@ onBeforeUnmount(() => {
 
 .journal-feed {
   display: grid;
-  gap: 18px;
+  gap: calc(var(--theme-density-spacing, 16px) * 1.125);
 }
 
 .journal-featured,
 .journal-card {
   border: 1px solid var(--tone-line);
   border-radius: var(--app-radius-sm);
-  background: rgba(255, 255, 255, 0.78);
+  background: var(--tone-panel);
   box-shadow: var(--tone-shadow);
-  transition: transform 180ms ease, border-color 180ms ease;
+  transition: transform var(--transition-time, 180ms) ease, border-color var(--transition-time, 180ms) ease;
 }
 
 .journal-featured:hover,
@@ -685,7 +728,7 @@ onBeforeUnmount(() => {
 
 .journal-grid {
   display: grid;
-  gap: 16px;
+  gap: var(--theme-density-spacing, 16px);
 }
 
 .journal-grid {
@@ -707,7 +750,7 @@ onBeforeUnmount(() => {
 }
 
 .journal-card > div {
-  padding: 20px;
+  padding: calc(var(--theme-density-spacing, 16px) * 1.25);
 }
 
 .journal-card .article-date {
