@@ -85,7 +85,6 @@ public class AdminSiteController {
                 json(request.config()),
                 id
         );
-        logOperation(loginUser.userId(), "更新主题", "THEME", "THEME", id, Map.of("themeName", request.themeName()));
         evictAfterCommit(siteCacheService::evictThemes);
         return ApiResponse.ok(themeById(id));
     }
@@ -100,7 +99,6 @@ public class AdminSiteController {
         assertThemeExists(id);
         jdbcTemplate.update("update theme_configs set is_active = false, updated_at = now() where is_active = true");
         jdbcTemplate.update("update theme_configs set is_active = true, updated_at = now() where id = ?", id);
-        logOperation(loginUser.userId(), "切换主题", "THEME", "THEME", id, Map.of("themeId", id));
         evictAfterCommit(siteCacheService::evictThemes);
         return ApiResponse.ok(themeById(id));
     }
@@ -133,7 +131,6 @@ public class AdminSiteController {
         if (request.pages() != null) {
             request.pages().forEach(this::upsertPageConfig);
         }
-        logOperation(loginUser.userId(), "更新站点设置", "SITE", "SITE", null, Map.of("sections", request.changedSections()));
         evictAfterCommit(siteCacheService::evictSiteConfig);
         return ApiResponse.ok(siteSettings());
     }
@@ -624,19 +621,6 @@ public class AdminSiteController {
         return cleaned;
     }
 
-    private void logOperation(Long operatorId, String operation, String module, String targetType, Long targetId, Map<String, ?> detail) {
-        jdbcTemplate.update("""
-                        insert into operation_logs (operator_id, operation, module, target_type, target_id, detail_json)
-                        values (?, ?, ?, ?, ?, cast(? as jsonb))
-                        """,
-                operatorId,
-                operation,
-                module,
-                targetType,
-                targetId,
-                json(detail == null ? Map.of() : detail)
-        );
-    }
 
     public record AdminThemeVO(
             Long id,
