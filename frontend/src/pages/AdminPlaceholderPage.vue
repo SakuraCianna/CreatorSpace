@@ -943,7 +943,7 @@ const pageConfigForms = ref<PageConfigForm[]>([])
 const siteConfigForms = ref<SiteConfigEntryForm[]>([])
 
 const articlePrivacies: ArticlePrivacy[] = ['PUBLIC', 'SELF', 'FRIENDS', 'SELECTED_FRIENDS', 'EXCLUDED_FRIENDS']
-const inspirationTypes: InspirationType[] = ['TEXT', 'PROMPT', 'IMAGE', 'CODE', 'LINK']
+const inspirationTypes: InspirationType[] = ['TEXT', 'PROMPT', 'IMAGE', 'CODE', 'LINK', 'SKETCH', 'REFERENCE']
 const fileModules = ['AVATAR', 'COVER', 'ARTICLE', 'PROJECT', 'INSPIRATION', 'OTHER']
 const pageStatuses: PageConfig['status'][] = ['DRAFT', 'PUBLISHED', 'ARCHIVED']
 const settingsKeyPattern = /^[a-zA-Z0-9._-]{2,120}$/
@@ -1078,6 +1078,8 @@ function inspirationTypeLabel(value: string) {
     IMAGE: '图片',
     CODE: '代码',
     LINK: '链接',
+    SKETCH: '草图',
+    REFERENCE: '参考资料',
   })
 }
 

@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URI;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -476,7 +477,11 @@ public class ProjectServiceImpl implements ProjectService {
                 entity.getCreatedBy(),
                 entity.getSubmittedAt(),
                 entity.getReviewedAt(),
-                entity.getReviewNote()
+                entity.getReviewNote(),
+                includeContent ? projectImages(entity.getId()) : Collections.emptyList(),
+                includeContent ? projectMilestones(entity.getId()) : Collections.emptyList(),
+                includeContent ? projectLinks(entity.getId()) : Collections.emptyList(),
+                includeContent ? projectProcessNotes(entity.getId()) : Collections.emptyList()
         );
     }
 
@@ -499,6 +504,74 @@ public class ProjectServiceImpl implements ProjectService {
 
     private record ProjectStats(Long viewCount, Long likeCount, Long favoriteCount, Long commentCount) {
         static final ProjectStats ZERO = new ProjectStats(0L, 0L, 0L, 0L);
+    }
+
+    private List<ProjectVO.ProjectImageVO> projectImages(Long projectId) {
+        return jdbcTemplate.query("""
+                        select image_url, caption, sort_order
+                        from project_images
+                        where project_id = ?
+                        order by sort_order, id
+                        """,
+                (rs, rowNum) -> new ProjectVO.ProjectImageVO(
+                        rs.getString("image_url"),
+                        rs.getString("caption"),
+                        rs.getInt("sort_order")
+                ),
+                projectId
+        );
+    }
+
+    private List<ProjectVO.ProjectMilestoneVO> projectMilestones(Long projectId) {
+        return jdbcTemplate.query("""
+                        select title, description, milestone_date, sort_order
+                        from project_milestones
+                        where project_id = ?
+                        order by sort_order, id
+                        """,
+                (rs, rowNum) -> new ProjectVO.ProjectMilestoneVO(
+                        rs.getString("title"),
+                        rs.getString("description"),
+                        rs.getObject("milestone_date", LocalDate.class),
+                        rs.getInt("sort_order")
+                ),
+                projectId
+        );
+    }
+
+    private List<ProjectVO.ProjectLinkVO> projectLinks(Long projectId) {
+        return jdbcTemplate.query("""
+                        select link_type, label, url, sort_order
+                        from project_links
+                        where project_id = ?
+                          and safe_status = 'SAFE'
+                        order by sort_order, id
+                        """,
+                (rs, rowNum) -> new ProjectVO.ProjectLinkVO(
+                        rs.getString("link_type"),
+                        rs.getString("label"),
+                        rs.getString("url"),
+                        rs.getInt("sort_order")
+                ),
+                projectId
+        );
+    }
+
+    private List<ProjectVO.ProjectProcessNoteVO> projectProcessNotes(Long projectId) {
+        return jdbcTemplate.query("""
+                        select phase, title, body, sort_order
+                        from project_process_notes
+                        where project_id = ?
+                        order by sort_order, id
+                        """,
+                (rs, rowNum) -> new ProjectVO.ProjectProcessNoteVO(
+                        rs.getString("phase"),
+                        rs.getString("title"),
+                        rs.getString("body"),
+                        rs.getInt("sort_order")
+                ),
+                projectId
+        );
     }
 
     // 查询必须属于当前创作者的作品。

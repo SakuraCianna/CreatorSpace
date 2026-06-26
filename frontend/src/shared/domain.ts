@@ -71,6 +71,11 @@ export interface ArticleSummary {
   reviewNote?: string | null
 }
 
+export interface ArticleNeighbors {
+  previousArticle?: ArticleSummary | null
+  nextArticle?: ArticleSummary | null
+}
+
 export interface ProjectSummary {
   id: number
   title: string
@@ -94,9 +99,48 @@ export interface ProjectSummary {
   submittedAt?: string | null
   reviewedAt?: string | null
   reviewNote?: string | null
+  screenshots?: ProjectScreenshot[]
+  milestones?: ProjectMilestone[]
+  resources?: ProjectResourceLink[]
+  processNotes?: ProjectProcessNote[]
 }
 
-export type InspirationType = 'IMAGE' | 'TEXT' | 'PROMPT' | 'CODE' | 'LINK'
+export interface ProjectScreenshot {
+  imageUrl: string
+  caption?: string | null
+  sortOrder: number
+}
+
+export interface ProjectMilestone {
+  title: string
+  description?: string | null
+  milestoneDate?: string | null
+  sortOrder: number
+}
+
+export interface ProjectResourceLink {
+  kind: string
+  label: string
+  url: string
+  sortOrder: number
+}
+
+export interface ProjectProcessNote {
+  phase: string
+  title: string
+  body: string
+  sortOrder: number
+}
+
+export type InspirationType = 'IMAGE' | 'TEXT' | 'PROMPT' | 'CODE' | 'LINK' | 'SKETCH' | 'REFERENCE'
+
+export interface InspirationRelation {
+  targetType: 'ARTICLE' | 'PROJECT' | 'INSPIRATION'
+  targetId: number
+  relationType: 'REFERENCE' | 'SEED' | 'DERIVED_FROM'
+  targetTitle?: string | null
+  targetSlug?: string | null
+}
 
 export interface InspirationCard {
   id: number
@@ -110,6 +154,7 @@ export interface InspirationCard {
   sortOrder: number
   createdAt?: string | null
   tags: TagSummary[]
+  relations?: InspirationRelation[]
 }
 
 export interface InspirationPayload {
@@ -349,6 +394,14 @@ export interface DashboardOverview {
   visitTrend: DashboardTrendPoint[]
   searchTrend: DashboardTrendPoint[]
   recentActivities: DashboardActivity[]
+}
+
+export interface SiteStatisticsSummary {
+  totalPv: number
+  totalUv: number
+  todayPv: number
+  todayUv: number
+  contentViews: number
 }
 
 export interface PageResponse<T> {

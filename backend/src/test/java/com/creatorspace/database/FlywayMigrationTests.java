@@ -94,6 +94,19 @@ class FlywayMigrationTests extends PostgresIntegrationTestSupport {
             assertThat(columnNamesWithoutComments(connection)).isEmpty();
             assertThat(singleLong(connection, "select count(*) from roles where code in ('ADMIN', 'USER')")).isEqualTo(2L);
             assertThat(singleLong(connection, "select count(*) from users where username = 'admin'")).isEqualTo(1L);
+            assertThat(singleLong(connection, """
+                    with sketch_card as (
+                        insert into inspiration_cards (title, card_type)
+                        values ('迁移草图类型验证', 'SKETCH')
+                        returning id
+                    ),
+                    reference_card as (
+                        insert into inspiration_cards (title, card_type)
+                        values ('迁移参考资料类型验证', 'REFERENCE')
+                        returning id
+                    )
+                    select (select count(*) from sketch_card) + (select count(*) from reference_card)
+                    """)).isEqualTo(2L);
             assertShowcaseDataSeeded(connection);
         }
     }

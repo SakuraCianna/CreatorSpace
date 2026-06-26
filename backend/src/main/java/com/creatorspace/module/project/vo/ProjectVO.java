@@ -2,6 +2,7 @@ package com.creatorspace.module.project.vo;
 
 import com.creatorspace.module.tag.vo.TagVO;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -30,6 +31,21 @@ public record ProjectVO(
         Long authorId,
         OffsetDateTime submittedAt,
         OffsetDateTime reviewedAt,
-        String reviewNote
+        String reviewNote,
+        List<ProjectImageVO> screenshots,
+        List<ProjectMilestoneVO> milestones,
+        List<ProjectLinkVO> resources,
+        List<ProjectProcessNoteVO> processNotes
 ) {
+    public record ProjectImageVO(String imageUrl, String caption, Integer sortOrder) {
+    }
+
+    public record ProjectMilestoneVO(String title, String description, LocalDate milestoneDate, Integer sortOrder) {
+    }
+
+    public record ProjectLinkVO(String kind, String label, String url, Integer sortOrder) {
+    }
+
+    public record ProjectProcessNoteVO(String phase, String title, String body, Integer sortOrder) {
+    }
 }

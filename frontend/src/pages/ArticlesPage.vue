@@ -107,8 +107,8 @@
 
 <script setup lang="ts">
 // 导入组件生命周期钩子和相关组件
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { LoaderCircle, Search } from '@lucide/vue'
 
 import { fetchArticles, fetchTags } from '@/services/content'
@@ -127,6 +127,8 @@ const coverPalettes = [
 // 页面展示状态和交互控制的响应式数据
 const root = ref<HTMLElement | null>(null)
 const topicStrip = ref<HTMLElement | null>(null)
+const route = useRoute()
+const router = useRouter()
 const articles = ref<ArticleSummary[]>([])
 const tagCatalog = ref<TagSummary[]>([])
 const topicInterest = ref<Record<string, number>>({})
@@ -167,6 +169,7 @@ function selectTag(tagId: number | null) {
   if (tagId !== null) {
     rememberTopicInterest(tagId)
   }
+  syncTagQuery(tagId)
   loadArticles()
 }
 
@@ -192,6 +195,25 @@ async function loadTags() {
   } catch {
     tagCatalog.value = []
   }
+}
+
+function syncTagQuery(tagId: number | null) {
+  const query = { ...route.query }
+  if (tagId === null) {
+    delete query.tagId
+  } else {
+    query.tagId = String(tagId)
+  }
+  void router.replace({ name: 'articles', query })
+}
+
+function readQueryTagId(value: unknown): number | null {
+  const raw = Array.isArray(value) ? value[0] : value
+  if (typeof raw !== 'string' || !raw.trim()) {
+    return null
+  }
+  const tagId = Number(raw)
+  return Number.isInteger(tagId) && tagId > 0 ? tagId : null
 }
 
 function topicScore(tag: TagSummary): number {
@@ -340,9 +362,22 @@ function articleCoverStyle(article: ArticleSummary, index: number) {
 
 onMounted(async () => {
   topicInterest.value = readTopicInterest()
+  activeTagId.value = readQueryTagId(route.query.tagId)
   observeTopicStrip()
   await Promise.all([loadArticles(), loadTags()])
 })
+
+watch(
+  () => route.query.tagId,
+  (value) => {
+    const tagId = readQueryTagId(value)
+    if (tagId === activeTagId.value) {
+      return
+    }
+    activeTagId.value = tagId
+    loadArticles()
+  },
+)
 
 onBeforeUnmount(() => {
   topicResizeObserver?.disconnect()

@@ -1,6 +1,7 @@
 ﻿import { requestJson } from '@/services/http'
 import type {
   AdminThemeConfig,
+  ArticleNeighbors,
   ArticleSummary,
   ArticlePayload,
   AuthToken,
@@ -18,6 +19,7 @@ import type {
   PublicThemeConfig,
   SearchParams,
   SearchResult,
+  SiteStatisticsSummary,
   SiteSettings,
   SiteSettingsPayload,
   TagSummary,
@@ -74,13 +76,23 @@ export async function loginAdmin(payload: LoginPayload): Promise<AuthToken> {
 }
 
 // 调用公开文章列表接口
-export async function fetchArticles(keyword = '', tagId?: number): Promise<PageResponse<ArticleSummary>> {
+export async function fetchArticles(
+  keyword = '',
+  tagId?: number,
+  options: { page?: number; pageSize?: number } = {},
+): Promise<PageResponse<ArticleSummary>> {
   const params = new URLSearchParams()
   if (keyword.trim()) {
     params.set('keyword', keyword.trim())
   }
   if (tagId) {
     params.set('tagId', String(tagId))
+  }
+  if (options.page) {
+    params.set('page', String(options.page))
+  }
+  if (options.pageSize) {
+    params.set('pageSize', String(options.pageSize))
   }
   const path = params.toString() ? `/api/articles?${params.toString()}` : '/api/articles'
   const response = await requestJson<ApiEnvelope<PageResponse<ArticleSummary>>>(path)
@@ -92,6 +104,14 @@ export async function fetchArticles(keyword = '', tagId?: number): Promise<PageR
 export async function fetchArticleBySlug(slug: string): Promise<ArticleSummary> {
   const response = await requestJson<ApiEnvelope<ArticleSummary>>(
     `/api/articles/slug/${encodeURIComponent(slug)}`,
+  )
+  return response.data
+}
+
+// 查询公开文章相邻导航
+export async function fetchArticleNeighbors(slug: string): Promise<ArticleNeighbors> {
+  const response = await requestJson<ApiEnvelope<ArticleNeighbors>>(
+    `/api/articles/slug/${encodeURIComponent(slug)}/neighbors`,
   )
   return response.data
 }
@@ -779,6 +799,12 @@ export async function reviewGuestbook(id: number, action: 'approve' | 'reject'):
 // 读取站点配置 JSON
 export async function fetchSiteConfig(): Promise<Record<string, unknown>> {
   const response = await requestJson<ApiEnvelope<Record<string, unknown>>>('/api/site/config')
+  return response.data
+}
+
+// 读取公开站点访问统计摘要
+export async function fetchSiteStatisticsSummary(): Promise<SiteStatisticsSummary> {
+  const response = await requestJson<ApiEnvelope<SiteStatisticsSummary>>('/api/site/statistics/summary')
   return response.data
 }
 

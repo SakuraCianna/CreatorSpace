@@ -29,6 +29,25 @@
         </header>
 
         <div class="markdown-body" v-html="htmlContent" />
+
+        <nav v-if="previousArticle || nextArticle" class="article-neighbors" aria-label="上一篇和下一篇文章">
+          <RouterLink
+            v-if="previousArticle"
+            class="article-neighbor"
+            :to="{ name: 'article-detail', params: { slug: previousArticle.slug } }"
+          >
+            <span><ArrowLeft :size="15" />上一篇</span>
+            <strong>{{ previousArticle.title }}</strong>
+          </RouterLink>
+          <RouterLink
+            v-if="nextArticle"
+            class="article-neighbor article-neighbor--next"
+            :to="{ name: 'article-detail', params: { slug: nextArticle.slug } }"
+          >
+            <span>下一篇<ArrowRight :size="15" /></span>
+            <strong>{{ nextArticle.title }}</strong>
+          </RouterLink>
+        </nav>
       </article>
 
       <aside class="reading-aside" data-reveal>
@@ -133,6 +152,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import {
   ArrowLeft,
+  ArrowRight,
   Bookmark,
   BookOpen,
   CalendarDays,
@@ -143,6 +163,7 @@ import {
 } from '@lucide/vue'
 
 import {
+  fetchArticleNeighbors,
   fetchArticleBySlug,
   fetchComments,
   submitComment,
@@ -164,6 +185,8 @@ const route = useRoute()
 const root = ref<HTMLElement | null>(null)
 const article = ref<ArticleSummary | null>(null)
 const comments = ref<CommentSummary[]>([])
+const previousArticle = ref<ArticleSummary | null>(null)
+const nextArticle = ref<ArticleSummary | null>(null)
 const commentDraft = ref('')
 const commentNotice = ref('')
 const isLoading = ref(true)
@@ -205,9 +228,17 @@ async function loadArticle() {
   isLoading.value = true
   notice.value = ''
   comments.value = []
+  previousArticle.value = null
+  nextArticle.value = null
   commentNotice.value = ''
   try {
-    article.value = await fetchArticleBySlug(slug.value)
+    const [detail, neighbors] = await Promise.all([
+      fetchArticleBySlug(slug.value),
+      fetchArticleNeighbors(slug.value),
+    ])
+    article.value = detail
+    previousArticle.value = neighbors.previousArticle ?? null
+    nextArticle.value = neighbors.nextArticle ?? null
     await loadComments()
   } catch (error) {
     article.value = null
@@ -549,6 +580,48 @@ watch(slug, loadArticle)
   margin: 18px 0;
 }
 
+.article-neighbors {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 0 clamp(32px, 4vw, 54px) clamp(32px, 4vw, 54px);
+  background: color-mix(in srgb, var(--tone-panel-solid) 72%, transparent);
+}
+
+.article-neighbor {
+  display: grid;
+  gap: 8px;
+  min-height: 118px;
+  padding: 16px;
+  border: 1px solid var(--tone-line);
+  border-radius: var(--app-radius-sm, 8px);
+  background: color-mix(in srgb, var(--tone-panel-solid) 84%, transparent);
+  color: var(--tone-ink);
+  text-decoration: none;
+}
+
+.article-neighbor--next {
+  text-align: right;
+}
+
+.article-neighbor span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--tone-faint);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.article-neighbor--next span {
+  justify-content: flex-end;
+}
+
+.article-neighbor strong {
+  font-size: 17px;
+  line-height: 1.36;
+}
+
 .reading-aside {
   position: sticky;
   top: 100px;
@@ -787,6 +860,18 @@ watch(slug, loadArticle)
 
   .reading-aside {
     position: static;
+  }
+
+  .article-neighbors {
+    grid-template-columns: 1fr;
+  }
+
+  .article-neighbor--next {
+    text-align: left;
+  }
+
+  .article-neighbor--next span {
+    justify-content: flex-start;
   }
 }
 

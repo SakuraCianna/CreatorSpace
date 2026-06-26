@@ -4,6 +4,7 @@ import com.creatorspace.common.result.ApiResponse;
 import com.creatorspace.common.result.PageResponse;
 import com.creatorspace.module.article.dto.ArticleCreateRequest;
 import com.creatorspace.module.article.service.ArticleService;
+import com.creatorspace.module.article.vo.ArticleNeighborsVO;
 import com.creatorspace.module.article.vo.ArticleVO;
 import com.creatorspace.security.LoginUser;
 import jakarta.servlet.http.HttpServletRequest;
@@ -209,6 +210,12 @@ public class ArticleController {
     @GetMapping("/api/articles/slug/{slug}")
     public ApiResponse<ArticleVO> getBySlug(@PathVariable String slug, HttpServletRequest request) {
         return ApiResponse.ok(articleService.getPublicBySlug(slug, request));
+    }
+
+    // 按 URL 标识读取公开文章上一篇/下一篇导航。
+    @GetMapping("/api/articles/slug/{slug}/neighbors")
+    public ApiResponse<ArticleNeighborsVO> getNeighborsBySlug(@PathVariable String slug) {
+        return ApiResponse.ok(articleService.getPublicNeighbors(slug));
     }
 
     public record ReviewRequest(String reviewNote) {
