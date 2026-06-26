@@ -1,0 +1,181 @@
+.admin-shell .workspace-panel,
+.admin-shell .metric-card,
+.admin-shell .cms-header,
+.admin-shell .cms-panel {
+  border: 1px solid var(--admin-line);
+  border-radius: var(--app-radius-sm);
+  background:
+    linear-gradient(180deg, var(--admin-panel), var(--admin-panel-soft));
+  color: var(--admin-ink);
+  box-shadow: var(--admin-shadow);
+  backdrop-filter: blur(18px);
+}
+
+.admin-shell .workspace-panel,
+.admin-shell .cms-panel {
+  padding: 16px;
+}
+
+.admin-shell .panel-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.admin-shell .panel-title h2,
+.admin-shell .panel-title h3,
+.admin-shell .cms-header h2 {
+  margin: 0;
+  color: var(--admin-ink);
+}
+
+.admin-shell .panel-title span,
+.admin-shell .table-row span,
+.admin-shell .empty-hint {
+  color: var(--admin-muted);
+  font-size: 13px;
+}
+
+.admin-shell .admin-form,
+.admin-shell .form-panel,
+.admin-shell .list-stack,
+.admin-shell .form-panel label {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-shell .admin-form label,
+.admin-shell .comment-form {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-shell .admin-form input,
+.admin-shell .admin-form select,
+.admin-shell .admin-form textarea,
+.admin-shell .filter-bar input,
+.admin-shell .filter-bar select,
+.admin-shell .comment-form textarea,
+.admin-shell .form-panel input,
+.admin-shell .form-panel textarea {
+  width: 100%;
+  border: 1px solid rgba(17, 24, 39, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--admin-ink);
+  font: inherit;
+}
+
+.admin-shell .admin-form input,
+.admin-shell .admin-form select,
+.admin-shell .filter-bar input,
+.admin-shell .filter-bar select,
+.admin-shell .form-panel input {
+  min-height: 42px;
+  padding: 0 12px;
+}
+
+.admin-shell .admin-form textarea,
+.admin-shell .comment-form textarea,
+.admin-shell .form-panel textarea {
+  resize: vertical;
+  padding: 12px;
+}
+
+.admin-shell .form-line,
+.admin-shell .filter-bar,
+.admin-shell .form-actions,
+.admin-shell .row-actions,
+.admin-shell .module-tabs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.admin-shell .form-line > * {
+  flex: 1;
+  min-width: 140px;
+}
+
+.admin-shell .table-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--admin-panel-soft);
+  color: var(--admin-ink);
+}
+
+.admin-shell .table-row + .table-row {
+  margin-top: 10px;
+}
+
+.admin-shell .table-row div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.admin-shell .status-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--admin-primary-soft);
+  color: #173b87;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.admin-shell .status-chip.muted {
+  background: rgba(100, 116, 139, 0.12);
+  color: #475569;
+}
+
+.admin-shell .icon-text-button,
+.admin-shell .text-button {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--admin-primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.admin-shell .icon-text-button:hover,
+.admin-shell .text-button:hover {
+  background: var(--admin-primary-soft);
+  color: var(--admin-primary-strong);
+}
+
+.admin-shell .icon-text-button.danger,
+.admin-shell .text-button.danger {
+  color: var(--admin-danger);
+}
+
+.admin-shell .icon-text-button.danger:hover,
+.admin-shell .text-button.danger:hover {
+  background: var(--admin-danger-soft);
+  color: #991b1b;
+}
+
+.admin-shell .inline-notice {
+  margin: 0;
+  padding: 12px 14px;
+  border-left: 3px solid var(--tone-coral);
+  background: rgba(194, 95, 58, 0.08);
+  color: #754226;
+  font-size: 13px;
+}

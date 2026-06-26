@@ -8,6 +8,7 @@ import router from "./router";
 // 导入 markdown 代码高亮样式与应用全局基础样式
 import "highlight.js/styles/github-dark.css";
 import "../styles/base.css";
+import "../styles/admin.css";
 
 // 初始化 Vue 应用实例并依次挂载 Pinia 状态管理与前端路由规则
 createApp(App).use(createPinia()).use(router).mount("#app");
