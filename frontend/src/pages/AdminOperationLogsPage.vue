@@ -6,7 +6,7 @@
         <h2>操作日志</h2>
         <p>按模块、动作、操作人和时间范围追踪后台关键变更。</p>
       </div>
-      <button class="icon-button" type="button" title="刷新日志" aria-label="刷新日志" @click="loadLogs">
+      <button class="icon-button" type="button" title="刷新日志" aria-label="刷新日志" @click="refreshLogs">
         <RefreshCw :size="18" />
       </button>
     </header>
@@ -71,7 +71,7 @@
           <span>操作</span>
           <span>请求</span>
           <span>操作者</span>
-          <span>目标</span>
+          <span>影响对象</span>
           <span></span>
         </div>
         <article v-for="log in page.records" :key="log.id" class="audit-item">
@@ -89,11 +89,27 @@
               <i :class="['method-pill', methodTone(log.requestMethod)]">{{ log.requestMethod || '-' }}</i>
             </span>
             <span>{{ log.operatorId ?? '系统' }}</span>
-            <span>{{ targetText(log) }}</span>
+                        <span class="target-cell">
+              <span class="target-icon">{{ targetMeta(log).initial }}</span>
+              <span>
+                <strong>{{ targetMeta(log).label }}</strong>
+                <small>{{ targetIdText(log) }}</small>
+              </span>
+            </span>
             <ChevronDown :class="{ open: expandedId === log.id }" :size="18" />
           </button>
           <div v-if="expandedId === log.id" class="audit-detail">
             <dl>
+              <div>
+                <dt>影响对象</dt>
+                <dd class="target-detail">
+                  <span class="target-icon">{{ targetMeta(log).initial }}</span>
+                  <span>
+                    <strong>{{ targetMeta(log).label }}</strong>
+                    <small>{{ targetIdText(log) }}</small>
+                  </span>
+                </dd>
+              </div>
               <div>
                 <dt>IP 地址</dt>
                 <dd>{{ log.ipAddress || '-' }}</dd>
@@ -209,6 +225,9 @@ async function loadLogs(targetPage = page.value.page) {
 function applyFilters() {
   loadLogs(1)
 }
+function refreshLogs() {
+  loadLogs(page.value.page)
+}
 
 function resetFilters() {
   filters.module = 'ALL'
@@ -249,9 +268,27 @@ function moduleLabel(module: string) {
   return moduleOptions.find((item) => item.value === module)?.label ?? module
 }
 
-function targetText(log: OperationLogSummary) {
-  if (!log.targetType && !log.targetId) return '-'
-  return `${log.targetType ?? 'TARGET'}${log.targetId ? ` #${log.targetId}` : ''}`
+const targetLabels: Record<string, { label: string; initial: string }> = {
+  ARTICLE: { label: '文章', initial: '文' },
+  PROJECT: { label: '作品', initial: '作' },
+  COMMENT: { label: '评论', initial: '评' },
+  FILE: { label: '文件', initial: '文' },
+  THEME: { label: '主题', initial: '题' },
+  SITE: { label: '站点设置', initial: '站' },
+  INSPIRATION: { label: '灵感', initial: '灵' },
+  GUESTBOOK: { label: '留言', initial: '留' },
+  CATEGORY: { label: '分类', initial: '分' },
+  TAG: { label: '标签', initial: '签' },
+  ADMIN: { label: '后台数据', initial: '管' },
+}
+
+function targetMeta(log: OperationLogSummary) {
+  const type = log.targetType || log.module
+  return targetLabels[type] ?? { label: type ? moduleLabel(type) : '无具体对象', initial: '无' }
+}
+
+function targetIdText(log: OperationLogSummary) {
+  return log.targetId ? `ID ${log.targetId}` : '未关联具体 ID'
 }
 
 function formatDateTime(value: string) {
@@ -392,7 +429,7 @@ function prettyDetail(value?: string | null) {
 
 .audit-row {
   display: grid;
-  grid-template-columns: 150px 112px minmax(240px, 1.5fr) 78px 82px 116px 24px;
+  grid-template-columns: 150px 112px minmax(240px, 1.4fr) 78px 82px 160px 24px;
   align-items: center;
   gap: 12px;
   width: 100%;
@@ -440,6 +477,40 @@ button.audit-row:hover {
 .time-cell {
   color: #243044;
   font-variant-numeric: tabular-nums;
+}
+
+.target-cell,
+.target-detail {
+  display: inline-grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.target-icon {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid rgba(49, 91, 255, 0.18);
+  border-radius: 8px;
+  background: linear-gradient(145deg, #edf3ff, #ffffff);
+  color: var(--admin-primary-strong);
+  font-size: 13px;
+  font-weight: 860;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+}
+
+.target-detail strong,
+.target-detail small {
+  display: block;
+}
+
+.target-detail small {
+  margin-top: 2px;
+  color: var(--admin-muted);
+  font-size: 12px;
 }
 
 .method-pill,
