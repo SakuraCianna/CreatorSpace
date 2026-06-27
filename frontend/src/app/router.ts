@@ -115,6 +115,12 @@ const router = createRouter({
       meta: { layout: "admin", requiresAdmin: true },
     },
     {
+      path: "/admin/operation-logs",
+      name: "admin-operation-logs",
+      component: () => import("@/pages/AdminOperationLogsPage.vue"),
+      meta: { layout: "admin", requiresAdmin: true },
+    },
+    {
       path: "/admin/:section",
       name: "admin-placeholder",
       component: () => import("@/pages/AdminPlaceholderPage.vue"),

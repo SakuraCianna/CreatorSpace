@@ -70,6 +70,7 @@ import {
   LogOut,
   MessageSquare,
   Palette,
+  ScrollText,
   Settings,
   ShieldCheck,
   Sparkles,
@@ -100,6 +101,7 @@ const navItems = [
   { to: '/admin/files', label: '文件', icon: FileImage },
   { to: '/admin/themes', label: '主题', icon: Palette },
   { to: '/admin/content-rules', label: '规则', icon: ShieldCheck },
+  { to: '/admin/operation-logs', label: '日志', icon: ScrollText },
   { to: '/admin/settings', label: '设置', icon: Settings },
 ]
 

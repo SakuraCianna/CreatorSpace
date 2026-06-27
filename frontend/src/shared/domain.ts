@@ -412,6 +412,44 @@ export interface DashboardOverview {
   searchTrend: DashboardTrendPoint[]
   recentActivities: DashboardActivity[]
 }
+export type OperationLogModule =
+  | 'ALL'
+  | 'ARTICLE'
+  | 'PROJECT'
+  | 'COMMENT'
+  | 'FILE'
+  | 'THEME'
+  | 'SITE'
+  | 'INSPIRATION'
+  | 'GUESTBOOK'
+  | 'CATEGORY'
+  | 'TAG'
+  | 'ADMIN'
+
+export interface OperationLogQuery {
+  module?: OperationLogModule | ''
+  operation?: string
+  operatorId?: number | null
+  startTime?: string
+  endTime?: string
+  page?: number
+  pageSize?: number
+}
+
+export interface OperationLogSummary {
+  id: number
+  operatorId?: number | null
+  operation: string
+  module: Exclude<OperationLogModule, 'ALL'> | string
+  targetType?: string | null
+  targetId?: number | null
+  requestMethod?: string | null
+  requestPath?: string | null
+  ipAddress?: string | null
+  userAgent?: string | null
+  detailJson?: string | null
+  createdAt: string
+}
 
 export interface SiteStatisticsSummary {
   totalPv: number

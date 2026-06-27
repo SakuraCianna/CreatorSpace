@@ -1,4 +1,4 @@
-﻿import { requestJson } from '@/services/http'
+import { requestJson } from '@/services/http'
 import type {
   AdminThemeConfig,
   ArticleNeighbors,
@@ -807,6 +807,22 @@ export async function searchContent(options: SearchParams | string): Promise<Pag
 // 读取后台概览
 export async function fetchDashboardOverview(): Promise<DashboardOverview> {
   const response = await requestJson<ApiEnvelope<DashboardOverview>>('/api/admin/dashboard/overview')
+  return response.data
+}
+// 管理员查询操作日志
+export async function fetchAdminOperationLogs(options: OperationLogQuery = {}): Promise<PageResponse<OperationLogSummary>> {
+  const params = new URLSearchParams()
+  if (options.module && options.module !== 'ALL') params.set('module', options.module)
+  if (options.operation?.trim()) params.set('operation', options.operation.trim())
+  if (options.operatorId) params.set('operatorId', String(options.operatorId))
+  if (options.startTime) params.set('startTime', options.startTime)
+  if (options.endTime) params.set('endTime', options.endTime)
+  if (options.page) params.set('page', String(options.page))
+  if (options.pageSize) params.set('pageSize', String(options.pageSize))
+  const query = params.toString()
+  const response = await requestJson<ApiEnvelope<PageResponse<OperationLogSummary>>>(
+    query ? `/api/admin/operation-logs?${query}` : '/api/admin/operation-logs',
+  )
   return response.data
 }
 
