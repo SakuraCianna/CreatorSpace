@@ -176,6 +176,7 @@ import { toUserMessage } from '@/services/http'
 import { useCinematicPageMotion } from '@/shared/composables/useCinematicPageMotion'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import { toCssImageUrl } from '@/shared/cssImage'
+import { formatDateToDay } from '@/shared/datetime'
 import type { ArticleSummary, CommentSummary } from '@/shared/domain'
 import { normalizeMarkdownSource, renderSafeMarkdown } from '@/shared/markdown'
 import { useSessionStore } from '@/shared/sessionStore'
@@ -348,14 +349,7 @@ function readRouteParam(value: string | string[] | undefined): string {
 }
 
 function formatDate(value?: string | null): string {
-  if (!value) {
-    return '未定档'
-  }
-  return new Intl.DateTimeFormat('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date(value))
+  return formatDateToDay(value)
 }
 
 function scrollToHeading(title: string) {

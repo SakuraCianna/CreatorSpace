@@ -232,6 +232,7 @@ import { toUserMessage } from '@/services/http'
 import { useCinematicPageMotion } from '@/shared/composables/useCinematicPageMotion'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import { toCssImageUrl } from '@/shared/cssImage'
+import { formatMonthDay } from '@/shared/datetime'
 import type { CommentSummary, ProjectStatus, ProjectSummary } from '@/shared/domain'
 import { renderSafeMarkdown } from '@/shared/markdown'
 import { useSessionStore } from '@/shared/sessionStore'
@@ -595,11 +596,7 @@ function statusLabel(status: ProjectStatus): string {
 }
 
 function formatDate(value?: string | null): string {
-  if (!value) return '刚刚'
-  return new Intl.DateTimeFormat('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date(value))
+  return formatMonthDay(value, '刚刚')
 }
 
 function formatCount(value?: number | null): string {

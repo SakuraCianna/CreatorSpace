@@ -253,7 +253,7 @@
       <article v-for="favorite in favorites" :key="favorite.id" class="desk-row">
         <div>
           <strong>{{ favorite.targetType }} #{{ favorite.targetId }}</strong>
-          <span>{{ favorite.createdAt ?? '刚刚' }}</span>
+          <span>{{ formatDateTimeToSecond(favorite.createdAt, '刚刚') }}</span>
         </div>
       </article>
       <p v-if="favorites.length === 0" class="muted-line">还没有收藏内容。</p>
@@ -290,6 +290,7 @@ import {
 } from '@/services/content'
 import { toUserMessage } from '@/services/http'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
+import { formatDateTimeToSecond } from '@/shared/datetime'
 import type {
   ArticlePayload,
   ArticleSummary,
@@ -709,8 +710,8 @@ function readError(error: unknown, fallback: string) {
 .creator-grid {
   display: grid;
   grid-template-columns: minmax(0, 0.92fr) minmax(360px, 1.08fr);
-  gap: 16px;
   align-items: start;
+  gap: 16px;
 }
 
 .creator-panel {
@@ -729,6 +730,7 @@ function readError(error: unknown, fallback: string) {
 
 .creator-form {
   display: grid;
+  align-content: start;
   gap: 14px;
 }
 
@@ -768,12 +770,91 @@ function readError(error: unknown, fallback: string) {
   background: rgba(255, 255, 255, 0.9);
   color: var(--tone-strong);
   font: inherit;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
 }
 
 .creator-form input,
 .creator-form select {
   min-height: 42px;
   padding: 0 12px;
+}
+
+.creator-form input:not([type="checkbox"]):not([type="radio"]):hover,
+.creator-form select:hover,
+.creator-form textarea:hover {
+  border-color: rgba(49, 91, 255, 0.28);
+  background: #fff;
+}
+
+.creator-form input:not([type="checkbox"]):not([type="radio"]):focus,
+.creator-form select:focus,
+.creator-form textarea:focus {
+  border-color: rgba(49, 91, 255, 0.48);
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(49, 91, 255, 0.1);
+}
+
+.creator-form select {
+  appearance: none;
+  padding-right: 38px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #315bff 50%),
+    linear-gradient(135deg, #315bff 50%, transparent 50%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(246, 248, 255, 0.96));
+  background-position:
+    calc(100% - 18px) 50%,
+    calc(100% - 13px) 50%,
+    0 0;
+  background-size:
+    5px 5px,
+    5px 5px,
+    100% 100%;
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+
+.creator-form select option {
+  background: #fff;
+  color: var(--tone-strong);
+  font-size: 14px;
+}
+
+.creator-form input[type="file"] {
+  min-height: 48px;
+  padding: 6px 10px;
+  border-style: dashed;
+  border-color: rgba(49, 91, 255, 0.24);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(246, 248, 255, 0.88));
+  color: var(--tone-muted);
+  cursor: pointer;
+}
+
+.creator-form input[type="file"]::file-selector-button {
+  min-height: 34px;
+  margin-right: 12px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(49, 91, 255, 0.12);
+  color: #2448d8;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.creator-form input[type="file"]:hover::file-selector-button {
+  background: #315bff;
+  color: #fff;
+  transform: translateY(-1px);
 }
 
 .creator-form textarea {

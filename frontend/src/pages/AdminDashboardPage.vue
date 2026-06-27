@@ -34,7 +34,7 @@
         <article v-for="activity in overview.recentActivities" :key="activity.operation + activity.createdAt" class="table-row">
           <div>
             <strong>{{ activity.operation }}</strong>
-            <span>{{ activity.module }} · {{ activity.createdAt }}</span>
+            <span>{{ activity.module }} · {{ formatDateTimeToSecond(activity.createdAt) }}</span>
           </div>
           <span class="status-chip">记录</span>
         </article>
@@ -117,6 +117,7 @@ import { RouterLink, useRouter } from 'vue-router'
 import { fetchDashboardOverview } from '@/services/content'
 import { HttpError, toUserMessage } from '@/services/http'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
+import { formatDateTimeToSecond } from '@/shared/datetime'
 import type { DashboardOverview } from '@/shared/domain'
 import { useSessionStore } from '@/shared/sessionStore'
 
@@ -286,15 +287,6 @@ onBeforeUnmount(() => {
   gap: 18px;
 }
 
-.workspace-panel,
-.metric-card {
-  border: 1px solid var(--tone-line);
-  border-radius: var(--app-radius-sm);
-  background: var(--tone-panel);
-  box-shadow: var(--tone-shadow);
-  backdrop-filter: blur(18px);
-}
-
 .dashboard-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -312,12 +304,8 @@ onBeforeUnmount(() => {
   padding: 16px;
 }
 
-.metric-card span,
-.metric-card p,
-.panel-title span,
-.table-row span {
-  color: var(--tone-muted);
-  font-size: 13px;
+.metric-card span {
+  font-weight: 720;
 }
 
 .metric-card strong {
@@ -338,64 +326,6 @@ onBeforeUnmount(() => {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.workspace-panel {
-  padding: 16px;
-}
-
-.admin-form {
-  display: grid;
-  gap: 14px;
-}
-
-.admin-form label,
-.comment-form {
-  display: grid;
-  gap: 8px;
-}
-
-.admin-form input,
-.admin-form select,
-.admin-form textarea,
-.filter-bar input,
-.filter-bar select,
-.comment-form textarea {
-  width: 100%;
-  border: 1px solid rgba(17, 24, 39, 0.12);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.86);
-  color: var(--tone-strong);
-  font: inherit;
-}
-
-.admin-form input,
-.admin-form select,
-.filter-bar input,
-.filter-bar select {
-  min-height: 42px;
-  padding: 0 12px;
-}
-
-.admin-form textarea,
-.comment-form textarea {
-  resize: vertical;
-  padding: 12px;
-}
-
-.form-line,
-.filter-bar,
-.form-actions,
-.row-actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.form-line > * {
-  flex: 1;
-  min-width: 160px;
-}
-
 .tag-picker {
   display: flex;
   flex-wrap: wrap;
@@ -407,8 +337,8 @@ onBeforeUnmount(() => {
   padding: 6px 10px;
   border: 1px solid var(--tone-line);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.58);
-  color: var(--tone-muted);
+  background: rgba(255, 255, 255, 0.9);
+  color: #344154;
   font-size: 12px;
   font-weight: 760;
 }
@@ -425,36 +355,8 @@ onBeforeUnmount(() => {
   min-height: 18px;
 }
 
-.panel-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  margin-bottom: 14px;
-}
-
 .panel-title h2 {
-  margin: 0;
   font-size: 18px;
-}
-
-.table-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px;
-  border-radius: 8px;
-  background: rgba(20, 21, 29, 0.04);
-}
-
-.table-row + .table-row {
-  margin-top: 10px;
-}
-
-.table-row div {
-  display: grid;
-  gap: 4px;
 }
 
 .theme-dot {
@@ -465,34 +367,6 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(17, 24, 39, 0.16);
   border-radius: 50%;
   vertical-align: -1px;
-}
-
-.status-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 28px;
-  padding: 0 10px;
-  border-radius: 999px;
-  background: rgba(49, 91, 255, 0.12);
-  color: #172554;
-  font-size: 12px;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-.icon-text-button {
-  border: 0;
-  background: transparent;
-  color: #315bff;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 800;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.icon-text-button.danger {
-  color: #b91c1c;
 }
 
 .comments-card {

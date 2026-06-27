@@ -56,6 +56,7 @@ import { LoaderCircle } from '@lucide/vue'
 
 import { fetchGuestbook, submitGuestbook } from '@/services/content'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
+import { formatDateTimeToSecond } from '@/shared/datetime'
 import { useSessionStore } from '@/shared/sessionStore'
 
 interface GuestbookEntry {
@@ -115,14 +116,7 @@ async function postMessage() {
 }
 
 function formatDate(value?: string | null): string {
-  if (!value) return '刚刚'
-  return new Intl.DateTimeFormat('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(value))
+  return formatDateTimeToSecond(value, '刚刚')
 }
 
 onMounted(loadEntries)

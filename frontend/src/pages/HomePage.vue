@@ -30,6 +30,7 @@ import { useLenis } from '@/shared/composables/useLenis'
 import { attachMagnetic } from '@/shared/composables/useMagnetic'
 import { prefersReducedMotion } from '@/shared/composables/useReducedMotion'
 import { toCssImageUrl } from '@/shared/cssImage'
+import { formatDateToDay } from '@/shared/datetime'
 import {
   DEFAULT_SITE_IDENTITY,
   resolveSiteIdentity,
@@ -92,13 +93,6 @@ const DEFAULT_HOME_MODULES = [
 
 type HomeModuleKey = typeof DEFAULT_HOME_MODULES[number]
 
-interface HomeProfile {
-  displayName: string
-  headline: string
-  avatarUrl: string
-  bio: string
-}
-
 interface RecentActivity {
   id: string
   type: string
@@ -122,7 +116,6 @@ const runtimeCounters = ref<CounterItem[]>(buildCounters(emptyTotals))
 const runtimeFragments = ref<CreativeFragment[]>([])
 const runtimeThemePresets = ref<ThemePreset[]>([])
 const runtimeCurrentThemeName = ref('读取中')
-const runtimeProfile = ref<HomeProfile | null>(null)
 const runtimeRecentActivities = ref<RecentActivity[]>([])
 const runtimeTags = ref<TagSummary[]>([])
 const runtimeVisitSummary = ref<SiteStatisticsSummary>(defaultVisitSummary)
@@ -267,7 +260,6 @@ async function loadHomeRuntimeData() {
   const nextSiteConfig = resolveSiteConfig(config, nextSiteIdentity)
 
   runtimeSiteConfig.value = nextSiteConfig
-  runtimeProfile.value = readHomeProfile(config['site.profile.active'], nextSiteIdentity)
   runtimeVisitSummary.value = visitSummary
   runtimeHeroContent.value = resolveHeroContent(totals, nextSiteConfig.brand, visitSummary)
   runtimeArticles.value = buildFeaturedCards(articles, projects)
@@ -351,31 +343,6 @@ function readStringList(value: unknown): string[] {
 function readNumber(value: unknown, fallback = 0): number {
   const parsed = typeof value === 'number' ? value : Number(value)
   return Number.isFinite(parsed) ? parsed : fallback
-}
-
-function safeAssetUrl(value: string): string {
-  if (!value) {
-    return ''
-  }
-  if (value.startsWith('/uploads/')) {
-    return value
-  }
-  try {
-    const url = new URL(value)
-    return ['http:', 'https:'].includes(url.protocol) ? url.toString() : ''
-  } catch {
-    return ''
-  }
-}
-
-function readHomeProfile(value: unknown, identity: SiteIdentity): HomeProfile {
-  const record = readRecord(value)
-  return {
-    displayName: readString(record.displayName) || identity.name,
-    headline: readString(record.headline) || identity.slogan,
-    avatarUrl: safeAssetUrl(readString(record.avatarUrl)),
-    bio: readString(record.bio),
-  }
 }
 
 function resolveHomeModules(value: unknown): HomeModuleKey[] {
@@ -828,18 +795,7 @@ function firstTagColor(tags: TagSummary[], fallback: string) {
 }
 
 function formatHomeDate(value: string | null | undefined, fallback = '未定档') {
-  if (!value) {
-    return fallback
-  }
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return fallback
-  }
-  return date.toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).replaceAll('/', '-')
+  return formatDateToDay(value, fallback)
 }
 
 function plainExcerpt(value: string | null | undefined, fallback: string) {
@@ -963,7 +919,6 @@ const HeroUniverse = defineComponent({
 
     return () => {
       const hero = runtimeHeroContent.value
-      const profile = runtimeProfile.value
       const actions = [hero?.primary, hero?.secondary].filter((item): item is HomeHeroAction => item !== null && item !== undefined)
       return h('section', { ref: root, class: 'cs-hero cs-section' }, [
         h(HeroWebGLScene),
@@ -976,17 +931,6 @@ const HeroUniverse = defineComponent({
             h('span', { class: 'cs-zh' }, hero?.description ?? ''),
           ]),
           h('div', { class: 'cs-hero__actions' }, actions.map((action, index) => heroButton(action, index > 0))),
-          profile
-            ? h('div', { class: 'cs-hero-profile' }, [
-                profile.avatarUrl
-                  ? h('img', { src: profile.avatarUrl, alt: '', loading: 'lazy' })
-                  : h('span', { class: 'cs-hero-profile__avatar' }, profile.displayName.slice(0, 1).toUpperCase()),
-                h('div', [
-                  h('strong', profile.displayName),
-                  h('span', profile.headline || profile.bio || '正在整理自己的创作空间'),
-                ]),
-              ])
-            : null,
           h(
             'div',
             { class: 'cs-hero__stats' },
@@ -2282,10 +2226,10 @@ function renderFooter() {
   --cs-bg-raise: #0b0d18;
   --cs-bg-veil: #10131f;
   --cs-ink: #f3f5ff;
-  --cs-ink-dim: rgba(226, 230, 247, 0.66);
-  --cs-ink-faint: rgba(206, 212, 240, 0.4);
-  --cs-line: rgba(150, 165, 220, 0.16);
-  --cs-line-soft: rgba(150, 165, 220, 0.09);
+  --cs-ink-dim: rgba(226, 230, 247, 0.8);
+  --cs-ink-faint: rgba(206, 212, 240, 0.56);
+  --cs-line: rgba(150, 165, 220, 0.24);
+  --cs-line-soft: rgba(150, 165, 220, 0.14);
 
 
   --cs-accent: #6ea8ff;
@@ -2456,8 +2400,8 @@ function renderFooter() {
   z-index: 1;
   pointer-events: none;
   background:
-    radial-gradient(52% 72% at 20% 48%, rgba(6, 7, 13, 0.76), rgba(6, 7, 13, 0.18) 58%, transparent 76%),
-    linear-gradient(90deg, rgba(6, 7, 13, 0.24), transparent 38%, rgba(6, 7, 13, 0.08) 100%),
+    radial-gradient(56% 76% at 22% 48%, rgba(5, 7, 14, 0.9), rgba(5, 7, 14, 0.42) 58%, transparent 78%),
+    linear-gradient(90deg, rgba(6, 7, 13, 0.42), transparent 42%, rgba(6, 7, 13, 0.12) 100%),
     linear-gradient(180deg, transparent 60%, var(--cs-bg) 100%);
 }
 
@@ -2503,13 +2447,14 @@ function renderFooter() {
   font-size: clamp(16px, 1.5vw, 19px);
   line-height: 1.6;
   color: var(--cs-ink-dim);
+  text-shadow: 0 1px 18px rgba(0, 0, 0, 0.32);
 }
 
 .cs-home :deep(.cs-hero__sub .cs-zh) {
   display: block;
   margin-top: 10px;
   font-size: 15px;
-  color: var(--cs-ink-faint);
+  color: rgba(226, 230, 247, 0.68);
 }
 
 .cs-home :deep(.cs-hero__actions) {
@@ -2517,50 +2462,6 @@ function renderFooter() {
   flex-wrap: wrap;
   gap: 14px;
   margin-top: 38px;
-}
-
-.cs-home :deep(.cs-hero-profile) {
-  display: inline-grid;
-  grid-template-columns: 52px minmax(0, 1fr);
-  gap: 14px;
-  align-items: center;
-  width: min(100%, 520px);
-  margin-top: 26px;
-  padding: 12px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 8px;
-  background: rgba(6, 10, 24, 0.46);
-  backdrop-filter: blur(14px);
-}
-
-.cs-home :deep(.cs-hero-profile img),
-.cs-home :deep(.cs-hero-profile__avatar) {
-  display: grid;
-  width: 52px;
-  height: 52px;
-  place-items: center;
-  border-radius: 999px;
-  background: linear-gradient(135deg, var(--cs-accent), var(--cs-accent-2));
-  color: #ffffff;
-  object-fit: cover;
-  font-weight: 850;
-}
-
-.cs-home :deep(.cs-hero-profile strong),
-.cs-home :deep(.cs-hero-profile span) {
-  display: block;
-}
-
-.cs-home :deep(.cs-hero-profile strong) {
-  color: #ffffff;
-  font-size: 15px;
-}
-
-.cs-home :deep(.cs-hero-profile span) {
-  margin-top: 4px;
-  color: rgba(234, 241, 255, 0.72);
-  font-size: 13px;
-  line-height: 1.55;
 }
 
 .cs-home :deep(.cs-hero__stats) {
@@ -2584,7 +2485,7 @@ function renderFooter() {
   font-size: 11px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--cs-ink-faint);
+  color: rgba(206, 212, 240, 0.62);
 }
 
 .cs-home :deep(.cs-hero__scroll) {
@@ -2623,19 +2524,26 @@ function renderFooter() {
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  min-height: 48px;
   padding: 14px 26px;
   border: 0;
   border-radius: 999px;
   font-family: var(--cs-font-display);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 760;
   letter-spacing: 0.01em;
   cursor: pointer;
   overflow: hidden;
   isolation: isolate;
   color: #070a16;
   background: var(--cs-btn-bg);
-  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.4s ease;
+  box-shadow: 0 12px 32px rgba(110, 168, 255, 0.22);
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.4s ease, border-color 0.25s ease;
+}
+
+.cs-home :deep(.cs-btn > span:not(.cs-btn__fill)) {
+  position: relative;
+  z-index: 1;
 }
 
 .cs-home :deep(.cs-btn__fill) {
@@ -2648,6 +2556,7 @@ function renderFooter() {
 }
 
 .cs-home :deep(.cs-btn:hover) {
+  color: #070a16;
   transform: translateY(-2px);
   box-shadow: 0 16px 40px rgba(110, 168, 255, 0.36);
 }
@@ -2665,8 +2574,9 @@ function renderFooter() {
 
 .cs-home :deep(.cs-btn--ghost) {
   color: var(--cs-ink);
-  background: transparent;
-  border: 1px solid var(--cs-line);
+  background: rgba(10, 13, 26, 0.54);
+  border: 1px solid rgba(150, 165, 220, 0.24);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .cs-home :deep(.cs-btn--ghost .cs-btn__dot) {
@@ -2674,12 +2584,18 @@ function renderFooter() {
 }
 
 .cs-home :deep(.cs-btn--ghost .cs-btn__fill) {
-  background: rgba(150, 165, 220, 0.12);
+  background: rgba(150, 165, 220, 0.18);
 }
 
 .cs-home :deep(.cs-btn--ghost:hover) {
-  box-shadow: none;
-  border-color: rgba(150, 165, 220, 0.4);
+  color: var(--cs-ink);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+  border-color: rgba(150, 165, 220, 0.48);
+}
+
+.cs-home :deep(.cs-btn:focus-visible) {
+  outline: 2px solid var(--cs-accent-3);
+  outline-offset: 4px;
 }
 
 

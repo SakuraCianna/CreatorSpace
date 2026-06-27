@@ -1,0 +1,286 @@
+.admin-shell .workspace-panel,
+.admin-shell .metric-card,
+.admin-shell .cms-header,
+.admin-shell .cms-panel {
+  border: 1px solid var(--admin-line);
+  border-radius: var(--app-radius-sm);
+  background:
+    linear-gradient(180deg, var(--admin-panel), var(--admin-panel-soft));
+  color: var(--admin-ink);
+  box-shadow: var(--admin-shadow);
+  backdrop-filter: blur(18px);
+}
+
+.admin-shell .workspace-panel,
+.admin-shell .cms-panel {
+  padding: 16px;
+}
+
+.admin-shell .panel-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.admin-shell .panel-title h2,
+.admin-shell .panel-title h3,
+.admin-shell .cms-header h2 {
+  margin: 0;
+  color: var(--admin-ink);
+}
+
+.admin-shell .panel-title span,
+.admin-shell .table-row span,
+.admin-shell .empty-hint {
+  color: var(--admin-muted);
+  font-size: 13px;
+}
+
+.admin-shell .admin-form,
+.admin-shell .form-panel,
+.admin-shell .list-stack,
+.admin-shell .form-panel label {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-shell .admin-form,
+.admin-shell .form-panel {
+  align-content: start;
+}
+
+.admin-shell .admin-form label,
+.admin-shell .comment-form {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-shell .admin-form input,
+.admin-shell .admin-form select,
+.admin-shell .admin-form textarea,
+.admin-shell .filter-bar input,
+.admin-shell .filter-bar select,
+.admin-shell .comment-form textarea,
+.admin-shell .form-panel input,
+.admin-shell .form-panel select,
+.admin-shell .form-panel textarea {
+  width: 100%;
+  border: 1px solid rgba(17, 24, 39, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--admin-ink);
+  font: inherit;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
+}
+
+.admin-shell .admin-form input,
+.admin-shell .admin-form select,
+.admin-shell .filter-bar input,
+.admin-shell .filter-bar select,
+.admin-shell .form-panel input,
+.admin-shell .form-panel select {
+  min-height: 42px;
+  padding: 0 12px;
+}
+
+.admin-shell .admin-form input:not([type="checkbox"]):not([type="radio"]):hover,
+.admin-shell .admin-form select:hover,
+.admin-shell .admin-form textarea:hover,
+.admin-shell .filter-bar input:not([type="checkbox"]):not([type="radio"]):hover,
+.admin-shell .filter-bar select:hover,
+.admin-shell .comment-form textarea:hover,
+.admin-shell .form-panel input:not([type="checkbox"]):not([type="radio"]):hover,
+.admin-shell .form-panel select:hover,
+.admin-shell .form-panel textarea:hover {
+  border-color: rgba(49, 91, 255, 0.28);
+  background: #fff;
+}
+
+.admin-shell .admin-form input:not([type="checkbox"]):not([type="radio"]):focus,
+.admin-shell .admin-form select:focus,
+.admin-shell .admin-form textarea:focus,
+.admin-shell .filter-bar input:not([type="checkbox"]):not([type="radio"]):focus,
+.admin-shell .filter-bar select:focus,
+.admin-shell .comment-form textarea:focus,
+.admin-shell .form-panel input:not([type="checkbox"]):not([type="radio"]):focus,
+.admin-shell .form-panel select:focus,
+.admin-shell .form-panel textarea:focus {
+  border-color: rgba(49, 91, 255, 0.48);
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(49, 91, 255, 0.1);
+}
+
+.admin-shell .admin-form select,
+.admin-shell .filter-bar select,
+.admin-shell .form-panel select {
+  appearance: none;
+  padding-right: 38px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #315bff 50%),
+    linear-gradient(135deg, #315bff 50%, transparent 50%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(246, 248, 255, 0.96));
+  background-position:
+    calc(100% - 18px) 50%,
+    calc(100% - 13px) 50%,
+    0 0;
+  background-size:
+    5px 5px,
+    5px 5px,
+    100% 100%;
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+
+.admin-shell .admin-form select option,
+.admin-shell .filter-bar select option,
+.admin-shell .form-panel select option {
+  background: #fff;
+  color: var(--admin-ink);
+  font-size: 14px;
+}
+
+.admin-shell .admin-form input[type="file"],
+.admin-shell .form-panel input[type="file"] {
+  min-height: 48px;
+  padding: 6px 10px;
+  border-style: dashed;
+  border-color: rgba(49, 91, 255, 0.24);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(246, 248, 255, 0.88));
+  color: var(--admin-muted);
+  cursor: pointer;
+}
+
+.admin-shell .admin-form input[type="file"]::file-selector-button,
+.admin-shell .form-panel input[type="file"]::file-selector-button {
+  min-height: 34px;
+  margin-right: 12px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--admin-primary-soft);
+  color: var(--admin-primary-strong);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.admin-shell .admin-form input[type="file"]:hover::file-selector-button,
+.admin-shell .form-panel input[type="file"]:hover::file-selector-button {
+  background: var(--admin-primary);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.admin-shell .admin-form textarea,
+.admin-shell .comment-form textarea,
+.admin-shell .form-panel textarea {
+  resize: vertical;
+  padding: 12px;
+}
+
+.admin-shell .form-line,
+.admin-shell .filter-bar,
+.admin-shell .form-actions,
+.admin-shell .row-actions,
+.admin-shell .module-tabs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.admin-shell .form-line > * {
+  flex: 1;
+  min-width: 140px;
+}
+
+.admin-shell .table-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--admin-panel-soft);
+  color: var(--admin-ink);
+}
+
+.admin-shell .table-row + .table-row {
+  margin-top: 10px;
+}
+
+.admin-shell .table-row div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.admin-shell .status-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--admin-primary-soft);
+  color: #173b87;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.admin-shell .status-chip.muted {
+  background: rgba(100, 116, 139, 0.12);
+  color: #475569;
+}
+
+.admin-shell .icon-text-button,
+.admin-shell .text-button {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--admin-primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.admin-shell .icon-text-button:hover,
+.admin-shell .text-button:hover {
+  background: var(--admin-primary-soft);
+  color: var(--admin-primary-strong);
+}
+
+.admin-shell .icon-text-button.danger,
+.admin-shell .text-button.danger {
+  color: var(--admin-danger);
+}
+
+.admin-shell .icon-text-button.danger:hover,
+.admin-shell .text-button.danger:hover {
+  background: var(--admin-danger-soft);
+  color: #991b1b;
+}
+
+.admin-shell .inline-notice {
+  margin: 0;
+  padding: 12px 14px;
+  border-left: 3px solid var(--tone-coral);
+  background: rgba(194, 95, 58, 0.08);
+  color: #754226;
+  font-size: 13px;
+}

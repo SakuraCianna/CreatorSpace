@@ -165,18 +165,33 @@ function readRedirectPath() {
 
 <style scoped>
 .auth-page {
+  position: relative;
   display: grid;
   min-height: calc(100vh - 72px);
   place-items: center;
   padding: clamp(28px, 5vw, 72px) 0;
 }
 
+.auth-page::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 24%, rgba(49, 91, 255, 0.14), transparent 28vw),
+    radial-gradient(circle at 82% 18%, rgba(0, 106, 96, 0.12), transparent 26vw),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(247, 249, 255, 0.72));
+}
+
 .auth-card {
+  position: relative;
+  z-index: 1;
   width: min(960px, 100%);
-  border: 1px solid var(--md-sys-color-outline-variant);
-  border-radius: 28px;
+  border: 1px solid rgba(116, 119, 127, 0.24);
+  border-radius: 24px;
   background: var(--md-sys-color-surface-container-lowest);
-  box-shadow: var(--md-sys-elevation-2);
+  box-shadow: 0 28px 80px rgba(30, 38, 64, 0.18), 0 1px 0 rgba(255, 255, 255, 0.9) inset;
 }
 
 .auth-card--wide {
@@ -189,7 +204,7 @@ function readRedirectPath() {
   display: grid;
   grid-template-columns: minmax(0, 1.02fr) minmax(360px, 0.82fr);
   gap: 0;
-  min-height: 560px;
+  min-height: 540px;
   overflow: hidden;
 }
 
@@ -202,33 +217,48 @@ function readRedirectPath() {
 
 .auth-card__form {
   align-content: center;
-  gap: 18px;
-  padding: clamp(28px, 4vw, 48px);
+  gap: 20px;
+  padding: clamp(30px, 4vw, 52px);
+  background: rgba(255, 255, 255, 0.96);
 }
 
 .auth-mode-switch {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
   min-height: 48px;
-  overflow: hidden;
-  border: 1px solid var(--md-sys-color-outline);
+  padding: 4px;
+  border: 1px solid rgba(68, 71, 79, 0.22);
   border-radius: 999px;
-  background: var(--md-sys-color-surface-container-lowest);
+  background: #eef2ff;
 }
 
 .auth-mode-switch button {
-  min-height: 46px;
+  min-height: 40px;
   border: 0;
+  border-radius: 999px;
   background: transparent;
-  color: var(--md-sys-color-on-surface-variant);
+  color: #35415c;
   font: inherit;
   font-weight: 760;
   cursor: pointer;
+  transition: background 180ms ease, color 180ms ease, box-shadow 180ms ease;
+}
+
+.auth-mode-switch button:hover {
+  background: rgba(255, 255, 255, 0.78);
+  color: #111827;
 }
 
 .auth-mode-switch button.is-active {
-  background: var(--md-sys-color-secondary-container);
-  color: #00201c;
+  background: #101827;
+  color: #ffffff;
+  box-shadow: 0 8px 24px rgba(16, 24, 39, 0.18);
+}
+
+.auth-mode-switch button:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: 2px;
 }
 
 .auth-card__visual {
@@ -247,9 +277,9 @@ function readRedirectPath() {
   padding: clamp(32px, 5vw, 56px);
   overflow: hidden;
   background:
-    linear-gradient(160deg, rgba(216, 226, 255, 0.9), rgba(156, 242, 228, 0.62)),
-    var(--md-sys-color-primary-container);
-  color: var(--md-sys-color-on-primary-container);
+    radial-gradient(circle at 84% 82%, rgba(84, 230, 200, 0.26), transparent 34%),
+    linear-gradient(150deg, #101827 0%, #173b87 52%, #087568 100%);
+  color: #f8fbff;
 }
 
 .auth-card__visual--material::before {
@@ -260,7 +290,8 @@ function readRedirectPath() {
   width: 320px;
   height: 320px;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--md-sys-color-primary) 28%, transparent);
+  background: rgba(147, 197, 253, 0.24);
+  box-shadow: -80px -60px 120px rgba(84, 230, 200, 0.16);
 }
 
 .auth-card__visual--warm {
@@ -289,7 +320,7 @@ function readRedirectPath() {
 
 .auth-card h2 {
   margin: 6px 0 0;
-  color: var(--md-sys-color-on-surface);
+  color: #151922;
   font-size: 26px;
   line-height: 1.16;
 }
@@ -297,7 +328,7 @@ function readRedirectPath() {
 .auth-card label {
   display: grid;
   gap: 8px;
-  color: var(--md-sys-color-on-surface-variant);
+  color: #353d4f;
   font-size: 13px;
   font-weight: 750;
 }
@@ -305,31 +336,51 @@ function readRedirectPath() {
 .auth-card input {
   width: 100%;
   min-height: 56px;
-  border: 1px solid transparent;
-  border-bottom: 1px solid var(--md-sys-color-outline);
-  border-radius: 12px 12px 0 0;
+  border: 1px solid rgba(116, 119, 127, 0.24);
+  border-bottom-color: rgba(68, 71, 79, 0.38);
+  border-radius: 14px;
   padding: 0 14px;
-  background: var(--md-sys-color-surface-container);
-  color: var(--md-sys-color-on-surface);
+  background: #f8fafc;
+  color: #111827;
+  caret-color: var(--md-sys-color-primary);
   outline: 0;
-  transition: background 180ms ease, border-color 180ms ease;
+  transition: background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 
 .auth-card input:focus {
-  border-bottom-color: var(--md-sys-color-primary);
-  background: var(--md-sys-color-surface-container-high);
+  border-color: color-mix(in srgb, var(--md-sys-color-primary) 56%, #ffffff);
+  background: #ffffff;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--md-sys-color-primary) 12%, transparent);
 }
 
 .auth-card button {
   width: 100%;
 }
 
+.auth-card .button-filled {
+  min-height: 52px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #315bff, #174ea6);
+  box-shadow: 0 16px 32px rgba(49, 91, 255, 0.24);
+}
+
+.auth-card .button-filled:hover {
+  color: #ffffff;
+  background: linear-gradient(135deg, #254be8, #123f92);
+}
+
 .auth-switch {
   display: inline-flex;
   justify-content: center;
-  color: var(--md-sys-color-primary);
+  color: #174ea6;
   font-size: 14px;
   font-weight: 760;
+}
+
+.auth-switch:hover {
+  color: #0b57d0;
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
 
 .material-icon-badge {
@@ -338,8 +389,19 @@ function readRedirectPath() {
   height: 56px;
   place-items: center;
   border-radius: 18px;
-  background: color-mix(in srgb, var(--md-sys-color-surface) 72%, transparent);
-  box-shadow: var(--md-sys-elevation-1);
+  background: rgba(255, 255, 255, 0.14);
+  color: #bff7ec;
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.auth-card__visual--material .page-kicker {
+  color: #9ff5e5;
+}
+
+.auth-card__visual--material p:not(.page-kicker) {
+  max-width: 34ch;
+  color: rgba(248, 251, 255, 0.82);
+  line-height: 1.72;
 }
 
 .material-benefits {
@@ -354,7 +416,8 @@ function readRedirectPath() {
   padding: 7px 12px;
   border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--md-sys-color-surface) 54%, transparent);
+  background: rgba(255, 255, 255, 0.13);
+  color: #eff6ff;
   font-size: 12px;
   font-weight: 780;
 }

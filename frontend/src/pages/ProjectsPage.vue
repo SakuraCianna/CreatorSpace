@@ -390,8 +390,8 @@ onMounted(loadProjects)
 .segmented-control button:hover,
 .tech-chip:hover {
   border-color: rgba(49, 91, 255, 0.36);
-  background: rgba(49, 91, 255, 0.1);
-  color: var(--tone-ink);
+  background: #e8efff;
+  color: #174ea6;
 }
 
 .featured-project,

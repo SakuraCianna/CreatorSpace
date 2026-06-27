@@ -746,14 +746,47 @@ onBeforeUnmount(() => {
 }
 
 .selector-row select {
+  appearance: none;
   height: 36px;
-  padding: 0 8px;
+  padding: 0 34px 0 10px;
   border: 1px solid color-mix(in srgb, var(--preview-ink) 12%, transparent);
   border-radius: 6px;
-  background: color-mix(in srgb, var(--preview-surface) 92%, transparent);
+  background:
+    linear-gradient(45deg, transparent 50%, var(--preview-primary) 50%),
+    linear-gradient(135deg, var(--preview-primary) 50%, transparent 50%),
+    linear-gradient(180deg, color-mix(in srgb, var(--preview-surface) 96%, transparent), color-mix(in srgb, var(--preview-primary) 5%, var(--preview-surface)));
+  background-position:
+    calc(100% - 16px) 50%,
+    calc(100% - 11px) 50%,
+    0 0;
+  background-size:
+    5px 5px,
+    5px 5px,
+    100% 100%;
+  background-repeat: no-repeat;
   color: var(--preview-ink);
   font-size: 12px;
   cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
+}
+
+.selector-row select:hover {
+  border-color: color-mix(in srgb, var(--preview-primary) 34%, transparent);
+}
+
+.selector-row select:focus {
+  border-color: color-mix(in srgb, var(--preview-primary) 52%, transparent);
+  outline: none;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--preview-primary) 12%, transparent);
+}
+
+.selector-row select option {
+  background: #fff;
+  color: #14151d;
+  font-size: 14px;
 }
 
 .theme-json-panel {

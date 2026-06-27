@@ -1,4 +1,4 @@
-﻿import { requestJson } from '@/services/http'
+import { requestJson } from '@/services/http'
 import type {
   AdminThemeConfig,
   ArticleNeighbors,
@@ -6,6 +6,7 @@ import type {
   ArticlePayload,
   AuthToken,
   CategorySummary,
+  CategoryPayload,
   CommentSummary,
   DashboardOverview,
   FileResource,
@@ -24,6 +25,7 @@ import type {
   SiteSettings,
   SiteSettingsPayload,
   TagSummary,
+  TagPayload,
   ThemeConfig,
   ThemePayload,
   UserSummary,
@@ -463,13 +465,71 @@ export async function fetchCategories(module: CategorySummary['module']): Promis
   return response.data
 }
 
-// 查询标签列表
+// 管理员查询指定模块的全部分类。
+export async function fetchAdminCategories(module: CategorySummary['module']): Promise<CategorySummary[]> {
+  const params = new URLSearchParams({ module })
+  const response = await requestJson<ApiEnvelope<CategorySummary[]>>(`/api/admin/categories?${params.toString()}`)
+  return response.data
+}
+
+// 管理员创建分类。
+export async function createCategory(payload: CategoryPayload): Promise<CategorySummary> {
+  const response = await requestJson<ApiEnvelope<CategorySummary>>('/api/admin/categories', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return response.data
+}
+
+// 管理员更新分类。
+export async function updateCategory(id: number, payload: CategoryPayload): Promise<CategorySummary> {
+  const response = await requestJson<ApiEnvelope<CategorySummary>>(`/api/admin/categories/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+  return response.data
+}
+
+// 管理员启用或停用分类。
+export async function setCategoryEnabled(id: number, enabled: boolean): Promise<CategorySummary> {
+  const params = new URLSearchParams({ enabled: String(enabled) })
+  const response = await requestJson<ApiEnvelope<CategorySummary>>(
+    `/api/admin/categories/${id}/enabled?${params.toString()}`,
+    { method: 'PUT' },
+  )
+  return response.data
+}
+
+// 查询标签列表。
 export async function fetchTags(): Promise<TagSummary[]> {
   const response = await requestJson<ApiEnvelope<TagSummary[]>>('/api/tags')
   return response.data
 }
 
-// 查询公开灵感墙
+// 管理员创建标签。
+export async function createTag(payload: TagPayload): Promise<TagSummary> {
+  const response = await requestJson<ApiEnvelope<TagSummary>>('/api/admin/tags', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return response.data
+}
+
+// 管理员更新标签。
+export async function updateTag(id: number, payload: TagPayload): Promise<TagSummary> {
+  const response = await requestJson<ApiEnvelope<TagSummary>>(`/api/admin/tags/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+  return response.data
+}
+
+// 管理员删除未被引用的标签。
+export async function deleteTag(id: number): Promise<void> {
+  await requestJson<ApiEnvelope<null>>(`/api/admin/tags/${id}`, { method: 'DELETE' })
+}
+
+// 查询公开灵感墙。
 export async function fetchInspirations(options: {
   keyword?: string
   type?: InspirationType | 'ALL'
@@ -806,6 +866,22 @@ export async function fetchDashboardOverview(): Promise<DashboardOverview> {
   const response = await requestJson<ApiEnvelope<DashboardOverview>>('/api/admin/dashboard/overview')
   return response.data
 }
+// 管理员查询操作日志
+export async function fetchAdminOperationLogs(options: OperationLogQuery = {}): Promise<PageResponse<OperationLogSummary>> {
+  const params = new URLSearchParams()
+  if (options.module && options.module !== 'ALL') params.set('module', options.module)
+  if (options.operation?.trim()) params.set('operation', options.operation.trim())
+  if (options.operatorId) params.set('operatorId', String(options.operatorId))
+  if (options.startTime) params.set('startTime', options.startTime)
+  if (options.endTime) params.set('endTime', options.endTime)
+  if (options.page) params.set('page', String(options.page))
+  if (options.pageSize) params.set('pageSize', String(options.pageSize))
+  const query = params.toString()
+  const response = await requestJson<ApiEnvelope<PageResponse<OperationLogSummary>>>(
+    query ? `/api/admin/operation-logs?${query}` : '/api/admin/operation-logs',
+  )
+  return response.data
+}
 
 // 查询公开留言
 export async function fetchGuestbook(options: {
@@ -914,4 +990,3 @@ export async function updateSiteSettings(payload: SiteSettingsPayload): Promise<
   })
   return response.data
 }
-

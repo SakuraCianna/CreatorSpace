@@ -71,9 +71,11 @@ import {
   LogOut,
   MessageSquare,
   Palette,
+  ScrollText,
   Settings,
   ShieldCheck,
   Sparkles,
+  Tags,
 } from '@lucide/vue'
 
 import { useSessionStore } from '@/shared/sessionStore'
@@ -92,6 +94,8 @@ const navItems = [
   { to: '/admin', label: '概览', icon: BarChart3 },
   { to: '/admin/articles', label: '文章', icon: FileText },
   { to: '/admin/projects', label: '作品', icon: Images },
+  { to: '/admin/categories', label: '分类', icon: Tags },
+  { to: '/admin/tags', label: '标签', icon: Tags },
   { to: '/admin/inspirations', label: '灵感', icon: Lightbulb },
   { to: '/admin/comments', label: '评论', icon: MessageSquare },
   { to: '/admin/guestbook', label: '留言', icon: MessageSquare },
@@ -99,6 +103,7 @@ const navItems = [
   { to: '/admin/themes', label: '主题', icon: Palette },
   { to: '/admin/content-rules', label: '规则', icon: ShieldCheck },
   { to: '/admin/sensitive-words', label: '敏感词', icon: Ban },
+  { to: '/admin/operation-logs', label: '日志', icon: ScrollText },
   { to: '/admin/settings', label: '设置', icon: Settings },
 ]
 
@@ -132,7 +137,7 @@ function toggleSidebar() {
   min-width: 0;
   border: 0;
   background: transparent;
-  color: inherit;
+  color: var(--admin-ink);
   font-weight: 760;
   text-align: left;
   cursor: pointer;
@@ -153,7 +158,7 @@ function toggleSidebar() {
 }
 
 .admin-brand small {
-  color: var(--tone-muted);
+  color: var(--admin-muted);
   font-size: 11px;
   font-weight: 650;
   overflow: hidden;
@@ -200,7 +205,7 @@ function toggleSidebar() {
   min-height: 38px;
   padding: 8px 12px;
   border-radius: 999px;
-  color: var(--tone-muted);
+  color: #344154;
   font-size: 14px;
   font-weight: 690;
   overflow: hidden;
@@ -232,8 +237,9 @@ function toggleSidebar() {
 
 .admin-nav a.router-link-active,
 .admin-nav a:hover {
-  background: color-mix(in srgb, var(--md-sys-color-primary) 12%, transparent);
-  color: var(--md-sys-color-primary);
+  background: var(--admin-primary-soft);
+  color: var(--admin-primary-strong);
+  box-shadow: inset 0 0 0 1px var(--admin-line);
 }
 
 .admin-topbar__actions {
@@ -243,12 +249,25 @@ function toggleSidebar() {
 }
 
 .admin-shell {
+  --admin-bg: #f7f8fc;
+  --admin-rail: rgba(255, 255, 255, 0.94);
+  --admin-panel: #ffffff;
+  --admin-panel-soft: #f7f9ff;
+  --admin-ink: #111827;
+  --admin-muted: #526079;
+  --admin-line: rgba(49, 91, 255, 0.12);
+  --admin-primary: #315bff;
+  --admin-primary-strong: #174ea6;
+  --admin-primary-soft: #e8efff;
+  --admin-danger: #b91c1c;
+  --admin-danger-soft: #fee2e2;
+  --admin-shadow: 0 18px 44px rgba(31, 41, 55, 0.1);
   display: grid;
   grid-template-columns: 250px minmax(0, 1fr);
   min-height: 100vh;
   background:
     linear-gradient(120deg, rgba(49, 91, 255, 0.08), transparent 36%),
-    #f7f4f0;
+    var(--admin-bg);
   transition: grid-template-columns 280ms cubic-bezier(0.2, 0, 0, 1);
 }
 
@@ -257,12 +276,17 @@ function toggleSidebar() {
 }
 
 .admin-rail {
+  position: sticky;
+  top: 0;
+  align-self: start;
   display: flex;
   flex-direction: column;
   gap: 18px;
+  height: 100vh;
   padding: 18px 16px;
-  border-right: 1px solid var(--tone-line);
-  background: rgba(255, 255, 255, 0.82);
+  border-right: 1px solid var(--admin-line);
+  background: var(--admin-rail);
+  overflow-y: auto;
   transition:
     padding 280ms cubic-bezier(0.2, 0, 0, 1),
     background 180ms ease;
@@ -351,14 +375,16 @@ function toggleSidebar() {
   gap: 24px;
   min-height: 82px;
   padding: 18px 28px;
-  border-bottom: 1px solid var(--tone-line);
-  background: rgba(255, 251, 254, 0.82);
+  border-bottom: 1px solid var(--admin-line);
+  background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(18px);
 }
 
 .admin-topbar h1 {
   margin: 0;
+  color: var(--admin-ink);
   font-size: 26px;
+  font-weight: 860;
   line-height: 1.2;
 }
 
@@ -376,8 +402,11 @@ function toggleSidebar() {
   }
 
   .admin-rail {
+    position: static;
+    height: auto;
+    overflow: visible;
     border-right: 0;
-    border-bottom: 1px solid var(--tone-line);
+    border-bottom: 1px solid var(--admin-line);
   }
 
   .admin-shell--collapsed .brand-copy {

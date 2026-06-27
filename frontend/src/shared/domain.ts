@@ -38,6 +38,7 @@ export interface CategorySummary {
   slug: string
   description?: string | null
   sortOrder: number
+  enabled?: boolean | null
 }
 
 export interface TagSummary {
@@ -46,6 +47,22 @@ export interface TagSummary {
   slug: string
   color?: string | null
   weight: number
+}
+
+export interface CategoryPayload {
+  module: CategorySummary['module']
+  name: string
+  slug: string
+  description?: string | null
+  sortOrder?: number | null
+  enabled?: boolean | null
+}
+
+export interface TagPayload {
+  name: string
+  slug: string
+  color?: string | null
+  weight?: number | null
 }
 
 export interface ArticleSummary {
@@ -406,6 +423,44 @@ export interface DashboardOverview {
   visitTrend: DashboardTrendPoint[]
   searchTrend: DashboardTrendPoint[]
   recentActivities: DashboardActivity[]
+}
+export type OperationLogModule =
+  | 'ALL'
+  | 'ARTICLE'
+  | 'PROJECT'
+  | 'COMMENT'
+  | 'FILE'
+  | 'THEME'
+  | 'SITE'
+  | 'INSPIRATION'
+  | 'GUESTBOOK'
+  | 'CATEGORY'
+  | 'TAG'
+  | 'ADMIN'
+
+export interface OperationLogQuery {
+  module?: OperationLogModule | ''
+  operation?: string
+  operatorId?: number | null
+  startTime?: string
+  endTime?: string
+  page?: number
+  pageSize?: number
+}
+
+export interface OperationLogSummary {
+  id: number
+  operatorId?: number | null
+  operation: string
+  module: Exclude<OperationLogModule, 'ALL'> | string
+  targetType?: string | null
+  targetId?: number | null
+  requestMethod?: string | null
+  requestPath?: string | null
+  ipAddress?: string | null
+  userAgent?: string | null
+  detailJson?: string | null
+  createdAt: string
 }
 
 export interface SiteStatisticsSummary {
