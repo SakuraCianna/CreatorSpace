@@ -69,20 +69,33 @@ public class DashboardController {
     // 热门文章：仅统计公开已发布内容，优先读取聚合统计表。
     private List<ContentRankVO> hotArticles() {
         return jdbcTemplate.query("""
-                        select a.title,
-                               a.slug,
-                               coalesce(cs.view_count, a.view_count, 0) as view_count,
-                               coalesce(cs.like_count, a.like_count, 0) as like_count,
-                               coalesce(cs.comment_count, a.comment_count, 0) as comment_count
-                        from articles a
-                        left join content_statistics cs
-                               on cs.target_type = 'ARTICLE' and cs.target_id = a.id
-                        where a.status = 'PUBLISHED'
-                          and a.privacy_type = 'PUBLIC'
-                        order by coalesce(cs.view_count, a.view_count, 0) desc,
-                                 coalesce(cs.like_count, a.like_count, 0) desc,
-                                 coalesce(cs.comment_count, a.comment_count, 0) desc,
-                                 a.id desc
+                        with ranked_articles as (
+                            select a.id,
+                                   a.title,
+                                   a.slug,
+                                   coalesce(cs.view_count, a.view_count, 0) as view_count,
+                                   coalesce(cs.like_count, a.like_count, 0) as like_count,
+                                   coalesce(cs.comment_count, a.comment_count, 0) as comment_count,
+                                   (
+                                       coalesce(cs.view_count, a.view_count, 0)
+                                       + coalesce(cs.like_count, a.like_count, 0) * 3
+                                       + coalesce(cs.comment_count, a.comment_count, 0) * 4
+                                       + case when a.is_recommend then 20 else 0 end
+                                       + case when a.is_top then 30 else 0 end
+                                   ) as hot_score
+                            from articles a
+                            left join content_statistics cs
+                                   on cs.target_type = 'ARTICLE' and cs.target_id = a.id
+                            where a.status = 'PUBLISHED'
+                              and a.privacy_type = 'PUBLIC'
+                        )
+                        select title, slug, view_count, like_count
+                        from ranked_articles
+                        order by hot_score desc,
+                                 view_count desc,
+                                 like_count desc,
+                                 comment_count desc,
+                                 id desc
                         limit 5
                         """,
                 (rs, rowNum) -> new ContentRankVO(
@@ -96,20 +109,31 @@ public class DashboardController {
     // 热门作品：仅统计公开可见作品，优先读取聚合统计表。
     private List<ContentRankVO> hotProjects() {
         return jdbcTemplate.query("""
-                        select p.title,
-                               p.slug,
-                               coalesce(cs.view_count, 0) as view_count,
-                               coalesce(cs.like_count, 0) as like_count,
-                               coalesce(cs.favorite_count, 0) as favorite_count
-                        from portfolio_projects p
-                        left join content_statistics cs
-                               on cs.target_type = 'PROJECT' and cs.target_id = p.id
-                        where p.status = 'VISIBLE'
-                        order by coalesce(cs.view_count, 0) desc,
-                                 coalesce(cs.like_count, 0) desc,
-                                 coalesce(cs.favorite_count, 0) desc,
-                                 p.is_recommend desc,
-                                 p.id desc
+                        with ranked_projects as (
+                            select p.id,
+                                   p.title,
+                                   p.slug,
+                                   coalesce(cs.view_count, 0) as view_count,
+                                   coalesce(cs.like_count, 0) as like_count,
+                                   coalesce(cs.favorite_count, 0) as favorite_count,
+                                   (
+                                       coalesce(cs.view_count, 0)
+                                       + coalesce(cs.like_count, 0) * 3
+                                       + coalesce(cs.favorite_count, 0) * 4
+                                       + case when p.is_recommend then 30 else 0 end
+                                   ) as hot_score
+                            from portfolio_projects p
+                            left join content_statistics cs
+                                   on cs.target_type = 'PROJECT' and cs.target_id = p.id
+                            where p.status = 'VISIBLE'
+                        )
+                        select title, slug, view_count, like_count
+                        from ranked_projects
+                        order by hot_score desc,
+                                 view_count desc,
+                                 like_count desc,
+                                 favorite_count desc,
+                                 id desc
                         limit 5
                         """,
                 (rs, rowNum) -> new ContentRankVO(

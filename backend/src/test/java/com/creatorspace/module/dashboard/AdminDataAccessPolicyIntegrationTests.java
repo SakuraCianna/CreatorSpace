@@ -180,35 +180,52 @@ class AdminDataAccessPolicyIntegrationTests extends PostgresIntegrationTestSuppo
         jdbcTemplate.update("delete from portfolio_projects where slug like 'p1-dashboard-%'");
 
         Long hotArticleId = jdbcTemplate.queryForObject("""
+                        insert into articles (title, slug, summary, content_markdown, status, privacy_type, view_count, like_count, comment_count, is_top, is_recommend, publish_time)
+                        values ('P1 dashboard hot article', 'p1-dashboard-hot-article', 'real statistics article', 'body', 'PUBLISHED', 'PUBLIC', 1, 1, 1, true, true, now())
+                        returning id
+                        """,
+                Long.class);
+        Long viewOnlyArticleId = jdbcTemplate.queryForObject("""
                         insert into articles (title, slug, summary, content_markdown, status, privacy_type, view_count, like_count, comment_count, publish_time)
-                        values ('P1 看板热门文章', 'p1-dashboard-hot-article', '真实统计文章', '正文', 'PUBLISHED', 'PUBLIC', 1, 1, 1, now())
+                        values ('P1 dashboard view only article', 'p1-dashboard-view-only-article', 'high views low engagement', 'body', 'PUBLISHED', 'PUBLIC', 1, 0, 0, now())
                         returning id
                         """,
                 Long.class);
         Long privateArticleId = jdbcTemplate.queryForObject("""
                         insert into articles (title, slug, summary, content_markdown, status, privacy_type, view_count, like_count, comment_count, publish_time)
-                        values ('P1 看板私密文章', 'p1-dashboard-private-article', '不应进入热门', '正文', 'PUBLISHED', 'SELF', 9999999, 9999999, 9999999, now())
+                        values ('P1 dashboard private article', 'p1-dashboard-private-article', 'should not enter hot list', 'body', 'PUBLISHED', 'SELF', 9999999, 9999999, 9999999, now())
                         returning id
                         """,
                 Long.class);
         Long hotProjectId = jdbcTemplate.queryForObject("""
                         insert into portfolio_projects (title, slug, description, project_type, tech_stack, status, is_recommend)
-                        values ('P1 看板热门作品', 'p1-dashboard-hot-project', '真实统计作品', 'WEB_APP', '[]'::jsonb, 'VISIBLE', false)
+                        values ('P1 dashboard hot project', 'p1-dashboard-hot-project', 'real statistics project', 'WEB_APP', '[]'::jsonb, 'VISIBLE', true)
+                        returning id
+                        """,
+                Long.class);
+        Long viewOnlyProjectId = jdbcTemplate.queryForObject("""
+                        insert into portfolio_projects (title, slug, description, project_type, tech_stack, status, is_recommend)
+                        values ('P1 dashboard view only project', 'p1-dashboard-view-only-project', 'high views low engagement', 'WEB_APP', '[]'::jsonb, 'VISIBLE', false)
                         returning id
                         """,
                 Long.class);
         Long hiddenProjectId = jdbcTemplate.queryForObject("""
                         insert into portfolio_projects (title, slug, description, project_type, tech_stack, status, is_recommend)
-                        values ('P1 看板隐藏作品', 'p1-dashboard-hidden-project', '不应进入热门', 'WEB_APP', '[]'::jsonb, 'HIDDEN', true)
+                        values ('P1 dashboard hidden project', 'p1-dashboard-hidden-project', 'should not enter hot list', 'WEB_APP', '[]'::jsonb, 'HIDDEN', true)
                         returning id
                         """,
                 Long.class);
 
         jdbcTemplate.update("""
                         insert into content_statistics (target_type, target_id, view_count, like_count, favorite_count, comment_count, last_viewed_at)
-                        values ('ARTICLE', ?, 900000, 800000, 0, 700000, now())
+                        values ('ARTICLE', ?, 500000, 300000, 0, 300000, now())
                         """,
                 hotArticleId);
+        jdbcTemplate.update("""
+                        insert into content_statistics (target_type, target_id, view_count, like_count, favorite_count, comment_count, last_viewed_at)
+                        values ('ARTICLE', ?, 1800000, 0, 0, 0, now())
+                        """,
+                viewOnlyArticleId);
         jdbcTemplate.update("""
                         insert into content_statistics (target_type, target_id, view_count, like_count, favorite_count, comment_count, last_viewed_at)
                         values ('ARTICLE', ?, 9999999, 9999999, 0, 9999999, now())
@@ -216,9 +233,14 @@ class AdminDataAccessPolicyIntegrationTests extends PostgresIntegrationTestSuppo
                 privateArticleId);
         jdbcTemplate.update("""
                         insert into content_statistics (target_type, target_id, view_count, like_count, favorite_count, comment_count, last_viewed_at)
-                        values ('PROJECT', ?, 910000, 810000, 710000, 0, now())
+                        values ('PROJECT', ?, 500000, 250000, 300000, 0, now())
                         """,
                 hotProjectId);
+        jdbcTemplate.update("""
+                        insert into content_statistics (target_type, target_id, view_count, like_count, favorite_count, comment_count, last_viewed_at)
+                        values ('PROJECT', ?, 1800000, 0, 0, 0, now())
+                        """,
+                viewOnlyProjectId);
         jdbcTemplate.update("""
                         insert into content_statistics (target_type, target_id, view_count, like_count, favorite_count, comment_count, last_viewed_at)
                         values ('PROJECT', ?, 9999999, 9999999, 9999999, 0, now())
