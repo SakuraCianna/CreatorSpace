@@ -20,6 +20,7 @@ import {
   fetchCurrentTheme,
   fetchInspirations,
   fetchProjects,
+  fetchRecommendedTags,
   fetchSiteConfig,
   fetchSiteStatisticsSummary,
   fetchTags,
@@ -237,7 +238,7 @@ async function loadHomeRuntimeData() {
       fetchInspirations({ pageSize: HOME_INSPIRATION_LIMIT }),
       fetchThemes(),
       fetchCurrentTheme(),
-      fetchTags(),
+      fetchRecommendedTags(28).catch(() => fetchTags()),
       fetchSiteStatisticsSummary(),
     ])
 
@@ -267,7 +268,7 @@ async function loadHomeRuntimeData() {
   runtimeCounters.value = buildCounters(totals)
   runtimeFragments.value = inspirations.slice(0, HOME_INSPIRATION_LIMIT).map(inspirationToFragment)
   runtimeRecentActivities.value = buildRecentActivities(articles, projects, inspirations)
-  runtimeTags.value = tags.slice().sort((left, right) => right.weight - left.weight || left.name.localeCompare(right.name, 'zh-CN'))
+  runtimeTags.value = tags.slice()
   runtimeHomeModules.value = resolveHomeModules(config['page.home'])
   runtimeThemePresets.value = themes.map(themeToPreset)
   runtimeCurrentThemeName.value = currentTheme?.displayName

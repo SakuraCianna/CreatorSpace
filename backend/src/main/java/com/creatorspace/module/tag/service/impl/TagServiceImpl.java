@@ -8,6 +8,7 @@ import com.creatorspace.module.tag.mapper.TagMapper;
 import com.creatorspace.module.tag.service.TagService;
 import com.creatorspace.module.tag.vo.TagVO;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +21,13 @@ public class TagServiceImpl implements TagService {
 
     private static final Pattern SLUG_PATTERN = Pattern.compile("^[a-z0-9]+(?:-[a-z0-9]+)*$");
     private static final Pattern COLOR_PATTERN = Pattern.compile("^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$");
+    private static final RowMapper<TagVO> TAG_ROW_MAPPER = (rs, rowNum) -> new TagVO(
+            rs.getLong("id"),
+            rs.getString("name"),
+            rs.getString("slug"),
+            rs.getString("color"),
+            rs.getInt("weight")
+    );
 
     private final TagMapper tagMapper;
     private final JdbcTemplate jdbcTemplate;
@@ -81,6 +89,18 @@ public class TagServiceImpl implements TagService {
     }
 
     @Override
+    public List<TagVO> recommend(Long userId, String ipAddress, int limit) {
+        int boundedLimit = Math.max(1, Math.min(limit, 60));
+        if (userId != null) {
+            List<TagVO> personalized = recommendedByUser(userId, boundedLimit);
+            if (!personalized.isEmpty()) {
+                return personalized;
+            }
+        }
+        return recommendedForVisitor(ipAddress, boundedLimit);
+    }
+
+    @Override
     public List<TagVO> listByIds(List<Long> tagIds) {
         if (tagIds == null || tagIds.isEmpty()) {
             return Collections.emptyList();
@@ -89,6 +109,79 @@ public class TagServiceImpl implements TagService {
                 .stream()
                 .map(this::toVO)
                 .toList();
+    }
+
+    private List<TagVO> recommendedByUser(Long userId, int limit) {
+        return jdbcTemplate.query("""
+                        select t.id, t.name, t.slug, t.color, t.weight
+                        from tags t
+                        left join (
+                            select at.tag_id,
+                                   sum(24.0 / (1.0 + extract(epoch from (now() - vl.created_at)) / 86400.0 / 7.0)) as preference_score
+                            from visit_logs vl
+                            join article_tags at on at.article_id = vl.target_id
+                            where vl.target_type = 'ARTICLE'
+                              and vl.user_id = ?
+                              and vl.created_at >= now() - interval '30 days'
+                            group by at.tag_id
+                        ) preference on preference.tag_id = t.id
+                        left join (
+                            select tag_id, count(*) as content_count
+                            from (
+                                select tag_id from article_tags
+                                union all
+                                select tag_id from project_tags
+                                union all
+                                select tag_id from inspiration_tags
+                            ) usage_rows
+                            group by tag_id
+                        ) usage on usage.tag_id = t.id
+                        order by
+                            coalesce(preference.preference_score, 0) desc,
+                            (t.weight + coalesce(usage.content_count, 0) * 4 + random() * 6) desc,
+                            t.name asc
+                        limit ?
+                        """,
+                TAG_ROW_MAPPER,
+                userId,
+                limit
+        );
+    }
+
+    private List<TagVO> recommendedForVisitor(String ipAddress, int limit) {
+        return jdbcTemplate.query("""
+                        select t.id, t.name, t.slug, t.color, t.weight
+                        from tags t
+                        left join (
+                            select at.tag_id,
+                                   sum(12.0 / (1.0 + extract(epoch from (now() - vl.created_at)) / 86400.0 / 7.0)) as visitor_score
+                            from visit_logs vl
+                            join article_tags at on at.article_id = vl.target_id
+                            where vl.target_type = 'ARTICLE'
+                              and vl.ip_address = cast(? as inet)
+                              and vl.created_at >= now() - interval '7 days'
+                            group by at.tag_id
+                        ) visitor on visitor.tag_id = t.id
+                        left join (
+                            select tag_id, count(*) as content_count
+                            from (
+                                select tag_id from article_tags
+                                union all
+                                select tag_id from project_tags
+                                union all
+                                select tag_id from inspiration_tags
+                            ) usage_rows
+                            group by tag_id
+                        ) usage on usage.tag_id = t.id
+                        order by
+                            (coalesce(visitor.visitor_score, 0) + t.weight + coalesce(usage.content_count, 0) * 5 + random() * 18) desc,
+                            t.name asc
+                        limit ?
+                        """,
+                TAG_ROW_MAPPER,
+                ipAddress,
+                limit
+        );
     }
 
     private void ensureSlugAvailable(Long currentId, String slug) {

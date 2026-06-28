@@ -2,7 +2,10 @@ package com.creatorspace.module.statistics;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import com.creatorspace.security.LoginUser;
 
 @Service
 public class VisitLogService {
@@ -15,19 +18,21 @@ public class VisitLogService {
 
     public boolean recordContentVisit(String targetType, Long targetId, HttpServletRequest request) {
         String ipAddress = request.getRemoteAddr();
+        Long userId = currentUserId();
         boolean repeatedRecently = hasRecentVisit(targetType, targetId, ipAddress);
         try {
             String userAgent = request.getHeader("User-Agent");
             jdbcTemplate.update("""
                             insert into visit_logs (
-                                path, target_type, target_id, ip_address, user_agent, referer,
+                                path, target_type, target_id, user_id, ip_address, user_agent, referer,
                                 device_type, browser, operating_system
                             )
-                            values (?, ?, ?, cast(? as inet), ?, ?, ?, ?, ?)
+                            values (?, ?, ?, ?, cast(? as inet), ?, ?, ?, ?, ?)
                             """,
                     request.getRequestURI(),
                     targetType,
                     targetId,
+                    userId,
                     ipAddress,
                     userAgent,
                     request.getHeader("Referer"),
@@ -38,6 +43,14 @@ public class VisitLogService {
             // Visit analytics must not block public content reads.
         }
         return !repeatedRecently;
+    }
+
+    private Long currentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof LoginUser loginUser)) {
+            return null;
+        }
+        return loginUser.userId();
     }
 
     private boolean hasRecentVisit(String targetType, Long targetId, String ipAddress) {

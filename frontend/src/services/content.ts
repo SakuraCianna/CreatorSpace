@@ -505,6 +505,13 @@ export async function fetchTags(): Promise<TagSummary[]> {
   return response.data
 }
 
+// 查询首页推荐标签。登录用户按最近文章访问偏好推荐，游客由后端随机混合全站热度。
+export async function fetchRecommendedTags(limit = 28): Promise<TagSummary[]> {
+  const params = new URLSearchParams({ limit: String(limit) })
+  const response = await requestJson<ApiEnvelope<TagSummary[]>>(`/api/tags/recommended?${params.toString()}`)
+  return response.data
+}
+
 // 管理员创建标签。
 export async function createTag(payload: TagPayload): Promise<TagSummary> {
   const response = await requestJson<ApiEnvelope<TagSummary>>('/api/admin/tags', {
