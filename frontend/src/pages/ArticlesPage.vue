@@ -89,7 +89,16 @@
             :to="{ name: 'article-detail', params: { slug: article.slug } }"
             data-reveal
           >
-            <img v-if="article.coverUrl" :src="article.coverUrl" alt="" loading="lazy" />
+            <div class="journal-card__visual" aria-hidden="true">
+              <img
+                v-if="showArticleCover(article)"
+                :src="article.coverUrl"
+                alt=""
+                loading="lazy"
+                @error="markArticleCoverBroken(article.id)"
+              />
+              <span v-else>{{ article.category?.name?.slice(0, 2) || article.title.slice(0, 2) }}</span>
+            </div>
             <div>
               <span class="article-date">{{ formatDate(article.publishTime) }}</span>
               <h2>{{ article.title }}</h2>
@@ -138,6 +147,7 @@ const keyword = ref('')
 const activeTagId = ref<number | null>(null)
 const isLoading = ref(true)
 const notice = ref('')
+const brokenArticleCoverIds = ref(new Set<number>())
 let topicResizeObserver: ResizeObserver | null = null
 
 usePageReveal(root)
@@ -181,6 +191,7 @@ async function loadArticles() {
   try {
     const page = await fetchArticles(keyword.value, activeTagId.value ?? undefined)
     articles.value = page.records
+    brokenArticleCoverIds.value = new Set()
   } catch (error) {
     articles.value = []
     notice.value = toUserMessage(error, '文章接口暂不可用，请稍后再试')
@@ -353,6 +364,14 @@ function articleCoverStyle(article: ArticleSummary, index: number) {
     '--cover-accent': article.tags[0]?.color ?? palette[1],
     '--cover-ink': palette[2],
   }
+}
+
+function showArticleCover(article: ArticleSummary): boolean {
+  return Boolean(article.coverUrl) && !brokenArticleCoverIds.value.has(article.id)
+}
+
+function markArticleCoverBroken(articleId: number) {
+  brokenArticleCoverIds.value = new Set([...brokenArticleCoverIds.value, articleId])
 }
 
 onMounted(async () => {
@@ -656,12 +675,16 @@ onBeforeUnmount(() => {
   border-radius: var(--app-radius-sm);
   background: var(--tone-panel);
   box-shadow: var(--tone-shadow);
-  transition: transform var(--transition-time, 180ms) ease, border-color var(--transition-time, 180ms) ease;
+  transition:
+    transform var(--transition-time, 180ms) ease,
+    border-color var(--transition-time, 180ms) ease,
+    box-shadow var(--transition-time, 180ms) ease;
 }
 
 .journal-featured:hover,
 .journal-card:hover {
   border-color: rgba(49, 91, 255, 0.34);
+  box-shadow: 0 26px 68px rgba(20, 24, 38, 0.14);
   transform: translateY(-3px);
 }
 
@@ -673,9 +696,30 @@ onBeforeUnmount(() => {
   padding: 28px;
   overflow: hidden;
   background:
-    linear-gradient(145deg, rgba(5, 8, 22, 0.1), rgba(5, 8, 22, 0.88)),
+    radial-gradient(circle at 86% 18%, color-mix(in srgb, var(--cover-accent) 32%, transparent), transparent 32%),
+    linear-gradient(110deg, rgba(5, 8, 22, 0.98), rgba(9, 21, 56, 0.94) 56%, rgba(7, 12, 28, 0.96)),
     linear-gradient(135deg, var(--cover-from), var(--cover-accent));
-  color: var(--cover-ink);
+  color: #f8fbff;
+  isolation: isolate;
+  position: relative;
+}
+
+.journal-featured::before {
+  content: "";
+  position: absolute;
+  inset: 18px;
+  z-index: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.07), transparent 44%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.055) 0 1px, transparent 1px 24px),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 32px);
+  pointer-events: none;
+}
+
+.journal-featured > * {
+  position: relative;
+  z-index: 1;
 }
 
 .article-label,
@@ -690,14 +734,16 @@ onBeforeUnmount(() => {
 .journal-featured h2 {
   max-width: 720px;
   margin: 14px 0 0;
+  color: #f8fbff;
   font-size: clamp(32px, 4.2vw, 42px);
   line-height: 1.08;
+  text-shadow: 0 18px 38px rgba(0, 0, 0, 0.45);
 }
 
 .journal-featured p {
   max-width: 640px;
   margin: 16px 0 0;
-  color: rgba(248, 250, 252, 0.8);
+  color: rgba(238, 244, 255, 0.84);
   line-height: 1.72;
 }
 
@@ -737,29 +783,63 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
-.journal-card img {
+.journal-card__visual {
+  position: relative;
+  display: grid;
+  height: 190px;
+  place-items: center;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 78% 18%, color-mix(in srgb, var(--cover-accent) 42%, transparent), transparent 34%),
+    linear-gradient(135deg, color-mix(in srgb, var(--cover-from) 86%, #ffffff), color-mix(in srgb, var(--cover-accent) 74%, #f8fbff));
+}
+
+.journal-card__visual::after {
+  content: "";
+  position: absolute;
+  inset: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.12), transparent 42%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 20px);
+  pointer-events: none;
+}
+
+.journal-card__visual img {
   width: 100%;
   height: 190px;
   object-fit: cover;
-  background: linear-gradient(135deg, var(--cover-from), var(--cover-accent));
+}
+
+.journal-card__visual span {
+  position: relative;
+  z-index: 1;
+  color: rgba(248, 251, 255, 0.88);
+  font-size: 42px;
+  font-weight: 900;
+  text-shadow: 0 16px 34px rgba(0, 0, 0, 0.26);
 }
 
 .journal-card > div {
+  display: grid;
+  align-content: start;
+  gap: 10px;
   padding: calc(var(--theme-density-spacing, 16px) * 1.25);
 }
 
 .journal-card .article-date {
-  color: var(--tone-faint);
+  color: var(--tone-primary);
 }
 
 .journal-card h2 {
-  margin: 12px 0 0;
+  margin: 0;
   color: var(--tone-ink);
-  font-size: 24px;
-  line-height: 1.18;
+  font-size: clamp(20px, 2vw, 24px);
+  line-height: 1.22;
 }
 
 .journal-card p {
+  margin: 0;
   color: var(--tone-muted);
   line-height: 1.68;
 }
