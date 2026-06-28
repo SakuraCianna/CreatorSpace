@@ -15,6 +15,7 @@ import type {
   InspirationPayload,
   InspirationType,
   PageResponse,
+  ProjectFilterRecommendations,
   ProjectPayload,
   ProjectSummary,
   PublicThemeConfig,
@@ -290,6 +291,15 @@ export async function fetchProjects(keyword = ''): Promise<PageResponse<ProjectS
   }
   const path = params.toString() ? `/api/projects?${params.toString()}` : '/api/projects'
   const response = await requestJson<ApiEnvelope<PageResponse<ProjectSummary>>>(path)
+  return response.data
+}
+
+// 调用作品展厅推荐筛选接口
+export async function fetchProjectFilterRecommendations(limit = 12): Promise<ProjectFilterRecommendations> {
+  const params = new URLSearchParams({ limit: String(limit) })
+  const response = await requestJson<ApiEnvelope<ProjectFilterRecommendations>>(
+    `/api/projects/recommended-filters?${params.toString()}`,
+  )
   return response.data
 }
 

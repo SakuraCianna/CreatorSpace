@@ -122,6 +122,11 @@ export interface ProjectSummary {
   processNotes?: ProjectProcessNote[]
 }
 
+export interface ProjectFilterRecommendations {
+  projectTypes: string[]
+  techStacks: string[]
+}
+
 export interface ProjectScreenshot {
   imageUrl: string
   caption?: string | null
