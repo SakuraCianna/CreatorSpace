@@ -15,7 +15,7 @@
       </div>
       <div class="profile-card">
         <div class="profile-avatar">
-          <img v-if="profile?.avatarUrl" :src="profile.avatarUrl" alt="" loading="lazy" />
+          <img v-if="profileAvatarSrc" :src="profileAvatarSrc" alt="" loading="lazy" />
           <UserRound v-else :size="32" />
         </div>
         <strong>{{ profile?.displayName || '暂无公开资料' }}</strong>
@@ -182,6 +182,7 @@ usePageReveal(root)
 const focusTags = computed(() => readStringArray(profile.value?.profileJson.focus).slice(0, 12))
 const timelineItems = computed(() => readTimelineItems(profile.value?.profileJson).slice(0, 8))
 const resumeLink = computed(() => readResumeLink(profile.value?.profileJson))
+const profileAvatarSrc = computed(() => profile.value?.avatarUrl?.trim() ?? '')
 const experienceSummary = computed(() => {
   const summary = readString(profile.value?.profileJson.experienceSummary)
   return summary || '这些经历用于补足创作者背景，让读者知道内容经验和项目判断来自哪里。'
