@@ -3935,6 +3935,27 @@ function renderFooter() {
 }
 
 
+.cs-home :deep(.cs-approach) {
+  --approach-ink: #f8fbff;
+  --approach-muted: rgba(232, 239, 255, 0.82);
+  --approach-faint: rgba(206, 216, 245, 0.64);
+  --approach-line: rgba(150, 171, 230, 0.18);
+  --approach-panel: rgba(9, 13, 25, 0.46);
+  --approach-accent: #74adff;
+  isolation: isolate;
+  color: var(--approach-ink);
+}
+
+.cs-home :deep(.cs-approach .cs-head__title) {
+  max-width: 15ch;
+  color: var(--approach-ink);
+  text-shadow: 0 18px 46px rgba(0, 0, 0, 0.42);
+}
+
+.cs-home :deep(.cs-approach .cs-head__note) {
+  color: var(--approach-muted);
+}
+
 .cs-home :deep(.cs-approach__grid) {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
@@ -3954,7 +3975,7 @@ function renderFooter() {
   font-size: clamp(90px, 12vw, 170px);
   line-height: 0.9;
   letter-spacing: -0.04em;
-  background: linear-gradient(150deg, var(--cs-ink) 30%, var(--cs-accent));
+  background: linear-gradient(150deg, var(--approach-ink) 24%, var(--approach-accent));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -3966,7 +3987,7 @@ function renderFooter() {
   font-size: 13px;
   letter-spacing: 0.24em;
   text-transform: uppercase;
-  color: var(--cs-ink-faint);
+  color: var(--approach-faint);
 }
 
 .cs-home :deep(.cs-rail__track) {
@@ -3979,29 +4000,35 @@ function renderFooter() {
   width: 40px;
   height: 3px;
   border-radius: 2px;
-  background: var(--cs-line);
+  background: var(--approach-line);
   transition: background 0.4s ease, transform 0.4s ease;
   transform-origin: left;
 }
 
 .cs-home :deep(.cs-rail__tick.is-active) {
-  background: var(--cs-accent);
+  background: var(--approach-accent);
   transform: scaleY(1.8);
 }
 
 .cs-home :deep(.cs-steps) {
   display: flex;
   flex-direction: column;
+  gap: 18px;
 }
 
 .cs-home :deep(.cs-step) {
-  padding: clamp(34px, 6vh, 70px) 0;
-  border-top: 1px solid var(--cs-line-soft);
+  position: relative;
+  padding: clamp(28px, 5vh, 56px);
+  border: 1px solid var(--approach-line);
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(116, 173, 255, 0.04), rgba(116, 173, 255, 0)),
+    var(--approach-panel);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .cs-home :deep(.cs-step:first-child) {
-  border-top: 0;
-  padding-top: 0;
+  border-color: color-mix(in srgb, var(--approach-accent) 34%, var(--approach-line));
 }
 
 .cs-home :deep(.cs-step__head) {
@@ -4013,16 +4040,19 @@ function renderFooter() {
 .cs-home :deep(.cs-step__no) {
   font-family: var(--cs-font-mono);
   font-size: 14px;
-  color: var(--cs-accent);
+  color: var(--approach-accent);
+  font-weight: 800;
 }
 
 .cs-home :deep(.cs-step__title) {
   margin: 0;
+  color: var(--approach-ink);
   font-family: var(--cs-font-display);
-  font-weight: 600;
+  font-weight: 720;
   font-size: clamp(28px, 3.4vw, 46px);
   line-height: 1.05;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
+  text-shadow: 0 14px 34px rgba(0, 0, 0, 0.42);
 }
 
 .cs-home :deep(.cs-step__en) {
@@ -4032,7 +4062,7 @@ function renderFooter() {
   font-weight: 400;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--cs-ink-faint);
+  color: var(--approach-faint);
   vertical-align: middle;
 }
 
@@ -4041,7 +4071,7 @@ function renderFooter() {
   margin: 18px 0 0;
   font-size: clamp(15px, 1.4vw, 17px);
   line-height: 1.7;
-  color: var(--cs-ink-dim);
+  color: var(--approach-muted);
 }
 
 .cs-home :deep(.cs-step__tags) {
@@ -4055,7 +4085,7 @@ function renderFooter() {
   font-family: var(--cs-font-mono);
   font-size: 11px;
   letter-spacing: 0.08em;
-  color: var(--cs-ink-faint);
+  color: var(--approach-faint);
   padding-left: 16px;
   position: relative;
 }
@@ -4067,7 +4097,7 @@ function renderFooter() {
   top: 50%;
   width: 8px;
   height: 1px;
-  background: var(--cs-accent);
+  background: var(--approach-accent);
 }
 
 @media (max-width: 860px) {
