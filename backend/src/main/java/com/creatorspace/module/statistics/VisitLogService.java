@@ -1,19 +1,31 @@
 package com.creatorspace.module.statistics;
 
+import com.creatorspace.common.cache.CacheKeys;
+import com.creatorspace.common.cache.RedisJsonCacheService;
+import com.creatorspace.security.LoginUser;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import com.creatorspace.security.LoginUser;
+
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
+import java.util.HexFormat;
 
 @Service
 public class VisitLogService {
 
-    private final JdbcTemplate jdbcTemplate;
+    private static final Duration VISIT_DEDUPE_TTL = Duration.ofMinutes(5);
 
-    public VisitLogService(JdbcTemplate jdbcTemplate) {
+    private final JdbcTemplate jdbcTemplate;
+    private final RedisJsonCacheService redisCacheService;
+
+    public VisitLogService(JdbcTemplate jdbcTemplate, RedisJsonCacheService redisCacheService) {
         this.jdbcTemplate = jdbcTemplate;
+        this.redisCacheService = redisCacheService;
     }
 
     public boolean recordContentVisit(String targetType, Long targetId, HttpServletRequest request) {
@@ -54,6 +66,12 @@ public class VisitLogService {
     }
 
     private boolean hasRecentVisit(String targetType, Long targetId, String ipAddress) {
+        String dedupeKey = visitDedupeKey(targetType, targetId, ipAddress);
+        try {
+            return !redisCacheService.setIfAbsent(dedupeKey, VISIT_DEDUPE_TTL);
+        } catch (RuntimeException ignored) {
+            // Redis is an optimization. Fall back to database dedupe when it is unavailable.
+        }
         try {
             Long count = jdbcTemplate.queryForObject("""
                             select count(*)
@@ -70,6 +88,19 @@ public class VisitLogService {
             return count != null && count > 0;
         } catch (Exception ignored) {
             return false;
+        }
+    }
+
+    private String visitDedupeKey(String targetType, Long targetId, String ipAddress) {
+        return CacheKeys.VISIT_DEDUPE_PREFIX + sha256Hex(targetType + ":" + targetId + ":" + normalize(ipAddress));
+    }
+
+    private String sha256Hex(String value) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is not available", exception);
         }
     }
 
