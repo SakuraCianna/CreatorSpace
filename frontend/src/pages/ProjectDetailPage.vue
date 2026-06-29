@@ -26,7 +26,13 @@
             </div>
           </div>
           <div class="hero-cover" aria-hidden="true">
-            <img v-if="project.coverUrl" :src="project.coverUrl" alt="" loading="lazy" />
+            <img
+              v-if="showProjectCover"
+              :src="project.coverUrl"
+              alt=""
+              loading="lazy"
+              @error="coverImageFailed = true"
+            />
             <span v-else>{{ project.projectType.slice(0, 2) }}</span>
           </div>
         </header>
@@ -65,8 +71,21 @@
               <h2>作品截图</h2>
             </div>
             <div v-if="detailExtras.screenshots.length" class="screenshot-grid">
-              <figure v-for="screenshot in detailExtras.screenshots" :key="screenshot.imageUrl">
-                <img :src="screenshot.imageUrl" :alt="screenshot.caption || project.title" loading="lazy" />
+              <figure
+                v-for="screenshot in detailExtras.screenshots"
+                :key="screenshot.imageUrl"
+                :class="{ 'is-missing-image': brokenScreenshotUrls.has(screenshot.imageUrl) }"
+              >
+                <img
+                  v-if="!brokenScreenshotUrls.has(screenshot.imageUrl)"
+                  :src="screenshot.imageUrl"
+                  :alt="screenshot.caption || project.title"
+                  loading="lazy"
+                  @error="markScreenshotBroken(screenshot.imageUrl)"
+                />
+                <div v-else class="screenshot-placeholder" role="img" :aria-label="screenshot.caption || project.title">
+                  <span>{{ project.projectType.slice(0, 2) }}</span>
+                </div>
                 <figcaption v-if="screenshot.caption">{{ screenshot.caption }}</figcaption>
               </figure>
             </div>
@@ -277,6 +296,8 @@ const notice = ref('')
 const liked = ref(false)
 const favorited = ref(false)
 const replyTarget = ref<CommentSummary | null>(null)
+const coverImageFailed = ref(false)
+const brokenScreenshotUrls = ref(new Set<string>())
 const slug = computed(() => readRouteParam(route.params.slug))
 const session = useSessionStore()
 const cinematic = useCinematicPageMotion(root)
@@ -313,6 +334,8 @@ const timeline = computed(() => detailExtras.value.timeline.length ? detailExtra
 // 合并常规的演示、代码、视频链接与后端自定义配置的扩展链接列表, 并去除重复项
 const resourceLinks = computed(() => buildResourceLinks(project.value, detailExtras.value.resources))
 
+const showProjectCover = computed(() => Boolean(project.value?.coverUrl) && !coverImageFailed.value)
+
 // 主函数: 根据路由参数中的唯一 slug 标识向后端获取作品的全部详情数据, 并在就绪后拉取评论列表并播放入场动效
 async function loadProject() {
   if (!slug.value) {
@@ -329,6 +352,8 @@ async function loadProject() {
   try {
     // 异步拉取作品信息, 渲染成功后调用评论加载方法
     project.value = await fetchProjectBySlug(slug.value)
+    coverImageFailed.value = false
+    brokenScreenshotUrls.value = new Set()
     await loadComments()
   } catch (error) {
     project.value = null
@@ -429,6 +454,10 @@ function replyTo(comment: CommentSummary) {
 
 function cancelReply() {
   replyTarget.value = null
+}
+
+function markScreenshotBroken(imageUrl: string) {
+  brokenScreenshotUrls.value = new Set([...brokenScreenshotUrls.value, imageUrl])
 }
 
 function buildTimeline(value: ProjectSummary | null): DetailTimelineItem[] {
@@ -687,6 +716,11 @@ watch(slug, loadProject)
   color: #f8fafc;
 }
 
+.detail-hero .page-kicker {
+  color: #78a7ff;
+  text-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+}
+
 .detail-hero::before {
   content: "";
   position: absolute;
@@ -712,16 +746,17 @@ watch(slug, loadProject)
 .detail-hero h1 {
   max-width: 820px;
   margin: 0;
+  color: #f8fbff;
   font-size: clamp(34px, 5vw, 58px);
   font-weight: 860;
   line-height: 1.04;
-  text-shadow: 0 16px 34px rgba(0, 0, 0, 0.42);
+  text-shadow: 0 18px 38px rgba(0, 0, 0, 0.62);
 }
 
 .detail-summary {
   max-width: 760px;
   margin: 0;
-  color: rgba(248, 250, 252, 0.82);
+  color: rgba(244, 248, 255, 0.9);
   font-size: 17px;
   line-height: 1.74;
 }
@@ -759,7 +794,10 @@ watch(slug, loadProject)
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.12);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(120, 167, 255, 0.08)),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 18px),
+    rgba(255, 255, 255, 0.1);
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.24);
 }
 
@@ -770,9 +808,10 @@ watch(slug, loadProject)
 }
 
 .hero-cover span {
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(248, 251, 255, 0.82);
   font-size: 44px;
   font-weight: 900;
+  text-shadow: 0 14px 36px rgba(0, 0, 0, 0.34);
 }
 
 .stats-strip {
@@ -844,6 +883,25 @@ watch(slug, loadProject)
   border: 1px solid var(--tone-line);
   border-radius: 8px;
   object-fit: cover;
+}
+
+.screenshot-placeholder {
+  display: grid;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  place-items: center;
+  border: 1px dashed color-mix(in srgb, var(--tone-primary) 34%, var(--tone-line));
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(49, 91, 255, 0.12), rgba(0, 124, 114, 0.1)),
+    repeating-linear-gradient(90deg, rgba(20, 21, 29, 0.04) 0 1px, transparent 1px 22px),
+    color-mix(in srgb, var(--tone-panel-solid) 76%, transparent);
+  color: var(--tone-primary);
+}
+
+.screenshot-placeholder span {
+  font-size: 28px;
+  font-weight: 860;
 }
 
 .screenshot-grid figcaption {

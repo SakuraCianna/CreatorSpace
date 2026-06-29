@@ -35,7 +35,17 @@
       <h2>正在铺开灵感卡片</h2>
     </div>
 
-    <section v-else-if="featuredCard" class="featured-inspiration" data-reveal>
+    <section
+      v-else-if="featuredCard"
+      class="featured-inspiration"
+      data-reveal
+      role="button"
+      tabindex="0"
+      :aria-label="`查看灵感：${featuredCard.title}`"
+      @click="openCard(featuredCard, $event)"
+      @keydown.enter="openCard(featuredCard, $event)"
+      @keydown.space="openCard(featuredCard, $event)"
+    >
       <div class="featured-inspiration__visual" :style="cardStyle(featuredCard)">
         <img v-if="featuredCard.imageUrl" :src="featuredCard.imageUrl" alt="" loading="lazy" />
         <component :is="typeIcon(featuredCard.cardType)" v-else :size="42" />
@@ -62,7 +72,7 @@
         </div>
         <div v-if="relationItems(featuredCard).length" class="relation-list">
           <template v-for="relation in relationItems(featuredCard)" :key="relation.key">
-            <RouterLink v-if="relation.to" class="relation-chip" :to="relation.to">
+            <RouterLink v-if="relation.to" class="relation-chip" :to="relation.to" @click.stop>
               <GitBranch :size="14" />
               {{ relation.label }}
             </RouterLink>
@@ -72,7 +82,13 @@
             </span>
           </template>
         </div>
-        <a v-if="safeSource(featuredCard.sourceUrl)" :href="safeSource(featuredCard.sourceUrl)" target="_blank" rel="noreferrer">
+        <a
+          v-if="safeSource(featuredCard.sourceUrl)"
+          :href="safeSource(featuredCard.sourceUrl)"
+          target="_blank"
+          rel="noreferrer"
+          @click.stop
+        >
           <ExternalLink :size="15" />
           来源
         </a>
@@ -92,6 +108,12 @@
         :class="`inspiration-card--${card.cardType.toLowerCase()}`"
         :style="cardStyle(card)"
         data-reveal
+        role="button"
+        tabindex="0"
+        :aria-label="`查看灵感：${card.title}`"
+        @click="openCard(card, $event)"
+        @keydown.enter="openCard(card, $event)"
+        @keydown.space="openCard(card, $event)"
       >
         <img v-if="card.imageUrl" :src="card.imageUrl" alt="" loading="lazy" />
         <div class="card-head">
@@ -122,7 +144,7 @@
         </div>
         <div v-if="relationItems(card).length" class="relation-list">
           <template v-for="relation in relationItems(card)" :key="relation.key">
-            <RouterLink v-if="relation.to" class="relation-chip" :to="relation.to">
+            <RouterLink v-if="relation.to" class="relation-chip" :to="relation.to" @click.stop>
               <GitBranch :size="14" />
               {{ relation.label }}
             </RouterLink>
@@ -132,12 +154,104 @@
             </span>
           </template>
         </div>
-        <a v-if="safeSource(card.sourceUrl)" :href="safeSource(card.sourceUrl)" target="_blank" rel="noreferrer">
+        <a v-if="safeSource(card.sourceUrl)" :href="safeSource(card.sourceUrl)" target="_blank" rel="noreferrer" @click.stop>
           <ExternalLink :size="15" />
           来源
         </a>
       </article>
     </div>
+
+    <Teleport to="body">
+      <div
+        v-if="selectedCard"
+        ref="dialogRef"
+        class="inspiration-dialog"
+        role="dialog"
+        aria-modal="true"
+        :aria-labelledby="dialogTitleId"
+        @keydown.tab="trapDialogFocus"
+      >
+        <button class="dialog-backdrop" type="button" tabindex="-1" aria-label="关闭灵感详情" @click="closeCard" />
+        <article class="dialog-panel" :style="cardStyle(selectedCard)">
+          <header class="dialog-header">
+            <div>
+              <p class="page-kicker">Inspiration Detail</p>
+              <h2 :id="dialogTitleId">{{ selectedCard.title }}</h2>
+            </div>
+            <button ref="dialogCloseRef" class="dialog-close" type="button" aria-label="关闭灵感详情" @click="closeCard">
+              <X :size="18" />
+            </button>
+          </header>
+
+          <div class="dialog-content">
+            <figure v-if="selectedCard.imageUrl" class="dialog-media">
+              <img :src="selectedCard.imageUrl" :alt="selectedCard.title" />
+            </figure>
+            <div v-else class="dialog-media dialog-media--empty" aria-hidden="true">
+              <component :is="typeIcon(selectedCard.cardType)" :size="54" />
+            </div>
+
+            <section class="dialog-body">
+              <div class="card-flags">
+                <span class="card-kind">
+                  <component :is="typeIcon(selectedCard.cardType)" :size="14" />
+                  {{ typeName(selectedCard.cardType) }}
+                </span>
+                <span
+                  v-if="showVisibilityBadge"
+                  class="visibility-badge"
+                  :class="{ 'visibility-badge--private': selectedCard.isPublic === false }"
+                >
+                  <component :is="visibilityIcon(selectedCard)" :size="13" />
+                  {{ visibilityLabel(selectedCard) }}
+                </span>
+                <span v-if="selectedCard.createdAt" class="card-meta">
+                  <CalendarDays :size="14" />
+                  {{ formatDate(selectedCard.createdAt) }}
+                </span>
+              </div>
+
+              <pre v-if="selectedCard.cardType === 'CODE'" class="dialog-code">{{ selectedCard.content || '这张灵感卡还没有正文。' }}</pre>
+              <p v-else class="dialog-text">{{ selectedCard.content || '这张灵感卡还没有正文。' }}</p>
+
+              <div v-if="selectedCard.tags.length" class="tag-row">
+                <span v-for="tag in selectedCard.tags" :key="tag.id">#{{ tag.name }}</span>
+              </div>
+
+              <div v-if="relationItems(selectedCard).length" class="dialog-section">
+                <h3>关联内容</h3>
+                <div class="relation-list">
+                  <template v-for="relation in relationItems(selectedCard)" :key="relation.key">
+                    <RouterLink v-if="relation.to" class="relation-chip" :to="relation.to" @click="closeCard">
+                      <GitBranch :size="14" />
+                      {{ relation.label }}
+                    </RouterLink>
+                    <span v-else class="relation-chip">
+                      <GitBranch :size="14" />
+                      {{ relation.label }}
+                    </span>
+                  </template>
+                </div>
+              </div>
+
+              <div class="dialog-actions">
+                <a
+                  v-if="safeSource(selectedCard.sourceUrl)"
+                  class="button button-tonal button-compact"
+                  :href="safeSource(selectedCard.sourceUrl)"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <ExternalLink :size="15" />
+                  打开来源
+                </a>
+                <button class="button button-filled button-compact" type="button" @click="closeCard">回到灵感墙</button>
+              </div>
+            </section>
+          </div>
+        </article>
+      </div>
+    </Teleport>
 
     <p v-if="notice" class="inline-notice">{{ notice }}</p>
   </section>
@@ -145,7 +259,7 @@
 
 <script setup lang="ts">
 // 导入所需的组件和 Vue 钩子
-import { computed, onMounted, ref, type Component } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, type Component } from 'vue'
 import { RouterLink, type RouteLocationRaw } from 'vue-router'
 import {
   BookOpen,
@@ -162,6 +276,7 @@ import {
   Pencil,
   Search,
   StickyNote,
+  X,
 } from '@lucide/vue'
 
 import { fetchAdminInspirations, fetchInspirations } from '@/services/content'
@@ -196,9 +311,14 @@ const activeType = ref<InspirationFilter>('ALL')
 const isLoading = ref(true)
 const hasLoaded = ref(false)
 const notice = ref('')
+const selectedCard = ref<InspirationCard | null>(null)
+const dialogRef = ref<HTMLElement | null>(null)
+const dialogCloseRef = ref<HTMLButtonElement | null>(null)
+const dialogTitleId = 'inspiration-dialog-title'
 const cinematic = useCinematicPageMotion(root)
 const session = useSessionStore()
 let hasPlayedIntro = false
+let lastTriggerElement: HTMLElement | null = null
 
 usePageReveal(root)
 
@@ -217,6 +337,67 @@ const sortedCards = computed(() => [...cards.value].sort((left, right) => right.
 const featuredCard = computed(() => sortedCards.value[0] ?? null)
 const masonryCards = computed(() => sortedCards.value.slice(featuredCard.value ? 1 : 0))
 const showVisibilityBadge = computed(() => Boolean(session.accessToken))
+
+function openCard(card: InspirationCard, event?: Event) {
+  if (event && isInteractiveEventTarget(event.target, event.currentTarget)) {
+    return
+  }
+  event?.preventDefault()
+  lastTriggerElement = event?.currentTarget instanceof HTMLElement ? event.currentTarget : null
+  selectedCard.value = card
+  document.body.classList.add('is-dialog-open')
+  nextTick(() => {
+    dialogCloseRef.value?.focus()
+  })
+}
+
+function closeCard() {
+  selectedCard.value = null
+  document.body.classList.remove('is-dialog-open')
+  nextTick(() => {
+    lastTriggerElement?.focus()
+    lastTriggerElement = null
+  })
+}
+
+function handleDialogKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && selectedCard.value) {
+    closeCard()
+  }
+}
+
+function trapDialogFocus(event: KeyboardEvent) {
+  const panel = dialogRef.value
+  if (!panel) {
+    return
+  }
+  const focusableItems = Array.from(
+    panel.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]):not(.dialog-backdrop), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ),
+  ).filter((item) => item.offsetParent !== null)
+  if (focusableItems.length === 0) {
+    event.preventDefault()
+    return
+  }
+  const firstItem = focusableItems[0]
+  const lastItem = focusableItems[focusableItems.length - 1]
+  if (event.shiftKey && document.activeElement === firstItem) {
+    event.preventDefault()
+    lastItem.focus()
+  } else if (!event.shiftKey && document.activeElement === lastItem) {
+    event.preventDefault()
+    firstItem.focus()
+  }
+}
+
+function isInteractiveEventTarget(value: EventTarget | null, boundary: EventTarget | null): boolean {
+  if (!(value instanceof Element)) {
+    return false
+  }
+  const interactiveElement = value.closest('a, button, input, textarea, select, [role="button"]')
+  return Boolean(interactiveElement && interactiveElement !== boundary)
+}
 
 // 切换灵感过滤分类页签并重新发起数据拉取
 function selectType(type: InspirationFilter) {
@@ -389,6 +570,15 @@ function formatDate(value?: string | null): string {
 }
 
 onMounted(loadInspirations)
+
+onMounted(() => {
+  window.addEventListener('keydown', handleDialogKeydown)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleDialogKeydown)
+  document.body.classList.remove('is-dialog-open')
+})
 </script>
 
 <style scoped>
@@ -658,6 +848,20 @@ onMounted(loadInspirations)
   transform: translateY(-2px);
 }
 
+.featured-inspiration,
+.inspiration-card {
+  cursor: pointer;
+}
+
+.featured-inspiration:focus-visible,
+.inspiration-card:focus-visible {
+  border-color: color-mix(in srgb, var(--card-accent, #315bff) 48%, var(--tone-line));
+  outline: none;
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--card-accent, #315bff) 14%, transparent),
+    0 24px 60px rgba(20, 21, 29, 0.12);
+}
+
 .inspiration-card > * {
   position: relative;
   z-index: 1;
@@ -800,6 +1004,167 @@ onMounted(loadInspirations)
   font-weight: 740;
 }
 
+:global(body.is-dialog-open) {
+  overflow: hidden;
+}
+
+.inspiration-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: clamp(16px, 3vw, 34px);
+}
+
+.dialog-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background:
+    radial-gradient(circle at 18% 12%, color-mix(in srgb, var(--card-accent, #315bff) 18%, transparent), transparent 32%),
+    rgba(9, 13, 24, 0.58);
+  cursor: pointer;
+  backdrop-filter: blur(16px);
+}
+
+.dialog-panel {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 18px;
+  width: min(1040px, 100%);
+  max-height: min(780px, calc(100vh - 32px));
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--card-accent, #315bff) 22%, rgba(255, 255, 255, 0.7));
+  border-radius: var(--app-radius-sm);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(246, 248, 255, 0.92)),
+    radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--card-accent, #315bff) 12%, transparent), transparent 30%);
+  box-shadow: 0 30px 90px rgba(7, 12, 24, 0.34);
+}
+
+.dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px 24px 0;
+}
+
+.dialog-header h2 {
+  margin: 6px 0 0;
+  color: var(--tone-ink);
+  font-size: clamp(28px, 3vw, 42px);
+  line-height: 1.12;
+}
+
+.dialog-close {
+  display: inline-grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--card-accent, #315bff) 18%, var(--tone-line));
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--tone-ink);
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.dialog-close:hover {
+  background: color-mix(in srgb, var(--card-accent, #315bff) 12%, #fff);
+  color: color-mix(in srgb, var(--card-accent, #315bff) 74%, #172033);
+  transform: translateY(-1px);
+}
+
+.dialog-content {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.88fr) minmax(0, 1fr);
+  min-height: 0;
+  overflow: auto;
+  padding: 0 24px 24px;
+  gap: 20px;
+}
+
+.dialog-media {
+  display: grid;
+  min-height: 420px;
+  overflow: hidden;
+  place-items: center;
+  border-radius: var(--app-radius-sm);
+  background:
+    linear-gradient(140deg, color-mix(in srgb, var(--card-accent, #315bff) 30%, #10131f), rgba(6, 8, 18, 0.92)),
+    color-mix(in srgb, var(--card-accent, #315bff) 22%, transparent);
+  color: #fff;
+}
+
+.dialog-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.dialog-media--empty {
+  min-height: 320px;
+}
+
+.dialog-body {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  min-width: 0;
+}
+
+.dialog-text {
+  margin: 0;
+  color: var(--tone-strong);
+  font-size: 16px;
+  line-height: 1.78;
+  white-space: pre-wrap;
+}
+
+.dialog-code {
+  max-height: 320px;
+  margin: 0;
+  overflow: auto;
+  border: 1px solid rgba(167, 243, 208, 0.12);
+  border-radius: var(--app-radius-sm);
+  padding: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent),
+    #07101a;
+  color: #c6f7df;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.dialog-section {
+  display: grid;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.dialog-section h3 {
+  margin: 0;
+  color: var(--tone-ink);
+  font-size: 15px;
+}
+
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 6px;
+}
+
 .inline-notice {
   margin: 0;
   padding: 10px 12px;
@@ -818,6 +1183,14 @@ onMounted(loadInspirations)
 
   .inspiration-masonry {
     column-count: 2;
+  }
+
+  .dialog-content {
+    grid-template-columns: 1fr;
+  }
+
+  .dialog-media {
+    min-height: 300px;
   }
 }
 
@@ -851,6 +1224,34 @@ onMounted(loadInspirations)
 
   .card-badges {
     justify-content: flex-start;
+  }
+
+  .inspiration-dialog {
+    align-items: end;
+    padding: 10px;
+  }
+
+  .dialog-panel {
+    max-height: calc(100vh - 20px);
+    border-radius: 8px;
+  }
+
+  .dialog-header {
+    padding: 18px 18px 0;
+  }
+
+  .dialog-content {
+    padding: 0 18px 18px;
+    gap: 16px;
+  }
+
+  .dialog-media {
+    min-height: 220px;
+  }
+
+  .dialog-actions > * {
+    width: 100%;
+    justify-content: center;
   }
 }
 </style>

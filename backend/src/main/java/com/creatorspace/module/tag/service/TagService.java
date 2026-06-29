@@ -15,5 +15,7 @@ public interface TagService {
 
     List<TagVO> list();
 
+    List<TagVO> recommend(Long userId, String ipAddress, int limit);
+
     List<TagVO> listByIds(List<Long> tagIds);
 }

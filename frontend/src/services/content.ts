@@ -15,6 +15,7 @@ import type {
   InspirationPayload,
   InspirationType,
   PageResponse,
+  ProjectFilterRecommendations,
   ProjectPayload,
   ProjectSummary,
   PublicThemeConfig,
@@ -294,6 +295,15 @@ export async function fetchProjects(keyword = ''): Promise<PageResponse<ProjectS
   return response.data
 }
 
+// 调用作品展厅推荐筛选接口
+export async function fetchProjectFilterRecommendations(limit = 12): Promise<ProjectFilterRecommendations> {
+  const params = new URLSearchParams({ limit: String(limit) })
+  const response = await requestJson<ApiEnvelope<ProjectFilterRecommendations>>(
+    `/api/projects/recommended-filters?${params.toString()}`,
+  )
+  return response.data
+}
+
 // 按 URL 标识读取公开作品详情
 export async function fetchProjectBySlug(slug: string): Promise<ProjectSummary> {
   const response = await requestJson<ApiEnvelope<ProjectSummary>>(
@@ -503,6 +513,13 @@ export async function setCategoryEnabled(id: number, enabled: boolean): Promise<
 // 查询标签列表。
 export async function fetchTags(): Promise<TagSummary[]> {
   const response = await requestJson<ApiEnvelope<TagSummary[]>>('/api/tags')
+  return response.data
+}
+
+// 查询首页推荐标签。登录用户按最近文章访问偏好推荐，游客由后端随机混合全站热度。
+export async function fetchRecommendedTags(limit = 28): Promise<TagSummary[]> {
+  const params = new URLSearchParams({ limit: String(limit) })
+  const response = await requestJson<ApiEnvelope<TagSummary[]>>(`/api/tags/recommended?${params.toString()}`)
   return response.data
 }
 

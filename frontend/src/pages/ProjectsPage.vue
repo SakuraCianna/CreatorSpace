@@ -120,7 +120,7 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { ArrowRight, Bookmark, Eye, Heart, LoaderCircle, MessageCircle, Search } from '@lucide/vue'
 
-import { fetchProjects } from '@/services/content'
+import { fetchProjectFilterRecommendations, fetchProjects } from '@/services/content'
 import { toUserMessage } from '@/services/http'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import type { ProjectSummary } from '@/shared/domain'
@@ -139,6 +139,8 @@ const coverPalettes = [
 // 初始化作品展示与检索过滤相关的状态变量
 const root = ref<HTMLElement | null>(null)
 const projects = ref<ProjectSummary[]>([])
+const recommendedProjectTypes = ref<string[]>([])
+const recommendedTechStacks = ref<string[]>([])
 const keyword = ref('')
 const activeType = ref<ProjectTypeFilter>('ALL')
 const activeTech = ref<TechFilter>('ALL')
@@ -148,8 +150,14 @@ const notice = ref('')
 usePageReveal(root)
 
 const sortedProjects = computed(() => [...projects.value].sort(projectSort))
-const projectTypes = computed<ProjectTypeFilter[]>(() => ['ALL', ...unique(projects.value.map((project) => project.projectType))])
-const techFilters = computed<TechFilter[]>(() => ['ALL', ...unique(projects.value.flatMap((project) => project.techStack)).slice(0, 10)])
+const projectTypes = computed<ProjectTypeFilter[]>(() => [
+  'ALL',
+  ...sortByRecommendation(unique(projects.value.map((project) => project.projectType)), recommendedProjectTypes.value),
+])
+const techFilters = computed<TechFilter[]>(() => [
+  'ALL',
+  ...sortByRecommendation(unique(projects.value.flatMap((project) => project.techStack)), recommendedTechStacks.value).slice(0, 10),
+])
 const filteredProjects = computed(() => sortedProjects.value.filter(matchesFilters))
 const featuredProject = computed(() => filteredProjects.value[0] ?? null)
 const visibleProjects = computed(() => filteredProjects.value.slice(featuredProject.value ? 1 : 0))
@@ -166,6 +174,17 @@ async function loadProjects() {
     notice.value = toUserMessage(error, '作品接口暂不可用，请稍后再试')
   } finally {
     isLoading.value = false
+  }
+}
+
+async function loadRecommendedFilters() {
+  try {
+    const recommendations = await fetchProjectFilterRecommendations(16)
+    recommendedProjectTypes.value = recommendations.projectTypes
+    recommendedTechStacks.value = recommendations.techStacks
+  } catch {
+    recommendedProjectTypes.value = []
+    recommendedTechStacks.value = []
   }
 }
 
@@ -221,6 +240,15 @@ function unique(values: string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))]
 }
 
+function sortByRecommendation(values: string[], recommendations: string[]): string[] {
+  const rank = new Map(recommendations.map((value, index) => [value, index]))
+  return [...values].sort((left, right) => {
+    const leftRank = rank.get(left) ?? Number.MAX_SAFE_INTEGER
+    const rightRank = rank.get(right) ?? Number.MAX_SAFE_INTEGER
+    return leftRank - rightRank || left.localeCompare(right, 'zh-CN')
+  })
+}
+
 function typeLabel(type: ProjectTypeFilter): string {
   return type === 'ALL' ? '全部类型' : type
 }
@@ -233,7 +261,9 @@ function formatCount(value?: number | null): string {
   return new Intl.NumberFormat('zh-CN', { notation: 'compact' }).format(value ?? 0)
 }
 
-onMounted(loadProjects)
+onMounted(() => {
+  void Promise.all([loadProjects(), loadRecommendedFilters()])
+})
 </script>
 
 <style scoped>

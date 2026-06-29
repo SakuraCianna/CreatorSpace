@@ -36,6 +36,7 @@ class VisitLogServiceTests {
                 eq("/api/articles/slug/hello"),
                 eq("ARTICLE"),
                 eq(7L),
+                eq(null),
                 eq("127.0.0.1"),
                 eq("Mozilla/5.0 Windows Chrome/120"),
                 eq("/articles"),
@@ -55,7 +56,7 @@ class VisitLogServiceTests {
         boolean shouldIncrement = visitLogService.recordContentVisit("PROJECT", 9L, request);
 
         assertThat(shouldIncrement).isFalse();
-        verify(jdbcTemplate).update(any(String.class), any(), any(), any(), any(), any(), any(), any(), any(), any());
+        verify(jdbcTemplate).update(any(String.class), any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -64,7 +65,7 @@ class VisitLogServiceTests {
         when(request.getRequestURI()).thenReturn("/api/articles/slug/hello");
         doThrow(new RuntimeException("database unavailable"))
                 .when(jdbcTemplate)
-                .update(any(String.class), any(), any(), any(), any(), any(), any(), any(), any(), any());
+                .update(any(String.class), any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
 
         assertThatCode(() -> visitLogService.recordContentVisit("ARTICLE", 7L, request))
                 .doesNotThrowAnyException();

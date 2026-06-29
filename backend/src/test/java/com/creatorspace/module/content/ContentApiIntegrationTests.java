@@ -209,6 +209,71 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                 .andExpect(jsonPath("$.data.nextArticle.contentMarkdown").doesNotExist());
     }
 
+    // 验证游客无需登录即可获取推荐标签, 且 limit 会限制返回数量。
+    @Test
+    void visitorCanFetchRecommendedTagsWithLimit() throws Exception {
+        mockMvc.perform(get("/api/tags/recommended")
+                        .param("limit", "5"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data", hasSize(5)));
+    }
+
+    // 验证登录用户访问过某篇文章后, 文章标签会进入推荐结果前列。
+    @Test
+    void recommendedTagsPreferRecentlyVisitedArticleTagsForUser() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "username", "tag-reader",
+                                "password", "reader-secret"
+                        ))))
+                .andExpect(status().isOk());
+
+        String userToken = loginAsUser("tag-reader", "reader-secret");
+        String adminToken = loginAsAdmin();
+        long categoryId = createCategory(adminToken, "ARTICLE", "推荐测试分类", "recommendation-test-category");
+        long tagId = createTag(adminToken, "推荐偏好标签", "recommendation-preference-tag");
+
+        String createArticleResponse = mockMvc.perform(post("/api/creator/articles")
+                        .header("Authorization", bearer(userToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "title", "推荐偏好文章",
+                                "slug", "recommendation-preference-article",
+                                "summary", "用于记录近期访问偏好的文章",
+                                "contentMarkdown", "## 正文\n用户访问后应当影响推荐标签。",
+                                "categoryId", categoryId,
+                                "tagIds", new long[]{tagId},
+                                "privacyType", "PUBLIC"
+                        ))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        long articleId = dataId(createArticleResponse);
+
+        mockMvc.perform(put("/api/creator/articles/{id}/submit", articleId)
+                        .header("Authorization", bearer(userToken)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(put("/api/admin/articles/{id}/approve", articleId)
+                        .header("Authorization", bearer(adminToken)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/articles/slug/{slug}", "recommendation-preference-article")
+                        .header("Authorization", bearer(userToken)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/tags/recommended")
+                        .header("Authorization", bearer(userToken))
+                        .param("limit", "3"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data[0].slug", is("recommendation-preference-tag")));
+    }
+
     // 验证后台文章列表、更新、发布、撤回、推荐置顶和删除闭环。
     @Test
     void adminCanManageArticleLifecycle() throws Exception {

@@ -10,6 +10,7 @@ import com.creatorspace.module.project.entity.ProjectEntity;
 import com.creatorspace.module.project.mapper.ProjectMapper;
 import com.creatorspace.module.project.mapper.ProjectTagMapper;
 import com.creatorspace.module.project.service.ProjectService;
+import com.creatorspace.module.project.vo.ProjectFilterRecommendationVO;
 import com.creatorspace.module.project.vo.ProjectVO;
 import com.creatorspace.module.statistics.VisitLogService;
 import com.creatorspace.module.tag.service.TagService;
@@ -351,6 +352,15 @@ public class ProjectServiceImpl implements ProjectService {
         return new PageResponse<>(records, result.getCurrent(), result.getSize(), result.getTotal());
     }
 
+    @Override
+    public ProjectFilterRecommendationVO recommendFilters(Long userId, String ipAddress, int limit) {
+        int boundedLimit = Math.max(1, Math.min(limit, 60));
+        return new ProjectFilterRecommendationVO(
+                recommendedProjectTypes(userId, ipAddress, boundedLimit),
+                recommendedTechStacks(userId, ipAddress, boundedLimit)
+        );
+    }
+
     // 按 URL 标识读取公开作品详情。
     @Override
     public ProjectVO getPublicBySlug(String slug, HttpServletRequest request) {
@@ -363,6 +373,159 @@ public class ProjectServiceImpl implements ProjectService {
             incrementViewCount(project.getId());
         }
         return toVO(project, true);
+    }
+
+    private List<String> recommendedProjectTypes(Long userId, String ipAddress, int limit) {
+        if (userId != null) {
+            List<String> personalized = queryRecommendedProjectTypesByUser(userId, limit);
+            if (!personalized.isEmpty()) {
+                return personalized;
+            }
+        }
+        return queryRecommendedProjectTypesByVisitor(ipAddress, limit);
+    }
+
+    private List<String> recommendedTechStacks(Long userId, String ipAddress, int limit) {
+        if (userId != null) {
+            List<String> personalized = queryRecommendedTechStacksByUser(userId, limit);
+            if (!personalized.isEmpty()) {
+                return personalized;
+            }
+        }
+        return queryRecommendedTechStacksByVisitor(ipAddress, limit);
+    }
+
+    private List<String> queryRecommendedProjectTypesByUser(Long userId, int limit) {
+        return jdbcTemplate.queryForList("""
+                        select p.project_type
+                        from portfolio_projects p
+                        left join content_statistics s on s.target_type = 'PROJECT' and s.target_id = p.id
+                        left join (
+                            select vl.target_id,
+                                   sum(34.0 / (1.0 + extract(epoch from (now() - vl.created_at)) / 86400.0 / 7.0)) as preference_score
+                            from visit_logs vl
+                            where vl.target_type = 'PROJECT'
+                              and vl.user_id = ?
+                              and vl.created_at >= now() - interval '30 days'
+                            group by vl.target_id
+                        ) preference on preference.target_id = p.id
+                        where p.status = 'VISIBLE'
+                        group by p.project_type
+                        order by
+                            sum(coalesce(preference.preference_score, 0)
+                                + case when p.is_recommend then 80 else 0 end
+                                + coalesce(s.view_count, 0) * 0.35
+                                + coalesce(s.like_count, 0) * 3
+                                + coalesce(s.favorite_count, 0) * 4
+                                + coalesce(s.comment_count, 0) * 5
+                                + greatest(0, 40 - coalesce(p.sort_order, 9999)) * 0.1) desc,
+                            p.project_type asc
+                        limit ?
+                        """,
+                String.class,
+                userId,
+                limit
+        );
+    }
+
+    private List<String> queryRecommendedProjectTypesByVisitor(String ipAddress, int limit) {
+        return jdbcTemplate.queryForList("""
+                        select p.project_type
+                        from portfolio_projects p
+                        left join content_statistics s on s.target_type = 'PROJECT' and s.target_id = p.id
+                        left join (
+                            select vl.target_id,
+                                   sum(18.0 / (1.0 + extract(epoch from (now() - vl.created_at)) / 86400.0 / 7.0)) as visitor_score
+                            from visit_logs vl
+                            where vl.target_type = 'PROJECT'
+                              and vl.ip_address = cast(? as inet)
+                              and vl.created_at >= now() - interval '7 days'
+                            group by vl.target_id
+                        ) visitor on visitor.target_id = p.id
+                        where p.status = 'VISIBLE'
+                        group by p.project_type
+                        order by
+                            sum(coalesce(visitor.visitor_score, 0)
+                                + case when p.is_recommend then 70 else 0 end
+                                + coalesce(s.view_count, 0) * 0.35
+                                + coalesce(s.like_count, 0) * 3
+                                + coalesce(s.favorite_count, 0) * 4
+                                + coalesce(s.comment_count, 0) * 5
+                                + random() * 14) desc,
+                            p.project_type asc
+                        limit ?
+                        """,
+                String.class,
+                ipAddress,
+                limit
+        );
+    }
+
+    private List<String> queryRecommendedTechStacksByUser(Long userId, int limit) {
+        return jdbcTemplate.queryForList("""
+                        select tech_stack_item
+                        from portfolio_projects p
+                        cross join lateral jsonb_array_elements_text(p.tech_stack) as tech(tech_stack_item)
+                        left join content_statistics s on s.target_type = 'PROJECT' and s.target_id = p.id
+                        left join (
+                            select vl.target_id,
+                                   sum(30.0 / (1.0 + extract(epoch from (now() - vl.created_at)) / 86400.0 / 7.0)) as preference_score
+                            from visit_logs vl
+                            where vl.target_type = 'PROJECT'
+                              and vl.user_id = ?
+                              and vl.created_at >= now() - interval '30 days'
+                            group by vl.target_id
+                        ) preference on preference.target_id = p.id
+                        where p.status = 'VISIBLE'
+                        group by tech_stack_item
+                        order by
+                            sum(coalesce(preference.preference_score, 0)
+                                + case when p.is_recommend then 58 else 0 end
+                                + coalesce(s.view_count, 0) * 0.26
+                                + coalesce(s.like_count, 0) * 2.4
+                                + coalesce(s.favorite_count, 0) * 3
+                                + coalesce(s.comment_count, 0) * 3.6) desc,
+                            tech_stack_item asc
+                        limit ?
+                        """,
+                String.class,
+                userId,
+                limit
+        );
+    }
+
+    private List<String> queryRecommendedTechStacksByVisitor(String ipAddress, int limit) {
+        return jdbcTemplate.queryForList("""
+                        select tech_stack_item
+                        from portfolio_projects p
+                        cross join lateral jsonb_array_elements_text(p.tech_stack) as tech(tech_stack_item)
+                        left join content_statistics s on s.target_type = 'PROJECT' and s.target_id = p.id
+                        left join (
+                            select vl.target_id,
+                                   sum(16.0 / (1.0 + extract(epoch from (now() - vl.created_at)) / 86400.0 / 7.0)) as visitor_score
+                            from visit_logs vl
+                            where vl.target_type = 'PROJECT'
+                              and vl.ip_address = cast(? as inet)
+                              and vl.created_at >= now() - interval '7 days'
+                            group by vl.target_id
+                        ) visitor on visitor.target_id = p.id
+                        where p.status = 'VISIBLE'
+                        group by tech_stack_item
+                        order by
+                            sum(coalesce(visitor.visitor_score, 0)
+                                + case when p.is_recommend then 50 else 0 end
+                                + coalesce(s.view_count, 0) * 0.26
+                                + coalesce(s.like_count, 0) * 2.4
+                                + coalesce(s.favorite_count, 0) * 3
+                                + coalesce(s.comment_count, 0) * 3.6
+                                + random() * 12) desc,
+                            tech_stack_item asc
+                        limit ?
+                        """,
+                String.class,
+                ipAddress,
+                limit
+        );
     }
 
     // 自增作品阅读量，同步更新 content_statistics 表。

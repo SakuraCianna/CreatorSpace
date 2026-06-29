@@ -2,6 +2,7 @@ package com.creatorspace.module.project.service;
 
 import com.creatorspace.common.result.PageResponse;
 import com.creatorspace.module.project.dto.ProjectCreateRequest;
+import com.creatorspace.module.project.vo.ProjectFilterRecommendationVO;
 import com.creatorspace.module.project.vo.ProjectVO;
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -57,6 +58,9 @@ public interface ProjectService {
 
     // 查询公开作品列表。
     PageResponse<ProjectVO> listPublic(String keyword, long page, long pageSize);
+
+    // 查询作品展厅推荐筛选项。
+    ProjectFilterRecommendationVO recommendFilters(Long userId, String ipAddress, int limit);
 
     // 按 URL 标识读取公开作品。
     ProjectVO getPublicBySlug(String slug, HttpServletRequest request);

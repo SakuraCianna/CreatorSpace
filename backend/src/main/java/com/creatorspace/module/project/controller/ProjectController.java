@@ -3,6 +3,7 @@ package com.creatorspace.module.project.controller;
 import com.creatorspace.common.result.ApiResponse;
 import com.creatorspace.common.result.PageResponse;
 import com.creatorspace.module.project.dto.ProjectCreateRequest;
+import com.creatorspace.module.project.vo.ProjectFilterRecommendationVO;
 import com.creatorspace.module.project.service.ProjectService;
 import com.creatorspace.module.project.vo.ProjectVO;
 import com.creatorspace.security.LoginUser;
@@ -184,6 +185,17 @@ public class ProjectController {
             @RequestParam(defaultValue = "10") @Min(1) @Max(100) long pageSize
     ) {
         return ApiResponse.ok(projectService.listPublic(keyword, page, pageSize));
+    }
+
+    // 查询作品展厅推荐筛选项。
+    @GetMapping("/api/projects/recommended-filters")
+    public ApiResponse<ProjectFilterRecommendationVO> recommendFilters(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestParam(defaultValue = "12") @Min(1) @Max(60) int limit,
+            HttpServletRequest request
+    ) {
+        Long userId = loginUser == null ? null : loginUser.userId();
+        return ApiResponse.ok(projectService.recommendFilters(userId, request.getRemoteAddr(), limit));
     }
 
     // 按 URL 标识读取公开作品详情。

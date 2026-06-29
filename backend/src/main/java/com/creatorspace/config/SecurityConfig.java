@@ -52,7 +52,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/inspirations/**", "/api/search").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/comments").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/site/config", "/api/site/statistics/summary", "/api/theme/current", "/api/themes").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/categories", "/api/tags").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/categories", "/api/tags", "/api/tags/recommended").permitAll()
                         .requestMatchers("/api/creator/**", "/api/me/**").hasAnyRole("USER", "ADMIN")
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
