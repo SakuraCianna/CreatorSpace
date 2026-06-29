@@ -15,7 +15,13 @@
       </div>
       <div class="profile-card">
         <div class="profile-avatar">
-          <img v-if="profileAvatarSrc" :src="profileAvatarSrc" alt="" loading="lazy" />
+          <img
+            v-if="profileAvatarSrc"
+            :src="profileAvatarSrc"
+            alt=""
+            loading="lazy"
+            @error="handleProfileAvatarError"
+          />
           <UserRound v-else :size="32" />
         </div>
         <strong>{{ profile?.displayName || '暂无公开资料' }}</strong>
@@ -175,6 +181,7 @@ const profile = ref<AboutProfile | null>(null)
 const contactLinks = ref<ContactLink[]>([])
 const themes = ref<PublicThemeConfig[]>([])
 const aboutPage = ref<Record<string, unknown>>({})
+const profileAvatarFailed = ref(false)
 const { siteName, siteSlogan } = useSiteIdentity({ load: false })
 
 usePageReveal(root)
@@ -182,7 +189,12 @@ usePageReveal(root)
 const focusTags = computed(() => readStringArray(profile.value?.profileJson.focus).slice(0, 12))
 const timelineItems = computed(() => readTimelineItems(profile.value?.profileJson).slice(0, 8))
 const resumeLink = computed(() => readResumeLink(profile.value?.profileJson))
-const profileAvatarSrc = computed(() => profile.value?.avatarUrl?.trim() ?? '')
+const profileAvatarSrc = computed(() => {
+  if (profileAvatarFailed.value) {
+    return ''
+  }
+  return profile.value?.avatarUrl?.trim() ?? ''
+})
 const experienceSummary = computed(() => {
   const summary = readString(profile.value?.profileJson.experienceSummary)
   return summary || '这些经历用于补足创作者背景，让读者知道内容经验和项目判断来自哪里。'
@@ -213,12 +225,14 @@ async function loadAbout() {
     const config = configResult.value
     syncSiteIdentityFromConfig(config)
     profile.value = readProfile(config['site.profile.active'])
+    profileAvatarFailed.value = false
     contactLinks.value = readArray(config['site.socialLinks'])
       .map(readContactLink)
       .filter((link): link is ContactLink => Boolean(link))
     aboutPage.value = readRecord(config['page.about'])
   } else {
     profile.value = null
+    profileAvatarFailed.value = false
     contactLinks.value = []
     aboutPage.value = {}
   }
@@ -241,6 +255,10 @@ function readProfile(value: unknown): AboutProfile | null {
     location: readString(record.location),
     profileJson: readRecord(record.profileJson),
   }
+}
+
+function handleProfileAvatarError() {
+  profileAvatarFailed.value = true
 }
 
 // 格式化解析个人社交链接, 过滤掉不安全的非 http 或 mailto 协议

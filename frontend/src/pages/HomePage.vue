@@ -1180,8 +1180,11 @@ const FeaturedArticles = defineComponent({
     })
 
     // 渲染精选文章卡片。
-    const renderCard = (article: FeaturedArticle, index: number) =>
-      h(
+    const renderCard = (article: FeaturedArticle, index: number) => {
+      const hasCoverImage = article.coverImage.trim().length > 0
+      const fallbackLabel = article.tags[0]?.replace(/^#/, '') || (article.targetType === 'PROJECT' ? '作品' : '文章')
+
+      return h(
         RouterLink,
         {
           key: article.id,
@@ -1189,21 +1192,25 @@ const FeaturedArticles = defineComponent({
             name: article.targetType === 'PROJECT' ? 'project-detail' : 'article-detail',
             params: { slug: article.slug },
           },
-          class: spanClass(article, index),
+          class: [spanClass(article, index), { 'cs-article--no-image': !hasCoverImage }],
           style: { '--cs-from': article.cover[0], '--cs-to': article.cover[1] },
           onPointermove: onTilt,
           onPointerleave: onTiltOut,
         },
         {
           default: () => [
-            h('span', {
-              class: 'cs-article__wash',
-              style: {
-                '--cs-from': article.cover[0],
-                '--cs-to': article.cover[1],
-                '--cs-cover': toCssImageUrl(article.coverImage),
+            h(
+              'span',
+              {
+                class: 'cs-article__wash',
+                style: {
+                  '--cs-from': article.cover[0],
+                  '--cs-to': article.cover[1],
+                  '--cs-cover': toCssImageUrl(article.coverImage),
+                },
               },
-            }),
+              hasCoverImage ? [] : [h('span', { class: 'cs-article__fallback' }, fallbackLabel)],
+            ),
             h('div', { class: 'cs-article__body' }, [
               h(
                 'div',
@@ -1220,6 +1227,7 @@ const FeaturedArticles = defineComponent({
           ],
         },
       )
+    }
 
     return () =>
       h('section', { ref: root, class: 'cs-articles cs-section', id: 'articles' }, [
@@ -1330,13 +1338,16 @@ const PortfolioGallery = defineComponent({
     })
 
     // 渲染作品海报卡片。
-    const renderPoster = (project: PortfolioProject) =>
-      h(
+    const renderPoster = (project: PortfolioProject) => {
+      const hasPosterImage = project.posterImage.trim().length > 0
+      const posterFallback = project.category.replace(/_/g, ' ') || '作品'
+
+      return h(
         RouterLink,
         {
           key: project.id,
           to: { name: 'project-detail', params: { slug: project.slug } },
-          class: 'cs-poster',
+          class: ['cs-poster', { 'cs-poster--no-image': !hasPosterImage }],
           style: {
             '--cs-from': project.palette.from,
             '--cs-to': project.palette.to,
@@ -1348,6 +1359,7 @@ const PortfolioGallery = defineComponent({
           default: () => [
             h('span', { class: 'cs-poster__parallax', style: { '--cs-accent': project.palette.accent } }),
             h('span', { class: 'cs-poster__grain' }),
+            hasPosterImage ? null : h('span', { class: 'cs-poster__fallback' }, posterFallback),
             h('div', { class: 'cs-poster__content' }, [
               h('div', { class: 'cs-poster__top' }, [
                 h('span', { class: 'cs-poster__index' }, `${project.index} / ${project.year}`),
@@ -1366,6 +1378,7 @@ const PortfolioGallery = defineComponent({
           ],
         },
       )
+    }
 
     return () =>
       h(
@@ -2611,11 +2624,13 @@ function renderFooter() {
 .cs-home :deep(.cs-head__title) {
   max-width: 16ch;
   margin: 14px 0 0;
+  color: #f8fbff;
   font-family: var(--cs-font-display);
   font-weight: 600;
   font-size: clamp(32px, 5vw, 66px);
   line-height: 1.02;
   letter-spacing: -0.02em;
+  text-shadow: 0 18px 46px rgba(0, 0, 0, 0.36);
 }
 
 .cs-home :deep(.cs-head__note) {
@@ -2624,6 +2639,15 @@ function renderFooter() {
   font-size: 15px;
   line-height: 1.7;
   color: var(--cs-ink-dim);
+}
+
+.cs-home :deep(.cs-articles .cs-head__title) {
+  color: #f8fbff;
+  text-shadow: 0 18px 46px rgba(0, 0, 0, 0.44);
+}
+
+.cs-home :deep(.cs-articles .cs-head__note) {
+  color: rgba(236, 242, 255, 0.78);
 }
 
 @media (max-width: 900px) {
@@ -2671,11 +2695,12 @@ function renderFooter() {
   border: 1px solid var(--cs-line);
   border-radius: 20px;
   overflow: hidden;
-  background: var(--cs-bg-raise);
+  background: #080d1a;
 
   clip-path: inset(0 0 0% 0);
   text-decoration: none;
-  color: inherit;
+  color: #f8fbff;
+  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.2);
   transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.4s ease;
 }
 
@@ -2683,7 +2708,7 @@ function renderFooter() {
   position: absolute;
   inset: 0;
   z-index: 0;
-  opacity: 0.9;
+  opacity: 1;
   background: linear-gradient(155deg, var(--cs-from), var(--cs-to));
   transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -2695,7 +2720,7 @@ function renderFooter() {
   background-image: var(--cs-cover);
   background-position: center;
   background-size: cover;
-  opacity: 0.82;
+  opacity: 0.76;
 }
 
 .cs-home :deep(.cs-article__wash::after) {
@@ -2703,13 +2728,49 @@ function renderFooter() {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, rgba(5, 8, 16, 0.08) 0%, rgba(5, 8, 16, 0.78) 72%, rgba(5, 8, 16, 0.92) 100%),
-    radial-gradient(120% 90% at 80% 0%, rgba(255, 255, 255, 0.14), transparent 60%);
+    linear-gradient(180deg, rgba(5, 8, 16, 0.16) 0%, rgba(5, 8, 16, 0.48) 46%, rgba(5, 8, 16, 0.94) 100%),
+    linear-gradient(90deg, rgba(5, 8, 16, 0.36), rgba(5, 8, 16, 0.04) 62%),
+    radial-gradient(120% 90% at 80% 0%, rgba(255, 255, 255, 0.16), transparent 60%);
+}
+
+.cs-home :deep(.cs-article--no-image .cs-article__wash::before) {
+  display: none;
+}
+
+.cs-home :deep(.cs-article--no-image .cs-article__wash::after) {
+  background:
+    linear-gradient(180deg, rgba(5, 8, 16, 0.08) 0%, rgba(5, 8, 16, 0.36) 48%, rgba(5, 8, 16, 0.94) 100%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 42px),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 34px);
+}
+
+.cs-home :deep(.cs-article__fallback) {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  color: rgba(248, 251, 255, 0.9);
+  font-family: var(--cs-font-display);
+  font-size: clamp(38px, 7vw, 86px);
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+  text-shadow: 0 22px 44px rgba(0, 0, 0, 0.42);
+  opacity: 0.86;
 }
 
 .cs-home :deep(.cs-article__body) {
   position: relative;
-  z-index: 1;
+  z-index: 2;
+  margin: -6px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(6, 10, 20, 0.28), rgba(6, 10, 20, 0.68));
+  box-shadow: 0 20px 54px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(8px);
 }
 
 .cs-home :deep(.cs-article--feature) {
@@ -2746,11 +2807,13 @@ function renderFooter() {
 
 .cs-home :deep(.cs-article__title) {
   margin: 0;
+  color: #f8fbff;
   font-family: var(--cs-font-display);
   font-weight: 600;
   font-size: clamp(19px, 2vw, 24px);
   line-height: 1.18;
   letter-spacing: -0.01em;
+  text-shadow: 0 16px 34px rgba(0, 0, 0, 0.46);
 }
 
 .cs-home :deep(.cs-article--feature .cs-article__title) {
@@ -2758,11 +2821,16 @@ function renderFooter() {
   line-height: 1.04;
 }
 
+.cs-home :deep(.cs-article--feature .cs-article__fallback) {
+  font-size: clamp(56px, 8vw, 118px);
+}
+
 .cs-home :deep(.cs-article__excerpt) {
   margin: 12px 0 0;
   font-size: 14px;
   line-height: 1.6;
-  color: rgba(244, 246, 255, 0.78);
+  color: rgba(244, 248, 255, 0.88);
+  text-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
 }
 
 .cs-home :deep(.cs-article--feature .cs-article__excerpt) {
@@ -2778,7 +2846,7 @@ function renderFooter() {
   font-size: 11px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(244, 246, 255, 0.6);
+  color: rgba(232, 239, 255, 0.74);
 }
 
 .cs-home :deep(.cs-article:hover) {
@@ -2842,11 +2910,13 @@ function renderFooter() {
 
 .cs-home :deep(.cs-gallery__intro h2) {
   margin: 16px 0 0;
+  color: #f8fbff;
   font-family: var(--cs-font-display);
   font-weight: 600;
   font-size: clamp(34px, 4vw, 60px);
   line-height: 1.02;
   letter-spacing: -0.02em;
+  text-shadow: 0 18px 46px rgba(0, 0, 0, 0.44);
 }
 
 .cs-home :deep(.cs-gallery__intro p) {
@@ -2854,7 +2924,7 @@ function renderFooter() {
   margin-top: 18px;
   font-size: 15px;
   line-height: 1.7;
-  color: var(--cs-ink-dim);
+  color: rgba(236, 242, 255, 0.78);
 }
 
 .cs-home :deep(.cs-gallery__hint) {
@@ -2912,8 +2982,37 @@ function renderFooter() {
   inset: 0;
   z-index: 2;
   background:
-    linear-gradient(180deg, rgba(4, 6, 12, 0.08) 0%, rgba(4, 6, 12, 0.22) 42%, rgba(4, 6, 12, 0.86) 100%),
-    radial-gradient(90% 70% at 30% 90%, rgba(4, 6, 12, 0.28), transparent 72%);
+    linear-gradient(180deg, rgba(4, 6, 12, 0.14) 0%, rgba(4, 6, 12, 0.34) 42%, rgba(4, 6, 12, 0.9) 100%),
+    linear-gradient(90deg, rgba(4, 6, 12, 0.38), rgba(4, 6, 12, 0.04) 60%),
+    radial-gradient(90% 70% at 30% 90%, rgba(4, 6, 12, 0.44), transparent 72%);
+}
+
+.cs-home :deep(.cs-poster--no-image::before) {
+  display: none;
+}
+
+.cs-home :deep(.cs-poster--no-image .cs-poster__grain) {
+  background:
+    linear-gradient(180deg, rgba(4, 6, 12, 0.1) 0%, rgba(4, 6, 12, 0.36) 48%, rgba(4, 6, 12, 0.92) 100%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 42px),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 34px);
+}
+
+.cs-home :deep(.cs-poster__fallback) {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  padding: 34px;
+  color: rgba(248, 251, 255, 0.9);
+  font-family: var(--cs-font-display);
+  font-size: clamp(44px, 6vw, 86px);
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+  text-shadow: 0 22px 46px rgba(0, 0, 0, 0.44);
+  opacity: 0.84;
 }
 
 .cs-home :deep(.cs-poster__content) {
@@ -2924,6 +3023,7 @@ function renderFooter() {
   flex-direction: column;
   justify-content: space-between;
   padding: 30px;
+  color: #f8fbff;
 }
 
 .cs-home :deep(.cs-poster__index) {
@@ -2943,16 +3043,20 @@ function renderFooter() {
   font-family: var(--cs-font-mono);
   font-size: 11px;
   letter-spacing: 0.08em;
-  color: #fff;
+  color: #f8fbff;
+  background: rgba(6, 10, 20, 0.34);
+  backdrop-filter: blur(6px);
 }
 
 .cs-home :deep(.cs-poster__title) {
   margin: 0;
+  color: #f8fbff;
   font-family: var(--cs-font-display);
   font-weight: 600;
   font-size: clamp(30px, 3.4vw, 52px);
   line-height: 1;
   letter-spacing: -0.02em;
+  text-shadow: 0 16px 34px rgba(0, 0, 0, 0.5);
 }
 
 .cs-home :deep(.cs-poster__desc) {
@@ -2960,7 +3064,18 @@ function renderFooter() {
   margin: 14px 0 0;
   font-size: 14px;
   line-height: 1.6;
-  color: rgba(244, 246, 255, 0.82);
+  color: rgba(244, 248, 255, 0.88);
+  text-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.cs-home :deep(.cs-poster__content > div:last-child) {
+  margin: -8px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(6, 10, 20, 0.24), rgba(6, 10, 20, 0.7));
+  box-shadow: 0 22px 56px rgba(0, 0, 0, 0.26);
+  backdrop-filter: blur(8px);
 }
 
 .cs-home :deep(.cs-poster__stack) {
