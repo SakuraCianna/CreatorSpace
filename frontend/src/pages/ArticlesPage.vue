@@ -92,7 +92,7 @@
             <div class="journal-card__visual" aria-hidden="true">
               <img
                 v-if="showArticleCover(article)"
-                :src="article.coverUrl"
+                :src="articleCoverSrc(article)"
                 alt=""
                 loading="lazy"
                 @error="markArticleCoverBroken(article.id)"
@@ -367,7 +367,11 @@ function articleCoverStyle(article: ArticleSummary, index: number) {
 }
 
 function showArticleCover(article: ArticleSummary): boolean {
-  return Boolean(article.coverUrl) && !brokenArticleCoverIds.value.has(article.id)
+  return Boolean(articleCoverSrc(article)) && !brokenArticleCoverIds.value.has(article.id)
+}
+
+function articleCoverSrc(article: ArticleSummary): string {
+  return article.coverUrl?.trim() ?? ''
 }
 
 function markArticleCoverBroken(articleId: number) {

@@ -46,7 +46,7 @@
         :style="projectCoverStyle(featuredProject, 0)"
         :to="{ name: 'project-detail', params: { slug: featuredProject.slug } }"
       >
-        <img v-if="featuredProject.coverUrl" :src="featuredProject.coverUrl" alt="" loading="lazy" />
+        <img v-if="projectCoverSrc(featuredProject)" :src="projectCoverSrc(featuredProject)" alt="" loading="lazy" />
         <span>Featured</span>
       </RouterLink>
       <div class="featured-project__body">
@@ -88,7 +88,7 @@
         data-reveal
       >
         <div class="showcase-card__visual">
-          <img v-if="project.coverUrl" :src="project.coverUrl" alt="" loading="lazy" />
+          <img v-if="projectCoverSrc(project)" :src="projectCoverSrc(project)" alt="" loading="lazy" />
           <span>{{ String(index + 1).padStart(2, '0') }}</span>
         </div>
         <div class="showcase-card__body">
@@ -217,6 +217,10 @@ function projectCoverStyle(project: ProjectSummary, index: number) {
     '--cover-from': palette[0],
     '--cover-accent': project.tags[0]?.color ?? palette[1],
   }
+}
+
+function projectCoverSrc(project: ProjectSummary): string {
+  return project.coverUrl?.trim() ?? ''
 }
 
 // 计算指针在卡片内所处的坐标比例, 动态调整 CSS 变形变量以渲染 3D 悬浮倾斜动效
