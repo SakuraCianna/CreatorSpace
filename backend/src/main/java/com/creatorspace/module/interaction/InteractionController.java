@@ -32,8 +32,9 @@ import java.util.Set;
 @RestController
 public class InteractionController {
 
-    private static final Set<String> LIKE_TARGETS = Set.of("ARTICLE", "PROJECT", "COMMENT", "INSPIRATION");
+    private static final Set<String> LIKE_TARGETS = Set.of("ARTICLE", "PROJECT", "INSPIRATION", "MESSAGE");
     private static final Set<String> FAVORITE_TARGETS = Set.of("ARTICLE", "PROJECT", "INSPIRATION");
+    private static final Set<String> REACTION_TYPES = Set.of("LIKE", "THANKS", "INSIGHTFUL");
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -49,7 +50,7 @@ public class InteractionController {
             @Valid @RequestBody InteractionRequest request
     ) {
         String targetType = normalizeTargetType(request.targetType(), LIKE_TARGETS);
-        ensureVisibleTarget(targetType, request.targetId());
+        ensureVisibleTarget(targetType, request.targetId(), loginUser.userId());
         int inserted = jdbcTemplate.update("""
                         insert into like_records (target_type, target_id, user_id)
                         values (?, ?, ?)
@@ -99,6 +100,23 @@ public class InteractionController {
         return ApiResponse.ok(listInteractions("like_records", loginUser.userId(), targetType, LIKE_TARGETS, page, pageSize));
     }
 
+    // 登录用户查询是否已点赞。
+    @GetMapping("/api/me/likes/status")
+    public ApiResponse<StatusVO> likeStatus(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestParam String targetType,
+            @RequestParam Long targetId
+    ) {
+        String normalizedType = normalizeTargetType(targetType, LIKE_TARGETS);
+        boolean liked = Boolean.TRUE.equals(jdbcTemplate.queryForObject(
+                "select exists(select 1 from like_records where target_type = ? and target_id = ? and user_id = ?)",
+                Boolean.class,
+                normalizedType,
+                targetId,
+                loginUser.userId()));
+        return ApiResponse.ok(new StatusVO(liked));
+    }
+
     // 登录用户收藏公开内容。
     @Transactional(rollbackFor = Exception.class)
     @PostMapping("/api/me/favorites")
@@ -107,7 +125,7 @@ public class InteractionController {
             @Valid @RequestBody InteractionRequest request
     ) {
         String targetType = normalizeTargetType(request.targetType(), FAVORITE_TARGETS);
-        ensureVisibleTarget(targetType, request.targetId());
+        ensureVisibleTarget(targetType, request.targetId(), loginUser.userId());
         int inserted = jdbcTemplate.update("""
                         insert into favorite_records (target_type, target_id, user_id)
                         values (?, ?, ?)
@@ -155,6 +173,132 @@ public class InteractionController {
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) long pageSize
     ) {
         return ApiResponse.ok(listInteractions("favorite_records", loginUser.userId(), targetType, FAVORITE_TARGETS, page, pageSize));
+    }
+
+    // 登录用户查询是否已收藏。
+    @GetMapping("/api/me/favorites/status")
+    public ApiResponse<StatusVO> favoriteStatus(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestParam String targetType,
+            @RequestParam Long targetId
+    ) {
+        String normalizedType = normalizeTargetType(targetType, FAVORITE_TARGETS);
+        boolean favorited = Boolean.TRUE.equals(jdbcTemplate.queryForObject(
+                "select exists(select 1 from favorite_records where target_type = ? and target_id = ? and user_id = ?)",
+                Boolean.class,
+                normalizedType,
+                targetId,
+                loginUser.userId()));
+        return ApiResponse.ok(new StatusVO(favorited));
+    }
+
+    // 对评论添加反应（LIKE / THANKS / INSIGHTFUL）。
+    @Transactional(rollbackFor = Exception.class)
+    @PostMapping("/api/me/comment-reactions")
+    public ApiResponse<CommentReactionVO> react(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @Valid @RequestBody CommentReactionRequest request
+    ) {
+        if (!REACTION_TYPES.contains(request.type())) {
+            throw BusinessException.badRequest("评论反应类型不合法");
+        }
+        Long count = jdbcTemplate.queryForObject("""
+                        select count(*) from comments
+                        where id = ? and status = 'APPROVED'
+                        """,
+                Long.class, request.commentId());
+        if (count == null || count == 0) {
+            throw BusinessException.notFound("评论不存在或不可见");
+        }
+        Long id = jdbcTemplate.queryForObject("""
+                        insert into comment_reactions (comment_id, user_id, reaction_type)
+                        values (?, ?, ?)
+                        on conflict (comment_id, user_id, reaction_type)
+                        do update set created_at = now()
+                        returning id
+                        """,
+                Long.class,
+                request.commentId(),
+                loginUser.userId(),
+                request.type());
+        if ("LIKE".equals(request.type())) {
+            jdbcTemplate.update("""
+                            update comments
+                            set like_count = (select count(*) from comment_reactions
+                                              where comment_id = ? and reaction_type = 'LIKE'),
+                                updated_at = now()
+                            where id = ?
+                            """,
+                    request.commentId(),
+                    request.commentId());
+        }
+        return ApiResponse.ok(getCommentReaction(id));
+    }
+
+    // 取消对评论的反应。
+    @Transactional(rollbackFor = Exception.class)
+    @DeleteMapping("/api/me/comment-reactions")
+    public ApiResponse<Void> unreact(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestParam Long commentId,
+            @RequestParam(defaultValue = "LIKE") String type
+    ) {
+        if (!REACTION_TYPES.contains(type)) {
+            throw BusinessException.badRequest("评论反应类型不合法");
+        }
+        jdbcTemplate.update("""
+                        delete from comment_reactions
+                        where comment_id = ? and user_id = ? and reaction_type = ?
+                        """,
+                commentId, loginUser.userId(), type);
+        if ("LIKE".equals(type)) {
+            jdbcTemplate.update("""
+                            update comments
+                            set like_count = (select count(*) from comment_reactions
+                                              where comment_id = ? and reaction_type = 'LIKE'),
+                                updated_at = now()
+                            where id = ?
+                            """,
+                    commentId,
+                    commentId);
+        }
+        return ApiResponse.ok(null);
+    }
+
+    // 查询用户对某评论的反应状态。
+    @GetMapping("/api/me/comment-reactions/status")
+    public ApiResponse<StatusVO> reactionStatus(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestParam Long commentId
+    ) {
+        String type = jdbcTemplate.query("""
+                        select reaction_type from comment_reactions
+                        where comment_id = ? and user_id = ?
+                        """,
+                (rs, rowNum) -> rs.getString("reaction_type"),
+                commentId, loginUser.userId()).stream().findFirst().orElse(null);
+        return ApiResponse.ok(new StatusVO(type != null));
+    }
+
+    // 批量查询用户对多个评论的点赞状态。
+    @GetMapping("/api/me/comment-reactions/batch-status")
+    public ApiResponse<java.util.Map<Long, Boolean>> batchReactionStatus(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestParam java.util.List<Long> commentIds
+    ) {
+        if (commentIds.isEmpty()) {
+            return ApiResponse.ok(java.util.Map.of());
+        }
+        String placeholders = String.join(",", commentIds.stream().map(id -> "?").toList());
+        java.util.Map<Long, Boolean> result = new java.util.LinkedHashMap<>();
+        commentIds.forEach(id -> result.put(id, false));
+        jdbcTemplate.query("""
+                        select comment_id from comment_reactions
+                        where comment_id in (%s) and user_id = ? and reaction_type = 'LIKE'
+                        """.formatted(placeholders),
+                (rs, rowNum) -> rs.getLong("comment_id"),
+                commentIds.toArray()).forEach(id -> result.put(id, true));
+        return ApiResponse.ok(result);
     }
 
     private PageResponse<InteractionVO> listInteractions(
@@ -221,46 +365,74 @@ public class InteractionController {
         return normalized;
     }
 
-    private void ensureVisibleTarget(String targetType, Long targetId) {
-        Long count = switch (targetType) {
-            case "ARTICLE" -> jdbcTemplate.queryForObject("""
-                            select count(*)
-                            from articles
-                            where id = ?
-                              and status = 'PUBLISHED'
-                              and privacy_type = 'PUBLIC'
-                            """,
-                    Long.class,
-                    targetId);
-            case "PROJECT" -> jdbcTemplate.queryForObject("""
-                            select count(*)
-                            from portfolio_projects
-                            where id = ?
-                              and status = 'VISIBLE'
-                            """,
-                    Long.class,
-                    targetId);
-            case "INSPIRATION" -> jdbcTemplate.queryForObject("""
-                            select count(*)
-                            from inspiration_cards
-                            where id = ?
-                              and is_public = true
-                            """,
-                    Long.class,
-                    targetId);
-            case "COMMENT" -> jdbcTemplate.queryForObject("""
-                            select count(*)
-                            from comments
-                            where id = ?
-                              and status = 'APPROVED'
-                            """,
-                    Long.class,
-                    targetId);
-            default -> 0L;
+    private void ensureVisibleTarget(String targetType, Long targetId, Long userId) {
+        boolean visible = switch (targetType) {
+            case "ARTICLE" -> {
+                String privacyType = jdbcTemplate.query("""
+                                select privacy_type from articles
+                                where id = ? and status = 'PUBLISHED'
+                                """,
+                        (rs, rowNum) -> rs.getString("privacy_type"),
+                        targetId).stream().findFirst().orElse(null);
+                if (privacyType == null) {
+                    yield false;
+                }
+                yield com.creatorspace.common.util.ArticlePermissionHelper.hasPermission(
+                        jdbcTemplate, privacyType, targetId, userId);
+            }
+            case "PROJECT" -> {
+                Long count = jdbcTemplate.queryForObject("""
+                                select count(*) from portfolio_projects
+                                where id = ? and status = 'VISIBLE'
+                                """,
+                        Long.class, targetId);
+                yield count != null && count > 0;
+            }
+            case "INSPIRATION" -> {
+                Long count = jdbcTemplate.queryForObject("""
+                                select count(*) from inspiration_cards
+                                where id = ? and is_public = true
+                                """,
+                        Long.class, targetId);
+                yield count != null && count > 0;
+            }
+            case "COMMENT" -> {
+                Long count = jdbcTemplate.queryForObject("""
+                                select count(*) from comments
+                                where id = ? and status = 'APPROVED'
+                                """,
+                        Long.class, targetId);
+                yield count != null && count > 0;
+            }
+            case "MESSAGE" -> {
+                Long count = jdbcTemplate.queryForObject("""
+                                select count(*) from guestbook_entries
+                                where id = ? and status = 'APPROVED'
+                                """,
+                        Long.class, targetId);
+                yield count != null && count > 0;
+            }
+            default -> false;
         };
-        if (count == null || count == 0) {
+        if (!visible) {
             throw BusinessException.notFound("互动目标不存在或不可见");
         }
+    }
+
+    private CommentReactionVO getCommentReaction(Long id) {
+        return jdbcTemplate.query("""
+                        select cr.id, cr.comment_id, cr.user_id, cr.reaction_type, cr.created_at
+                        from comment_reactions cr
+                        where cr.id = ?
+                        """,
+                (rs, rowNum) -> new CommentReactionVO(
+                        rs.getLong("id"),
+                        rs.getLong("comment_id"),
+                        rs.getLong("user_id"),
+                        rs.getString("reaction_type"),
+                        rs.getObject("created_at", OffsetDateTime.class)
+                ),
+                id).stream().findFirst().orElseThrow(() -> BusinessException.notFound("评论反应不存在"));
     }
 
     private void adjustCounters(String targetType, Long targetId, String counterColumn, int delta) {
@@ -301,6 +473,26 @@ public class InteractionController {
             Long id,
             String targetType,
             Long targetId,
+            OffsetDateTime createdAt
+    ) {
+    }
+
+    public record StatusVO(
+            boolean status
+    ) {
+    }
+
+    public record CommentReactionRequest(
+            @NotNull Long commentId,
+            @NotBlank String type
+    ) {
+    }
+
+    public record CommentReactionVO(
+            Long id,
+            Long commentId,
+            Long userId,
+            String type,
             OffsetDateTime createdAt
     ) {
     }

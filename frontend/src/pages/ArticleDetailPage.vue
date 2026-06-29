@@ -62,7 +62,7 @@
             :class="{ 'is-active': liked }"
             type="button"
             :disabled="!canComment"
-            @click="toggleLike"
+            @click="toggleLike(article?.id)"
           >
             <Heart :size="18" />
             <span>{{ liked ? '已喜欢' : '喜欢' }}</span>
@@ -72,7 +72,7 @@
             :class="{ 'is-active': favorited }"
             type="button"
             :disabled="!canComment"
-            @click="toggleFavorite"
+            @click="toggleFavorite(article?.id)"
           >
             <Bookmark :size="18" />
             <span>{{ favorited ? '已收藏' : '收藏' }}</span>
@@ -118,6 +118,16 @@
                 <div class="comment-actions">
                   <button
                     class="comment-action-btn"
+                    :class="{ 'is-active': commentLiked[comment.id] }"
+                    type="button"
+                    :disabled="!canComment"
+                    @click="toggleCommentLike(comment)"
+                  >
+                    <Heart :size="14" />
+                    {{ comment.likeCount }}
+                  </button>
+                  <button
+                    class="comment-action-btn"
                     type="button"
                     :disabled="!canComment"
                     @click="replyTo(comment)"
@@ -125,7 +135,6 @@
                     <MessageCircle :size="14" />
                     回复
                   </button>
-                  <span v-if="comment.likeCount > 0" class="comment-likes">{{ comment.likeCount }} 赞</span>
                 </div>
               </div>
             </article>
@@ -165,15 +174,15 @@ import {
 import {
   fetchArticleNeighbors,
   fetchArticleBySlug,
+  fetchCommentReactionsBatch,
   fetchComments,
+  reactToComment,
   submitComment,
-  likeTarget,
-  unlikeTarget,
-  favoriteTarget,
-  unfavoriteTarget,
+  unreactFromComment,
 } from '@/services/content'
 import { toUserMessage } from '@/services/http'
 import { useCinematicPageMotion } from '@/shared/composables/useCinematicPageMotion'
+import { useInteraction } from '@/shared/composables/useInteraction'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import { toCssImageUrl } from '@/shared/cssImage'
 import { formatDateToDay } from '@/shared/datetime'
@@ -192,12 +201,12 @@ const commentDraft = ref('')
 const commentNotice = ref('')
 const isLoading = ref(true)
 const notice = ref('')
-const liked = ref(false)
-const favorited = ref(false)
 const replyTarget = ref<CommentSummary | null>(null)
+const commentLiked = ref<Record<number, boolean>>({})
 const slug = computed(() => readRouteParam(route.params.slug))
 const session = useSessionStore()
 const cinematic = useCinematicPageMotion(root)
+const { liked, favorited, loadStatus: loadInteractionStatus, toggleLike, toggleFavorite } = useInteraction('ARTICLE')
 
 usePageReveal(root)
 
@@ -240,7 +249,7 @@ async function loadArticle() {
     article.value = detail
     previousArticle.value = neighbors.previousArticle ?? null
     nextArticle.value = neighbors.nextArticle ?? null
-    await loadComments()
+    await Promise.all([loadComments(), loadInteractionStatus(detail.id)])
   } catch (error) {
     article.value = null
     notice.value = toUserMessage(error, '文章暂时无法打开，请稍后再试')
@@ -259,6 +268,7 @@ async function loadComments(options: { keepCurrentNotice?: boolean } = {}) {
   try {
     const page = await fetchComments({ targetType: 'ARTICLE', targetId: article.value.id, pageSize: 20 })
     comments.value = page.records
+    await loadCommentLikes()
     if (!options.keepCurrentNotice) {
       commentNotice.value = ''
     }
@@ -296,41 +306,38 @@ async function postComment() {
   }
 }
 
-// 切换当前用户对该文章的点赞状态, 实现即时喜欢与取消喜欢
-async function toggleLike() {
-  if (!article.value?.id || !canComment.value) return
-  try {
-    if (liked.value) {
-      await unlikeTarget('ARTICLE', article.value.id)
-      liked.value = false
-    } else {
-      await likeTarget('ARTICLE', article.value.id)
-      liked.value = true
-    }
-  } catch {
-    commentNotice.value = '操作失败，请重试'
-  }
-}
-
-// 切换当前用户对该文章的收藏状态, 实现即时收藏与取消收藏
-async function toggleFavorite() {
-  if (!article.value?.id || !canComment.value) return
-  try {
-    if (favorited.value) {
-      await unfavoriteTarget('ARTICLE', article.value.id)
-      favorited.value = false
-    } else {
-      await favoriteTarget('ARTICLE', article.value.id)
-      favorited.value = true
-    }
-  } catch {
-    commentNotice.value = '操作失败，请重试'
-  }
-}
-
 function replyTo(comment: CommentSummary) {
   replyTarget.value = comment
   commentDraft.value = ''
+}
+
+async function toggleCommentLike(comment: CommentSummary) {
+  if (!canComment.value) return
+  const liked = commentLiked.value[comment.id]
+  try {
+    if (liked) {
+      await unreactFromComment(comment.id)
+      commentLiked.value = { ...commentLiked.value, [comment.id]: false }
+      comment.likeCount = Math.max(0, comment.likeCount - 1)
+    } else {
+      await reactToComment(comment.id)
+      commentLiked.value = { ...commentLiked.value, [comment.id]: true }
+      comment.likeCount += 1
+    }
+  } catch {
+    // ignore
+  }
+}
+
+async function loadCommentLikes() {
+  if (!canComment.value || comments.value.length === 0) return
+  const ids = comments.value.map(c => c.id)
+  try {
+    const statuses = await fetchCommentReactionsBatch(ids)
+    commentLiked.value = statuses
+  } catch {
+    commentLiked.value = {}
+  }
 }
 
 function cancelReply() {

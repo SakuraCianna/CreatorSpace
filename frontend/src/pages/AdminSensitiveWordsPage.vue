@@ -253,9 +253,9 @@ async function removeWord(id: number) {
   border-radius: var(--app-radius-sm);
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.58)),
-    radial-gradient(circle at 16% 20%, rgba(194, 58, 58, 0.14), transparent 34%),
-    radial-gradient(circle at 88% 18%, rgba(255, 160, 0, 0.16), transparent 28%),
-    linear-gradient(120deg, rgba(194, 58, 58, 0.08), rgba(255, 160, 0, 0.08), rgba(255, 80, 50, 0.1));
+    radial-gradient(circle at 16% 20%, rgba(49, 91, 255, 0.14), transparent 34%),
+    radial-gradient(circle at 88% 18%, rgba(0, 124, 114, 0.16), transparent 28%),
+    linear-gradient(120deg, rgba(49, 91, 255, 0.08), rgba(194, 95, 58, 0.08), rgba(0, 124, 114, 0.1));
   box-shadow: var(--tone-shadow);
 }
 

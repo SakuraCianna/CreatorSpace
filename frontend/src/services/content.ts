@@ -40,7 +40,8 @@ interface ApiEnvelope<T> {
 
 type ArticleStatusFilter = ArticleSummary['status'] | 'ALL'
 type ProjectStatusFilter = ProjectSummary['status'] | 'ALL'
-type InteractionTargetType = 'ARTICLE' | 'PROJECT' | 'COMMENT' | 'INSPIRATION'
+type InteractionTargetType = 'ARTICLE' | 'PROJECT' | 'COMMENT' | 'INSPIRATION' | 'MESSAGE'
+type ReactionType = 'LIKE' | 'THANKS' | 'INSIGHTFUL'
 
 interface RegisterPayload {
   username: string
@@ -763,6 +764,20 @@ export async function uploadCreatorFile(file: File, module: string): Promise<Fil
   return response.data
 }
 
+// 登录用户查询是否已点赞
+export async function fetchLikeStatus(targetType: InteractionTargetType, targetId: number): Promise<boolean> {
+  const params = new URLSearchParams({ targetType, targetId: String(targetId) })
+  const response = await requestJson<ApiEnvelope<{ status: boolean }>>(`/api/me/likes/status?${params.toString()}`)
+  return response.data.status
+}
+
+// 登录用户查询是否已收藏
+export async function fetchFavoriteStatus(targetType: Exclude<InteractionTargetType, 'COMMENT'>, targetId: number): Promise<boolean> {
+  const params = new URLSearchParams({ targetType, targetId: String(targetId) })
+  const response = await requestJson<ApiEnvelope<{ status: boolean }>>(`/api/me/favorites/status?${params.toString()}`)
+  return response.data.status
+}
+
 // 登录用户点赞公开内容
 export async function likeTarget(targetType: InteractionTargetType, targetId: number): Promise<InteractionRecord> {
   const response = await requestJson<ApiEnvelope<InteractionRecord>>('/api/me/likes', {
@@ -791,6 +806,37 @@ export async function favoriteTarget(targetType: Exclude<InteractionTargetType, 
 export async function unfavoriteTarget(targetType: Exclude<InteractionTargetType, 'COMMENT'>, targetId: number): Promise<void> {
   const params = new URLSearchParams({ targetType, targetId: String(targetId) })
   await requestJson<ApiEnvelope<null>>(`/api/me/favorites?${params.toString()}`, { method: 'DELETE' })
+}
+
+// 登录用户对评论添加反应。
+export async function reactToComment(commentId: number, type: ReactionType = 'LIKE'): Promise<{ id: number; commentId: number; type: string }> {
+  const response = await requestJson<ApiEnvelope<{ id: number; commentId: number; userId: number; type: string; createdAt: string }>>('/api/me/comment-reactions', {
+    method: 'POST',
+    body: JSON.stringify({ commentId, type }),
+  })
+  return response.data
+}
+
+// 登录用户取消对评论的反应。
+export async function unreactFromComment(commentId: number, type: ReactionType = 'LIKE'): Promise<void> {
+  const params = new URLSearchParams({ commentId: String(commentId), type })
+  await requestJson<ApiEnvelope<null>>(`/api/me/comment-reactions?${params.toString()}`, { method: 'DELETE' })
+}
+
+// 登录用户查询对某评论的反应状态。
+export async function fetchCommentReactionStatus(commentId: number): Promise<boolean> {
+  const params = new URLSearchParams({ commentId: String(commentId) })
+  const response = await requestJson<ApiEnvelope<{ status: boolean }>>(`/api/me/comment-reactions/status?${params.toString()}`)
+  return response.data.status
+}
+
+// 批量查询用户对多个评论的点赞状态。
+export async function fetchCommentReactionsBatch(commentIds: number[]): Promise<Record<number, boolean>> {
+  if (commentIds.length === 0) return {}
+  const params = new URLSearchParams()
+  commentIds.forEach(id => params.append('commentIds', String(id)))
+  const response = await requestJson<ApiEnvelope<Record<number, boolean>>>(`/api/me/comment-reactions/batch-status?${params.toString()}`)
+  return response.data
 }
 
 // 登录用户查询自己的收藏
