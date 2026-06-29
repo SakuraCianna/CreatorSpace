@@ -21,6 +21,7 @@ import type {
   PublicThemeConfig,
   SearchParams,
   SearchResult,
+  SensitiveWordSummary,
   SiteStatisticsSummary,
   SiteSettings,
   SiteSettingsPayload,
@@ -39,7 +40,8 @@ interface ApiEnvelope<T> {
 
 type ArticleStatusFilter = ArticleSummary['status'] | 'ALL'
 type ProjectStatusFilter = ProjectSummary['status'] | 'ALL'
-type InteractionTargetType = 'ARTICLE' | 'PROJECT' | 'COMMENT' | 'INSPIRATION'
+type InteractionTargetType = 'ARTICLE' | 'PROJECT' | 'COMMENT' | 'INSPIRATION' | 'MESSAGE'
+type ReactionType = 'LIKE' | 'THANKS' | 'INSIGHTFUL'
 
 interface RegisterPayload {
   username: string
@@ -762,6 +764,20 @@ export async function uploadCreatorFile(file: File, module: string): Promise<Fil
   return response.data
 }
 
+// 登录用户查询是否已点赞
+export async function fetchLikeStatus(targetType: InteractionTargetType, targetId: number): Promise<boolean> {
+  const params = new URLSearchParams({ targetType, targetId: String(targetId) })
+  const response = await requestJson<ApiEnvelope<{ status: boolean }>>(`/api/me/likes/status?${params.toString()}`)
+  return response.data.status
+}
+
+// 登录用户查询是否已收藏
+export async function fetchFavoriteStatus(targetType: Exclude<InteractionTargetType, 'COMMENT'>, targetId: number): Promise<boolean> {
+  const params = new URLSearchParams({ targetType, targetId: String(targetId) })
+  const response = await requestJson<ApiEnvelope<{ status: boolean }>>(`/api/me/favorites/status?${params.toString()}`)
+  return response.data.status
+}
+
 // 登录用户点赞公开内容
 export async function likeTarget(targetType: InteractionTargetType, targetId: number): Promise<InteractionRecord> {
   const response = await requestJson<ApiEnvelope<InteractionRecord>>('/api/me/likes', {
@@ -790,6 +806,37 @@ export async function favoriteTarget(targetType: Exclude<InteractionTargetType, 
 export async function unfavoriteTarget(targetType: Exclude<InteractionTargetType, 'COMMENT'>, targetId: number): Promise<void> {
   const params = new URLSearchParams({ targetType, targetId: String(targetId) })
   await requestJson<ApiEnvelope<null>>(`/api/me/favorites?${params.toString()}`, { method: 'DELETE' })
+}
+
+// 登录用户对评论添加反应。
+export async function reactToComment(commentId: number, type: ReactionType = 'LIKE'): Promise<{ id: number; commentId: number; type: string }> {
+  const response = await requestJson<ApiEnvelope<{ id: number; commentId: number; userId: number; type: string; createdAt: string }>>('/api/me/comment-reactions', {
+    method: 'POST',
+    body: JSON.stringify({ commentId, type }),
+  })
+  return response.data
+}
+
+// 登录用户取消对评论的反应。
+export async function unreactFromComment(commentId: number, type: ReactionType = 'LIKE'): Promise<void> {
+  const params = new URLSearchParams({ commentId: String(commentId), type })
+  await requestJson<ApiEnvelope<null>>(`/api/me/comment-reactions?${params.toString()}`, { method: 'DELETE' })
+}
+
+// 登录用户查询对某评论的反应状态。
+export async function fetchCommentReactionStatus(commentId: number): Promise<boolean> {
+  const params = new URLSearchParams({ commentId: String(commentId) })
+  const response = await requestJson<ApiEnvelope<{ status: boolean }>>(`/api/me/comment-reactions/status?${params.toString()}`)
+  return response.data.status
+}
+
+// 批量查询用户对多个评论的点赞状态。
+export async function fetchCommentReactionsBatch(commentIds: number[]): Promise<Record<number, boolean>> {
+  if (commentIds.length === 0) return {}
+  const params = new URLSearchParams()
+  commentIds.forEach(id => params.append('commentIds', String(id)))
+  const response = await requestJson<ApiEnvelope<Record<number, boolean>>>(`/api/me/comment-reactions/batch-status?${params.toString()}`)
+  return response.data
 }
 
 // 登录用户查询自己的收藏
@@ -821,7 +868,63 @@ export async function searchContent(options: SearchParams | string): Promise<Pag
   return response.data
 }
 
-// 读取后台概览
+// 管理员查询敏感词列表。
+export async function fetchAdminSensitiveWords(options: {
+  page?: number
+  pageSize?: number
+} = {}): Promise<PageResponse<SensitiveWordSummary>> {
+  const params = new URLSearchParams()
+  if (options.page) params.set('page', String(options.page))
+  if (options.pageSize) params.set('pageSize', String(options.pageSize))
+  const query = params.toString()
+  const response = await requestJson<ApiEnvelope<PageResponse<SensitiveWordSummary>>>(
+    query ? `/api/admin/sensitive-words?${query}` : '/api/admin/sensitive-words',
+  )
+  return response.data
+}
+
+// 管理员新增敏感词。
+export async function createSensitiveWord(payload: {
+  word: string
+  matchType: string
+  severity: string
+  enabled: boolean
+}): Promise<SensitiveWordSummary> {
+  const response = await requestJson<ApiEnvelope<SensitiveWordSummary>>('/api/admin/sensitive-words', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return response.data
+}
+
+// 管理员编辑敏感词。
+export async function updateSensitiveWord(id: number, payload: {
+  word: string
+  matchType: string
+  severity: string
+  enabled: boolean
+}): Promise<SensitiveWordSummary> {
+  const response = await requestJson<ApiEnvelope<SensitiveWordSummary>>(`/api/admin/sensitive-words/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+  return response.data
+}
+
+// 管理员删除敏感词。
+export async function deleteSensitiveWord(id: number): Promise<void> {
+  await requestJson<ApiEnvelope<null>>(`/api/admin/sensitive-words/${id}`, { method: 'DELETE' })
+}
+
+// 管理员切换敏感词启用状态。
+export async function toggleSensitiveWord(id: number): Promise<SensitiveWordSummary> {
+  const response = await requestJson<ApiEnvelope<SensitiveWordSummary>>(`/api/admin/sensitive-words/${id}/toggle`, {
+    method: 'PUT',
+  })
+  return response.data
+}
+
+// 读取后台概览。
 export async function fetchDashboardOverview(): Promise<DashboardOverview> {
   const response = await requestJson<ApiEnvelope<DashboardOverview>>('/api/admin/dashboard/overview')
   return response.data

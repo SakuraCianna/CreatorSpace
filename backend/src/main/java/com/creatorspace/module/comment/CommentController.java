@@ -135,9 +135,10 @@ public class CommentController {
             HttpServletRequest servletRequest
     ) {
         String type = normalizeTargetType(request.targetType());
-        ensureTargetExists(type, request.targetId());
+        ensureTargetExists(type, request.targetId(), loginUser.userId());
         ParentComment parent = parentComment(type, request.targetId(), request.parentId());
         ensureContentAllowed(request.content());
+        checkSpam(loginUser.userId());
 
         Long id = jdbcTemplate.queryForObject("""
                         insert into comments (
@@ -325,29 +326,33 @@ public class CommentController {
         return parent;
     }
 
-    private void ensureTargetExists(String type, Long targetId) {
-        Long count = switch (type) {
-            case "ARTICLE" -> jdbcTemplate.queryForObject("""
-                            select count(*)
-                            from articles
-                            where id = ?
-                              and status = 'PUBLISHED'
-                              and privacy_type = 'PUBLIC'
-                            """,
-                    Long.class,
-                    targetId);
-            case "PROJECT" -> jdbcTemplate.queryForObject("""
-                            select count(*)
-                            from portfolio_projects
-                            where id = ?
-                              and status = 'VISIBLE'
-                            """,
-                    Long.class,
-                    targetId);
-            case "MESSAGE" -> 1L;
-            default -> 0L;
+    private void ensureTargetExists(String type, Long targetId, Long userId) {
+        boolean exists = switch (type) {
+            case "ARTICLE" -> {
+                String privacyType = jdbcTemplate.query("""
+                                select privacy_type from articles
+                                where id = ? and status = 'PUBLISHED'
+                                """,
+                        (rs, rowNum) -> rs.getString("privacy_type"),
+                        targetId).stream().findFirst().orElse(null);
+                if (privacyType == null) {
+                    yield false;
+                }
+                yield com.creatorspace.common.util.ArticlePermissionHelper.hasPermission(
+                        jdbcTemplate, privacyType, targetId, userId);
+            }
+            case "PROJECT" -> {
+                Long count = jdbcTemplate.queryForObject("""
+                                select count(*) from portfolio_projects
+                                where id = ? and status = 'VISIBLE'
+                                """,
+                        Long.class, targetId);
+                yield count != null && count > 0;
+            }
+            case "MESSAGE" -> true;
+            default -> false;
         };
-        if (count == null || count == 0) {
+        if (!exists) {
             throw BusinessException.notFound("评论目标不存在或不可见");
         }
     }
@@ -366,6 +371,18 @@ public class CommentController {
                         throw BusinessException.badRequest("评论包含敏感内容");
                     }
                 });
+    }
+
+    private void checkSpam(Long userId) {
+        Long recent = jdbcTemplate.queryForObject("""
+                        select count(*) from comments
+                        where user_id = ?
+                          and created_at > ? - interval '1 minute'
+                        """,
+                Long.class, userId, java.time.OffsetDateTime.now());
+        if (recent != null && recent >= 5) {
+            throw BusinessException.tooManyRequests("评论过于频繁，请稍后再试");
+        }
     }
 
     private boolean matchesSensitiveWord(String content, String word, String matchType) {

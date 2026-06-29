@@ -41,7 +41,16 @@
           </div>
           <p class="guestbook-item-content">{{ entry.content }}</p>
           <div class="guestbook-item-footer">
-            <span v-if="entry.likeCount > 0">{{ entry.likeCount }} 赞</span>
+            <button
+              class="comment-action-btn"
+              :class="{ 'is-active': entryLiked[entry.id] }"
+              type="button"
+              :disabled="!canPost"
+              @click="toggleEntryLike(entry)"
+            >
+              <Heart :size="14" />
+              {{ entry.likeCount }}
+            </button>
           </div>
         </article>
       </div>
@@ -52,9 +61,9 @@
 <script setup lang="ts">
 // 导入 Composition API 与 Lucide 图标资源
 import { computed, onMounted, ref } from 'vue'
-import { LoaderCircle } from '@lucide/vue'
+import { Heart, LoaderCircle } from '@lucide/vue'
 
-import { fetchGuestbook, submitGuestbook } from '@/services/content'
+import { fetchGuestbook, fetchLikeStatus, likeTarget, submitGuestbook, unlikeTarget } from '@/services/content'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import { formatDateTimeToSecond } from '@/shared/datetime'
 import { useSessionStore } from '@/shared/sessionStore'
@@ -72,6 +81,7 @@ interface GuestbookEntry {
 // 声明留言板所需的表单数据和响应式列表
 const root = ref<HTMLElement | null>(null)
 const entries = ref<GuestbookEntry[]>([])
+const entryLiked = ref<Record<number, boolean>>({})
 const draft = ref('')
 const formNotice = ref('')
 const isLoading = ref(true)
@@ -81,12 +91,44 @@ usePageReveal(root)
 
 const canPost = computed(() => Boolean(session.accessToken))
 
+async function toggleEntryLike(entry: GuestbookEntry) {
+  if (!canPost.value) return
+  const liked = entryLiked.value[entry.id]
+  try {
+    if (liked) {
+      await unlikeTarget('MESSAGE', entry.id)
+      entryLiked.value = { ...entryLiked.value, [entry.id]: false }
+      entry.likeCount = Math.max(0, entry.likeCount - 1)
+    } else {
+      await likeTarget('MESSAGE', entry.id)
+      entryLiked.value = { ...entryLiked.value, [entry.id]: true }
+      entry.likeCount += 1
+    }
+  } catch {
+    // ignore
+  }
+}
+
+async function loadEntryLikes() {
+  if (!canPost.value || entries.value.length === 0) return
+  const statuses: Record<number, boolean> = {}
+  await Promise.all(entries.value.map(async (entry) => {
+    try {
+      statuses[entry.id] = await fetchLikeStatus('MESSAGE', entry.id)
+    } catch {
+      statuses[entry.id] = false
+    }
+  }))
+  entryLiked.value = statuses
+}
+
 // 异步拉取留言板审核通过的已公开留言列表数据
 async function loadEntries() {
   isLoading.value = true
   try {
     const page = await fetchGuestbook({ pageSize: 50 })
     entries.value = page.records
+    await loadEntryLikes()
   } catch {
     entries.value = []
   } finally {
@@ -211,8 +253,29 @@ onMounted(loadEntries)
 
 .guestbook-item-footer {
   margin-top: 8px;
-  color: var(--tone-faint);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.comment-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border: none;
+  background: transparent;
+  color: var(--tone-muted);
+  cursor: pointer;
   font-size: 12px;
+}
+
+.comment-action-btn:hover {
+  color: var(--tone-primary);
+}
+
+.comment-action-btn.is-active {
+  color: var(--tone-primary);
 }
 
 .inline-notice {
