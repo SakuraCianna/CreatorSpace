@@ -842,6 +842,39 @@ export async function fetchAdminOperationLogs(options: OperationLogQuery = {}): 
   )
   return response.data
 }
+// 创建后台 AI 助手任务
+export async function createAiTask(payload: AiTaskPayload): Promise<AiTaskSummary> {
+  const response = await requestJson<ApiEnvelope<AiTaskSummary>>('/api/admin/ai/tasks', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return response.data
+}
+
+// 查询 AI 建议列表
+export async function fetchAiSuggestions(options: {
+  status?: AiSuggestionStatus | 'ALL'
+  page?: number
+  pageSize?: number
+} = {}): Promise<PageResponse<AiSuggestionSummary>> {
+  const params = new URLSearchParams()
+  if (options.status && options.status !== 'ALL') params.set('status', options.status)
+  if (options.page) params.set('page', String(options.page))
+  if (options.pageSize) params.set('pageSize', String(options.pageSize))
+  const query = params.toString()
+  const response = await requestJson<ApiEnvelope<PageResponse<AiSuggestionSummary>>>(
+    query ? `/api/admin/ai/suggestions?${query}` : '/api/admin/ai/suggestions',
+  )
+  return response.data
+}
+
+// 采纳或忽略 AI 建议
+export async function updateAiSuggestionStatus(id: number, action: 'adopt' | 'ignore'): Promise<AiSuggestionSummary> {
+  const response = await requestJson<ApiEnvelope<AiSuggestionSummary>>(`/api/admin/ai/suggestions/${id}/${action}`, {
+    method: 'PUT',
+  })
+  return response.data
+}
 
 // 查询公开留言
 export async function fetchGuestbook(options: {

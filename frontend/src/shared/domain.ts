@@ -455,6 +455,56 @@ export interface OperationLogSummary {
   detailJson?: string | null
   createdAt: string
 }
+export type AiTaskType = 'SUMMARY' | 'TAGS' | 'REVIEW' | 'OPERATION' | 'GENERAL'
+export type AiTargetType = 'ARTICLE' | 'PROJECT' | 'COMMENT' | ''
+export type AiTaskStatus = 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'DISCARDED'
+export type AiSuggestionStatus = 'PENDING' | 'ADOPTED' | 'REJECTED' | 'EXPIRED'
+
+export interface AiTaskPayload {
+  taskType: AiTaskType
+  targetType?: AiTargetType
+  targetId?: number | null
+  prompt: string
+}
+
+export interface AiMessageSummary {
+  id: number
+  taskId: number
+  role: 'SYSTEM' | 'USER' | 'ASSISTANT' | 'TOOL' | string
+  content: string
+  tokenCount?: number | null
+  createdAt: string
+}
+
+export interface AiSuggestionSummary {
+  id: number
+  taskId?: number | null
+  targetType?: string | null
+  targetId?: number | null
+  suggestionType: string
+  content: string
+  status: AiSuggestionStatus | string
+  adoptedBy?: number | null
+  adoptedAt?: string | null
+  createdAt: string
+}
+
+export interface AiTaskSummary {
+  id: number
+  taskType: string
+  targetType?: string | null
+  targetId?: number | null
+  prompt: string
+  status: AiTaskStatus | string
+  provider: string
+  modelName?: string | null
+  createdBy?: number | null
+  createdAt: string
+  updatedAt: string
+  messages: AiMessageSummary[]
+  suggestions: AiSuggestionSummary[]
+  notice?: string | null
+}
 
 export interface SiteStatisticsSummary {
   totalPv: number

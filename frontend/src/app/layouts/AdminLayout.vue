@@ -102,6 +102,7 @@ const navItems = [
   { to: '/admin/themes', label: '主题', icon: Palette },
   { to: '/admin/content-rules', label: '规则', icon: ShieldCheck },
   { to: '/admin/operation-logs', label: '日志', icon: ScrollText },
+  { to: '/admin/ai-assistant', label: 'AI 助手', icon: Sparkles },
   { to: '/admin/settings', label: '设置', icon: Settings },
 ]
 
