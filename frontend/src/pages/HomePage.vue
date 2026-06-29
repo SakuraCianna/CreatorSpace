@@ -2288,12 +2288,24 @@ function renderFooter() {
 }
 
 .cs-home :deep(.cs-section) {
+  --section-ink: #f8fbff;
+  --section-muted: rgba(232, 239, 255, 0.82);
+  --section-faint: rgba(206, 216, 245, 0.62);
+  --section-line: rgba(150, 171, 230, 0.18);
+  --cs-ink: var(--section-ink);
+  --cs-ink-dim: var(--section-muted);
+  --cs-ink-faint: var(--section-faint);
+  --cs-line: var(--section-line);
+  --cs-line-soft: color-mix(in srgb, var(--section-line) 72%, transparent);
+  --cs-accent: var(--section-accent, #6ea8ff);
   position: relative;
   z-index: 1;
+  isolation: isolate;
   width: 100%;
   max-width: var(--cs-maxw);
   margin: 0 auto;
   padding-inline: var(--cs-edge);
+  color: var(--section-ink);
 }
 
 .cs-home :deep(.cs-eyebrow) {
@@ -2305,14 +2317,14 @@ function renderFooter() {
   font-size: 12px;
   letter-spacing: 0.32em;
   text-transform: uppercase;
-  color: var(--cs-ink-faint);
+  color: var(--section-faint, var(--cs-ink-faint));
 }
 
 .cs-home :deep(.cs-eyebrow::before) {
   content: '';
   width: 26px;
   height: 1px;
-  background: linear-gradient(90deg, var(--cs-accent), transparent);
+  background: linear-gradient(90deg, var(--section-accent, var(--cs-accent)), transparent);
 }
 
 
@@ -2351,6 +2363,11 @@ function renderFooter() {
 
 
 .cs-home :deep(.cs-hero) {
+  --section-ink: #f7fbff;
+  --section-muted: rgba(226, 235, 255, 0.82);
+  --section-faint: rgba(206, 216, 245, 0.62);
+  --section-line: rgba(150, 171, 230, 0.18);
+  --section-accent: #6ea8ff;
   position: relative;
   display: flex;
   align-items: center;
@@ -2624,7 +2641,7 @@ function renderFooter() {
 .cs-home :deep(.cs-head__title) {
   max-width: 16ch;
   margin: 14px 0 0;
-  color: #f8fbff;
+  color: var(--section-ink, #f8fbff);
   font-family: var(--cs-font-display);
   font-weight: 600;
   font-size: clamp(32px, 5vw, 66px);
@@ -2638,7 +2655,7 @@ function renderFooter() {
   margin: 0;
   font-size: 15px;
   line-height: 1.7;
-  color: var(--cs-ink-dim);
+  color: var(--section-muted, var(--cs-ink-dim));
 }
 
 .cs-home :deep(.cs-articles .cs-head__title) {
@@ -2683,6 +2700,14 @@ function renderFooter() {
   grid-template-columns: repeat(6, 1fr);
   gap: clamp(14px, 1.6vw, 22px);
   padding-bottom: clamp(60px, 10vh, 130px);
+}
+
+.cs-home :deep(.cs-articles) {
+  --section-ink: #f8fbff;
+  --section-muted: rgba(236, 242, 255, 0.78);
+  --section-faint: rgba(206, 216, 245, 0.62);
+  --section-line: rgba(150, 171, 230, 0.2);
+  --section-accent: #6ea8ff;
 }
 
 .cs-home :deep(.cs-article) {
@@ -2885,7 +2910,20 @@ function renderFooter() {
 
 
 .cs-home :deep(.cs-gallery) {
+  --section-ink: #f8fbff;
+  --section-muted: rgba(236, 242, 255, 0.78);
+  --section-faint: rgba(206, 216, 245, 0.62);
+  --section-line: rgba(150, 171, 230, 0.2);
+  --section-accent: #74adff;
+  --cs-ink: var(--section-ink);
+  --cs-ink-dim: var(--section-muted);
+  --cs-ink-faint: var(--section-faint);
+  --cs-line: var(--section-line);
+  --cs-line-soft: color-mix(in srgb, var(--section-line) 72%, transparent);
+  --cs-accent: var(--section-accent, #74adff);
   position: relative;
+  isolation: isolate;
+  color: var(--section-ink);
 }
 
 .cs-home :deep(.cs-gallery__pin) {
@@ -3127,6 +3165,11 @@ function renderFooter() {
 
 
 .cs-home :deep(.cs-agents) {
+  --section-ink: #f8fbff;
+  --section-muted: rgba(232, 239, 255, 0.82);
+  --section-faint: rgba(206, 216, 245, 0.62);
+  --section-line: rgba(150, 171, 230, 0.18);
+  --section-accent: #54e6c8;
   position: relative;
   padding-bottom: clamp(70px, 11vh, 150px);
 }
@@ -3311,6 +3354,14 @@ function renderFooter() {
   padding-bottom: clamp(56px, 8vh, 108px);
 }
 
+.cs-home :deep(.cs-recent) {
+  --section-ink: #f8fbff;
+  --section-muted: rgba(232, 239, 255, 0.8);
+  --section-faint: rgba(206, 216, 245, 0.6);
+  --section-line: rgba(150, 171, 230, 0.18);
+  --section-accent: #6ea8ff;
+}
+
 .cs-home :deep(.cs-recent-card) {
   display: grid;
   min-height: 190px;
@@ -3361,6 +3412,14 @@ function renderFooter() {
   padding-bottom: clamp(60px, 9vh, 120px);
 }
 
+.cs-home :deep(.cs-tag-cloud) {
+  --section-ink: #f8fbff;
+  --section-muted: rgba(232, 239, 255, 0.8);
+  --section-faint: rgba(206, 216, 245, 0.6);
+  --section-line: rgba(150, 171, 230, 0.18);
+  --section-accent: #54e6c8;
+}
+
 .cs-home :deep(.cs-cloud-tag) {
   display: inline-flex;
   align-items: center;
@@ -3386,6 +3445,14 @@ function renderFooter() {
   grid-auto-rows: 150px;
   gap: clamp(12px, 1.4vw, 18px);
   padding-bottom: clamp(60px, 10vh, 130px);
+}
+
+.cs-home :deep(.cs-wall) {
+  --section-ink: #f8fbff;
+  --section-muted: rgba(232, 239, 255, 0.8);
+  --section-faint: rgba(206, 216, 245, 0.6);
+  --section-line: rgba(150, 171, 230, 0.18);
+  --section-accent: #b18cff;
 }
 
 .cs-home :deep(.cs-frag) {
@@ -3527,6 +3594,14 @@ function renderFooter() {
   gap: clamp(20px, 3vw, 48px);
   align-items: start;
   padding-bottom: clamp(70px, 11vh, 150px);
+}
+
+.cs-home :deep(.cs-themes) {
+  --section-ink: #f8fbff;
+  --section-muted: rgba(232, 239, 255, 0.8);
+  --section-faint: rgba(206, 216, 245, 0.6);
+  --section-line: rgba(150, 171, 230, 0.18);
+  --section-accent: #ffb43f;
 }
 
 .cs-home :deep(.cs-themes__list) {
@@ -3694,8 +3769,21 @@ function renderFooter() {
 
 
 .cs-home :deep(.cs-cta-wrap) {
+  --section-ink: #f8fbff;
+  --section-muted: rgba(232, 239, 255, 0.8);
+  --section-faint: rgba(206, 216, 245, 0.58);
+  --section-line: rgba(150, 171, 230, 0.18);
+  --section-accent: #6ea8ff;
+  --cs-ink: var(--section-ink);
+  --cs-ink-dim: var(--section-muted);
+  --cs-ink-faint: var(--section-faint);
+  --cs-line: var(--section-line);
+  --cs-line-soft: color-mix(in srgb, var(--section-line) 72%, transparent);
+  --cs-accent: var(--section-accent, #6ea8ff);
   position: relative;
   overflow: hidden;
+  isolation: isolate;
+  color: var(--section-ink);
 }
 
 .cs-home :deep(.cs-cta) {
@@ -3734,16 +3822,21 @@ function renderFooter() {
   z-index: 1;
   max-width: 12ch;
   margin: 0;
+  color: var(--section-ink);
   font-family: var(--cs-font-display);
-  font-weight: 600;
+  font-weight: 760;
   font-size: clamp(36px, 6vw, 86px);
   line-height: 1.12;
   letter-spacing: 0;
+  text-shadow:
+    0 18px 46px rgba(0, 0, 0, 0.42),
+    0 0 40px rgba(110, 168, 255, 0.16);
 }
 
 
 .cs-home :deep(.cs-char) {
   display: inline-block;
+  color: var(--section-ink);
   transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), color 0.3s ease;
   will-change: transform;
 }
@@ -3760,7 +3853,7 @@ function renderFooter() {
   margin: 0;
   font-size: 16px;
   line-height: 1.7;
-  color: var(--cs-ink-dim);
+  color: var(--section-muted);
 }
 
 .cs-home :deep(.cs-cta__action) {
@@ -3780,15 +3873,15 @@ function renderFooter() {
   max-width: var(--cs-maxw);
   margin: 0 auto;
   padding: 36px var(--cs-edge) 48px;
-  border-top: 1px solid var(--cs-line-soft);
+  border-top: 1px solid var(--section-line);
   font-family: var(--cs-font-mono);
   font-size: 12px;
   letter-spacing: 0.06em;
-  color: var(--cs-ink-faint);
+  color: var(--section-faint);
 }
 
 .cs-home :deep(.cs-footer a) {
-  color: var(--cs-ink-dim);
+  color: var(--section-muted);
   transition: color 0.25s ease;
 }
 
@@ -3803,8 +3896,21 @@ function renderFooter() {
 
 
 .cs-home :deep(.cs-marquee-sec) {
+  --section-ink: #f8fbff;
+  --section-muted: rgba(232, 239, 255, 0.8);
+  --section-faint: rgba(206, 216, 245, 0.6);
+  --section-line: rgba(150, 171, 230, 0.18);
+  --section-accent: #6ea8ff;
+  --cs-ink: var(--section-ink);
+  --cs-ink-dim: var(--section-muted);
+  --cs-ink-faint: var(--section-faint);
+  --cs-line: var(--section-line);
+  --cs-line-soft: color-mix(in srgb, var(--section-line) 72%, transparent);
+  --cs-accent: var(--section-accent, #6ea8ff);
   position: relative;
   z-index: 1;
+  isolation: isolate;
+  color: var(--section-ink);
   padding: clamp(40px, 8vh, 90px) 0 clamp(70px, 12vh, 150px);
 }
 
