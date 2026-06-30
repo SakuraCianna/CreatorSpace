@@ -1,6 +1,8 @@
 import { appConfig } from '@/app/config'
 
 export const ACCESS_TOKEN_KEY = 'creatorspace.accessToken'
+export const REFRESH_TOKEN_KEY = 'creatorspace.refreshToken'
+export const USER_SUMMARY_KEY = 'creatorspace.currentUser'
 
 export class HttpError extends Error {
   constructor(
@@ -15,6 +17,34 @@ export class HttpError extends Error {
   }
 }
 
+// 清空本地缓存的登录凭证，当后端返回 401 时自动调用
+export function clearAuth(): void {
+  window.localStorage.removeItem(ACCESS_TOKEN_KEY)
+  window.localStorage.removeItem(REFRESH_TOKEN_KEY)
+  window.localStorage.removeItem(USER_SUMMARY_KEY)
+  window.dispatchEvent(new CustomEvent('auth:cleared'))
+}
+
+// 公开接口路径前缀列表——这些接口不需要 token，带上过期 token 反而可能被 Spring Security 误拦
+const PUBLIC_API_PREFIXES = [
+  '/api/auth',
+  '/api/articles',
+  '/api/projects',
+  '/api/inspirations',
+  '/api/search',
+  '/api/comments',
+  '/api/site',
+  '/api/theme',
+  '/api/themes',
+  '/api/categories',
+  '/api/tags',
+  '/api/health',
+]
+
+function isPublicApi(path: string): boolean {
+  return PUBLIC_API_PREFIXES.some((prefix) => path.startsWith(prefix))
+}
+
 // 发送 JSON 请求并处理超时、请求头和统一错误信息
 // 安全发送 JSON 请求并自动挂载授权 Token 请求头, 针对超时及后端连接异常进行统一拦截处理
 export async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
@@ -22,7 +52,8 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
   const timeoutId = window.setTimeout(() => controller.abort(), appConfig.apiTimeoutMs)
   const requestPath = path.startsWith('/') ? path : `/${path}`
   const method = init?.method?.toUpperCase() ?? 'GET'
-  const token = window.localStorage.getItem(ACCESS_TOKEN_KEY)
+  const isPublicGet = method === 'GET' && isPublicApi(requestPath)
+  const token = isPublicGet ? null : window.localStorage.getItem(ACCESS_TOKEN_KEY)
   const isFormData = init?.body instanceof FormData
 
   try {
@@ -39,6 +70,9 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
 
     if (!response.ok) {
       const backendMessage = await readErrorMessage(response)
+      if (response.status === 401 && !isPublicApi(requestPath)) {
+        clearAuth()
+      }
       throw new HttpError(
         buildHttpErrorMessage(response.status, requestPath, method, backendMessage),
         response.status,

@@ -154,7 +154,7 @@
           <div class="reaction-row">
             <button
               class="icon-button"
-              :class="{ 'is-active': liked }"
+              :class="{ 'is-liked': liked }"
               type="button"
               :disabled="!canComment"
               @click="toggleLike"
@@ -164,7 +164,7 @@
             </button>
             <button
               class="icon-button"
-              :class="{ 'is-active': favorited }"
+              :class="{ 'is-favorited': favorited }"
               type="button"
               :disabled="!canComment"
               @click="toggleFavorite"
@@ -194,6 +194,9 @@
                 <strong>{{ comment.username }}</strong>
                 <span class="comment-time">{{ formatDate(comment.createdAt) }}</span>
               </div>
+              <p v-if="comment.replyToUsername" class="comment-reply-to">
+                <Reply :size="12" /> 回复 {{ comment.replyToUsername }}
+              </p>
               <p class="comment-body">{{ comment.content }}</p>
               <div class="comment-actions">
                 <button class="comment-action-btn" type="button" :disabled="!canComment" @click="replyTo(comment)">
@@ -235,6 +238,7 @@ import {
   LoaderCircle,
   MessageCircle,
   PlayCircle,
+  Reply,
   Sparkles,
 } from '@lucide/vue'
 
@@ -247,7 +251,7 @@ import {
   unfavoriteTarget,
   unlikeTarget,
 } from '@/services/content'
-import { toUserMessage } from '@/services/http'
+import { HttpError, toUserMessage } from '@/services/http'
 import { useCinematicPageMotion } from '@/shared/composables/useCinematicPageMotion'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import { toCssImageUrl } from '@/shared/cssImage'
@@ -398,8 +402,7 @@ async function postComment() {
     return
   }
   try {
-    // 调用通用评论发表接口, 绑定目标为作品且可挂载父评论 ID 形成回复嵌套
-    await submitComment({
+    const result = await submitComment({
       targetType: 'PROJECT',
       targetId: project.value.id,
       parentId: replyTarget.value?.id,
@@ -407,11 +410,16 @@ async function postComment() {
     })
     commentDraft.value = ''
     replyTarget.value = null
-    commentNotice.value = '评论已提交，审核通过后会公开展示'
-    // 保持提示信息并重新拉取列表以表现最新状态
-    await loadComments({ keepCurrentNotice: true })
+    if (result.status === 'APPROVED') {
+      commentNotice.value = '评论已发布'
+      comments.value.unshift(result)
+    } else {
+      commentNotice.value = '评论已提交，等待审核'
+    }
   } catch (error) {
-    commentNotice.value = toUserMessage(error, '评论提交失败')
+    commentNotice.value = error instanceof HttpError && error.backendMessage
+      ? error.backendMessage
+      : toUserMessage(error, '评论提交失败')
   }
 }
 
@@ -1117,10 +1125,32 @@ watch(slug, loadProject)
   opacity: 0.58;
 }
 
-.reaction-row .icon-button.is-active {
-  color: var(--tone-primary);
-  background: rgba(49, 91, 255, 0.1);
-  border-color: rgba(49, 91, 255, 0.3);
+.reaction-row .icon-button.is-liked {
+  color: #e0455a;
+  background: rgba(224, 69, 90, 0.1);
+  border-color: rgba(224, 69, 90, 0.3);
+}
+.reaction-row .icon-button.is-liked svg {
+  stroke: #e0455a;
+  fill: #e0455a;
+}
+
+.reaction-row .icon-button.is-favorited {
+  color: var(--tone-violet);
+  background: rgba(103, 80, 164, 0.1);
+  border-color: rgba(103, 80, 164, 0.3);
+}
+.reaction-row .icon-button.is-favorited svg {
+  stroke: var(--tone-violet);
+  fill: var(--tone-violet);
+}
+
+.comment-action-btn.is-active {
+  color: #e0455a;
+}
+.comment-action-btn.is-active svg {
+  stroke: #e0455a;
+  fill: #e0455a;
 }
 
 .comment-form {
@@ -1143,6 +1173,15 @@ watch(slug, loadProject)
 .comment-list {
   display: grid;
   gap: 10px;
+}
+
+.comment-reply-to {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 2px 0 4px;
+  font-size: 12px;
+  color: var(--tone-ink-2);
 }
 
 .comment-item {

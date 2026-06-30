@@ -154,6 +154,7 @@ public class ArticleServiceImpl implements ArticleService {
     public ArticleVO submitForReview(Long id, Long userId) {
         ArticleEntity article = requiredOwnedArticle(id, userId);
         ensureCreatorEditable(article);
+        ensureArticleContentAllowed(article);
         OffsetDateTime submittedAt = OffsetDateTime.now();
         articleMapper.updateReviewState(
                 id,
@@ -396,13 +397,19 @@ public class ArticleServiceImpl implements ArticleService {
         return new PageResponse<>(records, result.getCurrent(), result.getSize(), result.getTotal());
     }
 
-    // 按 URL 标识读取公开文章详情，并自增阅读量。
+    // 按 URL 标识读取文章详情，根据用户权限控制可见性。
     @Override
-    public ArticleVO getPublicBySlug(String slug, HttpServletRequest request) {
-        ArticleEntity article = articleMapper.selectOne(publicArticleQuery()
-                .eq(ArticleEntity::getSlug, normalizeSlug(slug)));
+    public ArticleVO getPublicBySlug(String slug, HttpServletRequest request, Long userId) {
+        ArticleEntity article = articleMapper.selectOne(
+                new LambdaQueryWrapper<ArticleEntity>()
+                        .eq(ArticleEntity::getStatus, ContentConstants.STATUS_PUBLISHED)
+                        .eq(ArticleEntity::getSlug, normalizeSlug(slug)));
         if (article == null) {
             throw BusinessException.notFound("文章不存在或不可见");
+        }
+        if (!com.creatorspace.common.util.ArticlePermissionHelper.canAccess(
+                jdbcTemplate, article.getId(), userId)) {
+            throw BusinessException.forbidden("文章不存在或无权访问");
         }
         if (visitLogService.recordContentVisit("ARTICLE", article.getId(), request)) {
             incrementViewCount(article.getId());
@@ -489,6 +496,37 @@ public class ArticleServiceImpl implements ArticleService {
         return new LambdaQueryWrapper<ArticleEntity>()
                 .eq(ArticleEntity::getStatus, ContentConstants.STATUS_PUBLISHED)
                 .eq(ArticleEntity::getPrivacyType, ContentConstants.PRIVACY_PUBLIC);
+    }
+
+    // 提交审核时检查文章内容是否包含敏感词。
+    private void ensureArticleContentAllowed(ArticleEntity article) {
+        String combined = (article.getTitle() + " " + article.getSummary() + " " + article.getContentMarkdown()).toLowerCase();
+        List<String> words = jdbcTemplate.query("""
+                        select word, match_type, severity
+                        from sensitive_words
+                        where enabled = true and severity = 'REJECT'
+                        order by id
+                        """,
+                (rs, rowNum) -> rs.getString("word") + "|" + rs.getString("match_type"));
+        for (String entry : words) {
+            String[] parts = entry.split("\\|", 2);
+            String word = parts[0];
+            String matchType = parts[1];
+            boolean matched = switch (matchType) {
+                case "EXACT" -> combined.contains(word.toLowerCase());
+                case "REGEX" -> {
+                    try {
+                        yield java.util.regex.Pattern.compile(word, java.util.regex.Pattern.CASE_INSENSITIVE).matcher(combined).find();
+                    } catch (java.util.regex.PatternSyntaxException e) {
+                        yield true;
+                    }
+                }
+                default -> combined.contains(word.toLowerCase());
+            };
+            if (matched) {
+                throw BusinessException.badRequest("文章包含敏感内容，请修改后重新提交");
+            }
+        }
     }
 
     // 确认内容标识未被占用。

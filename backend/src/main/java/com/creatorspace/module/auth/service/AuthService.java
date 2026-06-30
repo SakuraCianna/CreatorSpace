@@ -18,4 +18,10 @@ public interface AuthService {
 
     // 校验管理员身份并签发访问令牌。
     AuthTokenVO loginAdmin(LoginRequest request);
+
+    // 使用刷新令牌获取新的访问令牌和刷新令牌。
+    AuthTokenVO refresh(String refreshToken);
+
+    // 登出，吊销指定的刷新令牌。
+    void logout(String refreshToken);
 }

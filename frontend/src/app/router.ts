@@ -1,8 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 
-import { ACCESS_TOKEN_KEY } from "@/services/http";
+import { ACCESS_TOKEN_KEY, USER_SUMMARY_KEY } from "@/services/http";
 import { normalizeAuthRedirect } from "@/shared/authRedirect";
-import { USER_SUMMARY_KEY } from "@/shared/sessionStore";
 
 // 统一路由表配置, 包含前端公共页面、后台管理页和创作者中心页签的路径分配与布局映射
 const router = createRouter({
@@ -67,6 +66,12 @@ const router = createRouter({
       name: "guestbook",
       component: () => import("@/pages/GuestbookPage.vue"),
       meta: { layout: "public" },
+    },
+    {
+      path: "/my-comments",
+      name: "my-comments",
+      component: () => import("@/pages/MyCommentsPage.vue"),
+      meta: { layout: "public", requiresAuth: true },
     },
     {
       path: "/register",

@@ -106,7 +106,7 @@ async function submitLogin() {
       password: form.password,
     }
     const token = modeSnapshot === 'ADMIN' ? await loginAdmin(payload) : await loginUser(payload)
-    session.setSession(token.accessToken, token.user)
+    session.setSession(token.accessToken, token.user, token.refreshToken)
     form.password = ''
     router.push(modeSnapshot === 'ADMIN' ? readRedirectPath() : readPublicRedirectPath())
   } catch (error) {
@@ -119,37 +119,14 @@ async function submitLogin() {
 }
 
 // 根据后端返回的 Http 状态码及错误信息生成友好的用户提示文案
-function loginErrorMessage(error: unknown, mode: 'ADMIN' | 'USER') {
+function loginErrorMessage(error: unknown, _mode: 'ADMIN' | 'USER') {
   if (!(error instanceof HttpError)) {
-    return mode === 'ADMIN'
-      ? '管理员登录失败：前端没有拿到明确错误，请检查浏览器控制台和后端日志。'
-      : '登录失败：前端没有拿到明确错误，请检查浏览器控制台和后端日志。'
+    return '登录失败，请稍后重试'
   }
   if (error.status === 0) {
-    return `登录请求没有连上后端：${error.message}`
+    return '登录请求没有连上后端，请确认后端服务是否启动'
   }
-  const backendText = describeBackendError(error)
-  if (mode === 'ADMIN') {
-    if (error.status === 401) {
-      return `管理员登录失败：${backendText}。这是账号或密码校验失败，不是后台权限问题。`
-    }
-    if (error.status === 403) {
-      return `管理员登录失败：${backendText}。这代表密码已通过，但账号被禁用、缺少 ADMIN 角色，或登录态和后台权限不匹配。`
-    }
-    return `管理员登录失败：${error.message}`
-  }
-  if (error.status === 401) {
-    return `普通用户登录失败：${backendText}。请检查账号是否存在以及密码是否输入正确。`
-  }
-  if (error.status === 403) {
-    return `普通用户登录失败：${backendText}。账号存在但当前不可用，可能已被禁用或锁定。`
-  }
-  return toUserMessage(error, '登录失败')
-}
-
-function describeBackendError(error: HttpError) {
-  const backendMessage = error.backendMessage.trim()
-  return backendMessage ? `后端返回：${backendMessage}` : `后端返回 ${error.status}`
+  return error.backendMessage || toUserMessage(error, '登录失败')
 }
 
 // 读取前台路径重定向地址, 避免管理员重定向去前台时被拦截

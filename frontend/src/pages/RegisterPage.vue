@@ -60,7 +60,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { LoaderCircle, UserPlus } from '@lucide/vue'
 
 import { registerUser } from '@/services/content'
-import { toUserMessage } from '@/services/http'
+import { HttpError, toUserMessage } from '@/services/http'
 import { normalizeAuthRedirect } from '@/shared/authRedirect'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import { useSiteIdentity } from '@/shared/siteIdentity'
@@ -134,7 +134,10 @@ async function submitRegister() {
     }, 900)
   } catch (error) {
     if (isCurrentRegisterAttempt(attemptId, username)) {
-      setMessage(toUserMessage(error, '注册失败，请稍后重试'), 'error')
+      const msg = error instanceof HttpError
+        ? (error.backendMessage || toUserMessage(error, '注册失败，请稍后重试'))
+        : '注册失败，请稍后重试'
+      setMessage(msg, 'error')
     }
   } finally {
     isSubmitting.value = false

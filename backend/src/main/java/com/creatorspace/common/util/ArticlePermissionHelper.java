@@ -6,7 +6,7 @@ public class ArticlePermissionHelper {
 
     public static boolean canAccess(JdbcTemplate jdbcTemplate, Long articleId, Long userId) {
         String privacyType = jdbcTemplate.query("""
-                        select a.privacy_type, a.author_id
+                        select a.privacy_type
                         from articles a
                         where a.id = ? and a.status = 'PUBLISHED'
                         """,
@@ -40,8 +40,8 @@ public class ArticlePermissionHelper {
 
     private static Long getAuthorId(JdbcTemplate jdbcTemplate, Long articleId) {
         return jdbcTemplate.query(
-                        "select author_id from articles where id = ?",
-                        (rs, rowNum) -> rs.getLong("author_id"),
+                        "select user_id from articles where id = ?",
+                        (rs, rowNum) -> rs.getLong("user_id"),
                         articleId).stream().findFirst().orElse(null);
     }
 
