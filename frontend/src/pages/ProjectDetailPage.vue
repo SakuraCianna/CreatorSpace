@@ -28,7 +28,7 @@
           <div class="hero-cover" aria-hidden="true">
             <img
               v-if="showProjectCover"
-              :src="project.coverUrl"
+              :src="projectCoverSrc"
               alt=""
               loading="lazy"
               @error="coverImageFailed = true"
@@ -338,7 +338,8 @@ const timeline = computed(() => detailExtras.value.timeline.length ? detailExtra
 // 合并常规的演示、代码、视频链接与后端自定义配置的扩展链接列表, 并去除重复项
 const resourceLinks = computed(() => buildResourceLinks(project.value, detailExtras.value.resources))
 
-const showProjectCover = computed(() => Boolean(project.value?.coverUrl) && !coverImageFailed.value)
+const projectCoverSrc = computed(() => project.value?.coverUrl?.trim() ?? '')
+const showProjectCover = computed(() => Boolean(projectCoverSrc.value) && !coverImageFailed.value)
 
 // 主函数: 根据路由参数中的唯一 slug 标识向后端获取作品的全部详情数据, 并在就绪后拉取评论列表并播放入场动效
 async function loadProject() {

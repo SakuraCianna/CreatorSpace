@@ -1,12 +1,17 @@
 package com.creatorspace.module.dashboard;
 
+import com.creatorspace.common.cache.CacheKeys;
+import com.creatorspace.common.cache.RedisJsonCacheService;
 import com.creatorspace.common.result.ApiResponse;
+import com.fasterxml.jackson.core.type.TypeReference;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * 后台运营概览接口，提供 CMS 首页需要的内容、互动和访问摘要。
@@ -14,17 +19,27 @@ import java.util.List;
 @RestController
 public class DashboardController {
 
+    private static final Duration OVERVIEW_CACHE_TTL = Duration.ofSeconds(45);
+    private static final Duration HOT_CONTENT_CACHE_TTL = Duration.ofMinutes(2);
+    private static final Duration HOT_SEARCH_CACHE_TTL = Duration.ofMinutes(2);
+
     private final JdbcTemplate jdbcTemplate;
+    private final RedisJsonCacheService redisCacheService;
 
     // 通过聚合 SQL 生成后台概览，避免后台页面继续依赖硬编码样例。
-    public DashboardController(JdbcTemplate jdbcTemplate) {
+    public DashboardController(JdbcTemplate jdbcTemplate, RedisJsonCacheService redisCacheService) {
         this.jdbcTemplate = jdbcTemplate;
+        this.redisCacheService = redisCacheService;
     }
 
     // 返回后台仪表盘概览数据。
     @GetMapping("/api/admin/dashboard/overview")
     public ApiResponse<DashboardOverviewVO> overview() {
-        return ApiResponse.ok(new DashboardOverviewVO(
+        return ApiResponse.ok(cached(CacheKeys.DASHBOARD_OVERVIEW, DashboardOverviewVO.class, OVERVIEW_CACHE_TTL, this::buildOverview));
+    }
+
+    private DashboardOverviewVO buildOverview() {
+        return new DashboardOverviewVO(
                 List.of(
                         metric("文章总数", count("articles"), "公开/私密/草稿统一管理"),
                         metric("作品总数", count("portfolio_projects"), "作品档案、截图和外链"),
@@ -46,7 +61,7 @@ public class DashboardController {
                 visitTrend(),
                 searchTrend(),
                 recentActivities()
-        ));
+        );
     }
 
     // 读取全表数量。
@@ -68,6 +83,11 @@ public class DashboardController {
 
     // 热门文章：仅统计公开已发布内容，优先读取聚合统计表。
     private List<ContentRankVO> hotArticles() {
+        return cached(CacheKeys.HOT_ARTICLES, new TypeReference<List<ContentRankVO>>() {
+        }, HOT_CONTENT_CACHE_TTL, this::queryHotArticles);
+    }
+
+    private List<ContentRankVO> queryHotArticles() {
         return jdbcTemplate.query("""
                         with ranked_articles as (
                             select a.id,
@@ -108,6 +128,11 @@ public class DashboardController {
 
     // 热门作品：仅统计公开可见作品，优先读取聚合统计表。
     private List<ContentRankVO> hotProjects() {
+        return cached(CacheKeys.HOT_PROJECTS, new TypeReference<List<ContentRankVO>>() {
+        }, HOT_CONTENT_CACHE_TTL, this::queryHotProjects);
+    }
+
+    private List<ContentRankVO> queryHotProjects() {
         return jdbcTemplate.query("""
                         with ranked_projects as (
                             select p.id,
@@ -178,6 +203,11 @@ public class DashboardController {
 
     // 热门搜索关键词 top 10。
     private List<SearchKeywordVO> hotSearchKeywords() {
+        return cached(CacheKeys.HOT_SEARCH_KEYWORDS, new TypeReference<List<SearchKeywordVO>>() {
+        }, HOT_SEARCH_CACHE_TTL, this::queryHotSearchKeywords);
+    }
+
+    private List<SearchKeywordVO> queryHotSearchKeywords() {
         return jdbcTemplate.query("""
                         select keyword, count(*) as search_count
                         from search_logs
@@ -204,6 +234,22 @@ public class DashboardController {
                         rs.getString("module"),
                         rs.getString("created_at")
                 ));
+    }
+
+    private <T> T cached(String key, Class<T> type, Duration ttl, Supplier<T> loader) {
+        return redisCacheService.read(key, type).orElseGet(() -> {
+            T value = loader.get();
+            redisCacheService.write(key, value, ttl);
+            return value;
+        });
+    }
+
+    private <T> T cached(String key, TypeReference<T> typeReference, Duration ttl, Supplier<T> loader) {
+        return redisCacheService.read(key, typeReference).orElseGet(() -> {
+            T value = loader.get();
+            redisCacheService.write(key, value, ttl);
+            return value;
+        });
     }
 
     public record DashboardOverviewVO(

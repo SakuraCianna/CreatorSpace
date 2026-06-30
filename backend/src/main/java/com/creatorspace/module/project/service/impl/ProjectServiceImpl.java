@@ -397,32 +397,58 @@ public class ProjectServiceImpl implements ProjectService {
 
     private List<String> queryRecommendedProjectTypesByUser(Long userId, int limit) {
         return jdbcTemplate.queryForList("""
-                        select p.project_type
-                        from portfolio_projects p
-                        left join content_statistics s on s.target_type = 'PROJECT' and s.target_id = p.id
-                        left join (
-                            select vl.target_id,
-                                   sum(34.0 / (1.0 + extract(epoch from (now() - vl.created_at)) / 86400.0 / 7.0)) as preference_score
-                            from visit_logs vl
-                            where vl.target_type = 'PROJECT'
-                              and vl.user_id = ?
-                              and vl.created_at >= now() - interval '30 days'
-                            group by vl.target_id
-                        ) preference on preference.target_id = p.id
-                        where p.status = 'VISIBLE'
-                        group by p.project_type
+                        with scored_projects as (
+                            select p.id,
+                                   p.project_type,
+                                   p.tech_stack,
+                                   coalesce(preference.preference_score, 0) as preference_score,
+                                   coalesce(actions.action_score, 0) as action_score,
+                                   case when p.is_recommend then 72 else 0 end as editorial_score,
+                                   (
+                                       ln(coalesce(s.view_count, 0) + 1) * 7
+                                       + ln(coalesce(s.like_count, 0) * 3 + 1) * 9
+                                       + ln(coalesce(s.favorite_count, 0) * 4 + 1) * 10
+                                       + ln(coalesce(s.comment_count, 0) * 5 + 1) * 8
+                                   ) as quality_score,
+                                   greatest(0, 14 - extract(epoch from (now() - coalesce(p.reviewed_at, p.submitted_at, now()))) / 86400.0 / 10.0) as freshness_score,
+                                   greatest(0, 120 - coalesce(p.sort_order, 120)) * 0.16 as curation_score
+                            from portfolio_projects p
+                            left join content_statistics s on s.target_type = 'PROJECT' and s.target_id = p.id
+                            left join (
+                                select vl.target_id,
+                                       sum(38.0 / (1.0 + extract(epoch from (now() - vl.created_at)) / 86400.0 / 6.0)) as preference_score
+                                from visit_logs vl
+                                where vl.target_type = 'PROJECT'
+                                  and vl.user_id = ?
+                                  and vl.created_at >= now() - interval '45 days'
+                                group by vl.target_id
+                            ) preference on preference.target_id = p.id
+                            left join (
+                                select target_id, sum(score) as action_score
+                                from (
+                                    select target_id, 30.0 as score from like_records where target_type = 'PROJECT' and user_id = ?
+                                    union all
+                                    select target_id, 42.0 as score from favorite_records where target_type = 'PROJECT' and user_id = ?
+                                    union all
+                                    select target_id, 24.0 as score from comments where target_type = 'PROJECT' and status = 'APPROVED' and user_id = ?
+                                ) action_rows
+                                group by target_id
+                            ) actions on actions.target_id = p.id
+                            where p.status = 'VISIBLE'
+                        )
+                        select project_type
+                        from scored_projects
+                        group by project_type
                         order by
-                            sum(coalesce(preference.preference_score, 0)
-                                + case when p.is_recommend then 80 else 0 end
-                                + coalesce(s.view_count, 0) * 0.35
-                                + coalesce(s.like_count, 0) * 3
-                                + coalesce(s.favorite_count, 0) * 4
-                                + coalesce(s.comment_count, 0) * 5
-                                + greatest(0, 40 - coalesce(p.sort_order, 9999)) * 0.1) desc,
-                            p.project_type asc
+                            sum(preference_score * 1.2 + action_score + editorial_score + quality_score + freshness_score + curation_score) desc,
+                            count(*) desc,
+                            project_type asc
                         limit ?
                         """,
                 String.class,
+                userId,
+                userId,
+                userId,
                 userId,
                 limit
         );
@@ -430,29 +456,40 @@ public class ProjectServiceImpl implements ProjectService {
 
     private List<String> queryRecommendedProjectTypesByVisitor(String ipAddress, int limit) {
         return jdbcTemplate.queryForList("""
-                        select p.project_type
-                        from portfolio_projects p
-                        left join content_statistics s on s.target_type = 'PROJECT' and s.target_id = p.id
-                        left join (
-                            select vl.target_id,
-                                   sum(18.0 / (1.0 + extract(epoch from (now() - vl.created_at)) / 86400.0 / 7.0)) as visitor_score
-                            from visit_logs vl
-                            where vl.target_type = 'PROJECT'
-                              and vl.ip_address = cast(? as inet)
-                              and vl.created_at >= now() - interval '7 days'
-                            group by vl.target_id
-                        ) visitor on visitor.target_id = p.id
-                        where p.status = 'VISIBLE'
-                        group by p.project_type
+                        with scored_projects as (
+                            select p.id,
+                                   p.project_type,
+                                   p.tech_stack,
+                                   coalesce(visitor.visitor_score, 0) as visitor_score,
+                                   case when p.is_recommend then 64 else 0 end as editorial_score,
+                                   (
+                                       ln(coalesce(s.view_count, 0) + 1) * 7
+                                       + ln(coalesce(s.like_count, 0) * 3 + 1) * 9
+                                       + ln(coalesce(s.favorite_count, 0) * 4 + 1) * 10
+                                       + ln(coalesce(s.comment_count, 0) * 5 + 1) * 8
+                                   ) as quality_score,
+                                   greatest(0, 12 - extract(epoch from (now() - coalesce(p.reviewed_at, p.submitted_at, now()))) / 86400.0 / 10.0) as freshness_score,
+                                   greatest(0, 120 - coalesce(p.sort_order, 120)) * 0.12 as curation_score
+                            from portfolio_projects p
+                            left join content_statistics s on s.target_type = 'PROJECT' and s.target_id = p.id
+                            left join (
+                                select vl.target_id,
+                                       sum(22.0 / (1.0 + extract(epoch from (now() - vl.created_at)) / 86400.0 / 5.0)) as visitor_score
+                                from visit_logs vl
+                                where vl.target_type = 'PROJECT'
+                                  and vl.ip_address = cast(? as inet)
+                                  and vl.created_at >= now() - interval '14 days'
+                                group by vl.target_id
+                            ) visitor on visitor.target_id = p.id
+                            where p.status = 'VISIBLE'
+                        )
+                        select project_type
+                        from scored_projects
+                        group by project_type
                         order by
-                            sum(coalesce(visitor.visitor_score, 0)
-                                + case when p.is_recommend then 70 else 0 end
-                                + coalesce(s.view_count, 0) * 0.35
-                                + coalesce(s.like_count, 0) * 3
-                                + coalesce(s.favorite_count, 0) * 4
-                                + coalesce(s.comment_count, 0) * 5
-                                + random() * 14) desc,
-                            p.project_type asc
+                            sum(visitor_score * 1.1 + editorial_score + quality_score + freshness_score + curation_score) + random() * 8 desc,
+                            count(*) desc,
+                            project_type asc
                         limit ?
                         """,
                 String.class,
@@ -463,32 +500,58 @@ public class ProjectServiceImpl implements ProjectService {
 
     private List<String> queryRecommendedTechStacksByUser(Long userId, int limit) {
         return jdbcTemplate.queryForList("""
+                        with scored_projects as (
+                            select p.id,
+                                   p.project_type,
+                                   p.tech_stack,
+                                   coalesce(preference.preference_score, 0) as preference_score,
+                                   coalesce(actions.action_score, 0) as action_score,
+                                   case when p.is_recommend then 58 else 0 end as editorial_score,
+                                   (
+                                       ln(coalesce(s.view_count, 0) + 1) * 5
+                                       + ln(coalesce(s.like_count, 0) * 3 + 1) * 7
+                                       + ln(coalesce(s.favorite_count, 0) * 4 + 1) * 8
+                                       + ln(coalesce(s.comment_count, 0) * 5 + 1) * 6
+                                   ) as quality_score,
+                                   greatest(0, 12 - extract(epoch from (now() - coalesce(p.reviewed_at, p.submitted_at, now()))) / 86400.0 / 10.0) as freshness_score
+                            from portfolio_projects p
+                            left join content_statistics s on s.target_type = 'PROJECT' and s.target_id = p.id
+                            left join (
+                                select vl.target_id,
+                                       sum(34.0 / (1.0 + extract(epoch from (now() - vl.created_at)) / 86400.0 / 6.0)) as preference_score
+                                from visit_logs vl
+                                where vl.target_type = 'PROJECT'
+                                  and vl.user_id = ?
+                                  and vl.created_at >= now() - interval '45 days'
+                                group by vl.target_id
+                            ) preference on preference.target_id = p.id
+                            left join (
+                                select target_id, sum(score) as action_score
+                                from (
+                                    select target_id, 26.0 as score from like_records where target_type = 'PROJECT' and user_id = ?
+                                    union all
+                                    select target_id, 36.0 as score from favorite_records where target_type = 'PROJECT' and user_id = ?
+                                    union all
+                                    select target_id, 20.0 as score from comments where target_type = 'PROJECT' and status = 'APPROVED' and user_id = ?
+                                ) action_rows
+                                group by target_id
+                            ) actions on actions.target_id = p.id
+                            where p.status = 'VISIBLE'
+                        )
                         select tech_stack_item
-                        from portfolio_projects p
-                        cross join lateral jsonb_array_elements_text(p.tech_stack) as tech(tech_stack_item)
-                        left join content_statistics s on s.target_type = 'PROJECT' and s.target_id = p.id
-                        left join (
-                            select vl.target_id,
-                                   sum(30.0 / (1.0 + extract(epoch from (now() - vl.created_at)) / 86400.0 / 7.0)) as preference_score
-                            from visit_logs vl
-                            where vl.target_type = 'PROJECT'
-                              and vl.user_id = ?
-                              and vl.created_at >= now() - interval '30 days'
-                            group by vl.target_id
-                        ) preference on preference.target_id = p.id
-                        where p.status = 'VISIBLE'
+                        from scored_projects
+                        cross join lateral jsonb_array_elements_text(tech_stack) as tech(tech_stack_item)
                         group by tech_stack_item
                         order by
-                            sum(coalesce(preference.preference_score, 0)
-                                + case when p.is_recommend then 58 else 0 end
-                                + coalesce(s.view_count, 0) * 0.26
-                                + coalesce(s.like_count, 0) * 2.4
-                                + coalesce(s.favorite_count, 0) * 3
-                                + coalesce(s.comment_count, 0) * 3.6) desc,
+                            sum(preference_score * 1.2 + action_score + editorial_score + quality_score + freshness_score) desc,
+                            count(*) desc,
                             tech_stack_item asc
                         limit ?
                         """,
                 String.class,
+                userId,
+                userId,
+                userId,
                 userId,
                 limit
         );
@@ -496,29 +559,39 @@ public class ProjectServiceImpl implements ProjectService {
 
     private List<String> queryRecommendedTechStacksByVisitor(String ipAddress, int limit) {
         return jdbcTemplate.queryForList("""
+                        with scored_projects as (
+                            select p.id,
+                                   p.project_type,
+                                   p.tech_stack,
+                                   coalesce(visitor.visitor_score, 0) as visitor_score,
+                                   case when p.is_recommend then 50 else 0 end as editorial_score,
+                                   (
+                                       ln(coalesce(s.view_count, 0) + 1) * 5
+                                       + ln(coalesce(s.like_count, 0) * 3 + 1) * 7
+                                       + ln(coalesce(s.favorite_count, 0) * 4 + 1) * 8
+                                       + ln(coalesce(s.comment_count, 0) * 5 + 1) * 6
+                                   ) as quality_score,
+                                   greatest(0, 10 - extract(epoch from (now() - coalesce(p.reviewed_at, p.submitted_at, now()))) / 86400.0 / 10.0) as freshness_score
+                            from portfolio_projects p
+                            left join content_statistics s on s.target_type = 'PROJECT' and s.target_id = p.id
+                            left join (
+                                select vl.target_id,
+                                       sum(18.0 / (1.0 + extract(epoch from (now() - vl.created_at)) / 86400.0 / 5.0)) as visitor_score
+                                from visit_logs vl
+                                where vl.target_type = 'PROJECT'
+                                  and vl.ip_address = cast(? as inet)
+                                  and vl.created_at >= now() - interval '14 days'
+                                group by vl.target_id
+                            ) visitor on visitor.target_id = p.id
+                            where p.status = 'VISIBLE'
+                        )
                         select tech_stack_item
-                        from portfolio_projects p
-                        cross join lateral jsonb_array_elements_text(p.tech_stack) as tech(tech_stack_item)
-                        left join content_statistics s on s.target_type = 'PROJECT' and s.target_id = p.id
-                        left join (
-                            select vl.target_id,
-                                   sum(16.0 / (1.0 + extract(epoch from (now() - vl.created_at)) / 86400.0 / 7.0)) as visitor_score
-                            from visit_logs vl
-                            where vl.target_type = 'PROJECT'
-                              and vl.ip_address = cast(? as inet)
-                              and vl.created_at >= now() - interval '7 days'
-                            group by vl.target_id
-                        ) visitor on visitor.target_id = p.id
-                        where p.status = 'VISIBLE'
+                        from scored_projects
+                        cross join lateral jsonb_array_elements_text(tech_stack) as tech(tech_stack_item)
                         group by tech_stack_item
                         order by
-                            sum(coalesce(visitor.visitor_score, 0)
-                                + case when p.is_recommend then 50 else 0 end
-                                + coalesce(s.view_count, 0) * 0.26
-                                + coalesce(s.like_count, 0) * 2.4
-                                + coalesce(s.favorite_count, 0) * 3
-                                + coalesce(s.comment_count, 0) * 3.6
-                                + random() * 12) desc,
+                            sum(visitor_score * 1.1 + editorial_score + quality_score + freshness_score) + random() * 6 desc,
+                            count(*) desc,
                             tech_stack_item asc
                         limit ?
                         """,

@@ -132,6 +132,18 @@ const router = createRouter({
       meta: { layout: "admin", requiresAdmin: true },
     },
     {
+      path: "/admin/ai-assistant",
+      name: "admin-ai-assistant",
+      component: () => import("@/pages/AdminAiAssistantPage.vue"),
+      meta: { layout: "admin", requiresAdmin: true },
+    },
+    {
+      path: '/admin/:section',
+      name: 'admin-placeholder',
+      component: () => import('@/pages/AdminPlaceholderPage.vue'),
+      meta: { layout: 'admin', requiresAdmin: true },
+    },
+    {
       path: '/admin/:section',
       name: 'admin-placeholder',
       component: () => import('@/pages/AdminPlaceholderPage.vue'),

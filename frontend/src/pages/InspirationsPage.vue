@@ -47,7 +47,7 @@
       @keydown.space="openCard(featuredCard, $event)"
     >
       <div class="featured-inspiration__visual" :style="cardStyle(featuredCard)">
-        <img v-if="featuredCard.imageUrl" :src="featuredCard.imageUrl" alt="" loading="lazy" />
+        <img v-if="cardImageSrc(featuredCard)" :src="cardImageSrc(featuredCard)" alt="" loading="lazy" />
         <component :is="typeIcon(featuredCard.cardType)" v-else :size="42" />
       </div>
       <div class="featured-inspiration__body">
@@ -115,7 +115,7 @@
         @keydown.enter="openCard(card, $event)"
         @keydown.space="openCard(card, $event)"
       >
-        <img v-if="card.imageUrl" :src="card.imageUrl" alt="" loading="lazy" />
+        <img v-if="cardImageSrc(card)" :src="cardImageSrc(card)" alt="" loading="lazy" />
         <div class="card-head">
           <span class="card-kind">
             <component :is="typeIcon(card.cardType)" :size="14" />
@@ -184,8 +184,8 @@
           </header>
 
           <div class="dialog-content">
-            <figure v-if="selectedCard.imageUrl" class="dialog-media">
-              <img :src="selectedCard.imageUrl" :alt="selectedCard.title" />
+            <figure v-if="cardImageSrc(selectedCard)" class="dialog-media">
+              <img :src="cardImageSrc(selectedCard)" :alt="selectedCard.title" />
             </figure>
             <div v-else class="dialog-media dialog-media--empty" aria-hidden="true">
               <component :is="typeIcon(selectedCard.cardType)" :size="54" />
@@ -382,6 +382,10 @@ function trapDialogFocus(event: KeyboardEvent) {
   }
   const firstItem = focusableItems[0]
   const lastItem = focusableItems[focusableItems.length - 1]
+  if (!firstItem || !lastItem) {
+    event.preventDefault()
+    return
+  }
   if (event.shiftKey && document.activeElement === firstItem) {
     event.preventDefault()
     lastItem.focus()
@@ -461,6 +465,10 @@ function cardStyle(card: InspirationCard) {
   return {
     '--card-accent': card.color ?? typeColor(card.cardType),
   }
+}
+
+function cardImageSrc(card: InspirationCard): string {
+  return card.imageUrl?.trim() ?? ''
 }
 
 function typeIcon(type: InspirationType): Component {
