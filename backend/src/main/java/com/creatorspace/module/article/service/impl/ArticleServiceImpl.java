@@ -11,6 +11,7 @@ import com.creatorspace.module.article.mapper.ArticleMapper;
 import com.creatorspace.module.article.mapper.ArticleTagMapper;
 import com.creatorspace.module.article.service.ArticleService;
 import com.creatorspace.module.article.vo.ArticleNeighborsVO;
+import com.creatorspace.module.article.vo.ArticleVersionVO;
 import com.creatorspace.module.article.vo.ArticleVO;
 import com.creatorspace.module.category.service.CategoryService;
 import com.creatorspace.module.category.vo.CategoryVO;
@@ -27,6 +28,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -85,6 +87,7 @@ public class ArticleServiceImpl implements ArticleService {
         article.setUpdatedBy(operatorId);
         articleMapper.insert(article);
         replaceTags(article.getId(), request.tagIds());
+        insertVersionSnapshot(article, operatorId);
         return toVO(article, true);
     }
 
@@ -145,6 +148,7 @@ public class ArticleServiceImpl implements ArticleService {
         article.setUpdatedBy(userId);
         articleMapper.updateEditableArticle(article);
         replaceTags(article.getId(), request.tagIds());
+        insertVersionSnapshot(article, userId);
         return toVO(article, true);
     }
 
@@ -206,6 +210,7 @@ public class ArticleServiceImpl implements ArticleService {
         article.setUpdatedBy(operatorId);
         articleMapper.updateEditableArticle(article);
         replaceTags(article.getId(), request.tagIds());
+        insertVersionSnapshot(article, operatorId);
         return toVO(article, true);
     }
 
@@ -341,6 +346,36 @@ public class ArticleServiceImpl implements ArticleService {
     @Override
     public ArticleVO getAdminById(Long id) {
         return toVO(requiredArticle(id), true);
+    }
+
+    // 管理员读取文章历史版本，按版本号倒序返回。
+    @Override
+    public List<ArticleVersionVO> listVersions(Long id) {
+        requiredArticle(id);
+        return jdbcTemplate.query("""
+                        select id,
+                               article_id,
+                               version_no,
+                               title,
+                               summary,
+                               content_markdown,
+                               created_by,
+                               created_at
+                        from article_versions
+                        where article_id = ?
+                        order by version_no desc, id desc
+                        """,
+                (rs, rowNum) -> new ArticleVersionVO(
+                        rs.getLong("id"),
+                        rs.getLong("article_id"),
+                        rs.getInt("version_no"),
+                        rs.getString("title"),
+                        rs.getString("summary"),
+                        rs.getString("content_markdown"),
+                        nullableLong(rs, "created_by"),
+                        rs.getObject("created_at", OffsetDateTime.class)
+                ),
+                id);
     }
 
     // 查询公开文章列表，支持关键字和标签筛选。
@@ -588,6 +623,34 @@ public class ArticleServiceImpl implements ArticleService {
         for (Long tagId : tagIds) {
             articleTagMapper.insertIgnore(articleId, tagId);
         }
+    }
+
+    // 保存文章快照到历史版本表，便于后台查看版本轨迹。
+    private void insertVersionSnapshot(ArticleEntity article, Long createdBy) {
+        Integer nextVersionNo = jdbcTemplate.queryForObject("""
+                        select coalesce(max(version_no), 0) + 1
+                        from article_versions
+                        where article_id = ?
+                        """,
+                Integer.class,
+                article.getId());
+        jdbcTemplate.update("""
+                        insert into article_versions (
+                            article_id,
+                            version_no,
+                            title,
+                            summary,
+                            content_markdown,
+                            created_by
+                        )
+                        values (?, ?, ?, ?, ?, ?)
+                        """,
+                article.getId(),
+                nextVersionNo == null ? 1 : nextVersionNo,
+                article.getTitle(),
+                article.getSummary(),
+                article.getContentMarkdown(),
+                createdBy);
     }
 
     // 将请求中可编辑字段写回实体。

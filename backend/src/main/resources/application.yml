@@ -72,7 +72,7 @@ app:
     provider: ${AI_PROVIDER:zhipu}
     zhipu-api-base-url: "${ZHIPU_API_BASE_URL:https://open.bigmodel.cn/api/paas/v4}"
     zhipu-api-key: ${ZHIPU_API_KEY:}
-    zhipu-model: ${ZHIPU_MODEL:glm-4.6v-flash}
+    zhipu-model: ${ZHIPU_MODEL:${ZHIPU_MULTIMODAL_MODEL:glm-4.6v-flash}}
     request-timeout-seconds: ${ZHIPU_REQUEST_TIMEOUT_SECONDS:60}
     max-output-tokens: ${ZHIPU_MAX_OUTPUT_TOKENS:4096}
     thinking-enabled: ${ZHIPU_THINKING_ENABLED:false}

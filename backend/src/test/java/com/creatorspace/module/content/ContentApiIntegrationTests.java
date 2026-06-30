@@ -23,6 +23,8 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
@@ -50,6 +52,7 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
             (byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
             0x00, 0x00, 0x00, 0x00
     };
+    private static final String TEST_UPLOAD_ROOT = "target/test-uploads";
 
     @Container
     private static final PostgreSQLContainer POSTGRES = createPostgres("creatorspace_content_test");
@@ -65,7 +68,7 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
         registry.add("spring.data.redis.host", REDIS::getHost);
         registry.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));
         registry.add("spring.data.redis.password", () -> "");
-        registry.add("app.storage.local-root", () -> "target/test-uploads");
+        registry.add("app.storage.local-root", () -> TEST_UPLOAD_ROOT);
     }
 
     @Autowired
@@ -1483,6 +1486,62 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                 .andExpect(jsonPath("$.data.operationLogs").doesNotExist());
     }
 
+    // 验证未被引用的文件资源可以删除，数据库记录和本地文件会同步清理。
+    @Test
+    void adminCanDeleteUnreferencedFileResource() throws Exception {
+        String token = loginAsAdmin();
+        String uploadResponse = uploadAdminPng(token, "delete-free.png");
+        JsonNode file = objectMapper.readTree(uploadResponse).path("data");
+        long fileId = file.path("id").asLong();
+        Path storedFile = uploadedTestFile(file);
+
+        assertThat(Files.exists(storedFile)).isTrue();
+
+        mockMvc.perform(delete("/api/admin/files/{id}", fileId)
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)));
+
+        Long count = jdbcTemplate.queryForObject(
+                "select count(*) from file_resources where id = ?",
+                Long.class,
+                fileId
+        );
+        assertThat(count).isZero();
+        assertThat(Files.exists(storedFile)).isFalse();
+    }
+
+    // 验证已被引用的文件资源会拒绝删除，避免破坏文章、作品、主题等内容中的资源链接。
+    @Test
+    void adminCannotDeleteReferencedFileResource() throws Exception {
+        String token = loginAsAdmin();
+        String uploadResponse = uploadAdminPng(token, "delete-referenced.png");
+        JsonNode file = objectMapper.readTree(uploadResponse).path("data");
+        long fileId = file.path("id").asLong();
+        Path storedFile = uploadedTestFile(file);
+
+        jdbcTemplate.update("""
+                        insert into file_resource_references (file_id, target_type, target_id, usage_type)
+                        values (?, 'ARTICLE', 999999, 'CONTENT')
+                        """,
+                fileId
+        );
+
+        mockMvc.perform(delete("/api/admin/files/{id}", fileId)
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.message", is("文件资源已被内容引用，不能删除")));
+
+        Long count = jdbcTemplate.queryForObject(
+                "select count(*) from file_resources where id = ?",
+                Long.class,
+                fileId
+        );
+        assertThat(count).isOne();
+        assertThat(Files.exists(storedFile)).isTrue();
+    }
+
     // 验证后台导航配置拒绝协议相对 URL，避免把 //evil.example 当作站内路径。
     @Test
     void adminSiteSettingsRejectsProtocolRelativeNavigationPath() throws Exception {
@@ -1636,6 +1695,47 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
         JsonNode first = objectMapper.readTree(response).path("data").get(0);
         assertThat(first.path("id").isNumber()).isTrue();
         return first.path("id").asLong();
+    }
+
+    // 上传测试 PNG 并返回接口响应。
+    private String uploadAdminPng(String token, String originalName) throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                originalName,
+                "image/png",
+                PNG_BYTES
+        );
+        return mockMvc.perform(multipart("/api/admin/files/upload")
+                        .file(file)
+                        .param("module", "OTHER")
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+    }
+
+    // Resolve test upload files with the same project-root rule used by FileResourceController.
+    private Path uploadedTestFile(JsonNode file) {
+        return resolveFromProjectRoot(TEST_UPLOAD_ROOT)
+                .resolve(file.path("relativePath").asText())
+                .normalize();
+    }
+
+    private Path resolveFromProjectRoot(String value) {
+        Path configured = Path.of(value);
+        if (configured.isAbsolute()) {
+            return configured.normalize();
+        }
+        Path cwd = Path.of("").toAbsolutePath().normalize();
+        if (cwd.getFileName() != null && "backend".equalsIgnoreCase(cwd.getFileName().toString())) {
+            Path parent = cwd.getParent();
+            if (parent != null) {
+                return parent.resolve(configured).normalize();
+            }
+        }
+        return cwd.resolve(configured).normalize();
     }
 
     // 从接口响应中读取 data.id。

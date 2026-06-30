@@ -5,6 +5,7 @@ import com.creatorspace.common.result.PageResponse;
 import com.creatorspace.module.article.dto.ArticleCreateRequest;
 import com.creatorspace.module.article.service.ArticleService;
 import com.creatorspace.module.article.vo.ArticleNeighborsVO;
+import com.creatorspace.module.article.vo.ArticleVersionVO;
 import com.creatorspace.module.article.vo.ArticleVO;
 import com.creatorspace.security.LoginUser;
 import jakarta.servlet.http.HttpServletRequest;
@@ -119,6 +120,12 @@ public class ArticleController {
     @GetMapping("/api/admin/articles/{id}")
     public ApiResponse<ArticleVO> getAdmin(@PathVariable Long id) {
         return ApiResponse.ok(articleService.getAdminById(id));
+    }
+
+    // 管理员读取文章历史版本列表。
+    @GetMapping("/api/admin/articles/{id}/versions")
+    public ApiResponse<java.util.List<ArticleVersionVO>> listVersions(@PathVariable Long id) {
+        return ApiResponse.ok(articleService.listVersions(id));
     }
 
     // 管理员更新文章内容。

@@ -102,6 +102,12 @@ const router = createRouter({
       meta: { layout: "admin", requiresAdmin: true },
     },
     {
+      path: "/admin/articles",
+      name: "admin-articles",
+      component: () => import("@/pages/AdminArticlesPage.vue"),
+      meta: { layout: "admin", requiresAdmin: true },
+    },
+    {
       path: "/admin/content-rules",
       name: "admin-content-rules",
       component: () => import("@/pages/ContentRulesPage.vue"),
@@ -126,6 +132,12 @@ const router = createRouter({
       meta: { layout: "admin", requiresAdmin: true },
     },
     {
+      path: "/admin/files",
+      name: "admin-files",
+      component: () => import("@/pages/AdminFilesPage.vue"),
+      meta: { layout: "admin", requiresAdmin: true },
+    },
+    {
       path: "/admin/operation-logs",
       name: "admin-operation-logs",
       component: () => import("@/pages/AdminOperationLogsPage.vue"),
@@ -136,12 +148,6 @@ const router = createRouter({
       name: "admin-ai-assistant",
       component: () => import("@/pages/AdminAiAssistantPage.vue"),
       meta: { layout: "admin", requiresAdmin: true },
-    },
-    {
-      path: '/admin/:section',
-      name: 'admin-placeholder',
-      component: () => import('@/pages/AdminPlaceholderPage.vue'),
-      meta: { layout: 'admin', requiresAdmin: true },
     },
     {
       path: '/admin/:section',

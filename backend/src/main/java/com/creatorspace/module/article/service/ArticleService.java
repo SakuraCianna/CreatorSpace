@@ -3,8 +3,10 @@ package com.creatorspace.module.article.service;
 import com.creatorspace.common.result.PageResponse;
 import com.creatorspace.module.article.dto.ArticleCreateRequest;
 import com.creatorspace.module.article.vo.ArticleNeighborsVO;
+import com.creatorspace.module.article.vo.ArticleVersionVO;
 import com.creatorspace.module.article.vo.ArticleVO;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.List;
 
 /**
  * 文章业务编排接口。
@@ -58,6 +60,9 @@ public interface ArticleService {
 
     // 管理员按主键读取文章。
     ArticleVO getAdminById(Long id);
+
+    // 管理员读取文章历史版本。
+    List<ArticleVersionVO> listVersions(Long id);
 
     // 查询公开文章列表。
     PageResponse<ArticleVO> listPublic(String keyword, Long tagId, long page, long pageSize);

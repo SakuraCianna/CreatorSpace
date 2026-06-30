@@ -3,6 +3,7 @@ import type {
   AdminThemeConfig,
   ArticleNeighbors,
   ArticleSummary,
+  ArticleVersionSummary,
   ArticlePayload,
   AuthToken,
   CategorySummary,
@@ -151,6 +152,12 @@ export async function fetchAdminArticles(options: {
 // 管理员读取文章详情
 export async function fetchAdminArticle(id: number): Promise<ArticleSummary> {
   const response = await requestJson<ApiEnvelope<ArticleSummary>>(`/api/admin/articles/${id}`)
+  return response.data
+}
+
+// 管理员读取文章历史版本
+export async function fetchAdminArticleVersions(id: number): Promise<ArticleVersionSummary[]> {
+  const response = await requestJson<ApiEnvelope<ArticleVersionSummary[]>>(`/api/admin/articles/${id}/versions`)
   return response.data
 }
 
@@ -769,6 +776,11 @@ export async function uploadAdminFile(file: File, module: string): Promise<FileR
     body: formData,
   })
   return response.data
+}
+
+// 管理员删除未被引用的文件资源。
+export async function deleteAdminFile(id: number): Promise<void> {
+  await requestJson<ApiEnvelope<null>>(`/api/admin/files/${id}`, { method: 'DELETE' })
 }
 
 // 创作者上传自己的文件资源
