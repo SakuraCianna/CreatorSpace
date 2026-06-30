@@ -1,6 +1,6 @@
 <template>
   <section ref="root" class="wall-page">
-    <PublicPageHeader title="灵感墙" description="摘句、提示词、图片、代码和链接都在这里先被保存成碎片，再慢慢长成文章或作品。" kicker="灵感收集墙" theme="purple">
+    <PublicPageHeader title="灵感墙" description="摘句、提示词、图片、代码和链接都在这里先被保存成碎片，再慢慢长成文章或作品。" kicker="INSPIRATION WALL" theme="purple">
       <form class="wall-search" @submit.prevent="loadInspirations">
         <Search :size="18" />
         <input v-model="keyword" placeholder="搜索灵感、来源或提示词" aria-label="搜索灵感" />

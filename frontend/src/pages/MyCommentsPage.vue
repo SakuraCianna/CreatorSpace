@@ -1,6 +1,6 @@
 <template>
   <section ref="root" class="my-comments-page">
-    <PublicPageHeader title="我的评论" kicker="My Comments" theme="blue" />
+    <PublicPageHeader title="我的评论" description="查看和管理我在所有文章下的评论与互动记录。" kicker="MY COMMENTS" theme="blue" />
 
     <div v-if="isLoading" class="empty-state">
       <LoaderCircle class="spin" :size="24" />

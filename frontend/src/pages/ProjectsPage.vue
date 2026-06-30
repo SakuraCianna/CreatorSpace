@@ -1,6 +1,6 @@
 <template>
   <section ref="root" class="projects-page">
-    <PublicPageHeader title="作品展厅" description="把公开作品按类型、技术栈和推荐度陈列出来，后端只要继续返回作品列表字段，前台就能自然接上。" kicker="Project Gallery" theme="emerald">
+    <PublicPageHeader title="作品展厅" description="把公开作品按类型、技术栈和推荐度陈列出来，后端只要继续返回作品列表字段，前台就能自然接上。" kicker="PROJECT GALLERY" theme="emerald">
       <form class="hero-search" @submit.prevent="loadProjects">
         <Search :size="18" />
         <input v-model="keyword" placeholder="搜索作品、说明或技术栈" aria-label="搜索作品" />

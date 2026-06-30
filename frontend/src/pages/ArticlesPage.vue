@@ -1,6 +1,6 @@
 <template>
   <section ref="root" class="archive-page">
-    <PublicPageHeader title="文章归档" theme="blue">
+    <PublicPageHeader title="文章归档" description="浏览全部公开文章，或者通过关键词检索感兴趣的内容。" kicker="ARTICLE ARCHIVE" theme="blue">
       <form class="archive-search" @submit.prevent="loadArticles">
         <Search :size="18" />
         <input v-model="keyword" placeholder="搜索文章、摘要或正文" aria-label="搜索文章" />

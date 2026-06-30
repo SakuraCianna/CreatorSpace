@@ -1,6 +1,6 @@
 <template>
   <section ref="root" class="creator-page">
-    <PublicPageHeader title="创作中心" kicker="Creator Desk" theme="emerald">
+    <PublicPageHeader title="创作中心" description="管理创作素材与发布状态，普通用户亦可使用此面板查看自己的作品。" kicker="CREATOR DESK" theme="emerald">
       <div class="creator-hero__stats">
         <span>{{ articles.length }} 篇文章</span>
         <span>{{ projects.length }} 个作品</span>

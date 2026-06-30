@@ -1,6 +1,6 @@
 <template>
   <section ref="root" class="search-page">
-    <PublicPageHeader title="站内搜索" theme="cyan">
+    <PublicPageHeader title="站内搜索" description="输入关键词全局检索，支持根据相关度或时间排序。" kicker="GLOBAL SEARCH" theme="cyan">
       <div style="display: flex; flex-direction: column; gap: 16px; width: 100%;">
         <form class="archive-search archive-search--large" @submit.prevent="runSearch">
           <Search :size="18" />

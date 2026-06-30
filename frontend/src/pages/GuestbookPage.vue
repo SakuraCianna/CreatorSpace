@@ -1,6 +1,6 @@
 <template>
   <section ref="root" class="guestbook-page">
-    <PublicPageHeader title="留言板" description="留下你的想法、建议或问候，审核通过后会公开展示。" kicker="Leave a Message" theme="amber" />
+    <PublicPageHeader title="留言板" description="欢迎留下你的足迹或与博主交流。" kicker="LEAVE A MESSAGE" theme="amber" />
     <div class="guestbook-layout">
       <div class="guestbook-form-card" data-reveal>
         <form class="comment-form" @submit.prevent="postMessage">

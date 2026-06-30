@@ -37,7 +37,12 @@
             <component :is="item.icon" :size="16" />
             <span>{{ item.label }}</span>
           </a>
-          <RouterLink v-else :to="item.to" @click="navOpen = false">
+          <RouterLink
+            v-else
+            :to="item.to"
+            :class="{ 'router-link-active': route.path.startsWith(item.to) && (item.to !== '/' || route.path === '/') }"
+            @click="navOpen = false"
+          >
             <component :is="item.icon" :size="16" />
             <span>{{ item.label }}</span>
           </RouterLink>

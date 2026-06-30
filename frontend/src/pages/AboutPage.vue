@@ -1,6 +1,6 @@
 <template>
   <section ref="root" class="about-page">
-    <PublicPageHeader :title="profile?.displayName || siteName" :description="profile?.headline || siteSlogan" kicker="About Creator" theme="slate">
+    <PublicPageHeader :title="profile?.displayName || siteName" :description="profile?.headline || siteSlogan" kicker="ABOUT CREATOR" theme="slate">
       <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
         <div class="profile-card" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; min-width: max-content;">
           <div class="profile-avatar" style="width: 48px; height: 48px; border-radius: 50%;">
