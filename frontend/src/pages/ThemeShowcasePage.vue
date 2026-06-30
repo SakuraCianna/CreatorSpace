@@ -1,10 +1,12 @@
 <template>
   <section ref="root" class="theme-page">
     <PublicPageHeader title="主题展厅" description="所见即所得的预览，展示颜色、字体、卡片和控件在各种状态下的表现。" kicker="THEME STUDIO" theme="fuchsia">
-      <div class="active-theme-card" :style="previewStyle">
-        <span>ACTIVE</span>
-        <strong>{{ activeThemeName }}</strong>
-        <p>{{ activeThemeMood }}</p>
+      <div class="active-theme-pill" :style="previewStyle">
+        <div class="active-pulse"></div>
+        <div class="pill-info">
+          <span class="pill-label">CURRENT</span>
+          <strong class="pill-name">{{ activeThemeName }}</strong>
+        </div>
       </div>
     </PublicPageHeader>
     <div v-if="isLoading" class="empty-state showcase-state" data-reveal>
@@ -394,150 +396,188 @@ onBeforeUnmount(() => {
 <style scoped>
 .themes-page {
   display: grid;
-  gap: 18px;
-  padding: 46px 0 84px;
+  gap: 24px;
+  padding: 40px 0 84px;
 }
-.active-theme-card,
+.active-theme-pill {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 20px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--preview-surface) 90%, transparent);
+  border: 1px solid color-mix(in srgb, var(--preview-primary) 20%, transparent);
+  box-shadow: 0 8px 24px -8px color-mix(in srgb, var(--preview-primary) 30%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.active-pulse {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--preview-primary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--preview-primary) 20%, transparent);
+  animation: pulse 2s infinite cubic-bezier(0.4, 0, 0.2, 1);
+}
+@keyframes pulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 color-mix(in srgb, var(--preview-primary) 40%, transparent); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(0,0,0,0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0,0,0,0); }
+}
+.pill-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pill-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--preview-primary);
+  opacity: 0.8;
+}
+.pill-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--preview-ink);
+}
+
 .theme-list,
 .theme-preview {
-  border: 1px solid var(--tone-line);
-  border-radius: var(--app-radius-sm);
-  background: var(--tone-panel);
-  box-shadow: var(--tone-shadow);
-  backdrop-filter: blur(18px);
-}
-.active-theme-card {
-  display: grid;
-  gap: 8px;
-  min-height: 190px;
-  align-content: end;
-  padding: 22px;
-  background:
-    linear-gradient(145deg, color-mix(in srgb, var(--preview-primary) 24%, transparent), transparent 54%),
-    linear-gradient(135deg, var(--preview-surface), color-mix(in srgb, var(--preview-accent) 18%, var(--preview-surface)));
-}
-.active-theme-card span {
-  color: var(--preview-primary);
-  font-size: 12px;
-  font-weight: 860;
-  letter-spacing: 0.12em;
-}
-.active-theme-card strong {
-  color: var(--preview-ink);
-  font-size: 26px;
-  line-height: 1.14;
-}
-.active-theme-card p {
-  margin: 0;
-  color: color-mix(in srgb, var(--preview-ink) 72%, transparent);
-  line-height: 1.58;
+  border-radius: 20px;
 }
 .themes-layout {
   display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 20px;
   align-items: start;
 }
 .theme-list {
   position: sticky;
-  top: 96px;
-  display: grid;
-  gap: 10px;
-  padding: 14px;
+  top: 100px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  background: var(--surface-1, #ffffff);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  box-shadow: 0 4px 20px -8px rgba(0, 0, 0, 0.05);
 }
 .theme-option {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
-  min-height: 66px;
-  padding: 10px;
+  min-height: 60px;
+  padding: 12px;
   border: 1px solid transparent;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.54);
+  border-radius: 12px;
+  background: transparent;
   color: var(--tone-ink);
   cursor: pointer;
   text-align: left;
+  transition: all 0.2s ease;
 }
 .theme-option.is-active,
 .theme-option:hover {
-  border-color: rgba(49, 91, 255, 0.34);
-  background: rgba(49, 91, 255, 0.08);
+  background: color-mix(in srgb, var(--preview-primary, #315bff) 8%, transparent);
+}
+.theme-option.is-active {
+  border-color: color-mix(in srgb, var(--preview-primary, #315bff) 20%, transparent);
+  box-shadow: 0 4px 12px -4px color-mix(in srgb, var(--preview-primary, #315bff) 20%, transparent);
 }
 .theme-option__swatch {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  box-shadow: inset 0 0 0 4px rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 0 0 4px rgba(255, 255, 255, 0.5), 0 2px 8px rgba(0,0,0,0.1);
 }
 .theme-option span:not(.theme-option__swatch) {
   display: grid;
-  gap: 3px;
+  gap: 2px;
+}
+.theme-option strong {
+  font-size: 14px;
+  font-weight: 600;
 }
 .theme-option small {
   color: var(--tone-muted);
-  font-size: 12px;
+  font-size: 11px;
 }
 .theme-preview {
+  position: relative;
   display: grid;
-  grid-template-columns: 0.86fr minmax(0, 1fr);
+  grid-template-columns: 1fr;
+  min-height: 640px;
   overflow: hidden;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--preview-surface) 92%, transparent), color-mix(in srgb, var(--preview-accent) 16%, var(--preview-surface))),
-    var(--preview-bg);
-  background-position: center;
-  background-size: cover;
+  background: var(--preview-surface);
+  box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.1);
+  border: 1px solid color-mix(in srgb, var(--preview-ink) 8%, transparent);
 }
 .theme-preview__cover {
-  display: grid;
-  min-height: 520px;
-  place-items: center;
-  overflow: hidden;
-  background:
-    radial-gradient(circle at 22% 20%, color-mix(in srgb, var(--preview-primary) 34%, transparent), transparent 32%),
-    linear-gradient(145deg, color-mix(in srgb, var(--preview-ink) 90%, transparent), color-mix(in srgb, var(--preview-primary) 60%, transparent));
-  color: var(--preview-surface);
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.15;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--preview-primary) 40%, transparent) 0%, transparent 100%);
+  pointer-events: none;
+  z-index: 1;
 }
 .theme-preview__cover img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  opacity: 0.82;
+  mask-image: linear-gradient(to bottom, rgba(0,0,0,1), rgba(0,0,0,0));
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1), rgba(0,0,0,0));
 }
 .theme-preview__content {
-  display: grid;
-  align-content: center;
-  gap: 18px;
-  padding: clamp(24px, 4vw, 48px);
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin: clamp(24px, 4vw, 40px);
+  padding: clamp(24px, 4vw, 40px);
+  background: color-mix(in srgb, var(--preview-surface) 75%, transparent);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--preview-ink) 8%, transparent);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.06);
 }
 .theme-preview__content h2 {
   margin: 0;
   color: var(--preview-ink);
-  font-size: clamp(32px, 4vw, 54px);
-  line-height: 1.06;
+  font-size: clamp(36px, 5vw, 48px);
+  font-weight: 860;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
 }
 .theme-preview__content p:not(.page-kicker) {
   max-width: 620px;
   margin: 0;
   color: color-mix(in srgb, var(--preview-ink) 72%, transparent);
-  line-height: 1.72;
+  line-height: 1.6;
 }
 .theme-preview__tabs {
   display: flex;
-  gap: 8px;
+  gap: 24px;
   border-bottom: 1px solid color-mix(in srgb, var(--preview-ink) 12%, transparent);
-  padding-bottom: 8px;
+  padding-bottom: 0;
 }
 .tab-btn {
   border: 0;
   border-bottom: 2px solid transparent;
-  padding: 6px 12px;
+  padding: 12px 0;
   background: transparent;
-  color: color-mix(in srgb, var(--preview-ink) 62%, transparent);
-  font-size: 13px;
+  color: color-mix(in srgb, var(--preview-ink) 50%, transparent);
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 180ms ease;
+  transition: all 0.2s ease;
+  margin-bottom: -1px;
 }
 .tab-btn.is-active,
 .tab-btn:hover {
@@ -546,164 +586,169 @@ onBeforeUnmount(() => {
 }
 .theme-selectors {
   display: grid;
-  gap: 12px;
-  margin: 10px 0;
+  gap: 16px;
+  margin: 16px 0;
 }
 .selector-row {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
 }
 .selector-row label {
-  display: grid;
-  gap: 4px;
-  color: color-mix(in srgb, var(--preview-ink) 72%, transparent);
-  font-size: 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: color-mix(in srgb, var(--preview-ink) 70%, transparent);
+  font-size: 12px;
   font-weight: 600;
 }
 .selector-row select {
   appearance: none;
-  height: 36px;
-  padding: 0 34px 0 10px;
-  border: 1px solid color-mix(in srgb, var(--preview-ink) 12%, transparent);
-  border-radius: 6px;
-  background:
+  height: 42px;
+  padding: 0 36px 0 14px;
+  border: 1px solid color-mix(in srgb, var(--preview-ink) 16%, transparent);
+  border-radius: 10px;
+  background-color: color-mix(in srgb, var(--preview-surface) 90%, transparent);
+  background-image:
     linear-gradient(45deg, transparent 50%, var(--preview-primary) 50%),
-    linear-gradient(135deg, var(--preview-primary) 50%, transparent 50%),
-    linear-gradient(180deg, color-mix(in srgb, var(--preview-surface) 96%, transparent), color-mix(in srgb, var(--preview-primary) 5%, var(--preview-surface)));
+    linear-gradient(135deg, var(--preview-primary) 50%, transparent 50%);
   background-position:
-    calc(100% - 16px) 50%,
-    calc(100% - 11px) 50%,
-    0 0;
+    calc(100% - 18px) 50%,
+    calc(100% - 13px) 50%;
   background-size:
     5px 5px,
-    5px 5px,
-    100% 100%;
+    5px 5px;
   background-repeat: no-repeat;
   color: var(--preview-ink);
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  transition:
-    border-color 0.18s ease,
-    box-shadow 0.18s ease,
-    background 0.18s ease;
+  transition: all 0.2s ease;
 }
 .selector-row select:hover {
-  border-color: color-mix(in srgb, var(--preview-primary) 34%, transparent);
+  border-color: var(--preview-primary);
+  background-color: color-mix(in srgb, var(--preview-primary) 4%, var(--preview-surface));
 }
 .selector-row select:focus {
-  border-color: color-mix(in srgb, var(--preview-primary) 52%, transparent);
+  border-color: var(--preview-primary);
   outline: none;
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--preview-primary) 12%, transparent);
-}
-.selector-row select option {
-  background: #fff;
-  color: #14151d;
-  font-size: 14px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--preview-primary) 20%, transparent);
 }
 .theme-json-panel {
   display: grid;
   grid-template-rows: auto 1fr;
   gap: 12px;
-  height: 380px;
+  height: 400px;
 }
 .json-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 10px;
 }
 .icon-text-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 28px;
-  padding: 0 10px;
+  height: 32px;
+  padding: 0 12px;
   border: 1px solid color-mix(in srgb, var(--preview-ink) 12%, transparent);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--preview-surface) 82%, transparent);
-  color: color-mix(in srgb, var(--preview-ink) 72%, transparent);
-  font-size: 11px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--preview-surface) 80%, transparent);
+  color: color-mix(in srgb, var(--preview-ink) 80%, transparent);
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 180ms ease;
+  transition: all 0.2s ease;
 }
 .icon-text-btn:hover {
-  background: color-mix(in srgb, var(--preview-ink) 8%, var(--preview-surface));
+  background: color-mix(in srgb, var(--preview-ink) 6%, var(--preview-surface));
   color: var(--preview-ink);
+  border-color: color-mix(in srgb, var(--preview-ink) 20%, transparent);
 }
 .json-code-block {
   margin: 0;
-  padding: 12px;
-  border: 1px solid color-mix(in srgb, var(--preview-ink) 8%, transparent);
-  border-radius: 8px;
-  background: #070911;
-  color: #54e6c8;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--preview-ink) 12%, transparent);
+  border-radius: 12px;
+  background: #0f111a;
+  color: #a6accd;
   font-family: ui-monospace, 'Space Mono', monospace;
-  font-size: 11px;
-  line-height: 1.5;
+  font-size: 12px;
+  line-height: 1.6;
   overflow-y: auto;
   white-space: pre-wrap;
   word-break: break-all;
 }
-.theme-tokens,
-.theme-actions {
+.theme-tokens {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
 }
 .theme-tokens span {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  min-height: 34px;
-  padding: 0 10px;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 12px;
   border: 1px solid color-mix(in srgb, var(--preview-ink) 12%, transparent);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--preview-surface) 82%, transparent);
-  color: color-mix(in srgb, var(--preview-ink) 78%, transparent);
-  font-size: 12px;
-  font-weight: 760;
+  background: color-mix(in srgb, var(--preview-surface) 90%, transparent);
+  color: color-mix(in srgb, var(--preview-ink) 80%, transparent);
+  font-size: 13px;
+  font-weight: 600;
 }
 .theme-tokens i {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.7);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.4), 0 2px 4px rgba(0,0,0,0.1);
 }
 .theme-preview__cards {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-top: 8px;
 }
 .theme-preview__cards article {
-  display: grid;
-  gap: 8px;
-  min-height: 120px;
-  align-content: end;
-  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 20px;
   border: 1px solid color-mix(in srgb, var(--preview-ink) 12%, transparent);
-  border-radius: var(--app-radius-sm);
-  background: color-mix(in srgb, var(--preview-surface) 76%, transparent);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--preview-surface) 85%, transparent);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+  transition: transform 0.2s ease;
+}
+.theme-preview__cards article:hover {
+  transform: translateY(-2px);
 }
 .theme-preview__cards strong {
   color: var(--preview-ink);
+  font-size: 15px;
 }
 .theme-preview__cards span {
-  color: color-mix(in srgb, var(--preview-ink) 62%, transparent);
+  color: color-mix(in srgb, var(--preview-ink) 60%, transparent);
   font-size: 13px;
+}
+.theme-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
 }
 .inline-notice {
   margin: 0;
-  padding: 10px 12px;
-  border-left: 3px solid var(--tone-coral);
-  background: rgba(194, 95, 58, 0.08);
-  color: #754226;
-  font-size: 13px;
-  line-height: 1.55;
+  padding: 12px 16px;
+  border-left: 4px solid var(--tone-coral);
+  border-radius: 0 8px 8px 0;
+  background: color-mix(in srgb, var(--tone-coral) 10%, transparent);
+  color: var(--tone-coral-dark, #c25f3a);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
 }
 @media (max-width: 1020px) {
-  .themes-layout,
-  .theme-preview {
+  .themes-layout {
     grid-template-columns: 1fr;
   }
   .theme-list {
@@ -711,11 +756,9 @@ onBeforeUnmount(() => {
   }
 }
 @media (max-width: 760px) {
-  .themes-page {
-    padding-top: 26px;
-  }
-  .theme-preview__cards {
-    grid-template-columns: 1fr;
+  .theme-preview__content {
+    margin: 16px;
+    padding: 20px;
   }
 }
 </style>

@@ -104,7 +104,6 @@ const onHover = () => {
   if (hoverCtx) hoverCtx.revert()
   hoverCtx = gsap.context(() => {
     gsap.to(headerRef.value, {
-      y: -2,
       boxShadow: '0 12px 30px -10px var(--theme-color-soft)',
       duration: 0.4,
       ease: 'power2.out'
@@ -120,7 +119,6 @@ const onLeave = () => {
   if (hoverCtx) hoverCtx.revert()
   hoverCtx = gsap.context(() => {
     gsap.to(headerRef.value, {
-      y: 0,
       boxShadow: '0 4px 20px -8px rgba(0,0,0,0.05)',
       duration: 0.4,
       ease: 'power2.out'
