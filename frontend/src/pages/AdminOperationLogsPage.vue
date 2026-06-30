@@ -14,9 +14,7 @@
     <form class="filter-bar" @submit.prevent="applyFilters">
       <label>
         模块
-        <select v-model="filters.module">
-          <option v-for="item in moduleOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
-        </select>
+        <BaseSelect v-model="filters.module" :options="moduleOptions" />
       </label>
       <label>
         操作
@@ -36,12 +34,7 @@
       </label>
       <label>
         每页
-        <select v-model.number="filters.pageSize">
-          <option :value="10">10</option>
-          <option :value="20">20</option>
-          <option :value="50">50</option>
-          <option :value="100">100</option>
-        </select>
+        <BaseSelect v-model="filters.pageSize" :options="pageSizeOptions" />
       </label>
       <div class="filter-actions">
         <button class="button button-filled" type="submit">
@@ -165,13 +158,15 @@ import {
   Search,
   ShieldCheck,
 } from '@lucide/vue'
+import BaseSelect from '@/shared/components/BaseSelect.vue'
 
 import { fetchAdminOperationLogs } from '@/services/content'
 import { toUserMessage } from '@/services/http'
 import type { OperationLogModule, OperationLogQuery, OperationLogSummary, PageResponse } from '@/shared/domain'
 
-const moduleOptions: Array<{ value: OperationLogModule; label: string }> = [
+const moduleOptions: Array<{ value: OperationLogModule | 'ALL'; label: string }> = [
   { value: 'ALL', label: '全部模块' },
+  { value: 'AI', label: 'AI 任务' },
   { value: 'ARTICLE', label: '文章' },
   { value: 'PROJECT', label: '作品' },
   { value: 'COMMENT', label: '评论' },
@@ -183,6 +178,13 @@ const moduleOptions: Array<{ value: OperationLogModule; label: string }> = [
   { value: 'CATEGORY', label: '分类' },
   { value: 'TAG', label: '标签' },
   { value: 'ADMIN', label: '后台' },
+]
+
+const pageSizeOptions = [
+  { label: '10', value: 10 },
+  { label: '20', value: 20 },
+  { label: '50', value: 50 },
+  { label: '100', value: 100 },
 ]
 
 const filters = reactive<Required<Pick<OperationLogQuery, 'module' | 'operation' | 'startTime' | 'endTime' | 'pageSize'>> & { operatorId: number | null }>({

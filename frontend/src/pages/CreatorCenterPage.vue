@@ -40,20 +40,11 @@
         <div class="form-line">
           <label>
             分类
-            <select v-model="articleForm.categoryId">
-              <option :value="null">不绑定分类</option>
-              <option v-for="category in articleCategories" :key="category.id" :value="category.id">
-                {{ category.name }}
-              </option>
-            </select>
+            <BaseSelect v-model="articleForm.categoryId" :options="categoryOptions" />
           </label>
           <label>
             可见性
-            <select v-model="articleForm.privacyType">
-              <option value="PUBLIC">公开</option>
-              <option value="SELF">仅自己</option>
-              <option value="FRIENDS">好友可见</option>
-            </select>
+            <BaseSelect v-model="articleForm.privacyType" :options="privacyOptions" />
           </label>
         </div>
         <label>
@@ -230,14 +221,7 @@
         </div>
         <label>
           模块
-          <select v-model="fileModule">
-            <option value="ARTICLE">ARTICLE</option>
-            <option value="PROJECT">PROJECT</option>
-            <option value="COVER">COVER</option>
-            <option value="AVATAR">AVATAR</option>
-            <option value="INSPIRATION">INSPIRATION</option>
-            <option value="OTHER">OTHER</option>
-          </select>
+          <BaseSelect v-model="fileModule" :options="fileModuleOptions" />
         </label>
         <input type="file" accept="image/*" @change="selectFile" />
         <button class="button button-filled" type="submit">上传图片</button>
@@ -282,6 +266,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { BookOpen, FileImage, Images, Star } from '@lucide/vue'
+import BaseSelect from '@/shared/components/BaseSelect.vue'
 
 import {
   createCreatorArticle,
@@ -331,8 +316,28 @@ const editingArticleId = ref<number | null>(null)
 const editingProjectId = ref<number | null>(null)
 const projectTechStack = ref('')
 const selectedFile = ref<File | null>(null)
-const fileModule = ref('PROJECT')
+const fileModule = ref('ARTICLE')
 const newTagName = ref('')
+
+const categoryOptions = computed(() => [
+  { label: '不绑定分类', value: null },
+  ...articleCategories.value.map(c => ({ label: c.name, value: c.id }))
+])
+
+const privacyOptions = [
+  { label: '公开', value: 'PUBLIC' },
+  { label: '仅自己', value: 'SELF' },
+  { label: '好友可见', value: 'FRIENDS' },
+]
+
+const fileModuleOptions = [
+  { label: 'ARTICLE', value: 'ARTICLE' },
+  { label: 'PROJECT', value: 'PROJECT' },
+  { label: 'COVER', value: 'COVER' },
+  { label: 'AVATAR', value: 'AVATAR' },
+  { label: 'INSPIRATION', value: 'INSPIRATION' },
+  { label: 'OTHER', value: 'OTHER' },
+]
 
 const articleForm = reactive<ArticlePayload>({
   title: '',

@@ -32,20 +32,11 @@
         <div class="form-line">
           <label>
             分类
-            <select v-model="articleForm.categoryId">
-              <option :value="null">不绑定分类</option>
-              <option v-for="category in articleCategories" :key="category.id" :value="category.id">
-                {{ category.name }}
-              </option>
-            </select>
+            <BaseSelect v-model="articleForm.categoryId" :options="categoryOptions" />
           </label>
           <label>
             可见性
-            <select v-model="articleForm.privacyType">
-              <option v-for="privacy in articlePrivacies" :key="privacy" :value="privacy">
-                {{ privacyLabel(privacy) }}
-              </option>
-            </select>
+            <BaseSelect v-model="articleForm.privacyType" :options="privacyOptions" />
           </label>
         </div>
         <label>
@@ -79,15 +70,7 @@
         </div>
         <div class="filter-bar">
           <input v-model="articleKeyword" placeholder="搜索文章" @keyup.enter="loadArticles" />
-          <select v-model="articleStatus" @change="loadArticles">
-            <option value="ALL">全部状态</option>
-            <option value="DRAFT">草稿</option>
-            <option value="PENDING_REVIEW">待审核</option>
-            <option value="PUBLISHED">公开</option>
-            <option value="PRIVATE">私密</option>
-            <option value="REJECTED">已驳回</option>
-            <option value="ARCHIVED">归档</option>
-          </select>
+          <BaseSelect v-model="articleStatus" :options="articleStatusOptions" @change="loadArticles" />
           <button class="icon-text-button" type="button" @click="loadArticles">刷新</button>
         </div>
         <article v-for="article in articles" :key="article.id" class="table-row table-row--rich">
@@ -202,15 +185,7 @@
         </div>
         <div class="filter-bar">
           <input v-model="projectKeyword" placeholder="搜索作品" @keyup.enter="loadProjects" />
-          <select v-model="projectStatus" @change="loadProjects">
-            <option value="ALL">全部状态</option>
-            <option value="DRAFT">草稿</option>
-            <option value="PENDING_REVIEW">待审核</option>
-            <option value="VISIBLE">展示</option>
-            <option value="HIDDEN">隐藏</option>
-            <option value="REJECTED">已驳回</option>
-            <option value="ARCHIVED">归档</option>
-          </select>
+          <BaseSelect v-model="projectStatus" :options="projectStatusOptions" @change="loadProjects" />
           <button class="icon-text-button" type="button" @click="loadProjects">刷新</button>
         </div>
         <article v-for="project in projects" :key="project.id" class="table-row table-row--rich">
@@ -261,11 +236,7 @@
         </label>
         <label>
           类型
-          <select v-model="inspirationForm.cardType">
-            <option v-for="type in inspirationTypes" :key="type" :value="type">
-              {{ inspirationTypeLabel(type) }}
-            </option>
-          </select>
+          <BaseSelect v-model="inspirationForm.cardType" :options="inspirationTypeOptions" />
         </label>
         <label>
           内容
@@ -320,19 +291,8 @@
           <span>共 {{ comments.length }} 条</span>
         </div>
         <div class="filter-bar">
-          <select v-model="commentStatus" @change="loadComments">
-            <option value="ALL">全部状态</option>
-            <option value="PENDING">待审核</option>
-            <option value="APPROVED">已通过</option>
-            <option value="REJECTED">已驳回</option>
-            <option value="SPAM">垃圾评论</option>
-          </select>
-          <select v-model="commentTargetType" @change="loadComments">
-            <option value="ALL">全部目标</option>
-            <option value="ARTICLE">文章</option>
-            <option value="PROJECT">作品</option>
-            <option value="MESSAGE">留言</option>
-          </select>
+          <BaseSelect v-model="commentStatus" :options="commentStatusOptions" @change="loadComments" />
+          <BaseSelect v-model="commentTargetType" :options="commentTargetTypeOptions" @change="loadComments" />
         </div>
         <article v-for="comment in comments" :key="comment.id" class="table-row table-row--rich">
           <div>
@@ -367,12 +327,7 @@
           <span>共 {{ guestbookEntries.length }} 条</span>
         </div>
         <div class="filter-bar">
-          <select v-model="guestbookStatus" @change="loadGuestbook">
-            <option value="ALL">全部状态</option>
-            <option value="PENDING">待审核</option>
-            <option value="APPROVED">已通过</option>
-            <option value="REJECTED">已驳回</option>
-          </select>
+          <BaseSelect v-model="guestbookStatus" :options="guestbookStatusOptions" @change="loadGuestbook" />
           <button class="icon-text-button" type="button" @click="loadGuestbook">刷新</button>
         </div>
         <article v-for="entry in guestbookEntries" :key="entry.id" class="table-row table-row--rich">
@@ -397,11 +352,7 @@
         </div>
         <label>
           模块
-          <select v-model="fileModule">
-            <option v-for="module in fileModules" :key="module" :value="module">
-              {{ fileModuleLabel(module) }}
-            </option>
-          </select>
+          <BaseSelect v-model="fileModule" :options="fileModuleOptions" />
         </label>
         <input type="file" @change="selectFile" />
         <button class="button button-filled" type="submit">上传文件</button>
@@ -445,14 +396,7 @@
           </label>
           <label>
             背景类型
-            <select v-model="themeForm.backgroundType">
-              <option value="color">纯色</option>
-              <option value="solid">实色</option>
-              <option value="image">图片</option>
-              <option value="gradient">渐变</option>
-              <option value="star">星空</option>
-              <option value="webgl">动效</option>
-            </select>
+            <BaseSelect v-model="themeForm.backgroundType" :options="backgroundTypeOptions" />
           </label>
         </div>
         <label>
@@ -706,9 +650,7 @@
               </label>
               <label>
                 状态
-                <select v-model="page.status">
-                  <option v-for="status in pageStatuses" :key="status" :value="status">{{ status }}</option>
-                </select>
+                <BaseSelect v-model="page.status" :options="pageStatusOptions" />
               </label>
             </div>
             <label>
@@ -897,6 +839,8 @@ type SocialLinkForm = Omit<SocialLink, 'icon'> & {
   icon: string
 }
 
+import BaseSelect from '@/shared/components/BaseSelect.vue'
+
 type PageConfigForm = Omit<PageConfig, 'contentJson' | 'layoutJson' | 'seoTitle' | 'seoDescription'> & {
   seoTitle: string
   seoDescription: string
@@ -947,6 +891,64 @@ const articlePrivacies: ArticlePrivacy[] = ['PUBLIC', 'SELF', 'FRIENDS', 'SELECT
 const inspirationTypes: InspirationType[] = ['TEXT', 'PROMPT', 'IMAGE', 'CODE', 'LINK', 'SKETCH', 'REFERENCE']
 const fileModules = ['AVATAR', 'COVER', 'ARTICLE', 'PROJECT', 'INSPIRATION', 'OTHER']
 const pageStatuses: PageConfig['status'][] = ['DRAFT', 'PUBLISHED', 'ARCHIVED']
+
+const categoryOptions = computed(() => [
+  { label: '未分类', value: null },
+  ...articleCategories.value.map(c => ({ label: c.name, value: c.id }))
+])
+const privacyOptions = computed(() => articlePrivacies.map(p => ({ label: p, value: p })))
+const inspirationTypeOptions = computed(() => inspirationTypes.map(t => ({ label: t, value: t })))
+const fileModuleOptions = computed(() => fileModules.map(m => ({ label: m, value: m })))
+const pageStatusOptions = computed(() => pageStatuses.map(s => ({ label: s, value: s })))
+
+const articleStatusOptions = [
+  { label: '全部状态', value: 'ALL' },
+  { label: '草稿', value: 'DRAFT' },
+  { label: '待审核', value: 'PENDING_REVIEW' },
+  { label: '公开', value: 'PUBLISHED' },
+  { label: '私密', value: 'PRIVATE' },
+  { label: '已驳回', value: 'REJECTED' },
+  { label: '归档', value: 'ARCHIVED' },
+]
+
+const projectStatusOptions = [
+  { label: '全部状态', value: 'ALL' },
+  { label: '草稿', value: 'DRAFT' },
+  { label: '待审核', value: 'PENDING_REVIEW' },
+  { label: '公开', value: 'PUBLISHED' },
+  { label: '私密', value: 'PRIVATE' },
+  { label: '已驳回', value: 'REJECTED' },
+  { label: '归档', value: 'ARCHIVED' },
+]
+
+const commentStatusOptions = [
+  { label: '全部状态', value: 'ALL' },
+  { label: '待审', value: 'PENDING' },
+  { label: '已通过', value: 'APPROVED' },
+  { label: '垃圾', value: 'SPAM' },
+]
+
+const commentTargetTypeOptions = [
+  { label: '全部对象', value: 'ALL' },
+  { label: '文章', value: 'ARTICLE' },
+  { label: '作品', value: 'PROJECT' },
+]
+
+const guestbookStatusOptions = [
+  { label: '全部留言', value: 'ALL' },
+  { label: '待审', value: 'PENDING' },
+  { label: '展示中', value: 'APPROVED' },
+]
+
+const backgroundTypeOptions = [
+  { label: '纯色', value: 'color' },
+  { label: '实色', value: 'solid' },
+  { label: '图片', value: 'image' },
+  { label: '渐变', value: 'gradient' },
+  { label: '星空', value: 'star' },
+  { label: '动效', value: 'webgl' },
+]
+
 const settingsKeyPattern = /^[a-zA-Z0-9._-]{2,120}$/
 const pageSlugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const articleForm = reactive<ArticlePayload>({

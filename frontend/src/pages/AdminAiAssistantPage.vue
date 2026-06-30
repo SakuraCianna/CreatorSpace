@@ -57,12 +57,7 @@
         <div class="form-line">
           <label>
             目标类型
-            <select v-model="form.targetType">
-              <option value="">不绑定</option>
-              <option value="ARTICLE">文章</option>
-              <option value="PROJECT">作品</option>
-              <option value="COMMENT">评论</option>
-            </select>
+            <BaseSelect v-model="form.targetType" :options="targetTypeOptions" />
           </label>
           <label>
             目标 ID
@@ -131,12 +126,7 @@
           <span>共 {{ suggestions.total }} 条 · 第 {{ suggestions.page }} / {{ totalPages }} 页</span>
         </div>
         <div class="suggestion-filters">
-          <select v-model="suggestionStatus" @change="loadSuggestions(1)">
-            <option value="PENDING">待处理</option>
-            <option value="ADOPTED">已采纳</option>
-            <option value="REJECTED">已忽略</option>
-            <option value="ALL">全部</option>
-          </select>
+          <BaseSelect v-model="suggestionStatus" :options="suggestionStatusOptions" @change="loadSuggestions(1)" />
         </div>
       </div>
 
@@ -205,6 +195,7 @@ import {
   WandSparkles,
   X,
 } from '@lucide/vue'
+import BaseSelect from '@/shared/components/BaseSelect.vue'
 
 import { continueAiTask, createAiTask, createAiWorkflow, fetchAiSuggestions, updateAiSuggestionStatus } from '@/services/content'
 import { toUserMessage } from '@/services/http'
@@ -232,6 +223,20 @@ const loadingSuggestions = ref(false)
 const notice = ref('')
 const followUpPrompt = ref('')
 const workflowDays = ref(7)
+
+const targetTypeOptions = [
+  { label: '不绑定', value: '' },
+  { label: '文章', value: 'ARTICLE' },
+  { label: '作品', value: 'PROJECT' },
+  { label: '评论', value: 'COMMENT' },
+]
+
+const suggestionStatusOptions = [
+  { label: '待处理', value: 'PENDING' },
+  { label: '已采纳', value: 'ADOPTED' },
+  { label: '已忽略', value: 'REJECTED' },
+  { label: '全部', value: 'ALL' },
+]
 
 const totalPages = computed(() => Math.max(1, Math.ceil(suggestions.value.total / suggestions.value.pageSize)))
 const suggestionRange = computed(() => {

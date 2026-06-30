@@ -99,29 +99,21 @@
               <div class="selector-row">
                 <label>
                   布局密度
-                  <select v-model="selectedDensity">
-                    <option v-for="d in densities" :key="d.value" :value="d.value">{{ d.label }}</option>
-                  </select>
+                  <BaseSelect v-model="selectedDensity" :options="densities" />
                 </label>
                 <label>
                   动效强度
-                  <select v-model="selectedMotion">
-                    <option v-for="m in motions" :key="m.value" :value="m.value">{{ m.label }}</option>
-                  </select>
+                  <BaseSelect v-model="selectedMotion" :options="motions" />
                 </label>
               </div>
               <div class="selector-row">
                 <label>
                   圆角卡片
-                  <select v-model="selectedCardStyle">
-                    <option v-for="c in cardStyles" :key="c.value" :value="c.value">{{ c.label }}</option>
-                  </select>
+                  <BaseSelect v-model="selectedCardStyle" :options="cardStyles" />
                 </label>
                 <label>
                   历史版本
-                  <select v-model="selectedVersion">
-                    <option v-for="v in mockVersions" :key="v.value" :value="v.value">{{ v.label }}</option>
-                  </select>
+                  <BaseSelect v-model="selectedVersion" :options="mockVersions" />
                 </label>
               </div>
             </div>
@@ -186,6 +178,7 @@ import { usePageReveal } from '@/shared/composables/usePageReveal'
 import { toCssImageUrl } from '@/shared/cssImage'
 import type { PublicThemeConfig, ThemeConfig } from '@/shared/domain'
 import { applyThemeConfig } from '@/shared/theme'
+import BaseSelect from '@/shared/components/BaseSelect.vue'
 
 interface ColorToken {
   label: string
