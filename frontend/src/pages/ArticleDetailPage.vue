@@ -48,14 +48,7 @@
             <strong>{{ nextArticle.title }}</strong>
           </RouterLink>
         </nav>
-      </article>
 
-      <aside class="reading-aside" data-reveal>
-        <div class="toc-card">
-          <p class="page-kicker">On this page</p>
-          <a v-for="item in toc" :key="item" href="#" @click.prevent="scrollToHeading(item)">{{ item }}</a>
-          <span v-if="toc.length === 0">正文还没有二级标题。</span>
-        </div>
         <div class="reaction-card">
           <button
             class="icon-button"
@@ -149,7 +142,7 @@
           <p v-if="commentNotice" class="inline-notice">{{ commentNotice }}</p>
         </div>
         <p v-if="notice" class="inline-notice">{{ notice }}</p>
-      </aside>
+      </article>
     </div>
     <div v-else class="empty-state detail-state" data-reveal>
       <h2>没有找到这篇文章</h2>

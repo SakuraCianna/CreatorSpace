@@ -68,11 +68,18 @@
           Markdown 正文
           <textarea v-model="articleForm.contentMarkdown" rows="9" />
         </label>
-        <div class="tag-picker">
-          <label v-for="tag in tags" :key="tag.id" class="check-line">
-            <input v-model="articleForm.tagIds" type="checkbox" :value="tag.id" />
-            {{ tag.name }}
-          </label>
+        <div class="tag-picker-wrap">
+          <label class="tag-picker-label">标签</label>
+          <div class="tag-picker">
+            <label v-for="tag in tags" :key="tag.id" class="check-line">
+              <input v-model="articleForm.tagIds" type="checkbox" :value="tag.id" />
+              {{ tag.name }}
+            </label>
+          </div>
+          <div class="tag-creator">
+            <input v-model="newTagName" placeholder="输入新标签" maxlength="50" @keydown.enter.prevent="createNewTag('article')" />
+            <button type="button" class="button button-tonal button-compact" :disabled="!newTagName.trim()" @click="createNewTag('article')">添加</button>
+          </div>
         </div>
         <div class="form-actions">
           <button class="button button-filled" type="submit">{{ editingArticleId ? '保存草稿' : '创建草稿' }}</button>
@@ -162,11 +169,18 @@
           Markdown 详情
           <textarea v-model="projectForm.contentMarkdown" rows="8" />
         </label>
-        <div class="tag-picker">
-          <label v-for="tag in tags" :key="tag.id" class="check-line">
-            <input v-model="projectForm.tagIds" type="checkbox" :value="tag.id" />
-            {{ tag.name }}
-          </label>
+        <div class="tag-picker-wrap">
+          <label class="tag-picker-label">标签</label>
+          <div class="tag-picker">
+            <label v-for="tag in tags" :key="tag.id" class="check-line">
+              <input v-model="projectForm.tagIds" type="checkbox" :value="tag.id" />
+              {{ tag.name }}
+            </label>
+          </div>
+          <div class="tag-creator">
+            <input v-model="newTagName" placeholder="输入新标签" maxlength="50" @keydown.enter.prevent="createNewTag('project')" />
+            <button type="button" class="button button-tonal button-compact" :disabled="!newTagName.trim()" @click="createNewTag('project')">添加</button>
+          </div>
         </div>
         <div class="form-actions">
           <button class="button button-filled" type="submit">{{ editingProjectId ? '保存作品' : '创建作品' }}</button>
@@ -282,6 +296,7 @@ import {
   fetchCreatorProjects,
   fetchMyFavorites,
   fetchTags,
+  createTag,
   submitCreatorArticle,
   submitCreatorProject,
   updateCreatorArticle,
@@ -317,6 +332,7 @@ const editingProjectId = ref<number | null>(null)
 const projectTechStack = ref('')
 const selectedFile = ref<File | null>(null)
 const fileModule = ref('PROJECT')
+const newTagName = ref('')
 
 const articleForm = reactive<ArticlePayload>({
   title: '',
@@ -587,6 +603,27 @@ async function uploadFile() {
   }
 }
 
+async function createNewTag(target: 'article' | 'project') {
+  if (!newTagName.value.trim()) return
+  try {
+    const tag = await createTag({
+      name: newTagName.value.trim(),
+      slug: newTagName.value.trim().toLowerCase().replace(/\s+/g, '-'),
+      groupName: '用户创建'
+    })
+    tags.value.push(tag)
+    if (target === 'article') {
+      articleForm.tagIds.push(tag.id)
+    } else {
+      projectForm.tagIds.push(tag.id)
+    }
+    newTagName.value = ''
+    notice.value = '新标签已创建'
+  } catch (error) {
+    notice.value = readError(error, '标签创建失败')
+  }
+}
+
 function canSubmitContent(status: string) {
   return status === 'DRAFT' || status === 'REJECTED'
 }
@@ -709,7 +746,7 @@ function readError(error: unknown, fallback: string) {
 
 .creator-grid {
   display: grid;
-  grid-template-columns: minmax(0, 0.92fr) minmax(360px, 1.08fr);
+  grid-template-columns: 1fr;
   align-items: start;
   gap: 16px;
 }
@@ -795,6 +832,22 @@ function readError(error: unknown, fallback: string) {
   border-color: rgba(49, 91, 255, 0.48);
   outline: none;
   box-shadow: 0 0 0 4px rgba(49, 91, 255, 0.1);
+}
+
+.tag-picker-wrap {
+  display: grid;
+  gap: 8px;
+}
+
+.tag-creator {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.tag-creator input {
+  flex: 1;
 }
 
 .creator-form select {

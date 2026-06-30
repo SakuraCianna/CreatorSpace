@@ -132,22 +132,6 @@
         </section>
 
         <div class="markdown-body" v-html="htmlContent" />
-      </article>
-
-      <!-- 3D 交互侧栏控制面板 -->
-      <aside class="process-panel" data-reveal>
-        <section class="side-card">
-          <p class="page-kicker">Archive Path</p>
-          <h2>档案结构</h2>
-          <ol class="timeline-list">
-            <li v-for="item in timeline" :key="item.title">
-              <span>{{ item.phase }}</span>
-              <strong>{{ item.title }}</strong>
-              <p>{{ item.body }}</p>
-            </li>
-          </ol>
-        </section>
-
         <section class="side-card comments-card">
           <p class="page-kicker">Comments</p>
           <h2>作品反馈</h2>
@@ -212,7 +196,7 @@
         </section>
 
         <p v-if="notice" class="inline-notice">{{ notice }}</p>
-      </aside>
+      </article>
     </div>
 
     <div v-else class="empty-state detail-state" data-reveal>

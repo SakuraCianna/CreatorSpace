@@ -45,6 +45,38 @@ function isPublicApi(path: string): boolean {
   return PUBLIC_API_PREFIXES.some((prefix) => path.startsWith(prefix))
 }
 
+let refreshPromise: Promise<string | null> | null = null
+
+async function silentlyRefresh(): Promise<string | null> {
+  if (refreshPromise) return refreshPromise
+  refreshPromise = (async () => {
+    const rfToken = window.localStorage.getItem(REFRESH_TOKEN_KEY)
+    if (!rfToken) return null
+    try {
+      const response = await fetch(`${appConfig.apiBaseUrl}/api/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: rfToken })
+      })
+      if (!response.ok) return null
+      
+      const json = await response.json()
+      if (json.code !== 0) return null
+      const newAccess = json.data.accessToken
+      const newRefresh = json.data.refreshToken
+      
+      window.localStorage.setItem(ACCESS_TOKEN_KEY, newAccess)
+      window.localStorage.setItem(REFRESH_TOKEN_KEY, newRefresh)
+      return newAccess
+    } catch {
+      return null
+    }
+  })().finally(() => {
+    refreshPromise = null
+  })
+  return refreshPromise
+}
+
 // 发送 JSON 请求并处理超时、请求头和统一错误信息
 // 安全发送 JSON 请求并自动挂载授权 Token 请求头, 针对超时及后端连接异常进行统一拦截处理
 export async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
@@ -69,10 +101,27 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
     })
 
     if (!response.ok) {
-      const backendMessage = await readErrorMessage(response)
       if (response.status === 401 && !isPublicApi(requestPath)) {
+        const newAccess = await silentlyRefresh()
+        if (newAccess) {
+          const retryInit = {
+            ...init,
+            headers: {
+              ...init?.headers,
+              Authorization: `Bearer ${newAccess}`
+            }
+          }
+          const retryResponse = await fetch(`${appConfig.apiBaseUrl}${requestPath}`, {
+            ...retryInit,
+            signal: init?.signal ?? controller.signal,
+          })
+          if (retryResponse.ok) {
+            return retryResponse.json() as Promise<T>
+          }
+        }
         clearAuth()
       }
+      const backendMessage = await readErrorMessage(response)
       throw new HttpError(
         buildHttpErrorMessage(response.status, requestPath, method, backendMessage),
         response.status,
