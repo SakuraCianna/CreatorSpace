@@ -10,6 +10,7 @@
     <div class="header-bg">
       <div class="decor-circle circle-1" ref="circle1"></div>
       <div class="decor-circle circle-2" ref="circle2"></div>
+      <div class="decor-pattern"></div>
       <div class="decor-glass"></div>
       <div class="border-glow" ref="borderGlow"></div>
     </div>
@@ -153,13 +154,24 @@ const onLeave = () => {
   z-index: 1;
 }
 
+.decor-pattern {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(color-mix(in srgb, var(--theme-color-strong) 40%, transparent) 1px, transparent 1px);
+  background-size: 20px 20px;
+  opacity: 0.15;
+  z-index: 2;
+  mask-image: linear-gradient(135deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 80%);
+  -webkit-mask-image: linear-gradient(135deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 80%);
+}
+
 .decor-glass {
   position: absolute;
   inset: 0;
   background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.85) 100%);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  z-index: 2;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 3;
 }
 
 .border-glow {
@@ -172,7 +184,7 @@ const onLeave = () => {
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   opacity: 0;
-  z-index: 3;
+  z-index: 4;
   pointer-events: none;
   transition: opacity 0.4s ease;
 }

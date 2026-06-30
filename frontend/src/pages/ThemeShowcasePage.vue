@@ -1,5 +1,5 @@
 <template>
-  <section ref="root" class="theme-page">
+  <section ref="root" class="themes-page">
     <PublicPageHeader title="主题展厅" description="所见即所得的预览，展示颜色、字体、卡片和控件在各种状态下的表现。" kicker="THEME STUDIO" theme="fuchsia">
       <div class="active-theme-pill" :style="previewStyle">
         <div class="active-pulse"></div>
