@@ -914,13 +914,25 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                         .header("Authorization", bearer(adminToken)))
                 .andExpect(status().isOk());
 
+        // Add a sensitive word to trigger REVIEW
+        mockMvc.perform(post("/api/admin/sensitive-words")
+                        .header("Authorization", bearer(adminToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "word", "需要审核",
+                                "matchType", "CONTAINS",
+                                "severity", "REVIEW",
+                                "enabled", true
+                        ))))
+                .andExpect(status().isOk());
+
         String commentResponse = mockMvc.perform(post("/api/comments")
                         .header("Authorization", bearer(userToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(Map.of(
                                 "targetType", "ARTICLE",
                                 "targetId", articleId,
-                                "content", "这篇文章的结构很清楚。"
+                                "content", "这篇文章的结构很清楚。需要审核"
                         ))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status", is("PENDING")))
@@ -945,7 +957,7 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                         .param("targetId", String.valueOf(articleId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.records", hasSize(1)))
-                .andExpect(jsonPath("$.data.records[0].content", is("这篇文章的结构很清楚。")));
+                .andExpect(jsonPath("$.data.records[0].content", is("这篇文章的结构很清楚。需要审核")));
     }
 
     // 验证回复只有审核通过后才进入公开回复数，驳回已通过回复会回退计数。
@@ -997,6 +1009,18 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                         .header("Authorization", bearer(adminToken)))
                 .andExpect(status().isOk());
 
+        // Add a sensitive word to trigger REVIEW
+        mockMvc.perform(post("/api/admin/sensitive-words")
+                        .header("Authorization", bearer(adminToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "word", "待审核的回复",
+                                "matchType", "CONTAINS",
+                                "severity", "REVIEW",
+                                "enabled", true
+                        ))))
+                .andExpect(status().isOk());
+
         String replyResponse = mockMvc.perform(post("/api/comments")
                         .header("Authorization", bearer(userToken))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -1004,7 +1028,7 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                                 "targetType", "ARTICLE",
                                 "targetId", articleId,
                                 "parentId", parentId,
-                                "content", "这是一条等待审核的回复。"
+                                "content", "这是一条待审核的回复。"
                         ))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status", is("PENDING")))

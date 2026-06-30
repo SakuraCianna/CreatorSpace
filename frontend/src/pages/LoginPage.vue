@@ -35,7 +35,15 @@
           <span>密码</span>
           <input v-model="form.password" autocomplete="current-password" name="password" type="password" />
         </label>
-        <button class="button button-filled" :disabled="isSubmitting" type="submit">
+        <VueHcaptcha
+          ref="hcaptchaRef"
+          :sitekey="hcaptchaSiteKey"
+          @verify="onVerify"
+          @expired="onExpired"
+          @error="onError"
+          style="margin-top: 8px;"
+        />
+        <button class="button button-filled" :disabled="isSubmitting || !hcaptchaToken" type="submit">
           <LoaderCircle v-if="isSubmitting" class="spin" :size="16" />
           {{ isSubmitting ? '登录中...' : loginMode === 'ADMIN' ? '登录后台' : '登录账号' }}
         </button>
@@ -51,6 +59,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { LoaderCircle, ShieldCheck } from '@lucide/vue'
+import VueHcaptcha from '@hcaptcha/vue3-hcaptcha'
 
 import { loginAdmin, loginUser } from '@/services/content'
 import { HttpError, toUserMessage } from '@/services/http'
@@ -83,6 +92,20 @@ const registerRoute = computed(() => ({
 
 usePageReveal(root)
 
+const hcaptchaToken = ref('')
+const hcaptchaRef = ref<any>(null)
+const hcaptchaSiteKey = import.meta.env.VITE_HCAPTCHA_SITE_KEY
+
+function onVerify(token: string) {
+  hcaptchaToken.value = token
+}
+function onExpired() {
+  hcaptchaToken.value = ''
+}
+function onError() {
+  hcaptchaToken.value = ''
+}
+
 watch([loginMode, () => form.username, () => form.password], () => {
   loginAttemptId.value += 1
   message.value = ''
@@ -92,6 +115,10 @@ watch([loginMode, () => form.username, () => form.password], () => {
 async function submitLogin() {
   if (!form.username.trim() || !form.password) {
     message.value = '请输入用户名和密码'
+    return
+  }
+  if (!hcaptchaToken.value) {
+    message.value = '请完成人机验证'
     return
   }
 
@@ -104,12 +131,15 @@ async function submitLogin() {
     const payload = {
       username: usernameSnapshot,
       password: form.password,
+      hcaptchaToken: hcaptchaToken.value,
     }
     const token = modeSnapshot === 'ADMIN' ? await loginAdmin(payload) : await loginUser(payload)
     session.setSession(token.accessToken, token.user, token.refreshToken)
     form.password = ''
     router.push(modeSnapshot === 'ADMIN' ? readRedirectPath() : readPublicRedirectPath())
   } catch (error) {
+    if (hcaptchaRef.value) hcaptchaRef.value.reset()
+    hcaptchaToken.value = ''
     if (attemptId === loginAttemptId.value && modeSnapshot === loginMode.value && usernameSnapshot === form.username.trim()) {
       message.value = loginErrorMessage(error, modeSnapshot)
     }

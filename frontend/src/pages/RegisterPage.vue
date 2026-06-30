@@ -42,7 +42,15 @@
             type="password"
           />
         </label>
-        <button class="button button-filled" :disabled="isSubmitting || isRedirecting" type="submit">
+        <VueHcaptcha
+          ref="hcaptchaRef"
+          :sitekey="hcaptchaSiteKey"
+          @verify="onVerify"
+          @expired="onExpired"
+          @error="onError"
+          style="margin-top: 8px;"
+        />
+        <button class="button button-filled" :disabled="isSubmitting || isRedirecting || !hcaptchaToken" type="submit">
           <LoaderCircle v-if="isSubmitting" class="spin" :size="16" />
           {{ isSubmitting ? '创建中...' : isRedirecting ? '正在前往登录页' : '创建账号' }}
         </button>
@@ -58,6 +66,7 @@
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { LoaderCircle, UserPlus } from '@lucide/vue'
+import VueHcaptcha from '@hcaptcha/vue3-hcaptcha'
 
 import { registerUser } from '@/services/content'
 import { HttpError, toUserMessage } from '@/services/http'
@@ -91,6 +100,20 @@ const loginRoute = computed(() => ({
   },
 }))
 
+const hcaptchaToken = ref('')
+const hcaptchaRef = ref<any>(null)
+const hcaptchaSiteKey = import.meta.env.VITE_HCAPTCHA_SITE_KEY
+
+function onVerify(token: string) {
+  hcaptchaToken.value = token
+}
+function onExpired() {
+  hcaptchaToken.value = ''
+}
+function onError() {
+  hcaptchaToken.value = ''
+}
+
 usePageReveal(root)
 onBeforeUnmount(clearRedirectTimer)
 watch([() => form.username, () => form.password], () => {
@@ -114,6 +137,11 @@ async function submitRegister() {
     setMessage(validationMessage, 'error')
     return
   }
+  if (!hcaptchaToken.value) {
+    registerAttemptId.value += 1
+    setMessage('请完成人机验证', 'error')
+    return
+  }
 
   isSubmitting.value = true
   clearMessage()
@@ -122,6 +150,7 @@ async function submitRegister() {
     const user = await registerUser({
       username,
       password: form.password,
+      hcaptchaToken: hcaptchaToken.value,
     })
     if (!isCurrentRegisterAttempt(attemptId, username)) {
       return
@@ -133,6 +162,8 @@ async function submitRegister() {
       router.push(loginRoute.value)
     }, 900)
   } catch (error) {
+    if (hcaptchaRef.value) hcaptchaRef.value.reset()
+    hcaptchaToken.value = ''
     if (isCurrentRegisterAttempt(attemptId, username)) {
       const msg = error instanceof HttpError
         ? (error.backendMessage || toUserMessage(error, '注册失败，请稍后重试'))

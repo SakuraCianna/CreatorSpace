@@ -66,6 +66,7 @@ app:
     password-bcrypt-strength: ${PASSWORD_BCRYPT_STRENGTH:12}
     jwt-access-token-expire-minutes: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:120}
     jwt-refresh-token-expire-days: ${JWT_REFRESH_TOKEN_EXPIRE_DAYS:14}
+    hcaptcha-secret-key: ${HCAPTCHA_SECRET_KEY:}
   ai:
     enabled: ${AI_ENABLED:false}
     provider: ${AI_PROVIDER:zhipu}

@@ -37,5 +37,6 @@ public abstract class PostgresIntegrationTestSupport {
         registry.add("PASSWORD_BCRYPT_STRENGTH", () -> "4");
         registry.add("JWT_SECRET", () -> "test-secret-with-enough-length-for-hmac-signing");
         registry.add("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", () -> "60");
+        registry.add("HCAPTCHA_SECRET_KEY", () -> "");
     }
 }
