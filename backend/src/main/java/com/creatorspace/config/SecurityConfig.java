@@ -61,7 +61,8 @@ public class SecurityConfig {
                         ).permitAll()
                         .requestMatchers(
                                 AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/inspirations/**"),
-                                AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/search")
+                                AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/search"),
+                                AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/users/**")
                         ).permitAll()
                         .requestMatchers(AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/comments")).permitAll()
                         .requestMatchers(

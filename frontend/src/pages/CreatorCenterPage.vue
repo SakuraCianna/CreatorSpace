@@ -248,14 +248,22 @@
     <section v-else class="creator-panel creator-favorites" data-reveal>
       <div class="panel-title">
         <h2>我的收藏</h2>
-        <button class="icon-text-button" type="button" @click="loadFavorites">刷新</button>
-      </div>
-      <article v-for="favorite in favorites" :key="favorite.id" class="desk-row">
-        <div>
-          <strong>{{ favorite.targetType }} #{{ favorite.targetId }}</strong>
-          <span>{{ formatDateTimeToSecond(favorite.createdAt, '刚刚') }}</span>
+        <div class="panel-title-actions">
+          <RouterLink class="icon-text-button" to="/my-favorites">查看全部</RouterLink>
+          <button class="icon-text-button" type="button" @click="loadFavorites">刷新</button>
         </div>
-      </article>
+      </div>
+      <RouterLink
+        v-for="favorite in favorites"
+        :key="favorite.id"
+        :to="favoriteRoute(favorite)"
+        class="desk-row desk-row--linked"
+      >
+        <div>
+          <strong>{{ favorite.title || `${favorite.targetType} #${favorite.targetId}` }}</strong>
+          <span>{{ favorite.targetType === 'ARTICLE' ? '文章' : '作品' }} · {{ formatDateTimeToSecond(favorite.createdAt, '刚刚') }}</span>
+        </div>
+      </RouterLink>
       <p v-if="favorites.length === 0" class="muted-line">还没有收藏内容。</p>
     </section>
 
@@ -267,7 +275,7 @@
 // 导入 Composition API 与路由依赖
 import { computed, onMounted, reactive, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
-import { BookOpen, FileImage, Images, Star } from '@lucide/vue'
+import { BookOpen, ExternalLink, FileImage, Images, Star } from '@lucide/vue'
 
 import {
   createCreatorArticle,
@@ -295,8 +303,8 @@ import type {
   ArticlePayload,
   ArticleSummary,
   CategorySummary,
+  FavoriteRecord,
   FileResource,
-  InteractionRecord,
   ProjectPayload,
   ProjectSummary,
   TagSummary,
@@ -309,7 +317,7 @@ const notice = ref('')
 const articles = ref<ArticleSummary[]>([])
 const projects = ref<ProjectSummary[]>([])
 const files = ref<FileResource[]>([])
-const favorites = ref<InteractionRecord[]>([])
+const favorites = ref<FavoriteRecord[]>([])
 const tags = ref<TagSummary[]>([])
 const articleCategories = ref<CategorySummary[]>([])
 const editingArticleId = ref<number | null>(null)
@@ -409,7 +417,14 @@ async function loadFavorites() {
   }
 }
 
-// 保存当前正在编辑的文章草稿, 根据是否带有编辑 ID 决定是发起 PUT 还是 POST 请求
+function favoriteRoute(item: FavoriteRecord) {
+  if (item.targetType === 'ARTICLE') {
+    return { name: 'article-detail', params: { slug: item.slug } }
+  }
+  return { name: 'project-detail', params: { slug: item.slug } }
+}
+
+// 保存当前正在编辑的文章草稿, 根据是否带有编辑 ID 决定是发起 PUT 或是 POST 请求
 async function saveArticle() {
   if (!articleForm.title.trim() || !articleForm.slug.trim() || !articleForm.contentMarkdown.trim()) {
     notice.value = '请填写文章标题、URL 标识和正文'
@@ -745,6 +760,22 @@ function readError(error: unknown, fallback: string) {
 .panel-title h2 {
   margin: 0;
   font-size: 20px;
+}
+
+.panel-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+a.desk-row--linked {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+a.desk-row--linked:hover {
+  background: rgba(20, 21, 29, 0.07);
 }
 
 .panel-title span,

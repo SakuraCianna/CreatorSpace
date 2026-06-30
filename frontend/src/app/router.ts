@@ -74,6 +74,24 @@ const router = createRouter({
       meta: { layout: "public", requiresAuth: true },
     },
     {
+      path: "/my-favorites",
+      name: "my-favorites",
+      component: () => import("@/pages/MyFavoritesPage.vue"),
+      meta: { layout: "public", requiresAuth: true },
+    },
+    {
+      path: "/my-notifications",
+      name: "my-notifications",
+      component: () => import("@/pages/MyNotificationsPage.vue"),
+      meta: { layout: "public", requiresAuth: true },
+    },
+    {
+      path: "/users/:userId",
+      name: "user-profile",
+      component: () => import("@/pages/UserProfilePage.vue"),
+      meta: { layout: "public" },
+    },
+    {
       path: "/register",
       name: "register",
       component: () => import("@/pages/RegisterPage.vue"),

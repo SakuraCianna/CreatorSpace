@@ -275,7 +275,11 @@ onMounted(loadEntries)
 }
 
 .comment-action-btn.is-active {
-  color: var(--tone-primary);
+  color: #e0455a;
+}
+.comment-action-btn.is-active svg {
+  stroke: #e0455a;
+  fill: #e0455a;
 }
 
 .inline-notice {

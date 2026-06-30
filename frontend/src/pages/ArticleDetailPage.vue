@@ -56,6 +56,37 @@
           <a v-for="item in toc" :key="item" href="#" @click.prevent="scrollToHeading(item)">{{ item }}</a>
           <span v-if="toc.length === 0">正文还没有二级标题。</span>
         </div>
+        <div v-if="article?.authorId" class="author-card">
+          <RouterLink
+            class="author-card__link"
+            :to="{ name: 'user-profile', params: { userId: article.authorId } }"
+          >
+            <div class="author-card__avatar">
+              <img
+                v-if="article.authorAvatar"
+                :src="article.authorAvatar"
+                alt=""
+                loading="lazy"
+              />
+              <UserRound v-else :size="20" />
+            </div>
+            <div class="author-card__info">
+              <strong>{{ article.authorName || '匿名' }}</strong>
+              <span>查看作者主页</span>
+            </div>
+          </RouterLink>
+          <button
+            v-if="canFollowAuthor"
+            class="author-card__follow button button-compact"
+            :class="following ? 'button-outline' : 'button-filled'"
+            type="button"
+            @click="toggleFollow(article.authorId)"
+          >
+            <UserPlus v-if="!following" :size="13" />
+            <UserCheck v-else :size="13" />
+            {{ isFriend ? '互相关注' : following ? '已关注' : '关注' }}
+          </button>
+        </div>
         <div class="reaction-card">
           <button
             class="icon-button"
@@ -106,41 +137,16 @@
               </button>
             </div>
           </form>
-          <div v-if="comments.length > 0" class="comment-list">
-            <article v-for="comment in comments" :key="comment.id" class="comment-item" :style="{ '--depth': comment.depth }">
-              <span class="comment-avatar" aria-hidden="true">{{ commentInitial(comment.username) }}</span>
-              <div class="comment-content">
-                <div class="comment-header">
-                  <strong>{{ comment.username }}</strong>
-                  <span class="comment-time">{{ formatDate(comment.createdAt) }}</span>
-                </div>
-                <p v-if="comment.replyToUsername" class="comment-reply-to">
-                  <Reply :size="12" /> 回复 {{ comment.replyToUsername }}
-                </p>
-                <p class="comment-body">{{ comment.content }}</p>
-                <div class="comment-actions">
-                  <button
-                    class="comment-action-btn"
-                    :class="{ 'is-active': commentLiked[comment.id] }"
-                    type="button"
-                    :disabled="!canComment"
-                    @click="toggleCommentLike(comment)"
-                  >
-                    <Heart :size="14" />
-                    {{ comment.likeCount }}
-                  </button>
-                  <button
-                    class="comment-action-btn"
-                    type="button"
-                    :disabled="!canComment"
-                    @click="replyTo(comment)"
-                  >
-                    <MessageCircle :size="14" />
-                    回复
-                  </button>
-                </div>
-              </div>
-            </article>
+          <div v-if="commentTree.length > 0" class="comment-list">
+            <CommentThread
+              v-for="comment in commentTree"
+              :key="comment.id"
+              :comment="comment"
+              :can-comment="canComment"
+              :liked-map="commentLiked"
+              @reply="replyTo"
+              @like="toggleCommentLike"
+            />
           </div>
           <div v-else class="comment-empty">
             <strong>还没有公开评论</strong>
@@ -172,7 +178,9 @@ import {
   Heart,
   LoaderCircle,
   MessageCircle,
-  Reply,
+  UserCheck,
+  UserPlus,
+  UserRound,
 } from '@lucide/vue'
 
 import {
@@ -186,11 +194,14 @@ import {
 } from '@/services/content'
 import { HttpError, toUserMessage } from '@/services/http'
 import { useCinematicPageMotion } from '@/shared/composables/useCinematicPageMotion'
+import { useFollow } from '@/shared/composables/useFollow'
 import { useInteraction } from '@/shared/composables/useInteraction'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import { toCssImageUrl } from '@/shared/cssImage'
 import { formatDateToDay } from '@/shared/datetime'
-import type { ArticleSummary, CommentSummary } from '@/shared/domain'
+import type { ArticleSummary, CommentSummary, CommentTree } from '@/shared/domain'
+import { buildCommentTree } from '@/shared/domain'
+import CommentThread from '@/shared/components/CommentThread.vue'
 import { normalizeMarkdownSource, renderSafeMarkdown } from '@/shared/markdown'
 import { useSessionStore } from '@/shared/sessionStore'
 
@@ -207,14 +218,20 @@ const isLoading = ref(true)
 const notice = ref('')
 const replyTarget = ref<CommentSummary | null>(null)
 const commentLiked = ref<Record<number, boolean>>({})
+const commentTree = computed<CommentTree[]>(() => buildCommentTree(comments.value))
 const slug = computed(() => readRouteParam(route.params.slug))
 const session = useSessionStore()
 const cinematic = useCinematicPageMotion(root)
 const { liked, favorited, loadStatus: loadInteractionStatus, toggleLike, toggleFavorite } = useInteraction('ARTICLE')
+const { following, isFriend, loadStatus: loadFollowStatus, toggleFollow } = useFollow()
 
 usePageReveal(root)
 
 const canComment = computed(() => Boolean(session.accessToken))
+const canFollowAuthor = computed(() => {
+  if (!canComment.value || !article.value?.authorId) return false
+  return session.currentUser?.id !== article.value.authorId
+})
 const articleMarkdown = computed(() => normalizeMarkdownSource(article.value?.contentMarkdown ?? article.value?.summary))
 const htmlContent = computed(() => renderSafeMarkdown(articleMarkdown.value))
 const readingMinutes = computed(() => Math.max(1, Math.ceil(articleMarkdown.value.length / 420)))
@@ -253,7 +270,11 @@ async function loadArticle() {
     article.value = detail
     previousArticle.value = neighbors.previousArticle ?? null
     nextArticle.value = neighbors.nextArticle ?? null
-    await Promise.all([loadComments(), loadInteractionStatus(detail.id)])
+    await Promise.all([
+      loadComments(),
+      loadInteractionStatus(detail.id),
+      loadFollowStatus(detail.authorId ?? 0),
+    ])
   } catch (error) {
     article.value = null
     notice.value = toUserMessage(error, '文章暂时无法打开，请稍后再试')
@@ -334,6 +355,8 @@ async function toggleCommentLike(comment: CommentSummary) {
       commentLiked.value = { ...commentLiked.value, [comment.id]: true }
       comment.likeCount += 1
     }
+    const flat = comments.value.find(c => c.id === comment.id)
+    if (flat) flat.likeCount = comment.likeCount
   } catch (e) {
     console.error('toggleCommentLike error:', e)
   }
@@ -352,10 +375,6 @@ async function loadCommentLikes() {
 
 function cancelReply() {
   replyTarget.value = null
-}
-
-function commentInitial(username: string): string {
-  return username.trim().slice(0, 1).toUpperCase() || 'U'
 }
 
 function readRouteParam(value: string | string[] | undefined): string {
@@ -640,6 +659,66 @@ watch(slug, loadArticle)
   gap: calc(var(--theme-density-spacing, 16px) * 0.75);
 }
 
+.author-card {
+  display: grid;
+  gap: 12px;
+  padding: calc(var(--theme-density-spacing, 16px) * 1.125);
+  border: 1px solid var(--tone-line);
+  border-radius: var(--app-radius-sm);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--tone-panel-solid) 90%, transparent), color-mix(in srgb, var(--tone-panel-solid) 72%, transparent)),
+    var(--tone-panel);
+  box-shadow: 0 16px 40px rgba(32, 33, 36, 0.08);
+  backdrop-filter: blur(18px);
+}
+
+.author-card__link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.author-card__avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  background: var(--tone-night);
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.author-card__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.author-card__info {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.author-card__info strong {
+  color: var(--tone-ink);
+  font-size: 15px;
+  font-weight: 760;
+}
+
+.author-card__info span {
+  color: var(--tone-faint);
+  font-size: 12px;
+}
+
+.author-card__follow {
+  width: 100%;
+}
+
 .toc-card,
 .reaction-card,
 .comments-card {
@@ -764,102 +843,7 @@ watch(slug, loadArticle)
 
 .comment-list {
   display: grid;
-  gap: 10px;
-}
-
-.comment-item {
-  display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
-  gap: 10px;
-  padding: 12px;
-  margin-left: calc(var(--depth, 0) * 20px);
-  border: 1px solid color-mix(in srgb, var(--tone-line) 76%, transparent);
-  border-radius: var(--app-radius-sm, 8px);
-  background: color-mix(in srgb, var(--tone-panel-solid) 72%, transparent);
-}
-
-.comment-item[style*="--depth: 1"],
-.comment-item[style*="--depth: 2"],
-.comment-item[style*="--depth: 3"],
-.comment-item[style*="--depth: 4"] {
-  background: rgba(0, 0, 0, 0.02);
-}
-
-.comment-avatar {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--tone-primary) 12%, #ffffff);
-  color: var(--tone-primary);
-  font-size: 13px;
-  font-weight: 820;
-}
-
-.comment-reply-to {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin: 2px 0 4px;
-  font-size: 12px;
-  color: var(--tone-ink-2);
-}
-
-.comment-content {
-  min-width: 0;
-}
-
-.comment-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 4px;
-}
-
-.comment-header strong {
-  color: var(--tone-ink);
-  font-size: 14px;
-}
-
-.comment-time {
-  color: var(--tone-faint);
-  font-size: 12px;
-}
-
-.comment-body {
-  margin: 4px 0 6px;
-  color: #475569;
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-.comment-actions {
-  display: flex;
-  align-items: center;
   gap: 12px;
-}
-
-.comment-action-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 6px;
-  border: none;
-  background: transparent;
-  color: var(--tone-muted);
-  cursor: pointer;
-  font-size: 12px;
-}
-
-.comment-action-btn:hover {
-  color: var(--tone-primary);
-}
-
-.comment-likes {
-  color: var(--tone-faint);
-  font-size: 12px;
 }
 
 .reply-hint {

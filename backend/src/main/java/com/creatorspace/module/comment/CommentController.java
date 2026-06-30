@@ -28,6 +28,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.util.List;
+
+import com.creatorspace.module.notification.NotificationHelper;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -181,6 +183,27 @@ public class CommentController {
                             where id = ?
                             """,
                     request.targetId());
+        }
+        if ("APPROVED".equals(status)) {
+            if (parent != null) {
+                long parentUserId = parent.userId();
+                if (parentUserId != loginUser.userId()) {
+                    NotificationHelper.insert(jdbcTemplate, parentUserId, "REPLY_COMMENT",
+                            loginUser.username() + " 回复了你的评论",
+                            request.content(), type, request.targetId(),
+                            loginUser.userId(), loginUser.username());
+                }
+            } else if ("ARTICLE".equals(type)) {
+                Long articleAuthorId = jdbcTemplate.queryForObject(
+                        "select created_by from articles where id = ?",
+                        Long.class, request.targetId());
+                if (articleAuthorId != null && articleAuthorId != loginUser.userId()) {
+                    NotificationHelper.insert(jdbcTemplate, articleAuthorId, "COMMENT_ON_ARTICLE",
+                            loginUser.username() + " 评论了你的文章",
+                            request.content(), type, request.targetId(),
+                            loginUser.userId(), loginUser.username());
+                }
+            }
         }
         return ApiResponse.ok(getComment(id));
     }

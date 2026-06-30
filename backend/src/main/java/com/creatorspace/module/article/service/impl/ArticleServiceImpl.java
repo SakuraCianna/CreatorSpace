@@ -28,6 +28,7 @@ import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -613,6 +614,18 @@ public class ArticleServiceImpl implements ArticleService {
         CategoryVO category = entity.getCategoryId() == null ? null : categoryService.findById(entity.getCategoryId());
         List<Long> tagIds = articleTagMapper.selectTagIdsByArticleId(entity.getId());
         List<TagVO> tags = tagIds.isEmpty() ? Collections.emptyList() : tagService.listByIds(tagIds);
+        String authorName = null;
+        String authorAvatar = null;
+        String authorBio = null;
+        if (entity.getCreatedBy() != null) {
+            Map<String, Object> author = jdbcTemplate.queryForMap(
+                    "select username, avatar_url, bio from users where id = ?",
+                    entity.getCreatedBy()
+            );
+            authorName = (String) author.get("username");
+            authorAvatar = (String) author.get("avatar_url");
+            authorBio = (String) author.get("bio");
+        }
         return new ArticleVO(
                 entity.getId(),
                 entity.getTitle(),
@@ -631,6 +644,9 @@ public class ArticleServiceImpl implements ArticleService {
                 tags,
                 entity.getPublishTime(),
                 entity.getCreatedBy(),
+                authorName,
+                authorAvatar,
+                authorBio,
                 entity.getSubmittedAt(),
                 entity.getReviewedAt(),
                 entity.getReviewNote()

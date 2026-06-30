@@ -183,31 +183,18 @@
             <span>回复 {{ replyTarget.username }}</span>
             <button class="text-link" type="button" @click="cancelReply">取消</button>
           </div>
-          <div class="comment-list">
-            <article
-              v-for="comment in comments"
+          <div v-if="commentTree.length > 0" class="comment-list">
+            <CommentThread
+              v-for="comment in commentTree"
               :key="comment.id"
-              class="comment-item"
-              :style="{ '--depth': comment.depth }"
-            >
-              <div class="comment-header">
-                <strong>{{ comment.username }}</strong>
-                <span class="comment-time">{{ formatDate(comment.createdAt) }}</span>
-              </div>
-              <p v-if="comment.replyToUsername" class="comment-reply-to">
-                <Reply :size="12" /> 回复 {{ comment.replyToUsername }}
-              </p>
-              <p class="comment-body">{{ comment.content }}</p>
-              <div class="comment-actions">
-                <button class="comment-action-btn" type="button" :disabled="!canComment" @click="replyTo(comment)">
-                  <MessageCircle :size="14" />
-                  回复
-                </button>
-                <span v-if="comment.likeCount > 0" class="comment-likes">{{ comment.likeCount }} 赞</span>
-              </div>
-            </article>
+              :comment="comment"
+              :can-comment="canComment"
+              :liked-map="commentLiked"
+              @reply="replyTo"
+              @like="toggleCommentLike"
+            />
           </div>
-          <p v-if="comments.length === 0" class="comment-empty">还没有公开评论。</p>
+          <p v-else class="comment-empty">还没有公开评论。</p>
           <p v-if="commentNotice" class="inline-notice">{{ commentNotice }}</p>
         </section>
 
@@ -238,17 +225,19 @@ import {
   LoaderCircle,
   MessageCircle,
   PlayCircle,
-  Reply,
   Sparkles,
 } from '@lucide/vue'
 
 import {
   favoriteTarget,
+  fetchCommentReactionsBatch,
   fetchComments,
   fetchProjectBySlug,
   likeTarget,
+  reactToComment,
   submitComment,
   unfavoriteTarget,
+  unreactFromComment,
   unlikeTarget,
 } from '@/services/content'
 import { HttpError, toUserMessage } from '@/services/http'
@@ -256,7 +245,9 @@ import { useCinematicPageMotion } from '@/shared/composables/useCinematicPageMot
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import { toCssImageUrl } from '@/shared/cssImage'
 import { formatMonthDay } from '@/shared/datetime'
-import type { CommentSummary, ProjectStatus, ProjectSummary } from '@/shared/domain'
+import type { CommentSummary, CommentTree, ProjectStatus, ProjectSummary } from '@/shared/domain'
+import { buildCommentTree } from '@/shared/domain'
+import CommentThread from '@/shared/components/CommentThread.vue'
 import { renderSafeMarkdown } from '@/shared/markdown'
 import { useSessionStore } from '@/shared/sessionStore'
 
@@ -300,6 +291,8 @@ const notice = ref('')
 const liked = ref(false)
 const favorited = ref(false)
 const replyTarget = ref<CommentSummary | null>(null)
+const commentLiked = ref<Record<number, boolean>>({})
+const commentTree = computed<CommentTree[]>(() => buildCommentTree(comments.value))
 const coverImageFailed = ref(false)
 const brokenScreenshotUrls = ref(new Set<string>())
 const slug = computed(() => readRouteParam(route.params.slug))
@@ -380,6 +373,7 @@ async function loadComments(options: { keepCurrentNotice?: boolean } = {}) {
     // 拉取前 20 条已审核公开的作品反馈评论数据
     const page = await fetchComments({ targetType: 'PROJECT', targetId: project.value.id, pageSize: 20 })
     comments.value = page.records
+    await loadCommentLikes()
     if (!options.keepCurrentNotice) {
       commentNotice.value = ''
     }
@@ -453,6 +447,37 @@ async function toggleFavorite() {
     }
   } catch {
     commentNotice.value = '操作失败，请重试'
+  }
+}
+
+async function toggleCommentLike(comment: CommentSummary) {
+  if (!canComment.value) return
+  const liked = commentLiked.value[comment.id]
+  try {
+    if (liked) {
+      await unreactFromComment(comment.id)
+      commentLiked.value = { ...commentLiked.value, [comment.id]: false }
+      comment.likeCount = Math.max(0, comment.likeCount - 1)
+    } else {
+      await reactToComment(comment.id)
+      commentLiked.value = { ...commentLiked.value, [comment.id]: true }
+      comment.likeCount += 1
+    }
+    const flat = comments.value.find(c => c.id === comment.id)
+    if (flat) flat.likeCount = comment.likeCount
+  } catch (e) {
+    console.error('toggleCommentLike error:', e)
+  }
+}
+
+async function loadCommentLikes() {
+  if (!canComment.value || comments.value.length === 0) return
+  const ids = comments.value.map(c => c.id)
+  try {
+    const statuses = await fetchCommentReactionsBatch(ids)
+    commentLiked.value = statuses
+  } catch {
+    commentLiked.value = {}
   }
 }
 
@@ -1145,14 +1170,6 @@ watch(slug, loadProject)
   fill: var(--tone-violet);
 }
 
-.comment-action-btn.is-active {
-  color: #e0455a;
-}
-.comment-action-btn.is-active svg {
-  stroke: #e0455a;
-  fill: #e0455a;
-}
-
 .comment-form {
   display: grid;
   gap: 10px;
@@ -1172,68 +1189,14 @@ watch(slug, loadProject)
 
 .comment-list {
   display: grid;
-  gap: 10px;
-}
-
-.comment-reply-to {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin: 2px 0 4px;
-  font-size: 12px;
-  color: var(--tone-ink-2);
-}
-
-.comment-item {
-  display: grid;
-  gap: 6px;
-  margin-left: calc(var(--depth, 0) * 16px);
-  padding: 12px;
-  border: 1px solid var(--tone-line);
-  border-radius: var(--app-radius-sm, 8px);
-  background: color-mix(in srgb, var(--tone-panel-solid) 62%, transparent);
-}
-
-.comment-header,
-.comment-actions,
-.reply-hint {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.comment-header strong {
-  color: var(--tone-ink);
-  font-size: 14px;
-}
-
-.comment-time,
-.comment-likes {
-  color: var(--tone-faint);
-  font-size: 12px;
-}
-
-.comment-body {
-  margin: 0;
-  color: #475569;
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-.comment-action-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 0;
-  border: none;
-  background: transparent;
-  color: var(--tone-muted);
-  cursor: pointer;
-  font-size: 12px;
+  gap: 12px;
 }
 
 .reply-hint {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
+  gap: 10px;
   padding: 8px 12px;
   border-radius: 6px;
   background: rgba(49, 91, 255, 0.06);
