@@ -385,7 +385,7 @@ watch(slug, loadArticle)
 
 .reading-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-columns: 1fr;
   gap: var(--theme-density-spacing, 16px);
   align-items: start;
 }
@@ -530,7 +530,6 @@ watch(slug, loadArticle)
 .markdown-body :deep(h1),
 .markdown-body :deep(h2),
 .markdown-body :deep(h3) {
-  max-width: 780px;
   margin: 32px 0 12px;
   color: var(--tone-ink);
   line-height: 1.24;
@@ -549,7 +548,6 @@ watch(slug, loadArticle)
 .markdown-body :deep(p),
 .markdown-body :deep(li),
 .markdown-body :deep(blockquote) {
-  max-width: 780px;
   margin: 0 0 16px;
   color: var(--tone-muted);
   font-size: 17px;
@@ -662,12 +660,15 @@ watch(slug, loadArticle)
 }
 
 .reaction-card {
-  display: grid;
-  gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
 }
 
 .reaction-card .icon-button {
-  justify-content: flex-start;
+  flex: 1;
+  justify-content: center;
 }
 
 .reaction-card .icon-button.is-liked {

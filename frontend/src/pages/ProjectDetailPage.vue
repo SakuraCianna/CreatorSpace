@@ -672,7 +672,7 @@ watch(slug, loadProject)
 
 .project-record {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: 1fr;
   gap: var(--theme-density-spacing, 16px);
   align-items: start;
 }
@@ -1001,7 +1001,6 @@ watch(slug, loadProject)
 .markdown-body :deep(h1),
 .markdown-body :deep(h2),
 .markdown-body :deep(h3) {
-  max-width: 780px;
   margin: 14px 0 0;
   color: var(--tone-ink);
   line-height: 1.18;
@@ -1014,7 +1013,6 @@ watch(slug, loadProject)
 .markdown-body :deep(p),
 .markdown-body :deep(li),
 .markdown-body :deep(blockquote) {
-  max-width: 780px;
   margin: 0;
   color: var(--tone-muted);
   font-size: 16px;
@@ -1087,10 +1085,14 @@ watch(slug, loadProject)
 
 .reaction-row {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
 }
 
 .reaction-row .icon-button {
+  flex: 1;
+  justify-content: center;
   display: inline-flex;
   align-items: center;
   gap: 6px;
