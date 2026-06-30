@@ -9,7 +9,7 @@
       <h2>正在调取作品档案</h2>
     </div>
     <div v-else-if="project" class="project-record">
-      <article class="detail-panel" data-reveal>
+      <article class="detail-panel">
         <header class="detail-hero project-hero" :style="projectCoverStyle">
           <div class="detail-hero__copy">
             <p class="page-kicker">{{ project.projectType }}</p>

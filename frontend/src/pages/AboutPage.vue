@@ -21,7 +21,7 @@
       </div>
     </PublicPageHeader>
     <section class="about-grid">
-      <article class="about-panel about-panel--bio" data-reveal>
+      <article class="about-panel about-panel--bio">
         <UserRound :size="22" />
         <h2>{{ profile?.displayName || '公开资料' }}</h2>
         <p>{{ profile?.bio || '请在后台维护站点资料后刷新页面。' }}</p>
@@ -29,7 +29,7 @@
           <span v-for="tag in focusTags" :key="tag">{{ tag }}</span>
         </div>
       </article>
-      <article class="about-panel" data-reveal>
+      <article class="about-panel">
         <ShieldCheck :size="22" />
         <h2>内容边界</h2>
         <p>{{ policySummary }}</p>
@@ -39,7 +39,7 @@
           <span><Lightbulb :size="15" />灵感</span>
         </div>
       </article>
-      <article class="about-panel" data-reveal>
+      <article class="about-panel">
         <Palette :size="22" />
         <h2>主题体验</h2>
         <p>{{ themeSummary }}</p>
@@ -48,7 +48,7 @@
           <ArrowRight :size="15" />
         </RouterLink>
       </article>
-      <article v-if="contactLinks.length" class="about-panel about-panel--contact" data-reveal>
+      <article v-if="contactLinks.length" class="about-panel about-panel--contact">
         <Mail :size="22" />
         <h2>联系入口</h2>
         <p>公开联系方式来自后台站点配置。</p>

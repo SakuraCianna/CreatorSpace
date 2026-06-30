@@ -9,7 +9,7 @@
       <h2>正在打开文章</h2>
     </div>
     <div v-else-if="article" class="reading-layout">
-      <article class="detail-panel" data-reveal>
+      <article class="detail-panel">
         <header class="detail-hero" :style="articleCoverStyle">
           <p class="page-kicker">{{ article.category?.name ?? 'Creator Journal' }}</p>
           <h1>{{ article.title }}</h1>
