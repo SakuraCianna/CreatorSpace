@@ -113,7 +113,7 @@
 
 <script setup lang="ts">
 // 导入组件生命周期钩子和相关组件
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch, onBeforeUnmount } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import PublicPageHeader from '@/components/common/PublicPageHeader.vue'
 import { LoaderCircle, Search } from '@lucide/vue'
