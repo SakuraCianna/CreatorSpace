@@ -2,16 +2,12 @@
 <!-- 后台管理表格占位框架面 -->
 <!-- 后台各项业务管理的整合看板组件 -->
   <section ref="root" class="admin-module">
-    <header class="module-hero" data-reveal>
-      <div>
-        <h2>{{ moduleConfig.title }}</h2>
-        <p>{{ moduleConfig.description }}</p>
-      </div>
+    <AdminPageHeader :title="moduleConfig.title" :description="moduleConfig.description" :theme="moduleConfig.theme">
       <button class="button button-filled" type="button" @click="handlePrimaryAction">
         <Plus :size="16" />
         {{ moduleConfig.primaryAction }}
       </button>
-    </header>
+    </AdminPageHeader>
 
     <section v-if="activeSection === 'articles'" class="workspace-grid">
       <form class="workspace-panel admin-form" data-reveal @submit.prevent="saveArticle">
@@ -755,6 +751,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Plus } from '@lucide/vue'
+import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
 
 import {
   approveArticle,
@@ -828,6 +825,7 @@ interface ModuleConfig {
   primaryAction: string
   capabilities: string[]
   rows: Array<{ title: string; meta: string; status: string }>
+  theme?: string
 }
 
 type NavigationItemForm = Omit<NavigationItem, 'extraJson' | 'icon'> & {
@@ -2063,6 +2061,7 @@ const DEFAULT_SETTINGS_IDENTITY_META = '站点身份配置'
 
 const configs: Record<string, ModuleConfig> = {
   articles: {
+    theme: 'blue',
     title: '文章管理',
     description: '草稿、发布、私密可见性、分类、标签和版本记录都在这里完成。',
     primaryAction: '新建文章',
@@ -2074,6 +2073,7 @@ const configs: Record<string, ModuleConfig> = {
     ],
   },
   projects: {
+    theme: 'emerald',
     title: '作品管理',
     description: '维护作品封面、截图、过程、时间线、技术栈和外部链接。',
     primaryAction: '新增作品',
@@ -2085,6 +2085,7 @@ const configs: Record<string, ModuleConfig> = {
     ],
   },
   inspirations: {
+    theme: 'purple',
     title: '灵感墙管理',
     description: '摘句、图片、链接、Prompt、草图和参考资料可以快速沉淀。',
     primaryAction: '重置表单',
@@ -2092,6 +2093,7 @@ const configs: Record<string, ModuleConfig> = {
     rows: [],
   },
   comments: {
+    theme: 'rose',
     title: '评论审核',
     description: '评论、回复、点赞和敏感词审核进入统一互动工作流。',
     primaryAction: '查看待审',
@@ -2099,6 +2101,7 @@ const configs: Record<string, ModuleConfig> = {
     rows: [],
   },
   guestbook: {
+    theme: 'amber',
     title: '留言板管理',
     description: '审核用户留言，管理公开留言列表。',
     primaryAction: '查看待审',
@@ -2106,6 +2109,7 @@ const configs: Record<string, ModuleConfig> = {
     rows: [],
   },
   files: {
+    theme: 'teal',
     title: '文件资源',
     description: '本地文件、封面、截图、附件和引用关系集中管理。',
     primaryAction: '刷新列表',
@@ -2113,6 +2117,7 @@ const configs: Record<string, ModuleConfig> = {
     rows: [],
   },
   themes: {
+    theme: 'fuchsia',
     title: '主题配置',
     description: '主题不仅是换色，还包含字体、密度、卡片、动效和首页模块顺序。',
     primaryAction: '保存主题',
@@ -2124,6 +2129,7 @@ const configs: Record<string, ModuleConfig> = {
     ],
   },
   settings: {
+    theme: 'slate',
     title: '站点设置',
     description: '站点身份、导航、社交链接、SEO、首页编排和关于页内容从后台配置。',
     primaryAction: '保存配置',
@@ -2137,39 +2143,6 @@ const configs: Record<string, ModuleConfig> = {
 </script>
 
 <style scoped>
-.module-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 16px;
-  min-height: 152px;
-  padding: 24px 28px;
-  border: 1px solid var(--tone-line);
-  border-radius: var(--app-radius-sm);
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.58)),
-    radial-gradient(circle at 16% 20%, rgba(49, 91, 255, 0.14), transparent 34%),
-    radial-gradient(circle at 88% 18%, rgba(0, 124, 114, 0.16), transparent 28%),
-    linear-gradient(120deg, rgba(49, 91, 255, 0.08), rgba(194, 95, 58, 0.08), rgba(0, 124, 114, 0.1));
-  box-shadow: var(--tone-shadow);
-}
-
-.module-hero h2 {
-  max-width: 830px;
-  margin: 0;
-  color: var(--admin-ink);
-  font-size: 32px;
-  font-weight: 860;
-  line-height: 1.16;
-}
-
-.module-hero p {
-  max-width: 680px;
-  margin: 10px 0 0;
-  color: var(--tone-muted);
-  font-size: 14px;
-  line-height: 1.65;
-}
 
 .admin-dashboard,
 .admin-module {
@@ -2353,17 +2326,8 @@ const configs: Record<string, ModuleConfig> = {
   vertical-align: -1px;
 }
 
-@media (min-width: 761px) {
-  .module-hero h2 {
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-}
 
 @media (max-width: 1020px) {
-  .module-hero,
   .workspace-grid,
   .workspace-grid--even {
     grid-template-columns: 1fr;
@@ -2375,14 +2339,6 @@ const configs: Record<string, ModuleConfig> = {
 }
 
 @media (max-width: 760px) {
-  .module-hero {
-    align-items: flex-start;
-    padding: 18px;
-  }
-
-  .module-hero h2 {
-    font-size: 28px;
-  }
 
   .dashboard-grid {
     grid-template-columns: 1fr;

@@ -1,18 +1,13 @@
 <template>
 <!-- 作品展厅前台列表与多维检索页面 -->
   <section ref="root" class="projects-page">
-    <header class="projects-hero page-hero" data-reveal>
-      <div class="hero-copy">
-        <p class="page-kicker">Project Gallery</p>
-        <h1>作品展厅</h1>
-        <p>把公开作品按类型、技术栈和推荐度陈列出来，后端只要继续返回作品列表字段，前台就能自然接上。</p>
-      </div>
+    <PublicPageHeader title="作品展厅" description="把公开作品按类型、技术栈和推荐度陈列出来，后端只要继续返回作品列表字段，前台就能自然接上。" kicker="Project Gallery" theme="emerald">
       <form class="hero-search" @submit.prevent="loadProjects">
         <Search :size="18" />
         <input v-model="keyword" placeholder="搜索作品、说明或技术栈" aria-label="搜索作品" />
         <button class="button button-filled button-compact" type="submit">检索</button>
       </form>
-    </header>
+    </PublicPageHeader>
 
     <section class="gallery-tools" data-reveal>
       <div class="segmented-control" aria-label="作品类型筛选">
@@ -118,6 +113,7 @@
 // 导入 Vue 生命周期钩子和路由支持
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
+import PublicPageHeader from '@/components/common/PublicPageHeader.vue'
 import { ArrowRight, Bookmark, Eye, Heart, LoaderCircle, MessageCircle, Search } from '@lucide/vue'
 
 import { fetchProjectFilterRecommendations, fetchProjects } from '@/services/content'
@@ -277,96 +273,6 @@ onMounted(() => {
   padding: 46px 0 84px;
 }
 
-.projects-hero {
-  --hero-accent: #6d3fd2;
-  --hero-accent-2: #0077b6;
-  --hero-mark: "02";
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
-  align-items: center;
-  gap: 24px;
-  min-height: clamp(230px, 24vw, 308px);
-  padding: clamp(24px, 3vw, 42px);
-  overflow: hidden;
-  border: 1px solid var(--tone-line);
-  border-radius: var(--app-radius-sm);
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.6)),
-    radial-gradient(circle at 16% 20%, color-mix(in srgb, var(--hero-accent) 18%, transparent), transparent 34%),
-    radial-gradient(circle at 88% 18%, color-mix(in srgb, var(--hero-accent-2) 18%, transparent), transparent 28%),
-    linear-gradient(120deg, rgba(49, 91, 255, 0.08), rgba(194, 95, 58, 0.08), rgba(0, 124, 114, 0.1));
-  box-shadow: var(--tone-shadow);
-  isolation: isolate;
-}
-
-.projects-hero::before {
-  content: "";
-  position: absolute;
-  inset: 16px;
-  z-index: 0;
-  border: 1px solid color-mix(in srgb, var(--hero-accent) 24%, transparent);
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--hero-accent) 10%, transparent), transparent 38%),
-    repeating-linear-gradient(90deg, rgba(20, 21, 29, 0.05) 0 1px, transparent 1px 42px),
-    repeating-linear-gradient(0deg, rgba(20, 21, 29, 0.035) 0 1px, transparent 1px 34px);
-  clip-path: polygon(0 0, calc(100% - 46px) 0, 100% 46px, 100% 100%, 46px 100%, 0 calc(100% - 46px));
-  pointer-events: none;
-}
-
-.projects-hero::after {
-  content: var(--hero-mark);
-  position: absolute;
-  top: clamp(20px, 4vw, 42px);
-  right: clamp(24px, 6vw, 88px);
-  z-index: 0;
-  color: color-mix(in srgb, var(--hero-accent) 16%, transparent);
-  font-size: clamp(86px, 12vw, 180px);
-  font-weight: 900;
-  line-height: 0.8;
-  pointer-events: none;
-}
-
-.projects-hero > * {
-  position: relative;
-  z-index: 1;
-}
-
-.hero-copy {
-  display: grid;
-  gap: 14px;
-}
-
-.hero-copy h1 {
-  position: relative;
-  width: fit-content;
-  max-width: 100%;
-  margin: 0;
-  padding-top: 24px;
-  color: var(--tone-ink);
-  font-size: clamp(36px, 4vw, 54px);
-  font-weight: 860;
-  line-height: 1.08;
-}
-
-.hero-copy h1::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: clamp(110px, 18vw, 240px);
-  height: 8px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--hero-accent), var(--hero-accent-2), transparent);
-}
-
-.hero-copy p:not(.page-kicker) {
-  max-width: 640px;
-  margin: 0;
-  color: var(--tone-muted);
-  font-size: 16px;
-  line-height: 1.72;
-}
 
 .hero-search {
   display: grid;
@@ -604,7 +510,6 @@ onMounted(() => {
 }
 
 @media (max-width: 1020px) {
-  .projects-hero,
   .featured-project,
   .showcase-grid {
     grid-template-columns: 1fr;
@@ -614,10 +519,6 @@ onMounted(() => {
 @media (max-width: 760px) {
   .projects-page {
     padding-top: 26px;
-  }
-
-  .projects-hero {
-    padding: 22px;
   }
 
   .hero-search {

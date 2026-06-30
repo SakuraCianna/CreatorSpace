@@ -2,16 +2,13 @@
 <!-- 前台文章归档列表检索页 -->
 <!-- 公开文章归档与检索引导页面 -->
   <section ref="root" class="archive-page">
-    <header class="archive-hero page-hero page-hero--articles" data-reveal>
-      <div>
-        <h1>文章归档</h1>
-      </div>
+    <PublicPageHeader title="文章归档" theme="blue">
       <form class="archive-search" @submit.prevent="loadArticles">
         <Search :size="18" />
         <input v-model="keyword" placeholder="搜索文章、摘要或正文" aria-label="搜索文章" />
         <button class="button button-filled button-compact" type="submit">检索</button>
       </form>
-    </header>
+    </PublicPageHeader>
 
     <div ref="topicStrip" class="topic-strip" data-reveal>
       <button
@@ -116,8 +113,9 @@
 
 <script setup lang="ts">
 // 导入组件生命周期钩子和相关组件
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
+import PublicPageHeader from '@/components/common/PublicPageHeader.vue'
 import { LoaderCircle, Search } from '@lucide/vue'
 
 import { fetchArticles, fetchTags } from '@/services/content'
@@ -408,117 +406,6 @@ onBeforeUnmount(() => {
   padding: 36px 0 78px;
 }
 
-.archive-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(300px, 390px);
-  align-items: center;
-  gap: 18px;
-  min-height: clamp(156px, 17vw, 214px);
-  padding: clamp(18px, 2.5vw, 30px);
-  border: 1px solid var(--tone-line);
-  border-radius: var(--app-radius-sm);
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.58)),
-    radial-gradient(circle at 16% 20%, color-mix(in srgb, var(--hero-accent) 18%, transparent), transparent 34%),
-    radial-gradient(circle at 88% 18%, color-mix(in srgb, var(--hero-accent-2) 18%, transparent), transparent 28%),
-    linear-gradient(120deg, rgba(49, 91, 255, 0.08), rgba(194, 95, 58, 0.08), rgba(0, 124, 114, 0.1));
-  box-shadow: var(--tone-shadow);
-  isolation: isolate;
-  overflow: hidden;
-  position: relative;
-}
-
-.page-hero {
-  --hero-accent: #0b57d0;
-  --hero-accent-2: #006a60;
-  --hero-mark: "01";
-}
-
-.page-hero::before {
-  content: "";
-  position: absolute;
-  inset: 12px;
-  z-index: 0;
-  border: 1px solid color-mix(in srgb, var(--hero-accent) 24%, transparent);
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--hero-accent) 10%, transparent), transparent 38%),
-    repeating-linear-gradient(90deg, rgba(20, 21, 29, 0.05) 0 1px, transparent 1px 42px),
-    repeating-linear-gradient(0deg, rgba(20, 21, 29, 0.035) 0 1px, transparent 1px 34px);
-  clip-path: polygon(0 0, calc(100% - 34px) 0, 100% 34px, 100% 100%, 34px 100%, 0 calc(100% - 34px));
-  opacity: 0.9;
-  pointer-events: none;
-}
-
-.page-hero::after {
-  content: var(--hero-mark);
-  position: absolute;
-  top: clamp(12px, 3vw, 28px);
-  right: clamp(20px, 5vw, 70px);
-  z-index: 0;
-  color: color-mix(in srgb, var(--hero-accent) 16%, transparent);
-  font-size: clamp(72px, 9vw, 132px);
-  font-weight: 900;
-  line-height: 0.8;
-  pointer-events: none;
-}
-
-.page-hero > * {
-  position: relative;
-  z-index: 1;
-}
-
-.page-hero h1 {
-  position: relative;
-  display: inline-block;
-  justify-self: start;
-  width: fit-content;
-  max-width: 100%;
-  padding-top: 18px;
-  text-shadow: 0 16px 34px rgba(20, 21, 29, 0.1);
-}
-
-.page-hero h1::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: clamp(96px, 16vw, 190px);
-  height: 6px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--hero-accent), var(--hero-accent-2), transparent);
-  box-shadow: 0 10px 28px color-mix(in srgb, var(--hero-accent) 22%, transparent);
-}
-
-.page-hero h1::after {
-  content: "";
-  position: absolute;
-  top: -2px;
-  right: -54px;
-  width: 34px;
-  height: 14px;
-  border: 1px solid color-mix(in srgb, var(--hero-accent) 42%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--hero-accent-2) 18%, transparent);
-  box-shadow: 18px 0 0 color-mix(in srgb, var(--hero-accent) 18%, transparent);
-}
-
-.archive-hero h1,
-.journal-profile h2 {
-  max-width: 830px;
-  margin: 0;
-  color: var(--tone-ink);
-  font-size: clamp(34px, 4vw, 42px);
-  font-weight: 860;
-  line-height: 1.08;
-}
-
-.archive-hero p:not(.page-kicker),
-.journal-profile p {
-  max-width: 680px;
-  color: var(--tone-muted);
-  font-size: 17px;
-  line-height: 1.72;
-}
 
 .archive-search {
   position: relative;
@@ -848,17 +735,7 @@ onBeforeUnmount(() => {
   line-height: 1.68;
 }
 
-@media (min-width: 761px) {
-  .archive-hero h1 {
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-}
-
 @media (max-width: 1020px) {
-  .archive-hero,
   .journal-layout {
     grid-template-columns: 1fr;
   }
@@ -871,14 +748,6 @@ onBeforeUnmount(() => {
 @media (max-width: 760px) {
   .archive-page {
     padding-top: 26px;
-  }
-
-  .archive-hero {
-    padding: 22px;
-  }
-
-  .archive-hero h1 {
-    font-size: 32px;
   }
 
   .archive-search {
@@ -901,7 +770,6 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 520px) {
-  .archive-hero h1,
   .journal-profile h2 {
     font-size: 28px;
   }

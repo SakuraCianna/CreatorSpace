@@ -1,16 +1,11 @@
 <template>
 <!-- 留言板互动墙页面 -->
   <section ref="root" class="guestbook-page">
-    <header class="archive-hero page-hero page-hero--guestbook" data-reveal>
-      <div>
-        <h1>留言板</h1>
-      </div>
-      <p>留下你的想法、建议或问候，审核通过后会公开展示。</p>
-    </header>
+    <PublicPageHeader title="留言板" description="留下你的想法、建议或问候，审核通过后会公开展示。" kicker="Leave a Message" theme="amber" />
 
     <div class="guestbook-layout">
       <div class="guestbook-form-card" data-reveal>
-        <p class="page-kicker">Leave a Message</p>
+
         <form class="comment-form" @submit.prevent="postMessage">
           <textarea
             v-model="draft"
@@ -61,6 +56,7 @@
 <script setup lang="ts">
 // 导入 Composition API 与 Lucide 图标资源
 import { computed, onMounted, ref } from 'vue'
+import PublicPageHeader from '@/components/common/PublicPageHeader.vue'
 import { Heart, LoaderCircle } from '@lucide/vue'
 
 import { fetchGuestbook, fetchLikeStatus, likeTarget, submitGuestbook, unlikeTarget } from '@/services/content'
@@ -171,11 +167,7 @@ onMounted(loadEntries)
   padding: 46px 0 84px;
 }
 
-.page-hero--guestbook {
-  --hero-accent: #7c3aed;
-  --hero-accent-2: #f97316;
-  --hero-mark: "GB";
-}
+
 
 .guestbook-layout {
   display: grid;

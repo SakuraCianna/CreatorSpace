@@ -1,12 +1,8 @@
 <template>
   <section class="cms-page">
-    <header class="cms-header">
-      <div>
-        <h2>标签管理</h2>
-        <p>维护文章、作品和灵感共用的内容标签。</p>
-      </div>
+    <AdminPageHeader title="标签管理" description="维护文章、作品和灵感共用的内容标签。" theme="cyan">
       <button class="button button-tonal" type="button" @click="loadTags">刷新</button>
-    </header>
+    </AdminPageHeader>
 
     <section class="cms-grid">
       <form class="cms-panel form-panel" @submit.prevent="saveTag">
@@ -68,6 +64,7 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
+import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
 
 import { createTag, deleteTag, fetchTags, updateTag } from '@/services/content'
 import { toUserMessage } from '@/services/http'
@@ -168,19 +165,6 @@ function normalizePayload(): TagPayload | null {
   gap: 18px;
 }
 
-.cms-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 22px 24px;
-}
-
-.cms-header p {
-  margin: 8px 0 0;
-  color: var(--admin-muted);
-  font-size: 14px;
-}
 
 .cms-grid {
   display: grid;
@@ -200,14 +184,8 @@ function normalizePayload(): TagPayload | null {
 }
 
 @media (max-width: 1020px) {
-  .cms-header,
   .cms-grid {
     grid-template-columns: 1fr;
-  }
-
-  .cms-header {
-    align-items: flex-start;
-    flex-direction: column;
   }
 }
 

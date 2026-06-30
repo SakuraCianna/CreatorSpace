@@ -2,18 +2,13 @@
 <!-- 瀑布流灵感板页面 -->
 <!-- 创作者公开灵感墙的瀑布流展厅 -->
   <section ref="root" class="wall-page">
-    <header class="wall-hero page-hero" data-reveal>
-      <div class="hero-copy">
-        <p class="page-kicker">灵感收集墙</p>
-        <h1>灵感墙</h1>
-        <p>摘句、提示词、图片、代码和链接都在这里先被保存成碎片，再慢慢长成文章或作品。</p>
-      </div>
+    <PublicPageHeader title="灵感墙" description="摘句、提示词、图片、代码和链接都在这里先被保存成碎片，再慢慢长成文章或作品。" kicker="灵感收集墙" theme="purple">
       <form class="wall-search" @submit.prevent="loadInspirations">
         <Search :size="18" />
         <input v-model="keyword" placeholder="搜索灵感、来源或提示词" aria-label="搜索灵感" />
         <button class="button button-filled button-compact" type="submit">检索</button>
       </form>
-    </header>
+    </PublicPageHeader>
 
     <section class="wall-toolbar" data-reveal>
       <button
@@ -260,6 +255,7 @@
 // 导入所需的组件和 Vue 钩子
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, type Component } from 'vue'
 import { RouterLink, type RouteLocationRaw } from 'vue-router'
+import PublicPageHeader from '@/components/common/PublicPageHeader.vue'
 import {
   BookOpen,
   CalendarDays,
@@ -593,97 +589,6 @@ onBeforeUnmount(() => {
   display: grid;
   gap: 18px;
   padding: 46px 0 84px;
-}
-
-.wall-hero {
-  --hero-accent: #007c72;
-  --hero-accent-2: #984061;
-  --hero-mark: "03";
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
-  align-items: center;
-  gap: 24px;
-  min-height: clamp(230px, 24vw, 308px);
-  padding: clamp(24px, 3vw, 42px);
-  overflow: hidden;
-  border: 1px solid var(--tone-line);
-  border-radius: var(--app-radius-sm);
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.6)),
-    radial-gradient(circle at 16% 20%, color-mix(in srgb, var(--hero-accent) 18%, transparent), transparent 34%),
-    radial-gradient(circle at 88% 18%, color-mix(in srgb, var(--hero-accent-2) 18%, transparent), transparent 28%),
-    linear-gradient(120deg, rgba(49, 91, 255, 0.08), rgba(194, 95, 58, 0.08), rgba(0, 124, 114, 0.1));
-  box-shadow: var(--tone-shadow);
-  isolation: isolate;
-}
-
-.wall-hero::before {
-  content: "";
-  position: absolute;
-  inset: 16px;
-  z-index: 0;
-  border: 1px solid color-mix(in srgb, var(--hero-accent) 24%, transparent);
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--hero-accent) 10%, transparent), transparent 38%),
-    repeating-linear-gradient(90deg, rgba(20, 21, 29, 0.05) 0 1px, transparent 1px 42px),
-    repeating-linear-gradient(0deg, rgba(20, 21, 29, 0.035) 0 1px, transparent 1px 34px);
-  clip-path: polygon(0 0, calc(100% - 46px) 0, 100% 46px, 100% 100%, 46px 100%, 0 calc(100% - 46px));
-  pointer-events: none;
-}
-
-.wall-hero::after {
-  content: var(--hero-mark);
-  position: absolute;
-  top: clamp(20px, 4vw, 42px);
-  right: clamp(24px, 6vw, 88px);
-  z-index: 0;
-  color: color-mix(in srgb, var(--hero-accent) 16%, transparent);
-  font-size: clamp(86px, 12vw, 180px);
-  font-weight: 900;
-  line-height: 0.8;
-  pointer-events: none;
-}
-
-.wall-hero > * {
-  position: relative;
-  z-index: 1;
-}
-
-.hero-copy {
-  display: grid;
-  gap: 14px;
-}
-
-.hero-copy h1 {
-  position: relative;
-  width: fit-content;
-  max-width: 100%;
-  margin: 0;
-  padding-top: 24px;
-  color: var(--tone-ink);
-  font-size: clamp(36px, 4vw, 54px);
-  font-weight: 860;
-  line-height: 1.08;
-}
-
-.hero-copy h1::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: clamp(110px, 18vw, 240px);
-  height: 8px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--hero-accent), var(--hero-accent-2), transparent);
-}
-
-.hero-copy p:not(.page-kicker) {
-  max-width: 640px;
-  margin: 0;
-  color: var(--tone-muted);
-  font-size: 16px;
-  line-height: 1.72;
 }
 
 .wall-search {
@@ -1183,7 +1088,6 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 1020px) {
-  .wall-hero,
   .featured-inspiration {
     grid-template-columns: 1fr;
   }
@@ -1204,10 +1108,6 @@ onBeforeUnmount(() => {
 @media (max-width: 760px) {
   .wall-page {
     padding-top: 26px;
-  }
-
-  .wall-hero {
-    padding: 22px;
   }
 
   .wall-search {

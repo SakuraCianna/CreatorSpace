@@ -1,15 +1,10 @@
 <template>
   <section class="ai-page">
-    <header class="ai-hero">
-      <div>
-        <span class="eyebrow">ASSISTED WORKFLOW</span>
-        <h2>AI 创作助手</h2>
-        <p>生成摘要、标签、审核意见和运营建议。所有结果只作为建议，最终动作由管理员确认。</p>
-      </div>
+    <AdminPageHeader title="AI 创作助手" description="生成摘要、标签、审核意见和运营建议。所有结果只作为建议，最终动作由管理员确认。" theme="purple">
       <button class="icon-button" type="button" title="刷新建议" aria-label="刷新建议" @click="loadSuggestions">
         <RefreshCw :size="18" />
       </button>
-    </header>
+    </AdminPageHeader>
 
     <section class="ai-panel workflow-panel">
       <div class="board-title">
@@ -177,6 +172,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
+import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
 import {
   Bot,
   Check,
@@ -388,7 +384,6 @@ function formatDateTime(value: string) {
   gap: 16px;
 }
 
-.ai-hero,
 .ai-panel {
   border: 1px solid var(--admin-line);
   border-radius: 8px;
@@ -396,26 +391,12 @@ function formatDateTime(value: string) {
   box-shadow: var(--admin-shadow);
 }
 
-.ai-hero {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 22px 24px;
-}
-
-.ai-hero h2,
 .panel-title h3,
 .board-title h3 {
   margin: 0;
   color: var(--admin-ink);
 }
 
-.ai-hero h2 {
-  font-size: 26px;
-}
-
-.ai-hero p,
 .panel-title span,
 .board-title span {
   margin: 8px 0 0;
@@ -787,7 +768,6 @@ function formatDateTime(value: string) {
 }
 
 @media (max-width: 720px) {
-  .ai-hero,
   .panel-title,
   .board-title,
   .pager {

@@ -3,19 +3,14 @@
   <!-- 主题展厅容器 -->
   <section ref="root" class="themes-page">
     <!-- 主题展厅巨幕头部区域 -->
-    <header class="themes-hero page-hero" data-reveal>
-      <div class="hero-copy">
-        <p class="page-kicker">Theme Studio</p>
-        <h1>主题展厅</h1>
-        <p>公开读取主题预设，展示颜色、字体、卡片和布局气质；访客预览只影响当前浏览器。</p>
-      </div>
+    <PublicPageHeader title="主题展厅" description="公开读取主题预设，展示颜色、字体、卡片和布局气质；访客预览只影响当前浏览器。" kicker="Theme Studio" theme="fuchsia">
       <!-- 预览状态下的当前主题缩略卡片 -->
       <div class="active-theme-card" :style="previewStyle">
         <span>ACTIVE</span>
         <strong>{{ activeThemeName }}</strong>
         <p>{{ activeThemeMood }}</p>
       </div>
-    </header>
+    </PublicPageHeader>
 
     <!-- 加载中空状态 -->
     <div v-if="isLoading" class="empty-state showcase-state" data-reveal>
@@ -170,6 +165,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import PublicPageHeader from '@/components/common/PublicPageHeader.vue'
 import { CheckCircle, Copy, Download, LoaderCircle, Palette, RotateCcw, WandSparkles } from '@lucide/vue'
 
 import { fetchCurrentTheme, fetchThemes } from '@/services/content'
@@ -459,96 +455,6 @@ onBeforeUnmount(() => {
   padding: 46px 0 84px;
 }
 
-.themes-hero {
-  --hero-accent: #315bff;
-  --hero-accent-2: #0f766e;
-  --hero-mark: "06";
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  align-items: center;
-  gap: 24px;
-  min-height: clamp(230px, 24vw, 308px);
-  padding: clamp(24px, 3vw, 42px);
-  overflow: hidden;
-  border: 1px solid var(--tone-line);
-  border-radius: var(--app-radius-sm);
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.6)),
-    radial-gradient(circle at 16% 20%, color-mix(in srgb, var(--hero-accent) 18%, transparent), transparent 34%),
-    radial-gradient(circle at 88% 18%, color-mix(in srgb, var(--hero-accent-2) 18%, transparent), transparent 28%),
-    linear-gradient(120deg, rgba(49, 91, 255, 0.08), rgba(194, 95, 58, 0.08), rgba(0, 124, 114, 0.1));
-  box-shadow: var(--tone-shadow);
-  isolation: isolate;
-}
-
-.themes-hero::before {
-  content: "";
-  position: absolute;
-  inset: 16px;
-  z-index: 0;
-  border: 1px solid color-mix(in srgb, var(--hero-accent) 24%, transparent);
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--hero-accent) 10%, transparent), transparent 38%),
-    repeating-linear-gradient(90deg, rgba(20, 21, 29, 0.05) 0 1px, transparent 1px 42px),
-    repeating-linear-gradient(0deg, rgba(20, 21, 29, 0.035) 0 1px, transparent 1px 34px);
-  clip-path: polygon(0 0, calc(100% - 46px) 0, 100% 46px, 100% 100%, 46px 100%, 0 calc(100% - 46px));
-  pointer-events: none;
-}
-
-.themes-hero::after {
-  content: var(--hero-mark);
-  position: absolute;
-  top: clamp(20px, 4vw, 42px);
-  right: clamp(24px, 6vw, 88px);
-  z-index: 0;
-  color: color-mix(in srgb, var(--hero-accent) 16%, transparent);
-  font-size: clamp(86px, 12vw, 180px);
-  font-weight: 900;
-  line-height: 0.8;
-  pointer-events: none;
-}
-
-.themes-hero > * {
-  position: relative;
-  z-index: 1;
-}
-
-.hero-copy {
-  display: grid;
-  gap: 14px;
-}
-
-.hero-copy h1 {
-  position: relative;
-  width: fit-content;
-  max-width: 100%;
-  margin: 0;
-  padding-top: 24px;
-  color: var(--tone-ink);
-  font-size: clamp(36px, 4vw, 54px);
-  font-weight: 860;
-  line-height: 1.08;
-}
-
-.hero-copy h1::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: clamp(110px, 18vw, 240px);
-  height: 8px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--hero-accent), var(--hero-accent-2), transparent);
-}
-
-.hero-copy p:not(.page-kicker) {
-  max-width: 640px;
-  margin: 0;
-  color: var(--tone-muted);
-  font-size: 16px;
-  line-height: 1.72;
-}
 
 .active-theme-card,
 .theme-list,
@@ -896,7 +802,6 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 1020px) {
-  .themes-hero,
   .themes-layout,
   .theme-preview {
     grid-template-columns: 1fr;
@@ -910,10 +815,6 @@ onBeforeUnmount(() => {
 @media (max-width: 760px) {
   .themes-page {
     padding-top: 26px;
-  }
-
-  .themes-hero {
-    padding: 22px;
   }
 
   .theme-preview__cards {

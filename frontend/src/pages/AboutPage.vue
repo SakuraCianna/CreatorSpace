@@ -1,11 +1,18 @@
 <template>
 <!-- 关于创作者及内容边界介绍页面 -->
   <section ref="root" class="about-page">
-    <header class="about-hero page-hero" data-reveal>
-      <div class="hero-copy">
-        <p class="page-kicker">About Creator</p>
-        <h1>{{ profile?.displayName || siteName }}</h1>
-        <p>{{ profile?.headline || siteSlogan }}</p>
+    <PublicPageHeader :title="profile?.displayName || siteName" :description="profile?.headline || siteSlogan" kicker="About Creator" theme="slate">
+      <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+        <div class="profile-card" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; min-width: max-content;">
+          <div class="profile-avatar" style="width: 48px; height: 48px; border-radius: 50%;">
+            <img v-if="profileAvatarSrc" :src="profileAvatarSrc" alt="" loading="lazy" @error="handleProfileAvatarError" />
+            <UserRound v-else :size="24" />
+          </div>
+          <div style="text-align: left;">
+            <strong style="display: block; font-size: 15px; margin-bottom: 2px;">{{ profile?.displayName || siteName }}</strong>
+            <p style="margin: 0; font-size: 12px;">{{ profile?.location || '暂无位置信息' }}</p>
+          </div>
+        </div>
         <div v-if="resumeLink" class="hero-actions">
           <a class="button button-filled" :href="resumeLink.url" target="_blank" rel="noreferrer">
             <FileText :size="15" />
@@ -13,21 +20,7 @@
           </a>
         </div>
       </div>
-      <div class="profile-card">
-        <div class="profile-avatar">
-          <img
-            v-if="profileAvatarSrc"
-            :src="profileAvatarSrc"
-            alt=""
-            loading="lazy"
-            @error="handleProfileAvatarError"
-          />
-          <UserRound v-else :size="32" />
-        </div>
-        <strong>{{ profile?.displayName || '暂无公开资料' }}</strong>
-        <span>{{ profile?.location || 'CreatorSpace' }}</span>
-      </div>
-    </header>
+    </PublicPageHeader>
 
     <!-- 双列响应式内容看板网格 -->
     <section class="about-grid">
@@ -121,6 +114,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
+import PublicPageHeader from '@/components/common/PublicPageHeader.vue'
 import {
   ArrowRight,
   BookOpen,
@@ -386,96 +380,7 @@ onMounted(loadAbout)
   padding: 46px 0 84px;
 }
 
-.about-hero {
-  --hero-accent: #1b1b1f;
-  --hero-accent-2: #0b57d0;
-  --hero-mark: "05";
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 260px;
-  align-items: center;
-  gap: 24px;
-  min-height: clamp(230px, 24vw, 308px);
-  padding: clamp(24px, 3vw, 42px);
-  overflow: hidden;
-  border: 1px solid var(--tone-line);
-  border-radius: var(--app-radius-sm);
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.6)),
-    radial-gradient(circle at 16% 20%, color-mix(in srgb, var(--hero-accent) 18%, transparent), transparent 34%),
-    radial-gradient(circle at 88% 18%, color-mix(in srgb, var(--hero-accent-2) 18%, transparent), transparent 28%),
-    linear-gradient(120deg, rgba(49, 91, 255, 0.08), rgba(194, 95, 58, 0.08), rgba(0, 124, 114, 0.1));
-  box-shadow: var(--tone-shadow);
-  isolation: isolate;
-}
 
-.about-hero::before {
-  content: "";
-  position: absolute;
-  inset: 16px;
-  z-index: 0;
-  border: 1px solid color-mix(in srgb, var(--hero-accent) 24%, transparent);
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--hero-accent) 10%, transparent), transparent 38%),
-    repeating-linear-gradient(90deg, rgba(20, 21, 29, 0.05) 0 1px, transparent 1px 42px),
-    repeating-linear-gradient(0deg, rgba(20, 21, 29, 0.035) 0 1px, transparent 1px 34px);
-  clip-path: polygon(0 0, calc(100% - 46px) 0, 100% 46px, 100% 100%, 46px 100%, 0 calc(100% - 46px));
-  pointer-events: none;
-}
-
-.about-hero::after {
-  content: var(--hero-mark);
-  position: absolute;
-  top: clamp(20px, 4vw, 42px);
-  right: clamp(24px, 6vw, 88px);
-  z-index: 0;
-  color: color-mix(in srgb, var(--hero-accent) 16%, transparent);
-  font-size: clamp(86px, 12vw, 180px);
-  font-weight: 900;
-  line-height: 0.8;
-  pointer-events: none;
-}
-
-.about-hero > * {
-  position: relative;
-  z-index: 1;
-}
-
-.hero-copy {
-  display: grid;
-  gap: 14px;
-}
-
-.hero-copy h1 {
-  position: relative;
-  width: fit-content;
-  max-width: 100%;
-  margin: 0;
-  padding-top: 24px;
-  color: var(--tone-ink);
-  font-size: clamp(36px, 4vw, 54px);
-  font-weight: 860;
-  line-height: 1.08;
-}
-
-.hero-copy h1::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: clamp(110px, 18vw, 240px);
-  height: 8px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--hero-accent), var(--hero-accent-2), transparent);
-}
-
-.hero-copy p:not(.page-kicker) {
-  max-width: 640px;
-  margin: 0;
-  color: var(--tone-muted);
-  font-size: 16px;
-  line-height: 1.72;
-}
 
 .hero-actions {
   display: flex;
@@ -483,7 +388,6 @@ onMounted(loadAbout)
   gap: 10px;
 }
 
-.profile-card,
 .about-panel,
 .experience-band,
 .workflow-band {
@@ -494,13 +398,7 @@ onMounted(loadAbout)
   backdrop-filter: blur(18px);
 }
 
-.profile-card {
-  display: grid;
-  gap: 8px;
-  justify-items: center;
-  padding: 22px;
-  text-align: center;
-}
+
 
 .profile-avatar {
   display: grid;
@@ -745,7 +643,6 @@ onMounted(loadAbout)
 }
 
 @media (max-width: 1020px) {
-  .about-hero,
   .about-grid,
   .experience-band,
   .workflow-band,
@@ -757,10 +654,6 @@ onMounted(loadAbout)
 @media (max-width: 760px) {
   .about-page {
     padding-top: 26px;
-  }
-
-  .about-hero {
-    padding: 22px;
   }
 }
 </style>

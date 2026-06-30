@@ -1,6 +1,8 @@
 <template>
 <!-- 后台指标数据概览面板 -->
   <section ref="root" class="admin-dashboard">
+    <AdminPageHeader title="控制台概览" description="系统运行数据与业务指标总览。" theme="slate" />
+
     <!-- 核心数据度量网格 -->
     <div class="dashboard-grid">
       <article v-for="metric in overview.metrics" :key="metric.label" class="metric-card" data-reveal>
@@ -113,6 +115,8 @@ import { GridComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
+import * as echarts from 'echarts/core'
+import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
 
 import { fetchDashboardOverview } from '@/services/content'
 import { HttpError, toUserMessage } from '@/services/http'

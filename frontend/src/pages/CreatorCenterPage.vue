@@ -2,17 +2,13 @@
 <!-- 创作者中心个人工作台 -->
 <!-- 创作者个人控制台工作台 -->
   <section ref="root" class="creator-page">
-    <header class="creator-hero page-hero" data-reveal>
-      <div>
-        <p class="page-kicker">Creator Desk</p>
-        <h1>创作中心</h1>
-      </div>
+    <PublicPageHeader title="创作中心" kicker="Creator Desk" theme="emerald">
       <div class="creator-hero__stats">
         <span>{{ articles.length }} 篇文章</span>
         <span>{{ projects.length }} 个作品</span>
         <span>{{ files.length }} 张素材</span>
       </div>
-    </header>
+    </PublicPageHeader>
 
     <div class="creator-tabs" data-reveal>
       <RouterLink v-for="tab in tabs" :key="tab.to" :to="tab.to">
@@ -265,6 +261,7 @@
 // 导入 Composition API 与路由依赖
 import { computed, onMounted, reactive, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
+import PublicPageHeader from '@/components/common/PublicPageHeader.vue'
 import { BookOpen, FileImage, Images, Star } from '@lucide/vue'
 import BaseSelect from '@/shared/components/BaseSelect.vue'
 
@@ -680,30 +677,7 @@ function readError(error: unknown, fallback: string) {
   padding: 46px 0 84px;
 }
 
-.creator-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 22px;
-  min-height: clamp(220px, 23vw, 292px);
-  padding: clamp(24px, 3vw, 42px);
-  border: 1px solid var(--tone-line);
-  border-radius: var(--app-radius-sm);
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.58)),
-    radial-gradient(circle at 16% 18%, rgba(49, 91, 255, 0.18), transparent 34%),
-    radial-gradient(circle at 86% 22%, rgba(0, 124, 114, 0.18), transparent 30%),
-    repeating-linear-gradient(90deg, rgba(20, 21, 29, 0.04) 0 1px, transparent 1px 42px);
-  box-shadow: var(--tone-shadow);
-  overflow: hidden;
-}
 
-.creator-hero h1 {
-  margin: 0;
-  color: var(--tone-ink);
-  font-size: 44px;
-  line-height: 1.06;
-}
 
 .creator-hero__stats {
   display: flex;
@@ -992,7 +966,6 @@ function readError(error: unknown, fallback: string) {
 }
 
 @media (max-width: 1020px) {
-  .creator-hero,
   .creator-grid {
     grid-template-columns: 1fr;
   }
@@ -1007,13 +980,6 @@ function readError(error: unknown, fallback: string) {
     padding-top: 26px;
   }
 
-  .creator-hero {
-    padding: 22px;
-  }
-
-  .creator-hero h1 {
-    font-size: 32px;
-  }
 
   .desk-row,
   .panel-title {

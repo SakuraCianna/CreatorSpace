@@ -1,15 +1,10 @@
 <template>
   <section class="audit-page">
-    <header class="audit-hero">
-      <div>
-        <span class="eyebrow">AUDIT TRAIL</span>
-        <h2>操作日志</h2>
-        <p>按模块、动作、操作人和时间范围追踪后台关键变更。</p>
-      </div>
+    <AdminPageHeader title="操作日志" description="按模块、动作、操作人和时间范围追踪后台关键变更。" theme="zinc">
       <button class="icon-button" type="button" title="刷新日志" aria-label="刷新日志" @click="refreshLogs">
         <RefreshCw :size="18" />
       </button>
-    </header>
+    </AdminPageHeader>
 
     <form class="filter-bar" @submit.prevent="applyFilters">
       <label>
@@ -149,6 +144,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
+import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
 import {
   ChevronDown,
   ChevronLeft,
@@ -320,7 +316,6 @@ function prettyDetail(value?: string | null) {
   gap: 16px;
 }
 
-.audit-hero,
 .filter-bar,
 .audit-board {
   border: 1px solid var(--admin-line);
@@ -329,28 +324,9 @@ function prettyDetail(value?: string | null) {
   box-shadow: var(--admin-shadow);
 }
 
-.audit-hero {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 22px 24px;
-}
-
-.audit-hero h2,
 .board-title h3 {
   margin: 0;
   color: var(--admin-ink);
-}
-
-.audit-hero h2 {
-  font-size: 24px;
-}
-
-.audit-hero p {
-  margin: 8px 0 0;
-  color: var(--admin-muted);
-  font-size: 14px;
 }
 
 .eyebrow {
@@ -665,7 +641,6 @@ button.audit-row:hover {
 }
 
 @media (max-width: 720px) {
-  .audit-hero,
   .board-title,
   .pager {
     align-items: stretch;

@@ -2,26 +2,25 @@
 <!-- 全站全文检索结果页面 -->
 <!-- 站内多维检索页面 -->
   <section ref="root" class="search-page">
-    <header class="archive-hero page-hero page-hero--search" data-reveal>
-      <div>
-        <h1>站内搜索</h1>
+    <PublicPageHeader title="站内搜索" theme="cyan">
+      <div style="display: flex; flex-direction: column; gap: 16px; width: 100%;">
+        <form class="archive-search archive-search--large" @submit.prevent="runSearch">
+          <Search :size="18" />
+          <input v-model="keyword" placeholder="试试搜索 内容系统、动效、Prompt" aria-label="站内搜索" />
+          <button class="button button-filled button-compact" type="submit">搜索</button>
+        </form>
+        <div class="search-controls" data-reveal>
+          <label>
+            <span>类型</span>
+            <BaseSelect v-model="activeType" :options="typeOptions" @change="rerunIfSearched" />
+          </label>
+          <label>
+            <span>排序</span>
+            <BaseSelect v-model="activeSort" :options="sortOptions" @change="rerunIfSearched" />
+          </label>
+        </div>
       </div>
-      <form class="archive-search archive-search--large" @submit.prevent="runSearch">
-        <Search :size="18" />
-        <input v-model="keyword" placeholder="试试搜索 内容系统、动效、Prompt" aria-label="站内搜索" />
-        <button class="button button-filled button-compact" type="submit">搜索</button>
-      </form>
-      <div class="search-controls" data-reveal>
-        <label>
-          <span>类型</span>
-          <BaseSelect v-model="activeType" :options="typeOptions" @change="rerunIfSearched" />
-        </label>
-        <label>
-          <span>排序</span>
-          <BaseSelect v-model="activeSort" :options="sortOptions" @change="rerunIfSearched" />
-        </label>
-      </div>
-    </header>
+    </PublicPageHeader>
 
     <section class="search-results" data-reveal>
       <article v-for="result in results" :key="`${result.type}-${result.slug}`" class="search-result">
@@ -51,6 +50,7 @@
 // 导入所需的组件和 Vue 钩子
 import { ref } from 'vue'
 import { RouterLink, type RouteLocationRaw } from 'vue-router'
+import PublicPageHeader from '@/components/common/PublicPageHeader.vue'
 import { ArrowRight, LoaderCircle, Search } from '@lucide/vue'
 import BaseSelect from '@/shared/components/BaseSelect.vue'
 
@@ -162,108 +162,6 @@ function fallbackDescription(result: SearchResult) {
   padding: 46px 0 84px;
 }
 
-.archive-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
-  align-items: center;
-  gap: 22px;
-  min-height: clamp(220px, 23vw, 292px);
-  padding: clamp(24px, 3vw, 42px);
-  border: 1px solid var(--tone-line);
-  border-radius: var(--app-radius-sm);
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.58)),
-    radial-gradient(circle at 16% 20%, color-mix(in srgb, var(--hero-accent) 18%, transparent), transparent 34%),
-    radial-gradient(circle at 88% 18%, color-mix(in srgb, var(--hero-accent-2) 18%, transparent), transparent 28%),
-    linear-gradient(120deg, rgba(49, 91, 255, 0.08), rgba(194, 95, 58, 0.08), rgba(0, 124, 114, 0.1));
-  box-shadow: var(--tone-shadow);
-  isolation: isolate;
-  overflow: hidden;
-  position: relative;
-}
-
-.page-hero {
-  --hero-accent: #0b57d0;
-  --hero-accent-2: #805610;
-  --hero-mark: "04";
-}
-
-.page-hero::before {
-  content: "";
-  position: absolute;
-  inset: 16px;
-  z-index: 0;
-  border: 1px solid color-mix(in srgb, var(--hero-accent) 24%, transparent);
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--hero-accent) 10%, transparent), transparent 38%),
-    repeating-linear-gradient(90deg, rgba(20, 21, 29, 0.05) 0 1px, transparent 1px 42px),
-    repeating-linear-gradient(0deg, rgba(20, 21, 29, 0.035) 0 1px, transparent 1px 34px);
-  clip-path: polygon(0 0, calc(100% - 46px) 0, 100% 46px, 100% 100%, 46px 100%, 0 calc(100% - 46px));
-  opacity: 0.9;
-  pointer-events: none;
-}
-
-.page-hero::after {
-  content: var(--hero-mark);
-  position: absolute;
-  top: clamp(16px, 4vw, 40px);
-  right: clamp(24px, 6vw, 88px);
-  z-index: 0;
-  color: color-mix(in srgb, var(--hero-accent) 16%, transparent);
-  font-size: clamp(86px, 12vw, 180px);
-  font-weight: 900;
-  line-height: 0.8;
-  pointer-events: none;
-}
-
-.page-hero > * {
-  position: relative;
-  z-index: 1;
-}
-
-.page-hero h1 {
-  position: relative;
-  display: inline-block;
-  justify-self: start;
-  width: fit-content;
-  max-width: 100%;
-  padding-top: 24px;
-  text-shadow: 0 16px 34px rgba(20, 21, 29, 0.1);
-}
-
-.page-hero h1::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: clamp(110px, 18vw, 240px);
-  height: 8px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--hero-accent), var(--hero-accent-2), transparent);
-  box-shadow: 0 10px 28px color-mix(in srgb, var(--hero-accent) 22%, transparent);
-}
-
-.page-hero h1::after {
-  content: "";
-  position: absolute;
-  top: -2px;
-  right: -54px;
-  width: 34px;
-  height: 14px;
-  border: 1px solid color-mix(in srgb, var(--hero-accent) 42%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--hero-accent-2) 18%, transparent);
-  box-shadow: 18px 0 0 color-mix(in srgb, var(--hero-accent) 18%, transparent);
-}
-
-.archive-hero h1 {
-  max-width: 830px;
-  margin: 0;
-  color: var(--tone-ink);
-  font-size: 44px;
-  font-weight: 860;
-  line-height: 1.08;
-}
 
 .archive-search {
   position: relative;
@@ -415,33 +313,13 @@ function fallbackDescription(result: SearchResult) {
   line-height: 1.68;
 }
 
-@media (min-width: 761px) {
-  .archive-hero h1 {
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-}
 
-@media (max-width: 1020px) {
-  .archive-hero {
-    grid-template-columns: 1fr;
-  }
-}
 
 @media (max-width: 760px) {
   .search-page {
     padding-top: 26px;
   }
 
-  .archive-hero {
-    padding: 22px;
-  }
-
-  .archive-hero h1 {
-    font-size: 32px;
-  }
 
   .archive-search {
     grid-template-columns: auto minmax(0, 1fr);
@@ -462,9 +340,5 @@ function fallbackDescription(result: SearchResult) {
   }
 }
 
-@media (max-width: 520px) {
-  .archive-hero h1 {
-    font-size: 28px;
-  }
-}
+
 </style>
