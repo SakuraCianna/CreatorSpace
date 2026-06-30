@@ -28,6 +28,12 @@ public class UserEntity {
     @TableField("last_login_at")
     private OffsetDateTime lastLoginAt;
 
+    @TableField("failed_login_attempts")
+    private Integer failedLoginAttempts;
+
+    @TableField("account_locked_until")
+    private OffsetDateTime accountLockedUntil;
+
     // 获取id。
     public Long getId() {
         return id;
@@ -86,5 +92,25 @@ public class UserEntity {
     // 设置last login at。
     public void setLastLoginAt(OffsetDateTime lastLoginAt) {
         this.lastLoginAt = lastLoginAt;
+    }
+
+    // 获取失败登录次数。
+    public Integer getFailedLoginAttempts() {
+        return failedLoginAttempts;
+    }
+
+    // 设置失败登录次数。
+    public void setFailedLoginAttempts(Integer failedLoginAttempts) {
+        this.failedLoginAttempts = failedLoginAttempts;
+    }
+
+    // 获取账号锁定截止时间。
+    public OffsetDateTime getAccountLockedUntil() {
+        return accountLockedUntil;
+    }
+
+    // 设置账号锁定截止时间。
+    public void setAccountLockedUntil(OffsetDateTime accountLockedUntil) {
+        this.accountLockedUntil = accountLockedUntil;
     }
 }

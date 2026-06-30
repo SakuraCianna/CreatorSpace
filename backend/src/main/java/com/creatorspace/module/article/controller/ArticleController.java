@@ -206,10 +206,15 @@ public class ArticleController {
         return ApiResponse.ok(articleService.listPublic(keyword, tagId, page, pageSize));
     }
 
-    // 按 URL 标识读取公开文章详情。
+    // 按 URL 标识读取文章详情，非公开文章需有权限才能访问。
     @GetMapping("/api/articles/slug/{slug}")
-    public ApiResponse<ArticleVO> getBySlug(@PathVariable String slug, HttpServletRequest request) {
-        return ApiResponse.ok(articleService.getPublicBySlug(slug, request));
+    public ApiResponse<ArticleVO> getBySlug(
+            @PathVariable String slug,
+            HttpServletRequest request,
+            @AuthenticationPrincipal LoginUser loginUser
+    ) {
+        Long userId = loginUser == null ? null : loginUser.userId();
+        return ApiResponse.ok(articleService.getPublicBySlug(slug, request, userId));
     }
 
     // 按 URL 标识读取公开文章上一篇/下一篇导航。

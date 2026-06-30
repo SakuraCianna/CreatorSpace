@@ -28,6 +28,8 @@ export interface UserSummary {
 
 export interface AuthToken {
   accessToken: string
+  refreshToken: string
+  expiresIn: number
   user: UserSummary
 }
 
@@ -232,6 +234,8 @@ export interface CommentSummary {
   replyCount: number
   likeCount: number
   createdAt?: string | null
+  replyToUserId?: number | null
+  replyToUsername?: string | null
 }
 
 export interface FileResource {

@@ -62,8 +62,8 @@ public interface ArticleService {
     // 查询公开文章列表。
     PageResponse<ArticleVO> listPublic(String keyword, Long tagId, long page, long pageSize);
 
-    // 按 URL 标识读取公开文章。
-    ArticleVO getPublicBySlug(String slug, HttpServletRequest request);
+    // 按 URL 标识读取公开文章，匿名用户只能访问 PUBLIC，登录用户可访问有权限的非公开文章。
+    ArticleVO getPublicBySlug(String slug, HttpServletRequest request, Long userId);
 
     // 查询公开文章详情页相邻文章。
     ArticleNeighborsVO getPublicNeighbors(String slug);

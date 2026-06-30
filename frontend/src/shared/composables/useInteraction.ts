@@ -8,15 +8,18 @@ import {
   unfavoriteTarget,
   unlikeTarget,
 } from '@/services/content'
-import { useSessionStore } from '@/shared/sessionStore'
+import { ACCESS_TOKEN_KEY } from '@/services/http'
 
 export function useInteraction(targetType: 'ARTICLE' | 'PROJECT' | 'COMMENT' | 'INSPIRATION') {
   const liked = ref(false)
   const favorited = ref(false)
-  const session = useSessionStore()
+
+  function hasToken(): boolean {
+    return Boolean(window.localStorage.getItem(ACCESS_TOKEN_KEY))
+  }
 
   async function loadStatus(targetId: number) {
-    if (!session.accessToken) {
+    if (!hasToken()) {
       liked.value = false
       favorited.value = false
       return
@@ -35,7 +38,7 @@ export function useInteraction(targetType: 'ARTICLE' | 'PROJECT' | 'COMMENT' | '
   }
 
   async function toggleLike(targetId?: number | null) {
-    if (!targetId || !session.accessToken) return
+    if (!targetId || !hasToken()) return
     try {
       if (liked.value) {
         await unlikeTarget(targetType, targetId)
@@ -44,13 +47,13 @@ export function useInteraction(targetType: 'ARTICLE' | 'PROJECT' | 'COMMENT' | '
         await likeTarget(targetType, targetId)
         liked.value = true
       }
-    } catch {
-      // ignore
+    } catch (e) {
+      console.error('toggleLike error:', e)
     }
   }
 
   async function toggleFavorite(targetId?: number | null) {
-    if (!targetId || !session.accessToken || targetType === 'COMMENT') return
+    if (!targetId || !hasToken() || targetType === 'COMMENT') return
     try {
       if (favorited.value) {
         await unfavoriteTarget(targetType, targetId)
@@ -59,8 +62,8 @@ export function useInteraction(targetType: 'ARTICLE' | 'PROJECT' | 'COMMENT' | '
         await favoriteTarget(targetType, targetId)
         favorited.value = true
       }
-    } catch {
-      // ignore
+    } catch (e) {
+      console.error('toggleFavorite error:', e)
     }
   }
 

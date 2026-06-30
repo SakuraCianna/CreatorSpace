@@ -59,7 +59,7 @@
         <div class="reaction-card">
           <button
             class="icon-button"
-            :class="{ 'is-active': liked }"
+            :class="{ 'is-liked': liked }"
             type="button"
             :disabled="!canComment"
             @click="toggleLike(article?.id)"
@@ -69,7 +69,7 @@
           </button>
           <button
             class="icon-button"
-            :class="{ 'is-active': favorited }"
+            :class="{ 'is-favorited': favorited }"
             type="button"
             :disabled="!canComment"
             @click="toggleFavorite(article?.id)"
@@ -114,6 +114,9 @@
                   <strong>{{ comment.username }}</strong>
                   <span class="comment-time">{{ formatDate(comment.createdAt) }}</span>
                 </div>
+                <p v-if="comment.replyToUsername" class="comment-reply-to">
+                  <Reply :size="12" /> 回复 {{ comment.replyToUsername }}
+                </p>
                 <p class="comment-body">{{ comment.content }}</p>
                 <div class="comment-actions">
                   <button
@@ -169,6 +172,7 @@ import {
   Heart,
   LoaderCircle,
   MessageCircle,
+  Reply,
 } from '@lucide/vue'
 
 import {
@@ -180,7 +184,7 @@ import {
   submitComment,
   unreactFromComment,
 } from '@/services/content'
-import { toUserMessage } from '@/services/http'
+import { HttpError, toUserMessage } from '@/services/http'
 import { useCinematicPageMotion } from '@/shared/composables/useCinematicPageMotion'
 import { useInteraction } from '@/shared/composables/useInteraction'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
@@ -291,7 +295,7 @@ async function postComment() {
     return
   }
   try {
-    await submitComment({
+    const result = await submitComment({
       targetType: 'ARTICLE',
       targetId: article.value.id,
       parentId: replyTarget.value?.id,
@@ -299,10 +303,16 @@ async function postComment() {
     })
     commentDraft.value = ''
     replyTarget.value = null
-    commentNotice.value = '评论已提交，审核通过后会公开展示'
-    await loadComments({ keepCurrentNotice: true })
+    if (result.status === 'APPROVED') {
+      commentNotice.value = '评论已发布'
+      comments.value.unshift(result)
+    } else {
+      commentNotice.value = '评论已提交，等待审核'
+    }
   } catch (error) {
-    commentNotice.value = toUserMessage(error, '评论提交失败')
+    commentNotice.value = error instanceof HttpError && error.backendMessage
+      ? error.backendMessage
+      : toUserMessage(error, '评论提交失败')
   }
 }
 
@@ -324,8 +334,8 @@ async function toggleCommentLike(comment: CommentSummary) {
       commentLiked.value = { ...commentLiked.value, [comment.id]: true }
       comment.likeCount += 1
     }
-  } catch {
-    // ignore
+  } catch (e) {
+    console.error('toggleCommentLike error:', e)
   }
 }
 
@@ -667,9 +677,30 @@ watch(slug, loadArticle)
   justify-content: flex-start;
 }
 
-.reaction-card .icon-button.is-active {
-  color: var(--tone-primary);
-  background: rgba(49, 91, 255, 0.1);
+.reaction-card .icon-button.is-liked {
+  color: #e0455a;
+  background: rgba(224, 69, 90, 0.1);
+}
+.reaction-card .icon-button.is-liked svg {
+  stroke: #e0455a;
+  fill: #e0455a;
+}
+
+.reaction-card .icon-button.is-favorited {
+  color: var(--tone-violet);
+  background: rgba(103, 80, 164, 0.1);
+}
+.reaction-card .icon-button.is-favorited svg {
+  stroke: var(--tone-violet);
+  fill: var(--tone-violet);
+}
+
+.comment-action-btn.is-active {
+  color: #e0455a;
+}
+.comment-action-btn.is-active svg {
+  stroke: #e0455a;
+  fill: #e0455a;
 }
 
 .comments-card {
@@ -764,6 +795,15 @@ watch(slug, loadArticle)
   color: var(--tone-primary);
   font-size: 13px;
   font-weight: 820;
+}
+
+.comment-reply-to {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 2px 0 4px;
+  font-size: 12px;
+  color: var(--tone-ink-2);
 }
 
 .comment-content {

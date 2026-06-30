@@ -659,6 +659,25 @@ export async function submitComment(payload: {
   return response.data
 }
 
+// 当前用户查询自己的评论（含审核状态）
+export async function fetchMyComments(options: {
+  page?: number
+  pageSize?: number
+} = {}): Promise<PageResponse<CommentSummary>> {
+  const params = new URLSearchParams()
+  if (options.page) {
+    params.set('page', String(options.page))
+  }
+  if (options.pageSize) {
+    params.set('pageSize', String(options.pageSize))
+  }
+  const query = params.toString()
+  const response = await requestJson<ApiEnvelope<PageResponse<CommentSummary>>>(
+    query ? `/api/me/comments?${query}` : '/api/me/comments',
+  )
+  return response.data
+}
+
 // 管理员查询评论审核队列
 export async function fetchAdminComments(options: {
   status?: CommentSummary['status'] | 'ALL'
@@ -1052,4 +1071,64 @@ export async function updateSiteSettings(payload: SiteSettingsPayload): Promise<
     body: JSON.stringify(payload),
   })
   return response.data
+}
+
+// 使用刷新令牌获取新的令牌对
+export async function refreshToken(refreshToken: string): Promise<AuthToken> {
+  const response = await requestJson<ApiEnvelope<AuthToken>>('/api/auth/refresh', {
+    method: 'POST',
+    body: JSON.stringify({ refreshToken }),
+  })
+  return response.data
+}
+
+// 登出，吊销刷新令牌
+export async function logoutUser(refreshToken: string): Promise<void> {
+  await requestJson<ApiEnvelope<null>>('/api/auth/logout', {
+    method: 'POST',
+    body: JSON.stringify({ refreshToken }),
+  })
+}
+
+// 登录用户删除自己的评论
+export async function deleteComment(id: number): Promise<void> {
+  await requestJson<ApiEnvelope<null>>(`/api/comments/${id}`, { method: 'DELETE' })
+}
+
+// 登录用户编辑自己的评论
+export async function updateComment(id: number, content: string): Promise<CommentSummary> {
+  const response = await requestJson<ApiEnvelope<CommentSummary>>(`/api/comments/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ content }),
+  })
+  return response.data
+}
+
+// 管理员批量审核评论
+export async function batchReviewComments(ids: number[], action: 'approve' | 'reject'): Promise<void> {
+  await requestJson<ApiEnvelope<null>>(`/api/admin/comments/batch-${action}`, {
+    method: 'PUT',
+    body: JSON.stringify({ ids }),
+  })
+}
+
+// 登录用户删除自己的留言
+export async function deleteGuestbookEntry(id: number): Promise<void> {
+  await requestJson<ApiEnvelope<null>>(`/api/guestbook/${id}`, { method: 'DELETE' })
+}
+
+// 登录用户编辑自己的留言
+export async function updateGuestbookEntry(id: number, content: string): Promise<void> {
+  await requestJson<ApiEnvelope<null>>(`/api/guestbook/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ content }),
+  })
+}
+
+// 管理员批量审核留言
+export async function batchReviewGuestbook(ids: number[], action: 'approve' | 'reject'): Promise<void> {
+  await requestJson<ApiEnvelope<null>>(`/api/admin/guestbook/batch-${action}`, {
+    method: 'PUT',
+    body: JSON.stringify({ ids }),
+  })
 }

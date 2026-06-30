@@ -292,12 +292,14 @@ public class InteractionController {
         String placeholders = String.join(",", commentIds.stream().map(id -> "?").toList());
         java.util.Map<Long, Boolean> result = new java.util.LinkedHashMap<>();
         commentIds.forEach(id -> result.put(id, false));
+        java.util.List<Object> queryParams = new java.util.ArrayList<>(commentIds);
+        queryParams.add(loginUser.userId());
         jdbcTemplate.query("""
                         select comment_id from comment_reactions
                         where comment_id in (%s) and user_id = ? and reaction_type = 'LIKE'
                         """.formatted(placeholders),
                 (rs, rowNum) -> rs.getLong("comment_id"),
-                commentIds.toArray()).forEach(id -> result.put(id, true));
+                queryParams.toArray()).forEach(id -> result.put(id, true));
         return ApiResponse.ok(result);
     }
 
@@ -439,6 +441,17 @@ public class InteractionController {
         if ("COMMENT".equals(targetType) && "like_count".equals(counterColumn)) {
             jdbcTemplate.update("""
                             update comments
+                            set like_count = greatest(like_count + ?, 0),
+                                updated_at = now()
+                            where id = ?
+                            """,
+                    delta,
+                    targetId);
+            return;
+        }
+        if ("MESSAGE".equals(targetType) && "like_count".equals(counterColumn)) {
+            jdbcTemplate.update("""
+                            update guestbook_entries
                             set like_count = greatest(like_count + ?, 0),
                                 updated_at = now()
                             where id = ?

@@ -15,6 +15,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -98,21 +99,24 @@ public class CommentController {
                               and child.target_id = ?
                               and child.status = 'APPROVED'
                         )
-                        select c.id,
-                               c.target_type,
-                               c.target_id,
-                               c.parent_id,
-                               c.root_id,
-                               c.user_id,
-                               u.username,
-                               c.content,
-                               c.status,
-                               c.depth,
-                               c.reply_count,
-                               c.like_count,
-                               c.created_at
-                        from visible_comments c
-                        join users u on u.id = c.user_id
+                         select c.id,
+                                c.target_type,
+                                c.target_id,
+                                c.parent_id,
+                                c.root_id,
+                                c.user_id,
+                                u.username,
+                                c.content,
+                                c.status,
+                                c.depth,
+                                c.reply_count,
+                                c.like_count,
+                                c.created_at,
+                                c.reply_to_user_id,
+                                ru.username as reply_username
+                         from visible_comments c
+                         join users u on u.id = c.user_id
+                         left join users ru on ru.id = c.reply_to_user_id
                         order by coalesce(c.root_id, c.id) asc, c.depth asc, c.created_at asc, c.id asc
                         limit ? offset ?
                         """,
@@ -137,8 +141,9 @@ public class CommentController {
         String type = normalizeTargetType(request.targetType());
         ensureTargetExists(type, request.targetId(), loginUser.userId());
         ParentComment parent = parentComment(type, request.targetId(), request.parentId());
-        ensureContentAllowed(request.content());
+        CheckResult check = checkContent(request.content());
         checkSpam(loginUser.userId());
+        String status = check.needsReview() ? "PENDING" : "APPROVED";
 
         Long id = jdbcTemplate.queryForObject("""
                         insert into comments (
@@ -154,7 +159,7 @@ public class CommentController {
                             ip_address,
                             user_agent
                         )
-                        values (?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, cast(? as inet), ?)
+                        values (?, ?, ?, ?, ?, ?, ?, ?, ?, cast(? as inet), ?)
                         returning id
                         """,
                 Long.class,
@@ -164,11 +169,97 @@ public class CommentController {
                 parent == null ? null : parent.rootId(),
                 loginUser.userId(),
                 parent == null ? null : parent.userId(),
-                request.content().trim(),
+                check.content(),
+                status,
                 parent == null ? 0 : parent.depth() + 1,
                 servletRequest.getRemoteAddr(),
                 servletRequest.getHeader("User-Agent"));
+        if ("ARTICLE".equals(type) && parent == null) {
+            jdbcTemplate.update("""
+                            update articles
+                            set comment_count = comment_count + 1, updated_at = now()
+                            where id = ?
+                            """,
+                    request.targetId());
+        }
         return ApiResponse.ok(getComment(id));
+    }
+
+    // 登录用户删除自己的评论（软删除）。
+    @Transactional(rollbackFor = Exception.class)
+    @DeleteMapping("/api/comments/{id}")
+    public ApiResponse<Void> deleteMine(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable Long id
+    ) {
+        int affected = jdbcTemplate.update(
+                "update comments set status = 'DELETED', updated_at = now() where id = ? and user_id = ?",
+                id, loginUser.userId());
+        if (affected == 0) {
+            throw BusinessException.notFound("评论不存在或无权删除");
+        }
+        return ApiResponse.ok(null);
+    }
+
+    // 登录用户编辑自己的评论，修改后重新进入审核队列。
+    @Transactional(rollbackFor = Exception.class)
+    @PutMapping("/api/comments/{id}")
+    public ApiResponse<CommentVO> updateMine(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable Long id,
+            @Valid @RequestBody CommentUpdateRequest request
+    ) {
+        CommentStatus current = jdbcTemplate.query("""
+                        select id, status
+                        from comments
+                        where id = ? and user_id = ?
+                        for update
+                        """,
+                (rs, rowNum) -> new CommentStatus(
+                        rs.getLong("id"),
+                        null,
+                        rs.getString("status")
+                ),
+                id, loginUser.userId()).stream().findFirst()
+                .orElseThrow(() -> BusinessException.notFound("评论不存在或无权编辑"));
+        if (!"APPROVED".equals(current.status()) && !"PENDING".equals(current.status())) {
+            throw BusinessException.badRequest("当前状态不能编辑");
+        }
+        CheckResult check = checkContent(request.content());
+        String newStatus = check.needsReview() ? "PENDING" : "APPROVED";
+        jdbcTemplate.update("""
+                        update comments
+                        set content = ?, status = ?, updated_at = now()
+                        where id = ? and user_id = ?
+                        """,
+                check.content(), newStatus, id, loginUser.userId());
+        return ApiResponse.ok(getComment(id));
+    }
+
+    // 管理员批量审核通过评论。
+    @Transactional(rollbackFor = Exception.class)
+    @PutMapping("/api/admin/comments/batch-approve")
+    public ApiResponse<Void> batchApprove(@RequestBody IdListRequest request) {
+        for (Long commentId : request.ids()) {
+            try {
+                approve(commentId);
+            } catch (Exception ignored) {
+            }
+        }
+        return ApiResponse.ok(null);
+    }
+
+    // 管理员批量驳回评论。
+    @Transactional(rollbackFor = Exception.class)
+    @PutMapping("/api/admin/comments/batch-reject")
+    public ApiResponse<Void> batchReject(@RequestBody IdListRequest request) {
+        for (Long commentId : request.ids()) {
+            try {
+                reject(commentId);
+            } catch (Exception ignored) {
+            }
+        }
+        return ApiResponse.ok(null);
     }
 
     // 管理员查看评论审核队列。
@@ -214,9 +305,12 @@ public class CommentController {
                                c.depth,
                                c.reply_count,
                                c.like_count,
-                               c.created_at
+                               c.created_at,
+                               c.reply_to_user_id,
+                               ru.username as reply_username
                         from comments c
                         join users u on u.id = c.user_id
+                        left join users ru on ru.id = c.reply_to_user_id
                         %s
                         order by c.created_at desc, c.id desc
                         limit ? offset ?
@@ -242,6 +336,45 @@ public class CommentController {
         return ApiResponse.ok(getComment(id));
     }
 
+    // 当前用户查看自己的所有评论（含状态）。
+    @GetMapping("/api/me/comments")
+    public ApiResponse<PageResponse<CommentVO>> myComments(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestParam(defaultValue = "1") @Min(1) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+        int offset = (page - 1) * size;
+        List<CommentVO> list = jdbcTemplate.query("""
+                        select c.id,
+                               c.target_type,
+                               c.target_id,
+                               c.parent_id,
+                               c.root_id,
+                               c.user_id,
+                               u.username,
+                               c.content,
+                               c.status,
+                               c.depth,
+                               c.reply_count,
+                               c.like_count,
+                               c.created_at,
+                               c.reply_to_user_id,
+                               ru.username as reply_username
+                        from comments c
+                        join users u on u.id = c.user_id
+                        left join users ru on ru.id = c.reply_to_user_id
+                        where c.user_id = ?
+                        order by c.created_at desc
+                        limit ? offset ?
+                        """,
+                (rs, rowNum) -> toComment(rs),
+                loginUser.userId(), size, offset);
+        Integer total = jdbcTemplate.queryForObject("""
+                        select count(*) from comments where user_id = ?
+                        """,
+                Integer.class, loginUser.userId());
+        return ApiResponse.ok(new PageResponse<>(list, page, size, total));
+    }
+
     private CommentVO getComment(Long id) {
         return jdbcTemplate.query("""
                         select c.id,
@@ -256,9 +389,12 @@ public class CommentController {
                                c.depth,
                                c.reply_count,
                                c.like_count,
-                               c.created_at
+                               c.created_at,
+                               c.reply_to_user_id,
+                               ru.username as reply_username
                         from comments c
                         join users u on u.id = c.user_id
+                        left join users ru on ru.id = c.reply_to_user_id
                         where c.id = ?
                         """,
                 (rs, rowNum) -> toComment(rs),
@@ -357,20 +493,48 @@ public class CommentController {
         }
     }
 
-    private void ensureContentAllowed(String content) {
-        String normalized = content.trim();
-        jdbcTemplate.query("""
+    private CheckResult checkContent(String content) {
+        String result = content.trim();
+        boolean hasReviewMatch = false;
+        List<String> words = jdbcTemplate.query("""
                         select word, match_type, severity
                         from sensitive_words
                         where enabled = true
                         order by id
                         """,
-                rs -> {
-                    if (matchesSensitiveWord(normalized, rs.getString("word"), rs.getString("match_type"))
-                            && "REJECT".equals(rs.getString("severity"))) {
-                        throw BusinessException.badRequest("评论包含敏感内容");
-                    }
-                });
+                (rs, rowNum) -> rs.getString("word") + "|" + rs.getString("match_type") + "|" + rs.getString("severity"));
+        for (String entry : words) {
+            String[] parts = entry.split("\\|", 3);
+            String word = parts[0];
+            String matchType = parts[1];
+            String severity = parts[2];
+            if (!matchesSensitiveWord(result, word, matchType)) {
+                continue;
+            }
+            switch (severity) {
+                case "REJECT" -> throw BusinessException.badRequest("评论包含敏感内容");
+                case "MASK" -> result = maskContent(result, word, matchType);
+                case "REVIEW" -> hasReviewMatch = true;
+            }
+        }
+        return new CheckResult(result, hasReviewMatch);
+    }
+
+    private record CheckResult(String content, boolean needsReview) {
+    }
+
+    private String maskContent(String content, String word, String matchType) {
+        return switch (matchType) {
+            case "EXACT" -> content.replaceAll("(?i)\\Q" + word + "\\E", "***");
+            case "REGEX" -> {
+                try {
+                    yield Pattern.compile(word, Pattern.CASE_INSENSITIVE).matcher(content).replaceAll("***");
+                } catch (PatternSyntaxException e) {
+                    yield content;
+                }
+            }
+            default -> content.replaceAll("(?i)" + Pattern.quote(word), "***");
+        };
     }
 
     private void checkSpam(Long userId) {
@@ -397,7 +561,7 @@ public class CommentController {
         try {
             return Pattern.compile(pattern, Pattern.CASE_INSENSITIVE).matcher(content).find();
         } catch (PatternSyntaxException exception) {
-            return false;
+            return true;
         }
     }
 
@@ -423,7 +587,9 @@ public class CommentController {
                 rs.getInt("depth"),
                 rs.getLong("reply_count"),
                 rs.getLong("like_count"),
-                rs.getObject("created_at", OffsetDateTime.class)
+                rs.getObject("created_at", OffsetDateTime.class),
+                rs.getObject("reply_to_user_id") == null ? null : rs.getLong("reply_to_user_id"),
+                rs.getString("reply_username")
         );
     }
 
@@ -432,6 +598,16 @@ public class CommentController {
             @NotNull Long targetId,
             Long parentId,
             @NotBlank @Size(min = 2, max = 1000) String content
+    ) {
+    }
+
+    public record CommentUpdateRequest(
+            @NotBlank @Size(min = 2, max = 1000) String content
+    ) {
+    }
+
+    public record IdListRequest(
+            @NotNull List<Long> ids
     ) {
     }
 
@@ -448,7 +624,9 @@ public class CommentController {
             Integer depth,
             Long replyCount,
             Long likeCount,
-            OffsetDateTime createdAt
+            OffsetDateTime createdAt,
+            Long replyToUserId,
+            String replyToUsername
     ) {
     }
 
