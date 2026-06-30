@@ -365,17 +365,30 @@ public class ArticleServiceImpl implements ArticleService {
                         where article_id = ?
                         order by version_no desc, id desc
                         """,
-                (rs, rowNum) -> new ArticleVersionVO(
-                        rs.getLong("id"),
-                        rs.getLong("article_id"),
-                        rs.getInt("version_no"),
-                        rs.getString("title"),
-                        rs.getString("summary"),
-                        rs.getString("content_markdown"),
-                        nullableLong(rs, "created_by"),
-                        rs.getObject("created_at", OffsetDateTime.class)
-                ),
+                (rs, rowNum) -> mapArticleVersion(rs),
                 id);
+    }
+
+    // 管理员读取单个历史版本，确保版本属于指定文章。
+    @Override
+    public ArticleVersionVO getVersion(Long articleId, Long versionId) {
+        requiredArticle(articleId);
+        return requiredVersion(articleId, versionId);
+    }
+
+    // 恢复历史版本只覆盖版本表记录的字段，保留当前分类、标签、封面、可见性和 URL 标识。
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ArticleVO restoreVersion(Long articleId, Long versionId, Long operatorId) {
+        ArticleEntity article = requiredArticle(articleId);
+        ArticleVersionVO version = requiredVersion(articleId, versionId);
+        article.setTitle(version.title());
+        article.setSummary(version.summary());
+        article.setContentMarkdown(version.contentMarkdown());
+        article.setUpdatedBy(operatorId);
+        articleMapper.updateEditableArticle(article);
+        insertVersionSnapshot(article, operatorId);
+        return toVO(article, true);
     }
 
     // 查询公开文章列表，支持关键字和标签筛选。
@@ -583,6 +596,42 @@ public class ArticleServiceImpl implements ArticleService {
             throw BusinessException.notFound("文章不存在");
         }
         return article;
+    }
+
+    private ArticleVersionVO requiredVersion(Long articleId, Long versionId) {
+        List<ArticleVersionVO> versions = jdbcTemplate.query("""
+                        select id,
+                               article_id,
+                               version_no,
+                               title,
+                               summary,
+                               content_markdown,
+                               created_by,
+                               created_at
+                        from article_versions
+                        where article_id = ?
+                          and id = ?
+                        """,
+                (rs, rowNum) -> mapArticleVersion(rs),
+                articleId,
+                versionId);
+        if (versions.isEmpty()) {
+            throw BusinessException.notFound("文章版本不存在");
+        }
+        return versions.getFirst();
+    }
+
+    private ArticleVersionVO mapArticleVersion(ResultSet rs) throws SQLException {
+        return new ArticleVersionVO(
+                rs.getLong("id"),
+                rs.getLong("article_id"),
+                rs.getInt("version_no"),
+                rs.getString("title"),
+                rs.getString("summary"),
+                rs.getString("content_markdown"),
+                nullableLong(rs, "created_by"),
+                rs.getObject("created_at", OffsetDateTime.class)
+        );
     }
 
     // 校验文章分类存在且属于文章模块，避免把数据库外键异常暴露给接口调用方。

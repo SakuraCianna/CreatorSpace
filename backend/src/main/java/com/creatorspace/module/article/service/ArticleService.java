@@ -64,6 +64,12 @@ public interface ArticleService {
     // 管理员读取文章历史版本。
     List<ArticleVersionVO> listVersions(Long id);
 
+    // 管理员读取单个历史版本。
+    ArticleVersionVO getVersion(Long articleId, Long versionId);
+
+    // 管理员将文章正文恢复到指定历史版本，并写入新的版本快照。
+    ArticleVO restoreVersion(Long articleId, Long versionId, Long operatorId);
+
     // 查询公开文章列表。
     PageResponse<ArticleVO> listPublic(String keyword, Long tagId, long page, long pageSize);
 

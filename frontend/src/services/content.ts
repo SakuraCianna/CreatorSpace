@@ -161,6 +161,23 @@ export async function fetchAdminArticleVersions(id: number): Promise<ArticleVers
   return response.data
 }
 
+// 管理员读取单个文章历史版本
+export async function fetchAdminArticleVersion(articleId: number, versionId: number): Promise<ArticleVersionSummary> {
+  const response = await requestJson<ApiEnvelope<ArticleVersionSummary>>(
+    `/api/admin/articles/${articleId}/versions/${versionId}`,
+  )
+  return response.data
+}
+
+// 管理员恢复文章历史版本
+export async function restoreAdminArticleVersion(articleId: number, versionId: number): Promise<ArticleSummary> {
+  const response = await requestJson<ApiEnvelope<ArticleSummary>>(
+    `/api/admin/articles/${articleId}/versions/${versionId}/restore`,
+    { method: 'PUT' },
+  )
+  return response.data
+}
+
 // 管理员创建文章
 export async function createArticle(payload: ArticlePayload): Promise<ArticleSummary> {
   const response = await requestJson<ApiEnvelope<ArticleSummary>>('/api/admin/articles', {

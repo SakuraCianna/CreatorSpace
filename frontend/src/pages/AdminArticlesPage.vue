@@ -119,6 +119,7 @@
               <div class="row-actions">
                 <span class="status-chip">{{ contentStatusLabel(article.status) }}</span>
                 <button class="text-button" type="button" @click="loadArticle(article.id)">编辑</button>
+                <RouterLink class="text-button" :to="{ name: 'admin-article-versions', params: { id: article.id } }">版本</RouterLink>
                 <button class="text-button" type="button" @click="togglePublish(article)">{{ articlePublishActionLabel(article) }}</button>
                 <button class="text-button" type="button" @click="toggleTop(article)">{{ article.top ? '取消置顶' : '置顶' }}</button>
                 <button class="text-button" type="button" @click="toggleRecommend(article)">{{ article.recommended ? '取消推荐' : '推荐' }}</button>
@@ -135,44 +136,13 @@
       </div>
     </section>
 
-    <section class="cms-grid version-grid">
-      <div class="cms-panel">
-        <div class="panel-title">
-          <h3>版本历史</h3>
-          <span>{{ selectedArticle?.title ?? '未选择文章' }}</span>
-        </div>
-        <div v-if="!selectedArticle" class="empty-hint">先在右侧选择一篇文章查看版本。</div>
-        <div v-else class="list-stack">
-          <article v-for="version in versions" :key="version.id" class="table-row">
-            <div>
-              <strong>版本 {{ version.versionNo }}</strong>
-              <span>{{ formatDateTimeToSecond(version.createdAt) }} - {{ version.title }}</span>
-            </div>
-            <button class="text-button" type="button" @click="loadVersionToForm(version)">载入</button>
-          </article>
-          <p v-if="versions.length === 0" class="empty-hint">当前文章还没有版本记录。</p>
-        </div>
-      </div>
-
-      <div class="cms-panel">
-        <div class="panel-title">
-          <h3>当前草稿预览</h3>
-          <span>{{ articleForm.slug || '未填写' }}</span>
-        </div>
-        <div class="preview-block">
-          <strong>{{ articleForm.title || '未命名文章' }}</strong>
-          <p>{{ articleForm.summary || '没有摘要。' }}</p>
-          <code>{{ articleForm.coverUrl || '/uploads/...' }}</code>
-        </div>
-      </div>
-    </section>
-
     <p v-if="notice" class="inline-notice">{{ notice }}</p>
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
+import { RouterLink } from 'vue-router'
 import { Plus, RefreshCw } from '@lucide/vue'
 
 import {
@@ -180,7 +150,6 @@ import {
   createArticle,
   deleteArticle,
   fetchAdminArticle,
-  fetchAdminArticleVersions,
   fetchAdminArticles,
   fetchCategories,
   fetchTags,
@@ -188,17 +157,14 @@ import {
   setArticleTop,
   updateArticle,
 } from '@/services/content'
-import { formatDateTimeToSecond } from '@/shared/datetime'
 import { toUserMessage } from '@/services/http'
-import type { ArticlePayload, ArticlePrivacy, ArticleSummary, ArticleVersionSummary, CategorySummary, TagSummary } from '@/shared/domain'
+import type { ArticlePayload, ArticlePrivacy, ArticleSummary, CategorySummary, TagSummary } from '@/shared/domain'
 
 const articlePrivacies: ArticlePrivacy[] = ['PUBLIC', 'SELF', 'FRIENDS', 'SELECTED_FRIENDS', 'EXCLUDED_FRIENDS']
 
 const articles = ref<ArticleSummary[]>([])
-const versions = ref<ArticleVersionSummary[]>([])
 const articleCategories = ref<CategorySummary[]>([])
 const tags = ref<TagSummary[]>([])
-const selectedArticle = ref<ArticleSummary | null>(null)
 const editingArticleId = ref<number | null>(null)
 const keyword = ref('')
 const statusFilter = ref<'ALL' | ArticleSummary['status']>('ALL')
@@ -253,9 +219,6 @@ async function loadArticles() {
     articles.value = result.records
     total.value = result.total
     page.value = result.page
-    if (!selectedArticle.value && articles.value.length > 0) {
-      await loadArticle(articles.value[0].id)
-    }
   } catch (error) {
     notice.value = toUserMessage(error, '文章列表加载失败')
   } finally {
@@ -263,11 +226,10 @@ async function loadArticles() {
   }
 }
 
-async function loadArticle(id: number, loadVersion = true) {
+async function loadArticle(id: number) {
   notice.value = ''
   try {
     const article = await fetchAdminArticle(id)
-    selectedArticle.value = article
     editingArticleId.value = article.id
     articleForm.title = article.title
     articleForm.slug = article.slug
@@ -277,9 +239,6 @@ async function loadArticle(id: number, loadVersion = true) {
     articleForm.categoryId = article.category?.id ?? null
     articleForm.tagIds = article.tags.map((tag) => tag.id)
     articleForm.privacyType = article.privacyType
-    if (loadVersion) {
-      versions.value = await fetchAdminArticleVersions(id)
-    }
   } catch (error) {
     notice.value = toUserMessage(error, '文章读取失败')
   }
@@ -297,7 +256,6 @@ async function saveArticle() {
       notice.value = '文章已保存'
     } else {
       const created = await createArticle({ ...articleForm })
-      selectedArticle.value = created
       editingArticleId.value = created.id
       notice.value = '草稿已创建'
     }
@@ -357,8 +315,6 @@ async function removeArticle(id: number) {
     notice.value = '文章已删除'
     if (editingArticleId.value === id) {
       resetArticleForm()
-      versions.value = []
-      selectedArticle.value = null
     }
     await loadArticles()
   } catch (error) {
@@ -366,16 +322,8 @@ async function removeArticle(id: number) {
   }
 }
 
-async function loadVersionToForm(version: ArticleVersionSummary) {
-  articleForm.title = version.title
-  articleForm.summary = version.summary ?? ''
-  articleForm.contentMarkdown = version.contentMarkdown
-  notice.value = `已载入版本 ${version.versionNo}`
-}
-
 function resetArticleForm() {
   editingArticleId.value = null
-  selectedArticle.value = null
   articleForm.title = ''
   articleForm.slug = ''
   articleForm.summary = ''
@@ -384,7 +332,6 @@ function resetArticleForm() {
   articleForm.categoryId = null
   articleForm.tagIds = []
   articleForm.privacyType = 'PUBLIC'
-  versions.value = []
 }
 
 function cancelEditing() {
@@ -455,33 +402,13 @@ function contentStatusLabel(value: string) {
   gap: 14px;
 }
 
-.article-grid,
-.version-grid {
+.article-grid {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
 }
 
 .article-stack {
   display: grid;
   gap: 14px;
-}
-
-.preview-block {
-  display: grid;
-  gap: 10px;
-  color: #344154;
-}
-
-.preview-block p {
-  margin: 0;
-  color: var(--admin-muted);
-  line-height: 1.65;
-}
-
-.preview-block code {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: #315bff;
 }
 
 .tag-picker {
@@ -529,6 +456,26 @@ function contentStatusLabel(value: string) {
   padding-top: 12px;
 }
 
+.article-admin-page .table-row > .row-actions {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 10px;
+  min-width: 96px;
+}
+
+.article-admin-page .row-actions .text-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 72px;
+  min-height: 30px;
+  box-sizing: border-box;
+  line-height: 1;
+  text-align: center;
+  text-decoration: none;
+}
+
 .empty-hint {
   color: var(--admin-muted);
   font-size: 13px;
@@ -543,8 +490,7 @@ function contentStatusLabel(value: string) {
 
 @media (max-width: 1020px) {
   .cms-header,
-  .article-grid,
-  .version-grid {
+  .article-grid {
     grid-template-columns: 1fr;
   }
 

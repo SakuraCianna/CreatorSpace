@@ -370,6 +370,80 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                 .andExpect(status().isNotFound());
     }
 
+    // 验证后台可以查看文章版本详情，并恢复到指定版本。
+    @Test
+    void adminCanViewAndRestoreArticleVersions() throws Exception {
+        String token = loginAsAdmin();
+        long categoryId = createCategory(token, "ARTICLE", "Article Version Category", "article-version-category");
+        long tagId = createTag(token, "Article Version Tag", "article-version-tag");
+
+        String createResponse = mockMvc.perform(post("/api/admin/articles")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "title", "Original Version Title",
+                                "slug", "article-version-restore",
+                                "summary", "Original version summary",
+                                "contentMarkdown", "Original version content",
+                                "categoryId", categoryId,
+                                "tagIds", new long[]{tagId},
+                                "privacyType", "PUBLIC"
+                        ))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        long articleId = dataId(createResponse);
+
+        mockMvc.perform(put("/api/admin/articles/{id}", articleId)
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "title", "Updated Version Title",
+                                "slug", "article-version-restore-updated",
+                                "summary", "Updated version summary",
+                                "contentMarkdown", "Updated version content",
+                                "categoryId", categoryId,
+                                "tagIds", new long[]{tagId},
+                                "privacyType", "PUBLIC"
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.slug", is("article-version-restore-updated")));
+
+        String versionsResponse = mockMvc.perform(get("/api/admin/articles/{id}/versions", articleId)
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(2)))
+                .andExpect(jsonPath("$.data[0].versionNo", is(2)))
+                .andExpect(jsonPath("$.data[1].versionNo", is(1)))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        JsonNode firstVersion = objectMapper.readTree(versionsResponse).path("data").get(1);
+        long firstVersionId = firstVersion.path("id").asLong();
+
+        mockMvc.perform(get("/api/admin/articles/{articleId}/versions/{versionId}", articleId, firstVersionId)
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.title", is("Original Version Title")))
+                .andExpect(jsonPath("$.data.contentMarkdown", is("Original version content")));
+
+        mockMvc.perform(put("/api/admin/articles/{articleId}/versions/{versionId}/restore", articleId, firstVersionId)
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.title", is("Original Version Title")))
+                .andExpect(jsonPath("$.data.slug", is("article-version-restore-updated")))
+                .andExpect(jsonPath("$.data.summary", is("Original version summary")))
+                .andExpect(jsonPath("$.data.contentMarkdown", is("Original version content")));
+
+        mockMvc.perform(get("/api/admin/articles/{id}/versions", articleId)
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(3)))
+                .andExpect(jsonPath("$.data[0].versionNo", is(3)))
+                .andExpect(jsonPath("$.data[0].title", is("Original Version Title")));
+    }
+
     // 验证普通用户创建作品、提交审核和管理员通过后游客可读取。
     @Test
     void registeredUserCanCreateProjectAndAdminCanApproveIt() throws Exception {
