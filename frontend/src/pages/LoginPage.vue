@@ -1,6 +1,4 @@
 <template>
-  <!-- 读者与管理员安全登录页面 -->
-  <!-- 用户与管理员登录页 -->
   <section ref="root" class="auth-page auth-page--material">
     <form class="auth-card auth-card--material" data-reveal @submit.prevent="submitLogin">
       <div class="auth-card__visual auth-card__visual--material">
@@ -53,21 +51,18 @@
     </form>
   </section>
 </template>
-
 <script setup lang="ts">
 // 导入所需的组件和 Vue 钩子
 import { computed, reactive, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { LoaderCircle, ShieldCheck } from '@lucide/vue'
 import VueHcaptcha from '@hcaptcha/vue3-hcaptcha'
-
 import { loginAdmin, loginUser } from '@/services/content'
 import { HttpError, toUserMessage } from '@/services/http'
 import { isAdminRedirect, normalizeAuthRedirect } from '@/shared/authRedirect'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import { useSessionStore } from '@/shared/sessionStore'
 import { siteAccountLabel, useSiteIdentity } from '@/shared/siteIdentity'
-
 // 声明登录页面的状态数据与控制器
 const root = ref<HTMLElement | null>(null)
 const router = useRouter()
@@ -89,13 +84,10 @@ const registerRoute = computed(() => ({
     redirect: readPublicRedirectPath(),
   },
 }))
-
 usePageReveal(root)
-
 const hcaptchaToken = ref('')
 const hcaptchaRef = ref<any>(null)
 const hcaptchaSiteKey = import.meta.env.VITE_HCAPTCHA_SITE_KEY
-
 function onVerify(token: string) {
   hcaptchaToken.value = token
 }
@@ -105,12 +97,10 @@ function onExpired() {
 function onError() {
   hcaptchaToken.value = ''
 }
-
 watch([loginMode, () => form.username, () => form.password], () => {
   loginAttemptId.value += 1
   message.value = ''
 })
-
 // 提交用户登录表单, 支持普通用户和管理员身份切换, 登录成功后写入 Token 到本地并跳转回原路由
 async function submitLogin() {
   if (!form.username.trim() || !form.password) {
@@ -121,7 +111,6 @@ async function submitLogin() {
     message.value = '请完成人机验证'
     return
   }
-
   isSubmitting.value = true
   message.value = ''
   const attemptId = loginAttemptId.value
@@ -147,7 +136,6 @@ async function submitLogin() {
     isSubmitting.value = false
   }
 }
-
 // 根据后端返回的 Http 状态码及错误信息生成友好的用户提示文案
 function loginErrorMessage(error: unknown, _mode: 'ADMIN' | 'USER') {
   if (!(error instanceof HttpError)) {
@@ -158,18 +146,15 @@ function loginErrorMessage(error: unknown, _mode: 'ADMIN' | 'USER') {
   }
   return error.backendMessage || toUserMessage(error, '登录失败')
 }
-
 // 读取前台路径重定向地址, 避免管理员重定向去前台时被拦截
 function readPublicRedirectPath() {
   const redirect = normalizeAuthRedirect(route.query.redirect, '/articles')
   return redirect.startsWith('/admin') ? '/articles' : redirect
 }
-
 function readRedirectPath() {
   return normalizeAuthRedirect(route.query.redirect, '/admin')
 }
 </script>
-
 <style scoped>
 .auth-page {
   position: relative;
@@ -178,7 +163,6 @@ function readRedirectPath() {
   place-items: center;
   padding: clamp(28px, 5vw, 72px) 0;
 }
-
 .auth-page::before {
   content: "";
   position: absolute;
@@ -190,7 +174,6 @@ function readRedirectPath() {
     radial-gradient(circle at 82% 18%, rgba(0, 106, 96, 0.12), transparent 26vw),
     linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(247, 249, 255, 0.72));
 }
-
 .auth-card {
   position: relative;
   z-index: 1;
@@ -200,13 +183,11 @@ function readRedirectPath() {
   background: var(--md-sys-color-surface-container-lowest);
   box-shadow: 0 28px 80px rgba(30, 38, 64, 0.18), 0 1px 0 rgba(255, 255, 255, 0.9) inset;
 }
-
 .auth-card--wide {
   display: grid;
   grid-template-columns: 1fr 0.9fr;
   overflow: hidden;
 }
-
 .auth-card--material {
   display: grid;
   grid-template-columns: minmax(0, 1.02fr) minmax(360px, 0.82fr);
@@ -214,21 +195,18 @@ function readRedirectPath() {
   min-height: 540px;
   overflow: hidden;
 }
-
 .auth-card__visual,
 .auth-card__form {
   display: grid;
   gap: 18px;
   padding: 32px;
 }
-
 .auth-card__form {
   align-content: center;
   gap: 20px;
   padding: clamp(30px, 4vw, 52px);
   background: rgba(255, 255, 255, 0.96);
 }
-
 .auth-mode-switch {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -239,7 +217,6 @@ function readRedirectPath() {
   border-radius: 999px;
   background: #eef2ff;
 }
-
 .auth-mode-switch button {
   min-height: 40px;
   border: 0;
@@ -251,23 +228,19 @@ function readRedirectPath() {
   cursor: pointer;
   transition: background 180ms ease, color 180ms ease, box-shadow 180ms ease;
 }
-
 .auth-mode-switch button:hover {
   background: rgba(255, 255, 255, 0.78);
   color: #111827;
 }
-
 .auth-mode-switch button.is-active {
   background: #101827;
   color: #ffffff;
   box-shadow: 0 8px 24px rgba(16, 24, 39, 0.18);
 }
-
 .auth-mode-switch button:focus-visible {
   outline: 2px solid var(--md-sys-color-primary);
   outline-offset: 2px;
 }
-
 .auth-card__visual {
   align-content: end;
   min-height: 420px;
@@ -276,7 +249,6 @@ function readRedirectPath() {
     var(--tone-night);
   color: #fff;
 }
-
 .auth-card__visual--material {
   position: relative;
   align-content: end;
@@ -288,7 +260,6 @@ function readRedirectPath() {
     linear-gradient(150deg, #101827 0%, #173b87 52%, #087568 100%);
   color: #f8fbff;
 }
-
 .auth-card__visual--material::before {
   content: "";
   position: absolute;
@@ -300,38 +271,32 @@ function readRedirectPath() {
   background: rgba(147, 197, 253, 0.24);
   box-shadow: -80px -60px 120px rgba(84, 230, 200, 0.16);
 }
-
 .auth-card__visual--warm {
   background:
     linear-gradient(160deg, rgba(255, 221, 176, 0.96), rgba(216, 226, 255, 0.72)),
     var(--md-sys-color-tertiary-container);
 }
-
 .auth-card__visual--material>* {
   position: relative;
   z-index: 1;
 }
-
 .auth-card__visual--material h1,
 .auth-card__visual--material p,
 .auth-card__visual--material .page-kicker,
 .auth-card__visual--material svg {
   color: inherit;
 }
-
 .auth-card h1 {
   margin: 0;
   font-size: clamp(34px, 4vw, 52px);
   line-height: 1.08;
 }
-
 .auth-card h2 {
   margin: 6px 0 0;
   color: #151922;
   font-size: 26px;
   line-height: 1.16;
 }
-
 .auth-card label {
   display: grid;
   gap: 8px;
@@ -339,7 +304,6 @@ function readRedirectPath() {
   font-size: 13px;
   font-weight: 750;
 }
-
 .auth-card input {
   width: 100%;
   min-height: 56px;
@@ -353,29 +317,24 @@ function readRedirectPath() {
   outline: 0;
   transition: background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
-
 .auth-card input:focus {
   border-color: color-mix(in srgb, var(--md-sys-color-primary) 56%, #ffffff);
   background: #ffffff;
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--md-sys-color-primary) 12%, transparent);
 }
-
 .auth-card button {
   width: 100%;
 }
-
 .auth-card .button-filled {
   min-height: 52px;
   color: #ffffff;
   background: linear-gradient(135deg, #315bff, #174ea6);
   box-shadow: 0 16px 32px rgba(49, 91, 255, 0.24);
 }
-
 .auth-card .button-filled:hover {
   color: #ffffff;
   background: linear-gradient(135deg, #254be8, #123f92);
 }
-
 .auth-switch {
   display: inline-flex;
   justify-content: center;
@@ -383,13 +342,11 @@ function readRedirectPath() {
   font-size: 14px;
   font-weight: 760;
 }
-
 .auth-switch:hover {
   color: #0b57d0;
   text-decoration: underline;
   text-underline-offset: 4px;
 }
-
 .material-icon-badge {
   display: inline-grid;
   width: 56px;
@@ -400,24 +357,20 @@ function readRedirectPath() {
   color: #bff7ec;
   box-shadow: 0 18px 38px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
-
 .auth-card__visual--material .page-kicker {
   color: #9ff5e5;
 }
-
 .auth-card__visual--material p:not(.page-kicker) {
   max-width: 34ch;
   color: rgba(248, 251, 255, 0.82);
   line-height: 1.72;
 }
-
 .material-benefits {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 8px;
 }
-
 .material-benefits span {
   min-height: 32px;
   padding: 7px 12px;
@@ -428,48 +381,38 @@ function readRedirectPath() {
   font-size: 12px;
   font-weight: 780;
 }
-
 .form-message {
   margin: 0;
   color: var(--tone-coral);
   font-size: 14px;
   line-height: 1.55;
 }
-
 @media (max-width: 1020px) {
-
   .auth-card--wide,
   .auth-card--material {
     grid-template-columns: 1fr;
   }
-
   .auth-card--material {
     min-height: auto;
   }
-
   .auth-card__visual--material {
     min-height: 280px;
   }
 }
-
 @media (max-width: 760px) {
   .auth-page {
     padding-top: 28px;
   }
-
   .auth-card {
     border-radius: 24px;
   }
-
   .auth-card__visual--material,
   .auth-card__form {
     padding: 24px;
   }
-
   .auth-card__visual--material {
     min-height: 240px;
   }
-
   .auth-card h1 {
     font-size: 34px;
   }

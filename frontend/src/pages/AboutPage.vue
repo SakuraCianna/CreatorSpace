@@ -1,5 +1,4 @@
 <template>
-<!-- 关于创作者及内容边界介绍页面 -->
   <section ref="root" class="about-page">
     <PublicPageHeader :title="profile?.displayName || siteName" :description="profile?.headline || siteSlogan" kicker="About Creator" theme="slate">
       <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
@@ -21,8 +20,6 @@
         </div>
       </div>
     </PublicPageHeader>
-
-    <!-- 双列响应式内容看板网格 -->
     <section class="about-grid">
       <article class="about-panel about-panel--bio" data-reveal>
         <UserRound :size="22" />
@@ -32,7 +29,6 @@
           <span v-for="tag in focusTags" :key="tag">{{ tag }}</span>
         </div>
       </article>
-
       <article class="about-panel" data-reveal>
         <ShieldCheck :size="22" />
         <h2>内容边界</h2>
@@ -43,7 +39,6 @@
           <span><Lightbulb :size="15" />灵感</span>
         </div>
       </article>
-
       <article class="about-panel" data-reveal>
         <Palette :size="22" />
         <h2>主题体验</h2>
@@ -53,7 +48,6 @@
           <ArrowRight :size="15" />
         </RouterLink>
       </article>
-
       <article v-if="contactLinks.length" class="about-panel about-panel--contact" data-reveal>
         <Mail :size="22" />
         <h2>联系入口</h2>
@@ -74,8 +68,6 @@
         </div>
       </article>
     </section>
-
-    <!-- 个人成长或工作经历时间线, 数据来自后台公开 profileJson -->
     <section class="experience-band" data-reveal>
       <div class="experience-band__intro">
         <Briefcase :size="22" />
@@ -93,8 +85,6 @@
       </ol>
       <p v-else class="experience-empty">后台维护经历数据后，这里会展示教育、职业或阶段成长记录。</p>
     </section>
-
-    <!-- 从碎片到公开展品的创作流水线 -->
     <section class="workflow-band" data-reveal>
       <div>
         <p class="page-kicker">Creator Flow</p>
@@ -110,7 +100,6 @@
     </section>
   </section>
 </template>
-
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
@@ -128,13 +117,11 @@ import {
   ShieldCheck,
   UserRound,
 } from '@lucide/vue'
-
 import { fetchSiteConfig, fetchThemes } from '@/services/content'
 import { useCinematicPageMotion } from '@/shared/composables/useCinematicPageMotion'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import { DEFAULT_SITE_IDENTITY, syncSiteIdentityFromConfig, useSiteIdentity } from '@/shared/siteIdentity'
 import type { PublicThemeConfig } from '@/shared/domain'
-
 interface AboutProfile {
   displayName: string
   headline: string
@@ -143,19 +130,16 @@ interface AboutProfile {
   location: string
   profileJson: Record<string, unknown>
 }
-
 interface ContactLink {
   platform: string
   label: string
   url: string
 }
-
 interface WorkflowStep {
   index: string
   title: string
   body: string
 }
-
 interface TimelineItem {
   period: string
   title: string
@@ -163,12 +147,10 @@ interface TimelineItem {
   description: string
   kind: string
 }
-
 interface ResumeLink {
   label: string
   url: string
 }
-
 const root = ref<HTMLElement | null>(null)
 const cinematic = useCinematicPageMotion(root)
 const profile = ref<AboutProfile | null>(null)
@@ -177,9 +159,7 @@ const themes = ref<PublicThemeConfig[]>([])
 const aboutPage = ref<Record<string, unknown>>({})
 const profileAvatarFailed = ref(false)
 const { siteName, siteSlogan } = useSiteIdentity({ load: false })
-
 usePageReveal(root)
-
 const focusTags = computed(() => readStringArray(profile.value?.profileJson.focus).slice(0, 12))
 const timelineItems = computed(() => readTimelineItems(profile.value?.profileJson).slice(0, 8))
 const resumeLink = computed(() => readResumeLink(profile.value?.profileJson))
@@ -211,7 +191,6 @@ const workflowSteps = computed<WorkflowStep[]>(() => [
   { index: '02', title: '形成内容', body: '把灵感沉淀成文章，或整理成可展示的作品档案。' },
   { index: '03', title: '审核公开', body: policySummary.value },
 ])
-
 // 并发异步获取当前配置的站点基本设置与全站可用主题列表, 数据成功就绪后触发入场显影动效
 async function loadAbout() {
   const [configResult, themesResult] = await Promise.allSettled([fetchSiteConfig(), fetchThemes()])
@@ -233,7 +212,6 @@ async function loadAbout() {
   themes.value = themesResult.status === 'fulfilled' ? themesResult.value : []
   void cinematic.play()
 }
-
 // 把公开站点配置收敛成页面可直接消费的字段, 后端新增字段时不会破坏页面
 // 将后端取得的全局站点基础配置反序列化并格式化为页面可直接渲染消费的个人资料属性
 function readProfile(value: unknown): AboutProfile | null {
@@ -250,11 +228,9 @@ function readProfile(value: unknown): AboutProfile | null {
     profileJson: readRecord(record.profileJson),
   }
 }
-
 function handleProfileAvatarError() {
   profileAvatarFailed.value = true
 }
-
 // 格式化解析个人社交链接, 过滤掉不安全的非 http 或 mailto 协议
 function readContactLink(value: unknown): ContactLink | null {
   const record = readRecord(value)
@@ -268,23 +244,18 @@ function readContactLink(value: unknown): ContactLink | null {
     url,
   }
 }
-
 function readRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
 }
-
 function readArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : []
 }
-
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
 }
-
 function readStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
 }
-
 function readTimelineItems(value: unknown): TimelineItem[] {
   const record = readRecord(value)
   const directItems = readTimelineList(record.experiences, '经历')
@@ -297,13 +268,11 @@ function readTimelineItems(value: unknown): TimelineItem[] {
     ...readTimelineList(record.experience, '经历'),
   ]
 }
-
 function readTimelineList(value: unknown, fallbackKind: string): TimelineItem[] {
   return readArray(value)
     .map((item) => readTimelineItem(item, fallbackKind))
     .filter((item): item is TimelineItem => Boolean(item))
 }
-
 function readTimelineItem(value: unknown, fallbackKind: string): TimelineItem | null {
   if (typeof value === 'string') {
     const title = value.trim()
@@ -326,7 +295,6 @@ function readTimelineItem(value: unknown, fallbackKind: string): TimelineItem | 
     kind,
   }
 }
-
 function readDateRange(record: Record<string, unknown>): string {
   const start = readString(record.start) || readString(record.startDate)
   const end = readString(record.end) || readString(record.endDate)
@@ -335,7 +303,6 @@ function readDateRange(record: Record<string, unknown>): string {
   }
   return start || end
 }
-
 function readResumeLink(value: unknown): ResumeLink | null {
   const record = readRecord(value)
   const resumeRecord = readRecord(record.resume)
@@ -350,14 +317,12 @@ function readResumeLink(value: unknown): ResumeLink | null {
     url,
   }
 }
-
 function safeAssetUrl(value: string): string {
   if (!value || value.startsWith('/')) {
     return value
   }
   return safeContactUrl(value)
 }
-
 function safeContactUrl(value: string): string {
   if (value.startsWith('mailto:')) {
     return value
@@ -369,25 +334,19 @@ function safeContactUrl(value: string): string {
     return ''
   }
 }
-
 onMounted(loadAbout)
 </script>
-
 <style scoped>
 .about-page {
   display: grid;
   gap: 18px;
   padding: 46px 0 84px;
 }
-
-
-
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
 }
-
 .about-panel,
 .experience-band,
 .workflow-band {
@@ -397,9 +356,6 @@ onMounted(loadAbout)
   box-shadow: var(--tone-shadow);
   backdrop-filter: blur(18px);
 }
-
-
-
 .profile-avatar {
   display: grid;
   width: 86px;
@@ -411,29 +367,24 @@ onMounted(loadAbout)
   background: rgba(49, 91, 255, 0.08);
   color: var(--tone-primary);
 }
-
 .profile-avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-
 .profile-card strong {
   color: var(--tone-ink);
   font-size: 18px;
 }
-
 .profile-card span {
   color: var(--tone-muted);
   font-size: 13px;
 }
-
 .about-grid {
   display: grid;
   grid-template-columns: 1.08fr 0.92fr;
   gap: 16px;
 }
-
 .about-panel {
   position: relative;
   display: grid;
@@ -442,7 +393,6 @@ onMounted(loadAbout)
   padding: 22px;
   overflow: hidden;
 }
-
 .about-panel::after {
   content: "";
   position: absolute;
@@ -451,18 +401,15 @@ onMounted(loadAbout)
   height: 2px;
   background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--tone-primary) 54%, transparent));
 }
-
 .about-panel svg {
   color: var(--tone-primary);
 }
-
 .about-panel h2,
 .experience-band h2,
 .workflow-band h2 {
   margin: 0;
   color: var(--tone-ink);
 }
-
 .about-panel p,
 .experience-band p,
 .workflow-band p {
@@ -470,7 +417,6 @@ onMounted(loadAbout)
   color: var(--tone-muted);
   line-height: 1.68;
 }
-
 .about-panel--bio {
   grid-row: span 2;
   min-height: 360px;
@@ -480,17 +426,14 @@ onMounted(loadAbout)
     var(--tone-night);
   color: #fff;
 }
-
 .about-panel--bio h2,
 .about-panel--bio p,
 .about-panel--bio svg {
   color: #fff;
 }
-
 .about-panel--contact {
   min-height: 190px;
 }
-
 .skill-cloud,
 .role-list,
 .contact-actions {
@@ -498,7 +441,6 @@ onMounted(loadAbout)
   flex-wrap: wrap;
   gap: 8px;
 }
-
 .skill-cloud span,
 .role-list span {
   display: inline-flex;
@@ -511,29 +453,24 @@ onMounted(loadAbout)
   font-size: 12px;
   font-weight: 740;
 }
-
 .role-list span {
   background: rgba(0, 124, 114, 0.1);
   color: #055f57;
 }
-
 .experience-band {
   display: grid;
   grid-template-columns: 0.42fr minmax(0, 1fr);
   gap: 22px;
   padding: 24px;
 }
-
 .experience-band__intro {
   display: grid;
   align-content: start;
   gap: 10px;
 }
-
 .experience-band__intro svg {
   color: var(--tone-primary);
 }
-
 .experience-timeline {
   position: relative;
   display: grid;
@@ -542,7 +479,6 @@ onMounted(loadAbout)
   padding: 0;
   list-style: none;
 }
-
 .experience-timeline::before {
   content: "";
   position: absolute;
@@ -552,14 +488,12 @@ onMounted(loadAbout)
   width: 2px;
   background: color-mix(in srgb, var(--tone-primary) 22%, transparent);
 }
-
 .experience-timeline li {
   position: relative;
   display: grid;
   gap: 6px;
   padding: 0 0 0 28px;
 }
-
 .experience-timeline li::before {
   content: "";
   position: absolute;
@@ -571,29 +505,24 @@ onMounted(loadAbout)
   border-radius: 50%;
   background: var(--tone-panel-solid);
 }
-
 .experience-time {
   color: var(--tone-faint);
   font-size: 12px;
   font-weight: 840;
 }
-
 .experience-timeline strong {
   color: var(--tone-ink);
   font-size: 16px;
 }
-
 .experience-timeline em {
   color: var(--tone-muted);
   font-size: 13px;
   font-style: normal;
   font-weight: 740;
 }
-
 .experience-timeline p {
   font-size: 13px;
 }
-
 .experience-empty {
   align-self: center;
   padding: 14px 16px;
@@ -602,14 +531,12 @@ onMounted(loadAbout)
   background: rgba(255, 255, 255, 0.56);
   font-size: 13px;
 }
-
 .workflow-band {
   display: grid;
   grid-template-columns: 0.58fr minmax(0, 1fr);
   gap: 22px;
   padding: 24px;
 }
-
 .workflow-band ol {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -618,7 +545,6 @@ onMounted(loadAbout)
   padding: 0;
   list-style: none;
 }
-
 .workflow-band li {
   display: grid;
   gap: 8px;
@@ -627,21 +553,17 @@ onMounted(loadAbout)
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.62);
 }
-
 .workflow-band li span {
   color: var(--tone-faint);
   font-size: 12px;
   font-weight: 860;
 }
-
 .workflow-band li strong {
   color: var(--tone-ink);
 }
-
 .workflow-band li p {
   font-size: 13px;
 }
-
 @media (max-width: 1020px) {
   .about-grid,
   .experience-band,
@@ -650,7 +572,6 @@ onMounted(loadAbout)
     grid-template-columns: 1fr;
   }
 }
-
 @media (max-width: 760px) {
   .about-page {
     padding-top: 26px;

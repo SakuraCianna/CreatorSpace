@@ -1,6 +1,4 @@
 <template>
-<!-- 瀑布流灵感板页面 -->
-<!-- 创作者公开灵感墙的瀑布流展厅 -->
   <section ref="root" class="wall-page">
     <PublicPageHeader title="灵感墙" description="摘句、提示词、图片、代码和链接都在这里先被保存成碎片，再慢慢长成文章或作品。" kicker="灵感收集墙" theme="purple">
       <form class="wall-search" @submit.prevent="loadInspirations">
@@ -9,7 +7,6 @@
         <button class="button button-filled button-compact" type="submit">检索</button>
       </form>
     </PublicPageHeader>
-
     <section class="wall-toolbar" data-reveal>
       <button
         v-for="item in filters"
@@ -24,12 +21,10 @@
         <span v-if="hasCompleteTypeCounts">{{ typeCount(item.value) }}</span>
       </button>
     </section>
-
     <div v-if="isLoading && !hasLoaded" class="empty-state showcase-state" data-reveal>
       <LoaderCircle class="spin" :size="24" />
       <h2>正在铺开灵感卡片</h2>
     </div>
-
     <section
       v-else-if="featuredCard"
       class="featured-inspiration"
@@ -89,12 +84,10 @@
         </a>
       </div>
     </section>
-
     <div v-if="!isLoading && cards.length === 0" class="empty-state showcase-state" data-reveal>
       <h2>没有匹配的灵感卡</h2>
       <p>换个类型或关键词试试。</p>
     </div>
-
     <div v-else class="inspiration-masonry">
       <article
         v-for="card in masonryCards"
@@ -154,7 +147,6 @@
         </a>
       </article>
     </div>
-
     <Teleport to="body">
       <div
         v-if="selectedCard"
@@ -176,7 +168,6 @@
               <X :size="18" />
             </button>
           </header>
-
           <div class="dialog-content">
             <figure v-if="cardImageSrc(selectedCard)" class="dialog-media">
               <img :src="cardImageSrc(selectedCard)" :alt="selectedCard.title" />
@@ -184,7 +175,6 @@
             <div v-else class="dialog-media dialog-media--empty" aria-hidden="true">
               <component :is="typeIcon(selectedCard.cardType)" :size="54" />
             </div>
-
             <section class="dialog-body">
               <div class="card-flags">
                 <span class="card-kind">
@@ -204,14 +194,11 @@
                   {{ formatDate(selectedCard.createdAt) }}
                 </span>
               </div>
-
               <pre v-if="selectedCard.cardType === 'CODE'" class="dialog-code">{{ selectedCard.content || '这张灵感卡还没有正文。' }}</pre>
               <p v-else class="dialog-text">{{ selectedCard.content || '这张灵感卡还没有正文。' }}</p>
-
               <div v-if="selectedCard.tags.length" class="tag-row">
                 <span v-for="tag in selectedCard.tags" :key="tag.id">#{{ tag.name }}</span>
               </div>
-
               <div v-if="relationItems(selectedCard).length" class="dialog-section">
                 <h3>关联内容</h3>
                 <div class="relation-list">
@@ -227,7 +214,6 @@
                   </template>
                 </div>
               </div>
-
               <div class="dialog-actions">
                 <a
                   v-if="safeSource(selectedCard.sourceUrl)"
@@ -246,11 +232,9 @@
         </article>
       </div>
     </Teleport>
-
     <p v-if="notice" class="inline-notice">{{ notice }}</p>
   </section>
 </template>
-
 <script setup lang="ts">
 // 导入所需的组件和 Vue 钩子
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, type Component } from 'vue'
@@ -273,7 +257,6 @@ import {
   StickyNote,
   X,
 } from '@lucide/vue'
-
 import { fetchAdminInspirations, fetchInspirations } from '@/services/content'
 import { toUserMessage } from '@/services/http'
 import { useCinematicPageMotion } from '@/shared/composables/useCinematicPageMotion'
@@ -281,21 +264,17 @@ import { usePageReveal } from '@/shared/composables/usePageReveal'
 import { formatMonthDay } from '@/shared/datetime'
 import { useSessionStore } from '@/shared/sessionStore'
 import type { InspirationCard, InspirationRelation, InspirationType } from '@/shared/domain'
-
 type InspirationFilter = InspirationType | 'ALL'
-
 interface InspirationFilterItem {
   value: InspirationFilter
   label: string
   icon: Component
 }
-
 interface RelationChip {
   key: string
   label: string
   to?: RouteLocationRaw
 }
-
 // 初始化灵感墙的查询参数和卡片数据列表
 const root = ref<HTMLElement | null>(null)
 const cards = ref<InspirationCard[]>([])
@@ -314,9 +293,7 @@ const cinematic = useCinematicPageMotion(root)
 const session = useSessionStore()
 let hasPlayedIntro = false
 let lastTriggerElement: HTMLElement | null = null
-
 usePageReveal(root)
-
 const filters: InspirationFilterItem[] = [
   { value: 'ALL', label: '全部', icon: StickyNote },
   { value: 'TEXT', label: '摘句', icon: MessageSquareQuote },
@@ -327,12 +304,10 @@ const filters: InspirationFilterItem[] = [
   { value: 'SKETCH', label: '草图', icon: Pencil },
   { value: 'REFERENCE', label: '参考资料', icon: BookOpen },
 ]
-
 const sortedCards = computed(() => [...cards.value].sort((left, right) => right.sortOrder - left.sortOrder))
 const featuredCard = computed(() => sortedCards.value[0] ?? null)
 const masonryCards = computed(() => sortedCards.value.slice(featuredCard.value ? 1 : 0))
 const showVisibilityBadge = computed(() => Boolean(session.accessToken))
-
 function openCard(card: InspirationCard, event?: Event) {
   if (event && isInteractiveEventTarget(event.target, event.currentTarget)) {
     return
@@ -345,7 +320,6 @@ function openCard(card: InspirationCard, event?: Event) {
     dialogCloseRef.value?.focus()
   })
 }
-
 function closeCard() {
   selectedCard.value = null
   document.body.classList.remove('is-dialog-open')
@@ -354,13 +328,11 @@ function closeCard() {
     lastTriggerElement = null
   })
 }
-
 function handleDialogKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape' && selectedCard.value) {
     closeCard()
   }
 }
-
 function trapDialogFocus(event: KeyboardEvent) {
   const panel = dialogRef.value
   if (!panel) {
@@ -389,7 +361,6 @@ function trapDialogFocus(event: KeyboardEvent) {
     firstItem.focus()
   }
 }
-
 function isInteractiveEventTarget(value: EventTarget | null, boundary: EventTarget | null): boolean {
   if (!(value instanceof Element)) {
     return false
@@ -397,7 +368,6 @@ function isInteractiveEventTarget(value: EventTarget | null, boundary: EventTarg
   const interactiveElement = value.closest('a, button, input, textarea, select, [role="button"]')
   return Boolean(interactiveElement && interactiveElement !== boundary)
 }
-
 // 切换灵感过滤分类页签并重新发起数据拉取
 function selectType(type: InspirationFilter) {
   if (activeType.value === type) {
@@ -406,7 +376,6 @@ function selectType(type: InspirationFilter) {
   activeType.value = type
   loadInspirations()
 }
-
 // 并发发起当前分类列表拉取和全部类别总数统计拉取, 数据就绪后触发入场显影动效
 async function loadInspirations() {
   isLoading.value = true
@@ -445,7 +414,6 @@ async function loadInspirations() {
     }
   }
 }
-
 // 根据拉取的灵感集合数据过滤出指定类型卡片的具体计数
 function typeCount(type: InspirationFilter): number {
   const source = countCards.value.length > 0 ? countCards.value : cards.value
@@ -454,18 +422,15 @@ function typeCount(type: InspirationFilter): number {
   }
   return source.filter((card) => card.cardType === type).length
 }
-
 // 动态绑定单张灵感卡片的色调变体样式
 function cardStyle(card: InspirationCard) {
   return {
     '--card-accent': card.color ?? typeColor(card.cardType),
   }
 }
-
 function cardImageSrc(card: InspirationCard): string {
   return card.imageUrl?.trim() ?? ''
 }
-
 function typeIcon(type: InspirationType): Component {
   const icons: Record<InspirationType, Component> = {
     TEXT: MessageSquareQuote,
@@ -478,7 +443,6 @@ function typeIcon(type: InspirationType): Component {
   }
   return icons[type]
 }
-
 function typeName(type: InspirationType): string {
   const names: Record<InspirationType, string> = {
     TEXT: '摘句',
@@ -491,7 +455,6 @@ function typeName(type: InspirationType): string {
   }
   return names[type]
 }
-
 function typeColor(type: InspirationType): string {
   const colors: Record<InspirationType, string> = {
     TEXT: '#0f766e',
@@ -504,15 +467,12 @@ function typeColor(type: InspirationType): string {
   }
   return colors[type]
 }
-
 function visibilityIcon(card: InspirationCard): Component {
   return card.isPublic === false ? Lock : Eye
 }
-
 function visibilityLabel(card: InspirationCard): string {
   return card.isPublic === false ? '私密' : '公开'
 }
-
 function relationItems(card: InspirationCard): RelationChip[] {
   return (card.relations ?? []).map((relation, index) => ({
     key: `${relation.targetType}-${relation.targetId}-${relation.relationType}-${index}`,
@@ -520,7 +480,6 @@ function relationItems(card: InspirationCard): RelationChip[] {
     to: relationRoute(relation),
   }))
 }
-
 function relationLabel(relation: InspirationRelation): string {
   const targetName = relationTargetName(relation.targetType)
   const title = relation.targetTitle?.trim() || `${targetName} #${relation.targetId}`
@@ -532,7 +491,6 @@ function relationLabel(relation: InspirationRelation): string {
   }
   return `参考${targetName}：${title}`
 }
-
 function relationTargetName(targetType: InspirationRelation['targetType']): string {
   const names: Record<InspirationRelation['targetType'], string> = {
     ARTICLE: '文章',
@@ -541,7 +499,6 @@ function relationTargetName(targetType: InspirationRelation['targetType']): stri
   }
   return names[targetType]
 }
-
 function relationRoute(relation: InspirationRelation): RouteLocationRaw | undefined {
   const slug = relation.targetSlug?.trim()
   if (!slug) {
@@ -555,7 +512,6 @@ function relationRoute(relation: InspirationRelation): RouteLocationRaw | undefi
   }
   return undefined
 }
-
 function safeSource(value?: string | null): string {
   if (!value) {
     return ''
@@ -567,30 +523,24 @@ function safeSource(value?: string | null): string {
     return ''
   }
 }
-
 function formatDate(value?: string | null): string {
   return formatMonthDay(value, '')
 }
-
 onMounted(loadInspirations)
-
 onMounted(() => {
   window.addEventListener('keydown', handleDialogKeydown)
 })
-
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleDialogKeydown)
   document.body.classList.remove('is-dialog-open')
 })
 </script>
-
 <style scoped>
 .wall-page {
   display: grid;
   gap: 18px;
   padding: 46px 0 84px;
 }
-
 .wall-search {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -604,11 +554,9 @@ onBeforeUnmount(() => {
   box-shadow: 0 18px 44px rgba(32, 33, 36, 0.12);
   backdrop-filter: blur(18px);
 }
-
 .wall-search svg {
   color: var(--hero-accent);
 }
-
 .wall-search input {
   width: 100%;
   border: 0;
@@ -616,13 +564,11 @@ onBeforeUnmount(() => {
   background: transparent;
   color: var(--tone-ink);
 }
-
 .wall-toolbar {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
 }
-
 .topic-chip {
   display: inline-flex;
   align-items: center;
@@ -637,18 +583,15 @@ onBeforeUnmount(() => {
   font-size: 13px;
   font-weight: 760;
 }
-
 .topic-chip span {
   color: var(--tone-faint);
 }
-
 .topic-chip.is-active,
 .topic-chip:hover {
   border-color: rgba(49, 91, 255, 0.36);
   background: #e8efff;
   color: #174ea6;
 }
-
 .featured-inspiration,
 .inspiration-card {
   border: 1px solid var(--tone-line);
@@ -659,13 +602,11 @@ onBeforeUnmount(() => {
   box-shadow: 0 18px 52px rgba(20, 21, 29, 0.08);
   backdrop-filter: blur(18px);
 }
-
 .featured-inspiration {
   display: grid;
   grid-template-columns: minmax(260px, 0.58fr) minmax(0, 1fr);
   overflow: hidden;
 }
-
 .featured-inspiration__visual {
   position: relative;
   display: grid;
@@ -677,47 +618,39 @@ onBeforeUnmount(() => {
     color-mix(in srgb, var(--card-accent, #315bff) 22%, transparent);
   color: #fff;
 }
-
 .featured-inspiration__visual img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-
 .featured-inspiration__body {
   display: grid;
   align-content: center;
   gap: 14px;
   padding: clamp(24px, 4vw, 44px);
 }
-
 .featured-inspiration h2,
 .inspiration-card h2 {
   margin: 0;
   color: var(--tone-ink);
   line-height: 1.18;
 }
-
 .featured-inspiration h2 {
   font-size: clamp(28px, 3vw, 42px);
 }
-
 .inspiration-card h2 {
   font-size: clamp(22px, 2vw, 28px);
 }
-
 .featured-inspiration p,
 .inspiration-card p {
   margin: 0;
   color: var(--tone-muted);
   line-height: 1.66;
 }
-
 .inspiration-masonry {
   column-count: 3;
   column-gap: var(--theme-density-spacing, 16px);
 }
-
 .inspiration-card {
   position: relative;
   display: inline-grid;
@@ -732,7 +665,6 @@ onBeforeUnmount(() => {
     box-shadow var(--transition-time, 180ms) ease,
     transform var(--transition-time, 180ms) ease;
 }
-
 .inspiration-card::before {
   content: "";
   position: absolute;
@@ -743,7 +675,6 @@ onBeforeUnmount(() => {
     linear-gradient(135deg, color-mix(in srgb, var(--card-accent, #315bff) 7%, transparent), transparent 48%);
   opacity: 0.9;
 }
-
 .inspiration-card::after {
   content: "";
   position: absolute;
@@ -753,18 +684,15 @@ onBeforeUnmount(() => {
   background: linear-gradient(90deg, var(--card-accent, #315bff), color-mix(in srgb, var(--card-accent, #315bff) 22%, transparent), transparent 84%);
   opacity: 0.7;
 }
-
 .inspiration-card:hover {
   border-color: color-mix(in srgb, var(--card-accent, #315bff) 30%, var(--tone-line));
   box-shadow: 0 24px 60px rgba(20, 21, 29, 0.12);
   transform: translateY(-2px);
 }
-
 .featured-inspiration,
 .inspiration-card {
   cursor: pointer;
 }
-
 .featured-inspiration:focus-visible,
 .inspiration-card:focus-visible {
   border-color: color-mix(in srgb, var(--card-accent, #315bff) 48%, var(--tone-line));
@@ -773,19 +701,16 @@ onBeforeUnmount(() => {
     0 0 0 4px color-mix(in srgb, var(--card-accent, #315bff) 14%, transparent),
     0 24px 60px rgba(20, 21, 29, 0.12);
 }
-
 .inspiration-card > * {
   position: relative;
   z-index: 1;
 }
-
 .inspiration-card img {
   width: 100%;
   max-height: 260px;
   border-radius: var(--app-radius-sm, 8px);
   object-fit: cover;
 }
-
 .inspiration-card pre {
   max-width: 100%;
   margin: 0;
@@ -803,14 +728,12 @@ onBeforeUnmount(() => {
   white-space: pre-wrap;
   word-break: break-word;
 }
-
 .card-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
 }
-
 .card-flags,
 .card-badges {
   display: flex;
@@ -818,11 +741,9 @@ onBeforeUnmount(() => {
   gap: 8px;
   align-items: center;
 }
-
 .card-badges {
   justify-content: flex-end;
 }
-
 .card-kind,
 .card-meta,
 .card-order,
@@ -834,20 +755,17 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 6px;
 }
-
 .card-kind {
   width: fit-content;
   color: color-mix(in srgb, var(--card-accent, #315bff) 74%, var(--tone-muted));
   font-size: 12px;
   font-weight: 820;
 }
-
 .card-meta {
   flex-wrap: wrap;
   color: var(--tone-faint);
   font-size: 12px;
 }
-
 .card-order {
   padding: 5px 8px;
   border-radius: 999px;
@@ -857,7 +775,6 @@ onBeforeUnmount(() => {
   font-weight: 760;
   white-space: nowrap;
 }
-
 .visibility-badge {
   padding: 5px 8px;
   border-radius: 999px;
@@ -867,12 +784,10 @@ onBeforeUnmount(() => {
   font-weight: 780;
   white-space: nowrap;
 }
-
 .visibility-badge--private {
   background: rgba(194, 95, 58, 0.1);
   color: #854629;
 }
-
 .inspiration-card a,
 .featured-inspiration a {
   width: fit-content;
@@ -880,13 +795,11 @@ onBeforeUnmount(() => {
   font-size: 13px;
   font-weight: 760;
 }
-
 .relation-list {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
-
 .relation-chip {
   width: fit-content;
   max-width: 100%;
@@ -900,13 +813,11 @@ onBeforeUnmount(() => {
   line-height: 1.35;
   text-decoration: none;
 }
-
 .tag-row {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
-
 .tag-row span {
   padding: 6px 10px;
   border-radius: 6px;
@@ -915,11 +826,9 @@ onBeforeUnmount(() => {
   font-size: 12px;
   font-weight: 740;
 }
-
 :global(body.is-dialog-open) {
   overflow: hidden;
 }
-
 .inspiration-dialog {
   position: fixed;
   inset: 0;
@@ -928,7 +837,6 @@ onBeforeUnmount(() => {
   place-items: center;
   padding: clamp(16px, 3vw, 34px);
 }
-
 .dialog-backdrop {
   position: absolute;
   inset: 0;
@@ -939,7 +847,6 @@ onBeforeUnmount(() => {
   cursor: pointer;
   backdrop-filter: blur(16px);
 }
-
 .dialog-panel {
   position: relative;
   z-index: 1;
@@ -955,7 +862,6 @@ onBeforeUnmount(() => {
     radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--card-accent, #315bff) 12%, transparent), transparent 30%);
   box-shadow: 0 30px 90px rgba(7, 12, 24, 0.34);
 }
-
 .dialog-header {
   display: flex;
   align-items: flex-start;
@@ -963,14 +869,12 @@ onBeforeUnmount(() => {
   gap: 16px;
   padding: 24px 24px 0;
 }
-
 .dialog-header h2 {
   margin: 6px 0 0;
   color: var(--tone-ink);
   font-size: clamp(28px, 3vw, 42px);
   line-height: 1.12;
 }
-
 .dialog-close {
   display: inline-grid;
   width: 38px;
@@ -987,13 +891,11 @@ onBeforeUnmount(() => {
     color 0.18s ease,
     transform 0.18s ease;
 }
-
 .dialog-close:hover {
   background: color-mix(in srgb, var(--card-accent, #315bff) 12%, #fff);
   color: color-mix(in srgb, var(--card-accent, #315bff) 74%, #172033);
   transform: translateY(-1px);
 }
-
 .dialog-content {
   display: grid;
   grid-template-columns: minmax(280px, 0.88fr) minmax(0, 1fr);
@@ -1002,7 +904,6 @@ onBeforeUnmount(() => {
   padding: 0 24px 24px;
   gap: 20px;
 }
-
 .dialog-media {
   display: grid;
   min-height: 420px;
@@ -1014,24 +915,20 @@ onBeforeUnmount(() => {
     color-mix(in srgb, var(--card-accent, #315bff) 22%, transparent);
   color: #fff;
 }
-
 .dialog-media img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-
 .dialog-media--empty {
   min-height: 320px;
 }
-
 .dialog-body {
   display: grid;
   align-content: start;
   gap: 16px;
   min-width: 0;
 }
-
 .dialog-text {
   margin: 0;
   color: var(--tone-strong);
@@ -1039,7 +936,6 @@ onBeforeUnmount(() => {
   line-height: 1.78;
   white-space: pre-wrap;
 }
-
 .dialog-code {
   max-height: 320px;
   margin: 0;
@@ -1057,26 +953,22 @@ onBeforeUnmount(() => {
   white-space: pre-wrap;
   word-break: break-word;
 }
-
 .dialog-section {
   display: grid;
   gap: 10px;
   padding-top: 4px;
 }
-
 .dialog-section h3 {
   margin: 0;
   color: var(--tone-ink);
   font-size: 15px;
 }
-
 .dialog-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   padding-top: 6px;
 }
-
 .inline-notice {
   margin: 0;
   padding: 10px 12px;
@@ -1086,76 +978,60 @@ onBeforeUnmount(() => {
   font-size: 13px;
   line-height: 1.55;
 }
-
 @media (max-width: 1020px) {
   .featured-inspiration {
     grid-template-columns: 1fr;
   }
-
   .inspiration-masonry {
     column-count: 2;
   }
-
   .dialog-content {
     grid-template-columns: 1fr;
   }
-
   .dialog-media {
     min-height: 300px;
   }
 }
-
 @media (max-width: 760px) {
   .wall-page {
     padding-top: 26px;
   }
-
   .wall-search {
     grid-template-columns: auto minmax(0, 1fr);
     border-radius: 8px;
   }
-
   .wall-search button {
     grid-column: 1 / -1;
     width: 100%;
   }
-
   .inspiration-masonry {
     column-count: 1;
   }
-
   .card-head {
     align-items: flex-start;
     flex-direction: column;
   }
-
   .card-badges {
     justify-content: flex-start;
   }
-
   .inspiration-dialog {
     align-items: end;
     padding: 10px;
   }
-
   .dialog-panel {
     max-height: calc(100vh - 20px);
     border-radius: 8px;
   }
-
   .dialog-header {
     padding: 18px 18px 0;
   }
-
   .dialog-content {
     padding: 0 18px 18px;
     gap: 16px;
   }
-
   .dialog-media {
     min-height: 220px;
   }
-
   .dialog-actions > * {
     width: 100%;
     justify-content: center;

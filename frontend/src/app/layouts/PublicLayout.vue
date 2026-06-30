@@ -1,5 +1,4 @@
 <template>
-<!-- 前台公共浏览页面布局外壳 -->
   <div class="public-shell">
     <div ref="sceneHost" class="frontstage-webgl" aria-hidden="true" />
     <div class="public-frame" aria-hidden="true">
@@ -8,11 +7,9 @@
       <span class="public-frame__line public-frame__line--bottom" />
       <span class="public-frame__line public-frame__line--left" />
     </div>
-    <!-- 顶端垂直滚动进度指示条 -->
     <div class="scroll-rail" aria-hidden="true">
       <span :style="{ transform: `scaleY(${scrollProgress})` }" />
     </div>
-    <!-- 响应式前台头部导航栏 -->
     <header class="public-header">
       <RouterLink class="brand" to="/" :aria-label="`返回 ${siteName} 首页`">
         <span class="brand-mark">
@@ -23,13 +20,11 @@
           <small>{{ siteSlogan }}</small>
         </span>
       </RouterLink>
-
       <button class="icon-button nav-toggle" type="button" :aria-expanded="navOpen" @click="navOpen = !navOpen">
         <Menu v-if="!navOpen" :size="19" />
         <X v-else :size="19" />
         <span class="sr-only">切换导航</span>
       </button>
-
       <nav class="public-nav" :class="{ 'is-open': navOpen }" aria-label="前台导航">
         <template v-for="item in navItems" :key="item.to">
           <a
@@ -80,7 +75,6 @@
           退出
         </button>
       </nav>
-
       <div class="public-actions">
         <template v-if="session.isAuthenticated">
           <RouterLink class="button button-tonal button-compact" :to="accountActionRoute">
@@ -95,26 +89,21 @@
         </template>
       </div>
     </header>
-
     <main class="public-main">
       <slot />
     </main>
     <ThemeHUD />
   </div>
 </template>
-
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type Component } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { BookOpen, Home, Images, Info, Lightbulb, Menu, Palette, PenLine, Search, ShieldCheck, X } from '@lucide/vue'
-
 import ThemeHUD from '@/shared/components/ThemeHUD.vue'
-
 import { fetchSiteConfig } from '@/services/content'
 import { prefersReducedMotion } from '@/shared/composables/useReducedMotion'
 import { useSessionStore } from '@/shared/sessionStore'
 import { syncSiteIdentityFromConfig, useSiteIdentity } from '@/shared/siteIdentity'
-
 // 声明前台公共布局的状态变量
 const navOpen = ref(false)
 const sceneHost = ref<HTMLElement | null>(null)
@@ -129,14 +118,12 @@ let disposeScene: (() => void) | null = null
 let setScenePaused: ((paused: boolean) => void) | null = null
 let setScenePointer: ((nx: number, ny: number) => void) | null = null
 let progressRaf = 0
-
 interface PublicNavItem {
   to: string
   label: string
   icon: Component
   external: boolean
 }
-
 const iconMap: Record<string, Component> = {
   'book-open': BookOpen,
   home: Home,
@@ -148,10 +135,8 @@ const iconMap: Record<string, Component> = {
   pen: PenLine,
   search: Search,
 }
-
 const { siteName, siteSlogan } = useSiteIdentity({ load: false })
 const navItems = ref<PublicNavItem[]>(withRequiredPublicEntries([]))
-
 // 页面加载时初始化氛围背景和滚动进度计算
 // 页面加载时初始化 WebGL 氛围背景粒子和滚动进度计算监听器
 onMounted(() => {
@@ -160,7 +145,6 @@ onMounted(() => {
   window.addEventListener('scroll', requestScrollProgressUpdate, { passive: true })
   window.addEventListener('resize', requestScrollProgressUpdate, { passive: true })
 })
-
 onMounted(async () => {
   try {
     const config = await fetchSiteConfig()
@@ -173,7 +157,6 @@ onMounted(async () => {
     navItems.value = withRequiredPublicEntries([])
   }
 })
-
 onBeforeUnmount(() => {
   window.removeEventListener('pointermove', handlePointerMove)
   window.removeEventListener('scroll', requestScrollProgressUpdate)
@@ -187,7 +170,6 @@ onBeforeUnmount(() => {
   setScenePaused = null
   setScenePointer = null
 })
-
 watch(
   () => route.fullPath,
   async () => {
@@ -196,7 +178,6 @@ watch(
     requestScrollProgressUpdate()
   },
 )
-
 // 使用 rAF 节流机制实时计算当前页面垂直滚动的进度比例, 渲染顶端阅读进度指示条
 function requestScrollProgressUpdate() {
   if (progressRaf) {
@@ -209,7 +190,6 @@ function requestScrollProgressUpdate() {
     scrollProgress.value = max > 0 ? Math.min(Math.max(window.scrollY / max, 0), 1) : 0
   })
 }
-
 // 动态按需加载 WebGL 氛围粒子层场景
 // 动态按需加载 WebGL 氛围粒子层场景, 并注册鼠标移动和页面可见性切换的监听器
 async function mountFrontstageScene() {
@@ -233,25 +213,21 @@ async function mountFrontstageScene() {
     disposeScene = null
   }
 }
-
 // 将鼠标在视口中的绝对坐标映射为 -1 到 1 的标准化 3D 空间坐标以投递给粒子系统
 function handlePointerMove(event: PointerEvent) {
   const nx = (event.clientX / window.innerWidth) * 2 - 1
   const ny = -((event.clientY / window.innerHeight) * 2 - 1)
   setScenePointer?.(nx, ny)
 }
-
 // 当标签页切到后台或标签隐藏时暂停 WebGL 渲染循环, 以节省显卡功耗
 function handleVisibilityChange() {
   setScenePaused?.(document.visibilityState !== 'visible')
 }
-
 // 创建临时 canvas 上下文校验当前运行浏览器是否支持 WebGL 渲染
 function hasWebGL(): boolean {
   const canvas = document.createElement('canvas')
   return Boolean(canvas.getContext('webgl2') || canvas.getContext('webgl'))
 }
-
 function readConfiguredNavigation(value: unknown): PublicNavItem[] {
   if (!Array.isArray(value)) {
     return []
@@ -260,11 +236,9 @@ function readConfiguredNavigation(value: unknown): PublicNavItem[] {
     .map((item) => readNavigationItem(item))
     .filter((item): item is PublicNavItem => item !== null)
 }
-
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
 }
-
 function readNavigationItem(value: unknown): PublicNavItem | null {
   if (!isRecord(value)) {
     return null
@@ -282,7 +256,6 @@ function readNavigationItem(value: unknown): PublicNavItem | null {
     external: isExternalUrl(path),
   }
 }
-
 function withRequiredPublicEntries(items: PublicNavItem[]): PublicNavItem[] {
   const nextItems = items.length > 0 ? [...items] : [
     { to: '/articles', label: '文章', icon: BookOpen, external: false },
@@ -303,29 +276,24 @@ function withRequiredPublicEntries(items: PublicNavItem[]): PublicNavItem[] {
   }
   return nextItems
 }
-
 function isExternalUrl(value: string) {
   return /^https?:\/\//i.test(value)
 }
-
 function handleLogout() {
   session.logout()
   navOpen.value = false
   router.push('/')
 }
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
 </script>
-
 <style scoped>
 .public-shell {
   position: relative;
   min-height: 100vh;
   overflow: clip;
 }
-
 .public-shell::before {
   content: "";
   position: fixed;
@@ -338,7 +306,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   background-size: 52px 52px;
   mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.82), rgba(0, 0, 0, 0.08));
 }
-
 .frontstage-webgl {
   position: fixed;
   inset: 0;
@@ -347,7 +314,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   opacity: 0.6;
   mix-blend-mode: screen;
 }
-
 .public-header {
   position: sticky;
   top: 0;
@@ -365,7 +331,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   backdrop-filter: blur(22px);
   box-shadow: 0 10px 34px rgba(30, 38, 64, 0.08);
 }
-
 .brand {
   display: inline-flex;
   align-items: center;
@@ -374,22 +339,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   font-weight: 760;
   color: var(--tone-ink);
 }
-
 .brand-copy {
   display: grid;
   gap: 2px;
 }
-
 .brand-copy strong {
   color: #1a2233;
 }
-
 .brand-copy small {
   color: #566174;
   font-size: 11px;
   font-weight: 720;
 }
-
 .brand-mark {
   display: inline-grid;
   width: 40px;
@@ -403,23 +364,19 @@ function isRecord(value: unknown): value is Record<string, unknown> {
     var(--md-sys-color-surface-container-lowest);
   box-shadow: var(--md-sys-elevation-2);
 }
-
 .brand-mark img {
   width: 72%;
   height: 72%;
   object-fit: contain;
 }
-
 .public-nav {
   display: flex;
   align-items: center;
   gap: 6px;
 }
-
 .public-nav {
   justify-content: center;
 }
-
 .public-nav a {
   display: inline-flex;
   align-items: center;
@@ -432,33 +389,27 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   font-weight: 730;
   transition: background 180ms ease, color 180ms ease, transform 180ms ease;
 }
-
 .public-nav a.router-link-active,
 .public-nav a:hover {
   background: color-mix(in srgb, var(--md-sys-color-primary) 13%, #ffffff);
   color: #174ea6;
 }
-
 .public-nav a:focus-visible {
   outline: 2px solid var(--md-sys-color-primary);
   outline-offset: 3px;
 }
-
 .public-actions {
   display: inline-flex;
   align-items: center;
   gap: 8px;
 }
-
 .mobile-auth-action {
   display: none !important;
 }
-
 button.mobile-auth-action {
   font: inherit;
   cursor: pointer;
 }
-
 .nav-toggle {
   display: none;
   justify-self: end;
@@ -473,16 +424,13 @@ button.mobile-auth-action {
   .public-header {
     grid-template-columns: auto auto;
   }
-
   .nav-toggle {
     display: inline-flex;
   }
-
   .public-nav,
   .public-actions {
     display: none;
   }
-
   .public-nav.is-open {
     grid-column: 1 / -1;
     display: grid;
@@ -490,43 +438,36 @@ button.mobile-auth-action {
     justify-content: stretch;
     padding-bottom: 12px;
   }
-
   .public-nav.is-open a {
     justify-content: center;
     border: 1px solid var(--tone-line);
     background: rgba(255, 255, 255, 0.72);
   }
-
   .public-nav.is-open .mobile-auth-action {
     display: inline-flex !important;
     min-height: 42px;
     border-radius: 999px;
     font-weight: 780;
   }
-
   .public-nav.is-open .mobile-auth-action--tonal {
     background: var(--md-sys-color-primary-container);
     color: var(--md-sys-color-on-primary-container);
   }
-
   .public-nav.is-open .mobile-auth-action--filled {
     background: var(--md-sys-color-primary);
     color: var(--md-sys-color-on-primary);
   }
 }
-
 @media (max-width: 760px) {
   .public-nav.is-open {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-
 @media (max-width: 520px) {
   .public-header,
   .public-main {
     width: min(100vw - 24px, 1200px);
   }
-
   .brand-copy small {
     display: none;
   }

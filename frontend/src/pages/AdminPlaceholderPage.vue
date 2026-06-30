@@ -1,6 +1,4 @@
 <template>
-<!-- 后台管理表格占位框架面 -->
-<!-- 后台各项业务管理的整合看板组件 -->
   <section ref="root" class="admin-module">
     <AdminPageHeader :title="moduleConfig.title" :description="moduleConfig.description" :theme="moduleConfig.theme">
       <button class="button button-filled" type="button" @click="handlePrimaryAction">
@@ -8,7 +6,6 @@
         {{ moduleConfig.primaryAction }}
       </button>
     </AdminPageHeader>
-
     <section v-if="activeSection === 'articles'" class="workspace-grid">
       <form class="workspace-panel admin-form" data-reveal @submit.prevent="saveArticle">
         <div class="panel-title">
@@ -58,7 +55,6 @@
           <button v-if="editingArticleId" class="button button-tonal" type="button" @click="resetArticleForm">取消编辑</button>
         </div>
       </form>
-
       <div class="workspace-panel" data-reveal>
         <div class="panel-title">
           <h2>文章队列</h2>
@@ -109,7 +105,6 @@
         </article>
       </div>
     </section>
-
     <section v-else-if="activeSection === 'projects'" class="workspace-grid">
       <form class="workspace-panel admin-form" data-reveal @submit.prevent="saveProject">
         <div class="panel-title">
@@ -173,7 +168,6 @@
           <button v-if="editingProjectId" class="button button-tonal" type="button" @click="resetProjectForm">取消编辑</button>
         </div>
       </form>
-
       <div class="workspace-panel" data-reveal>
         <div class="panel-title">
           <h2>作品队列</h2>
@@ -219,7 +213,6 @@
         </article>
       </div>
     </section>
-
     <section v-else-if="activeSection === 'inspirations'" class="workspace-grid">
       <form class="workspace-panel admin-form" data-reveal @submit.prevent="saveInspiration">
         <div class="panel-title">
@@ -261,7 +254,6 @@
           <button v-if="editingInspirationId" class="button button-tonal" type="button" @click="resetInspirationForm">取消编辑</button>
         </div>
       </form>
-
       <div class="workspace-panel" data-reveal>
         <div class="panel-title">
           <h2>灵感队列</h2>
@@ -279,7 +271,6 @@
         </article>
       </div>
     </section>
-
     <section v-else-if="activeSection === 'comments'" class="workspace-grid">
       <div class="workspace-panel" data-reveal>
         <div class="panel-title">
@@ -302,7 +293,6 @@
           </div>
         </article>
       </div>
-
       <aside class="workspace-panel" data-reveal>
         <div class="panel-title">
           <h2>审核原则</h2>
@@ -315,7 +305,6 @@
         </ul>
       </aside>
     </section>
-
     <section v-else-if="activeSection === 'guestbook'" class="workspace-grid">
       <div class="workspace-panel" data-reveal>
         <div class="panel-title">
@@ -339,7 +328,6 @@
         </article>
       </div>
     </section>
-
     <section v-else-if="activeSection === 'files'" class="workspace-grid">
       <form class="workspace-panel admin-form" data-reveal @submit.prevent="uploadFile">
         <div class="panel-title">
@@ -353,7 +341,6 @@
         <input type="file" @change="selectFile" />
         <button class="button button-filled" type="submit">上传文件</button>
       </form>
-
       <div class="workspace-panel" data-reveal>
         <div class="panel-title">
           <h2>资源列表</h2>
@@ -368,7 +355,6 @@
         </article>
       </div>
     </section>
-
     <section v-else-if="activeSection === 'themes'" class="workspace-grid">
       <form class="workspace-panel admin-form" data-reveal @submit.prevent="saveTheme">
         <div class="panel-title">
@@ -424,7 +410,6 @@
           </button>
         </div>
       </form>
-
       <div class="workspace-panel" data-reveal>
         <div class="panel-title">
           <h2>主题库</h2>
@@ -446,7 +431,6 @@
         </article>
       </div>
     </section>
-
     <section v-else-if="activeSection === 'settings'" class="workspace-grid">
       <form class="workspace-panel admin-form" data-reveal @submit.prevent="saveSiteSettings">
         <div class="panel-title">
@@ -491,7 +475,6 @@
         </label>
         <button class="button button-filled" type="submit">保存站点设置</button>
       </form>
-
       <div class="workspace-panel admin-form settings-builder" data-reveal>
         <div class="panel-title">
           <h2>导航 / 社交 / 页面</h2>
@@ -554,7 +537,6 @@
           </article>
           <p v-if="navigationForms.length === 0" class="empty-editor">暂无导航项</p>
         </section>
-
         <section class="settings-section">
           <div class="settings-section-heading">
             <h3>社交链接</h3>
@@ -607,7 +589,6 @@
           </article>
           <p v-if="socialLinkForms.length === 0" class="empty-editor">暂无社交链接</p>
         </section>
-
         <section class="settings-section">
           <div class="settings-section-heading">
             <h3>页面配置</h3>
@@ -668,7 +649,6 @@
           </article>
           <p v-if="pageConfigForms.length === 0" class="empty-editor">暂无页面配置</p>
         </section>
-
         <section class="settings-section">
           <div class="settings-section-heading">
             <h3>站点配置</h3>
@@ -715,7 +695,6 @@
         </div>
       </div>
     </section>
-
     <section v-else class="workspace-grid">
       <div class="workspace-panel" data-reveal>
         <div class="panel-title">
@@ -730,7 +709,6 @@
           <span class="status-chip">{{ generalStatusLabel(row.status) }}</span>
         </article>
       </div>
-
       <aside class="workspace-panel" data-reveal>
         <div class="panel-title">
           <h2>模块能力</h2>
@@ -741,18 +719,15 @@
         </ul>
       </aside>
     </section>
-
     <p v-if="notice" class="inline-notice">{{ notice }}</p>
   </section>
 </template>
-
 <script setup lang="ts">
 // 导入状态钩子, 路由组件和业务接口
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Plus } from '@lucide/vue'
 import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
-
 import {
   approveArticle,
   approveProject,
@@ -818,7 +793,6 @@ import type {
   ThemePayload,
 } from '@/shared/domain'
 import { syncSiteIdentityFromSettings, useSiteIdentity } from '@/shared/siteIdentity'
-
 interface ModuleConfig {
   title: string
   description: string
@@ -827,30 +801,24 @@ interface ModuleConfig {
   rows: Array<{ title: string; meta: string; status: string }>
   theme?: string
 }
-
 type NavigationItemForm = Omit<NavigationItem, 'extraJson' | 'icon'> & {
   icon: string
   extraJsonText: string
 }
-
 type SocialLinkForm = Omit<SocialLink, 'icon'> & {
   icon: string
 }
-
 import BaseSelect from '@/shared/components/BaseSelect.vue'
-
 type PageConfigForm = Omit<PageConfig, 'contentJson' | 'layoutJson' | 'seoTitle' | 'seoDescription'> & {
   seoTitle: string
   seoDescription: string
   contentJsonText: string
   layoutJsonText: string
 }
-
 type SiteConfigEntryForm = Omit<SiteConfigEntry, 'configValue' | 'description'> & {
   description: string
   configValueText: string
 }
-
 const route = useRoute()
 const root = ref<HTMLElement | null>(null)
 const { identity } = useSiteIdentity({ load: false })
@@ -884,12 +852,10 @@ const navigationForms = ref<NavigationItemForm[]>([])
 const socialLinkForms = ref<SocialLinkForm[]>([])
 const pageConfigForms = ref<PageConfigForm[]>([])
 const siteConfigForms = ref<SiteConfigEntryForm[]>([])
-
 const articlePrivacies: ArticlePrivacy[] = ['PUBLIC', 'SELF', 'FRIENDS', 'SELECTED_FRIENDS', 'EXCLUDED_FRIENDS']
 const inspirationTypes: InspirationType[] = ['TEXT', 'PROMPT', 'IMAGE', 'CODE', 'LINK', 'SKETCH', 'REFERENCE']
 const fileModules = ['AVATAR', 'COVER', 'ARTICLE', 'PROJECT', 'INSPIRATION', 'OTHER']
 const pageStatuses: PageConfig['status'][] = ['DRAFT', 'PUBLISHED', 'ARCHIVED']
-
 const categoryOptions = computed(() => [
   { label: '未分类', value: null },
   ...articleCategories.value.map(c => ({ label: c.name, value: c.id }))
@@ -898,7 +864,6 @@ const privacyOptions = computed(() => articlePrivacies.map(p => ({ label: p, val
 const inspirationTypeOptions = computed(() => inspirationTypes.map(t => ({ label: t, value: t })))
 const fileModuleOptions = computed(() => fileModules.map(m => ({ label: m, value: m })))
 const pageStatusOptions = computed(() => pageStatuses.map(s => ({ label: s, value: s })))
-
 const articleStatusOptions = [
   { label: '全部状态', value: 'ALL' },
   { label: '草稿', value: 'DRAFT' },
@@ -908,7 +873,6 @@ const articleStatusOptions = [
   { label: '已驳回', value: 'REJECTED' },
   { label: '归档', value: 'ARCHIVED' },
 ]
-
 const projectStatusOptions = [
   { label: '全部状态', value: 'ALL' },
   { label: '草稿', value: 'DRAFT' },
@@ -918,26 +882,22 @@ const projectStatusOptions = [
   { label: '已驳回', value: 'REJECTED' },
   { label: '归档', value: 'ARCHIVED' },
 ]
-
 const commentStatusOptions = [
   { label: '全部状态', value: 'ALL' },
   { label: '待审', value: 'PENDING' },
   { label: '已通过', value: 'APPROVED' },
   { label: '垃圾', value: 'SPAM' },
 ]
-
 const commentTargetTypeOptions = [
   { label: '全部对象', value: 'ALL' },
   { label: '文章', value: 'ARTICLE' },
   { label: '作品', value: 'PROJECT' },
 ]
-
 const guestbookStatusOptions = [
   { label: '全部留言', value: 'ALL' },
   { label: '待审', value: 'PENDING' },
   { label: '展示中', value: 'APPROVED' },
 ]
-
 const backgroundTypeOptions = [
   { label: '纯色', value: 'color' },
   { label: '实色', value: 'solid' },
@@ -946,7 +906,6 @@ const backgroundTypeOptions = [
   { label: '星空', value: 'star' },
   { label: '动效', value: 'webgl' },
 ]
-
 const settingsKeyPattern = /^[a-zA-Z0-9._-]{2,120}$/
 const pageSlugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const articleForm = reactive<ArticlePayload>({
@@ -1005,9 +964,7 @@ const siteProfileForm = reactive<SiteProfile>({
   location: '',
   profileJson: {},
 })
-
 usePageReveal(root)
-
 const activeSection = computed(() => route.params.section?.toString() || 'articles')
 const siteIdentityMeta = computed(() => (
   identity.value.slogan ? `${identity.value.name} · ${identity.value.slogan}` : identity.value.name
@@ -1024,11 +981,9 @@ const moduleConfig = computed<ModuleConfig>(() => {
     )),
   }
 })
-
 function valueLabel(value: string, labels: Record<string, string>) {
   return labels[value] ?? value
 }
-
 function privacyLabel(value: string) {
   return valueLabel(value, {
     PUBLIC: '公开',
@@ -1039,7 +994,6 @@ function privacyLabel(value: string) {
     PRIVATE: '私密',
   })
 }
-
 function contentStatusLabel(value: string) {
   return valueLabel(value, {
     DRAFT: '草稿',
@@ -1051,7 +1005,6 @@ function contentStatusLabel(value: string) {
     ARCHIVED: '已归档',
   })
 }
-
 function projectStatusLabel(value: string) {
   return valueLabel(value, {
     DRAFT: '草稿',
@@ -1062,7 +1015,6 @@ function projectStatusLabel(value: string) {
     ARCHIVED: '已归档',
   })
 }
-
 function reviewStatusLabel(value: string) {
   return valueLabel(value, {
     PENDING: '待审核',
@@ -1071,7 +1023,6 @@ function reviewStatusLabel(value: string) {
     SPAM: '垃圾内容',
   })
 }
-
 function inspirationTypeLabel(value: string) {
   return valueLabel(value, {
     TEXT: '文本',
@@ -1083,7 +1034,6 @@ function inspirationTypeLabel(value: string) {
     REFERENCE: '参考资料',
   })
 }
-
 function targetTypeLabel(value: string) {
   return valueLabel(value, {
     ARTICLE: '文章',
@@ -1091,7 +1041,6 @@ function targetTypeLabel(value: string) {
     MESSAGE: '留言',
   })
 }
-
 function fileModuleLabel(value: string) {
   return valueLabel(value, {
     AVATAR: '头像',
@@ -1102,7 +1051,6 @@ function fileModuleLabel(value: string) {
     OTHER: '其他',
   })
 }
-
 function projectTypeLabel(value: string | null | undefined) {
   const cleaned = cleanText(value)
   return valueLabel(cleaned || 'PROJECT', {
@@ -1113,7 +1061,6 @@ function projectTypeLabel(value: string | null | undefined) {
     ARTICLE: '文章',
   })
 }
-
 function generalStatusLabel(value: string) {
   return valueLabel(value, {
     ACTIVE: '当前启用',
@@ -1125,15 +1072,12 @@ function generalStatusLabel(value: string) {
     PRIVATE: '私密',
   })
 }
-
 watch(activeSection, () => {
   notice.value = ''
   loadActiveModule()
 })
-
 // 组件挂载时自动加载当前页签对应的子管理模块
 onMounted(loadActiveModule)
-
 // 依据侧边栏激活的子页签模块类型, 动态分流调用对应的子模块列表和过滤器加载方法
 async function loadActiveModule() {
   if (activeSection.value === 'articles') {
@@ -1154,7 +1098,6 @@ async function loadActiveModule() {
     await loadSiteSettings()
   }
 }
-
 async function ensureTaxonomies() {
   if (articleCategories.value.length === 0) {
     articleCategories.value = await fetchCategories('ARTICLE')
@@ -1163,7 +1106,6 @@ async function ensureTaxonomies() {
     tags.value = await fetchTags()
   }
 }
-
 // 异步拉取后台文章管理列表, 支持按状态筛选和关键词匹配
 async function loadArticles() {
   try {
@@ -1178,7 +1120,6 @@ async function loadArticles() {
     notice.value = readError(error, '文章队列加载失败')
   }
 }
-
 // 提交或更新文章草稿, 根据是否存在编辑中 ID 执行 PUT 或 POST 接口更新并刷新文章队列
 async function saveArticle() {
   if (!articleForm.title.trim() || !articleForm.slug.trim() || !articleForm.contentMarkdown.trim()) {
@@ -1199,7 +1140,6 @@ async function saveArticle() {
     notice.value = readError(error, '文章保存失败')
   }
 }
-
 async function editArticle(id: number) {
   try {
     const article = await fetchAdminArticle(id)
@@ -1216,7 +1156,6 @@ async function editArticle(id: number) {
     notice.value = readError(error, '文章读取失败')
   }
 }
-
 async function toggleArticlePublish(article: ArticleSummary) {
   try {
     const action = article.status === 'PUBLISHED' || article.status === 'PRIVATE' ? 'unpublish' : 'publish'
@@ -1227,7 +1166,6 @@ async function toggleArticlePublish(article: ArticleSummary) {
     notice.value = readError(error, '文章状态更新失败')
   }
 }
-
 async function approveArticleReview(article: ArticleSummary) {
   try {
     await approveArticle(article.id)
@@ -1237,7 +1175,6 @@ async function approveArticleReview(article: ArticleSummary) {
     notice.value = readError(error, '文章审核失败')
   }
 }
-
 async function rejectArticleReview(article: ArticleSummary) {
   const reviewNote = window.prompt('请输入驳回原因', article.reviewNote ?? '请补充来源、说明或作品归属信息。')?.trim()
   if (!reviewNote) {
@@ -1251,11 +1188,9 @@ async function rejectArticleReview(article: ArticleSummary) {
     notice.value = readError(error, '文章驳回失败')
   }
 }
-
 function articlePublishActionLabel(article: ArticleSummary) {
   return article.status === 'PUBLISHED' || article.status === 'PRIVATE' ? '撤回' : '发布'
 }
-
 async function toggleArticleTop(article: ArticleSummary) {
   try {
     await setArticleTop(article.id, !article.top)
@@ -1265,7 +1200,6 @@ async function toggleArticleTop(article: ArticleSummary) {
     notice.value = readError(error, '置顶状态更新失败')
   }
 }
-
 async function toggleArticleRecommend(article: ArticleSummary) {
   try {
     await setArticleRecommend(article.id, !article.recommended)
@@ -1275,7 +1209,6 @@ async function toggleArticleRecommend(article: ArticleSummary) {
     notice.value = readError(error, '推荐状态更新失败')
   }
 }
-
 async function removeArticle(id: number) {
   try {
     await deleteArticle(id)
@@ -1288,7 +1221,6 @@ async function removeArticle(id: number) {
     notice.value = readError(error, '文章删除失败')
   }
 }
-
 function resetArticleForm() {
   editingArticleId.value = null
   articleForm.title = ''
@@ -1300,7 +1232,6 @@ function resetArticleForm() {
   articleForm.tagIds = []
   articleForm.privacyType = 'PUBLIC'
 }
-
 async function loadProjects() {
   try {
     await ensureTaxonomies()
@@ -1314,7 +1245,6 @@ async function loadProjects() {
     notice.value = readError(error, '作品队列加载失败')
   }
 }
-
 async function saveProject() {
   if (!projectForm.title.trim() || !projectForm.slug.trim() || !projectForm.projectType.trim()) {
     notice.value = '请填写作品标题、URL 标识和类型'
@@ -1335,7 +1265,6 @@ async function saveProject() {
     notice.value = readError(error, '作品保存失败')
   }
 }
-
 async function editProject(id: number) {
   try {
     const project = await fetchAdminProject(id)
@@ -1357,7 +1286,6 @@ async function editProject(id: number) {
     notice.value = readError(error, '作品读取失败')
   }
 }
-
 async function toggleProjectVisible(project: ProjectSummary) {
   try {
     if (project.status === 'PENDING_REVIEW') {
@@ -1371,7 +1299,6 @@ async function toggleProjectVisible(project: ProjectSummary) {
     notice.value = readError(error, '作品状态更新失败')
   }
 }
-
 async function approveProjectReview(project: ProjectSummary) {
   try {
     await approveProject(project.id)
@@ -1381,7 +1308,6 @@ async function approveProjectReview(project: ProjectSummary) {
     notice.value = readError(error, '作品审核失败')
   }
 }
-
 async function rejectProjectReview(project: ProjectSummary) {
   const reviewNote = window.prompt('请输入驳回原因', project.reviewNote ?? '请补充素材授权、创作说明或演示链接。')?.trim()
   if (!reviewNote) {
@@ -1395,7 +1321,6 @@ async function rejectProjectReview(project: ProjectSummary) {
     notice.value = readError(error, '作品驳回失败')
   }
 }
-
 async function toggleProjectRecommend(project: ProjectSummary) {
   try {
     await setProjectRecommend(project.id, !project.recommended)
@@ -1405,7 +1330,6 @@ async function toggleProjectRecommend(project: ProjectSummary) {
     notice.value = readError(error, '作品推荐状态更新失败')
   }
 }
-
 async function removeProject(id: number) {
   try {
     await deleteProject(id)
@@ -1418,7 +1342,6 @@ async function removeProject(id: number) {
     notice.value = readError(error, '作品删除失败')
   }
 }
-
 function resetProjectForm() {
   editingProjectId.value = null
   projectForm.title = ''
@@ -1435,7 +1358,6 @@ function resetProjectForm() {
   projectForm.recommended = false
   projectTechStack.value = ''
 }
-
 async function loadInspirations() {
   try {
     const page = await fetchAdminInspirations({ pageSize: 50 })
@@ -1444,7 +1366,6 @@ async function loadInspirations() {
     notice.value = readError(error, '灵感卡片加载失败')
   }
 }
-
 async function saveInspiration() {
   if (!inspirationForm.title.trim()) {
     notice.value = '请填写灵感标题'
@@ -1464,7 +1385,6 @@ async function saveInspiration() {
     notice.value = readError(error, '灵感卡片保存失败')
   }
 }
-
 function editInspiration(card: InspirationCard) {
   editingInspirationId.value = card.id
   inspirationForm.title = card.title
@@ -1477,7 +1397,6 @@ function editInspiration(card: InspirationCard) {
   inspirationForm.sortOrder = card.sortOrder
   inspirationForm.tagIds = card.tags.map((tag) => tag.id)
 }
-
 async function removeInspiration(id: number) {
   try {
     await deleteInspiration(id)
@@ -1487,7 +1406,6 @@ async function removeInspiration(id: number) {
     notice.value = readError(error, '灵感卡片删除失败')
   }
 }
-
 function resetInspirationForm() {
   editingInspirationId.value = null
   inspirationForm.title = ''
@@ -1500,7 +1418,6 @@ function resetInspirationForm() {
   inspirationForm.sortOrder = 0
   inspirationForm.tagIds = []
 }
-
 async function loadComments() {
   try {
     const page = await fetchAdminComments({
@@ -1513,7 +1430,6 @@ async function loadComments() {
     notice.value = readError(error, '评论队列加载失败')
   }
 }
-
 async function review(id: number, action: 'approve' | 'reject') {
   try {
     await reviewComment(id, action)
@@ -1523,7 +1439,6 @@ async function review(id: number, action: 'approve' | 'reject') {
     notice.value = readError(error, '评论审核失败')
   }
 }
-
 async function loadGuestbook() {
   try {
     const page = await fetchAdminGuestbook({
@@ -1535,7 +1450,6 @@ async function loadGuestbook() {
     notice.value = readError(error, '留言加载失败')
   }
 }
-
 async function reviewGuestbookEntry(id: number, action: 'approve' | 'reject') {
   try {
     await reviewGuestbook(id, action)
@@ -1545,7 +1459,6 @@ async function reviewGuestbookEntry(id: number, action: 'approve' | 'reject') {
     notice.value = readError(error, '留言审核失败')
   }
 }
-
 async function loadFiles() {
   try {
     const page = await fetchAdminFiles({ pageSize: 50 })
@@ -1554,11 +1467,9 @@ async function loadFiles() {
     notice.value = readError(error, '文件资源加载失败')
   }
 }
-
 function selectFile(event: Event) {
   selectedFile.value = (event.target as HTMLInputElement).files?.[0] ?? null
 }
-
 async function uploadFile() {
   if (!selectedFile.value) {
     notice.value = '请选择文件'
@@ -1573,7 +1484,6 @@ async function uploadFile() {
     notice.value = readError(error, '文件上传失败')
   }
 }
-
 async function loadThemes() {
   try {
     themes.value = await fetchAdminThemes()
@@ -1587,7 +1497,6 @@ async function loadThemes() {
     notice.value = readError(error, '主题配置加载失败')
   }
 }
-
 function editTheme(theme: AdminThemeConfig) {
   editingThemeId.value = theme.id
   themeForm.themeName = theme.themeName
@@ -1601,7 +1510,6 @@ function editTheme(theme: AdminThemeConfig) {
   themeForm.config = normalizeRecord(theme.config)
   themeConfigText.value = prettyJson(themeForm.config)
 }
-
 async function saveTheme() {
   if (!editingThemeId.value) {
     notice.value = '请先从主题库选择一个主题'
@@ -1625,7 +1533,6 @@ async function saveTheme() {
     notice.value = readError(error, '主题保存失败')
   }
 }
-
 async function switchCurrentTheme(id = editingThemeId.value) {
   if (!id) {
     notice.value = '请先选择主题'
@@ -1640,7 +1547,6 @@ async function switchCurrentTheme(id = editingThemeId.value) {
     notice.value = readError(error, '主题切换失败')
   }
 }
-
 async function loadSiteSettings() {
   try {
     applySiteSettings(await fetchAdminSiteSettings())
@@ -1648,7 +1554,6 @@ async function loadSiteSettings() {
     notice.value = readError(error, '站点设置加载失败')
   }
 }
-
 function applySiteSettings(settings: SiteSettings) {
   syncSiteIdentityFromSettings(settings)
   const profile = settings.profile
@@ -1666,7 +1571,6 @@ function applySiteSettings(settings: SiteSettings) {
   pageConfigForms.value = settings.pages.map(toPageConfigForm)
   siteConfigForms.value = settings.configs.map(toSiteConfigForm)
 }
-
 async function saveSiteSettings() {
   const profileJson = parseRecord(profileJsonText.value, '资料扩展 JSON')
   const navigationItems = collectNavigationItems()
@@ -1698,7 +1602,6 @@ async function saveSiteSettings() {
     notice.value = readError(error, '站点设置保存失败')
   }
 }
-
 function toNavigationForm(item: NavigationItem): NavigationItemForm {
   return {
     id: item.id ?? null,
@@ -1711,7 +1614,6 @@ function toNavigationForm(item: NavigationItem): NavigationItemForm {
     extraJsonText: prettyJson(normalizeRecord(item.extraJson)),
   }
 }
-
 function toSocialLinkForm(link: SocialLink): SocialLinkForm {
   return {
     id: link.id ?? null,
@@ -1723,7 +1625,6 @@ function toSocialLinkForm(link: SocialLink): SocialLinkForm {
     visible: link.visible,
   }
 }
-
 function toPageConfigForm(page: PageConfig): PageConfigForm {
   return {
     id: page.id ?? null,
@@ -1737,7 +1638,6 @@ function toPageConfigForm(page: PageConfig): PageConfigForm {
     status: page.status,
   }
 }
-
 function toSiteConfigForm(config: SiteConfigEntry): SiteConfigEntryForm {
   return {
     id: config.id ?? null,
@@ -1746,7 +1646,6 @@ function toSiteConfigForm(config: SiteConfigEntry): SiteConfigEntryForm {
     configValueText: prettyJson(normalizeRecord(config.configValue)),
   }
 }
-
 function addNavigationItem() {
   navigationForms.value.push(toNavigationForm({
     id: null,
@@ -1759,7 +1658,6 @@ function addNavigationItem() {
     extraJson: {},
   }))
 }
-
 function addSocialLink() {
   socialLinkForms.value.push(toSocialLinkForm({
     id: null,
@@ -1771,7 +1669,6 @@ function addSocialLink() {
     visible: true,
   }))
 }
-
 function addPageConfig() {
   pageConfigForms.value.push(toPageConfigForm({
     id: null,
@@ -1785,7 +1682,6 @@ function addPageConfig() {
     status: 'DRAFT',
   }))
 }
-
 function addSiteConfigEntry() {
   siteConfigForms.value.push(toSiteConfigForm({
     id: null,
@@ -1794,27 +1690,21 @@ function addSiteConfigEntry() {
     configValue: {},
   }))
 }
-
 function removeNavigationItem(index: number) {
   removeDraftItem(navigationForms.value, index)
 }
-
 function removeSocialLink(index: number) {
   removeDraftItem(socialLinkForms.value, index)
 }
-
 function removePageConfig(index: number) {
   removeDraftItem(pageConfigForms.value, index)
 }
-
 function removeSiteConfigEntry(index: number) {
   removeDraftItem(siteConfigForms.value, index)
 }
-
 function isDraftItem(item: { id?: number | null }) {
   return item.id == null
 }
-
 function removeDraftItem<T extends { id?: number | null }>(items: T[], index: number) {
   const item = items[index]
   if (!item || !isDraftItem(item)) {
@@ -1822,7 +1712,6 @@ function removeDraftItem<T extends { id?: number | null }>(items: T[], index: nu
   }
   items.splice(index, 1)
 }
-
 function collectNavigationItems(): NavigationItem[] | null {
   const items: NavigationItem[] = []
   for (const [index, form] of navigationForms.value.entries()) {
@@ -1850,7 +1739,6 @@ function collectNavigationItems(): NavigationItem[] | null {
   }
   return items
 }
-
 function collectSocialLinks(): SocialLink[] | null {
   const links: SocialLink[] = []
   for (const [index, form] of socialLinkForms.value.entries()) {
@@ -1876,7 +1764,6 @@ function collectSocialLinks(): SocialLink[] | null {
   }
   return links
 }
-
 function collectPageConfigs(): PageConfig[] | null {
   const pages: PageConfig[] = []
   for (const [index, form] of pageConfigForms.value.entries()) {
@@ -1910,7 +1797,6 @@ function collectPageConfigs(): PageConfig[] | null {
   }
   return pages
 }
-
 function collectSiteConfigs(): SiteConfigEntry[] | null {
   const configs: SiteConfigEntry[] = []
   for (const [index, form] of siteConfigForms.value.entries()) {
@@ -1932,7 +1818,6 @@ function collectSiteConfigs(): SiteConfigEntry[] | null {
   }
   return configs
 }
-
 function handlePrimaryAction() {
   if (activeSection.value === 'articles') {
     resetArticleForm()
@@ -1951,7 +1836,6 @@ function handlePrimaryAction() {
     saveSiteSettings()
   }
 }
-
 function formatSize(value: number) {
   if (value < 1024) {
     return `${value} B`
@@ -1961,31 +1845,25 @@ function formatSize(value: number) {
   }
   return `${(value / 1024 / 1024).toFixed(1)} MB`
 }
-
 function splitTechStack(value: string) {
   return value
     .split(/[,，\n]/)
     .map((item) => item.trim())
     .filter(Boolean)
 }
-
 function normalizeSortOrder(value: unknown): number {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? Math.trunc(parsed) : 0
 }
-
 function nextSortOrder(items: Array<{ sortOrder: unknown }>) {
   return items.reduce((max, item) => Math.max(max, normalizeSortOrder(item.sortOrder)), 0) + 10
 }
-
 function prettyJson(value: unknown) {
   return JSON.stringify(value ?? {}, null, 2)
 }
-
 function parseRecordOrEmpty(value: string, label: string): Record<string, unknown> | null {
   return parseRecord(value.trim() || '{}', label)
 }
-
 function parseRecord(value: string, label: string): Record<string, unknown> | null {
   try {
     const parsed: unknown = JSON.parse(value)
@@ -1999,7 +1877,6 @@ function parseRecord(value: string, label: string): Record<string, unknown> | nu
     return null
   }
 }
-
 function requireFormText(value: string, label: string): string | null {
   const cleaned = cleanText(value)
   if (cleaned) {
@@ -2008,30 +1885,25 @@ function requireFormText(value: string, label: string): string | null {
   notice.value = `${label}不能为空`
   return null
 }
-
 function optionalText(value: string | null | undefined): string | null {
   const cleaned = cleanText(value)
   return cleaned || null
 }
-
 function cleanText(value: string | null | undefined): string {
   return typeof value === 'string' ? value.trim() : ''
 }
-
 function isValidNavigationPath(value: string): boolean {
   if (value.startsWith('// ')) {
     return false
   }
   return value.startsWith('/') || isHttpUrl(value)
 }
-
 function isValidSocialUrl(value: string): boolean {
   if (value.toLowerCase().startsWith('mailto:')) {
     return value.length > 'mailto:'.length
   }
   return isHttpUrl(value)
 }
-
 function isHttpUrl(value: string): boolean {
   const lowerValue = value.toLowerCase()
   if (!lowerValue.startsWith('http://') && !lowerValue.startsWith('https://')) {
@@ -2044,21 +1916,16 @@ function isHttpUrl(value: string): boolean {
     return false
   }
 }
-
 function normalizeRecord(value: unknown): Record<string, unknown> {
   return isRecord(value) ? value : {}
 }
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
-
 function readError(error: unknown, fallback: string) {
   return `${fallback}: ${toUserMessage(error, '请稍后再试')}`
 }
-
 const DEFAULT_SETTINGS_IDENTITY_META = '站点身份配置'
-
 const configs: Record<string, ModuleConfig> = {
   articles: {
     theme: 'blue',
@@ -2141,33 +2008,27 @@ const configs: Record<string, ModuleConfig> = {
   },
 }
 </script>
-
 <style scoped>
-
 .admin-dashboard,
 .admin-module {
   display: grid;
   gap: 18px;
 }
-
 .dashboard-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
 }
-
 .metric-card {
   min-height: 136px;
   padding: 20px;
 }
-
 .metric-card strong {
   display: block;
   margin-top: 18px;
   font-size: 36px;
   line-height: 1;
 }
-
 .workspace-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
@@ -2175,38 +2036,31 @@ const configs: Record<string, ModuleConfig> = {
   gap: 12px;
   margin-top: 12px;
 }
-
 .workspace-grid--even {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
-
 .form-line > * {
   flex: 1;
   min-width: 160px;
 }
-
 .settings-builder {
   gap: 18px;
 }
-
 .settings-section {
   display: grid;
   gap: 12px;
   padding-top: 4px;
 }
-
 .settings-editor-note {
   margin: -4px 0 2px;
   color: var(--tone-muted);
   font-size: 13px;
   line-height: 1.6;
 }
-
 .settings-section + .settings-section {
   padding-top: 18px;
   border-top: 1px solid var(--tone-line);
 }
-
 .settings-section-heading,
 .settings-card-title {
   display: flex;
@@ -2214,14 +2068,12 @@ const configs: Record<string, ModuleConfig> = {
   justify-content: space-between;
   gap: 12px;
 }
-
 .settings-section-heading h3 {
   margin: 0;
   color: var(--admin-ink);
   font-size: 15px;
   font-weight: 860;
 }
-
 .settings-card {
   display: grid;
   gap: 12px;
@@ -2230,7 +2082,6 @@ const configs: Record<string, ModuleConfig> = {
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.9);
 }
-
 .settings-card-title strong {
   min-width: 0;
   overflow: hidden;
@@ -2239,56 +2090,47 @@ const configs: Record<string, ModuleConfig> = {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .settings-check {
   justify-content: flex-start;
   color: #344154;
   font-size: 13px;
   font-weight: 760;
 }
-
 .json-fallback {
   display: grid;
   gap: 8px;
 }
-
 .json-fallback summary {
   color: var(--tone-muted);
   font-size: 13px;
   font-weight: 820;
   cursor: pointer;
 }
-
 .json-fallback textarea {
   min-height: 112px;
   font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
   font-size: 12px;
   line-height: 1.55;
 }
-
 .empty-editor {
   margin: 0;
   color: var(--tone-muted);
   font-size: 13px;
 }
-
 .settings-actions {
   justify-content: flex-end;
   padding-top: 2px;
 }
-
 .settings-card input:disabled {
   background: rgba(17, 24, 39, 0.06);
   color: var(--tone-muted);
   cursor: not-allowed;
 }
-
 .tag-picker {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
-
 .tag-picker .check-line {
   min-height: 34px;
   padding: 6px 10px;
@@ -2299,23 +2141,19 @@ const configs: Record<string, ModuleConfig> = {
   font-size: 12px;
   font-weight: 760;
 }
-
 .check-line {
   display: flex !important;
   grid-template-columns: none;
   align-items: center;
   gap: 10px;
 }
-
 .check-line input {
   width: 18px;
   min-height: 18px;
 }
-
 .panel-title h2 {
   font-size: 18px;
 }
-
 .theme-dot {
   display: inline-block;
   width: 12px;
@@ -2325,43 +2163,34 @@ const configs: Record<string, ModuleConfig> = {
   border-radius: 50%;
   vertical-align: -1px;
 }
-
-
 @media (max-width: 1020px) {
   .workspace-grid,
   .workspace-grid--even {
     grid-template-columns: 1fr;
   }
-
   .dashboard-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-
 @media (max-width: 760px) {
-
   .dashboard-grid {
     grid-template-columns: 1fr;
   }
-
   .panel-title {
     align-items: flex-start;
     flex-direction: column;
   }
-
   .table-row,
   .row-actions,
   .filter-bar {
     align-items: flex-start;
     flex-direction: column;
   }
-
   .row-actions,
   .filter-bar > * {
     width: 100%;
   }
 }
-
 .rule-list {
   display: grid;
   gap: 10px;

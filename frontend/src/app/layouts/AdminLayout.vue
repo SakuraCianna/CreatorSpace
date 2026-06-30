@@ -1,8 +1,5 @@
 <template>
-<!-- 后台管理中心布局容器 -->
-<!-- 后台布局侧边栏与主工作区容器 -->
   <div class="admin-shell" :class="{ 'admin-shell--collapsed': sidebarCollapsed }">
-    <!-- 侧边栏导航铁轨区域 -->
     <aside class="admin-rail" aria-label="后台导航">
       <button
         class="admin-brand"
@@ -19,21 +16,17 @@
           <small>{{ siteSlogan }}</small>
         </span>
       </button>
-
       <nav class="admin-nav">
         <RouterLink v-for="item in navItems" :key="item.to" :to="item.to" :title="item.label">
           <component :is="item.icon" :size="18" />
           <span>{{ item.label }}</span>
         </RouterLink>
       </nav>
-
       <div class="admin-rail__note">
         <Sparkles :size="18" />
         <p>主题、内容、灵感和互动都在同一个工作台维护。</p>
       </div>
     </aside>
-
-    <!-- 主工作区内容展示面板 -->
     <section class="admin-workspace">
       <header class="admin-topbar">
         <div>
@@ -56,7 +49,6 @@
     </section>
   </div>
 </template>
-
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
@@ -77,17 +69,14 @@ import {
   Sparkles,
   Tags,
 } from '@lucide/vue'
-
 import { useSessionStore } from '@/shared/sessionStore'
 import { useSiteIdentity } from '@/shared/siteIdentity'
-
 // 初始化后台导航状态和路由相关参数
 const route = useRoute()
 const router = useRouter()
 const session = useSessionStore()
 const { siteSlogan } = useSiteIdentity()
 const sidebarCollapsed = ref(false)
-
 // 后台菜单配置项
 // 后台侧边栏菜单项及图标配置映射表
 const navItems = [
@@ -107,7 +96,6 @@ const navItems = [
   { to: '/admin/ai-assistant', label: 'AI 助手', icon: Sparkles },
   { to: '/admin/settings', label: '设置', icon: Settings },
 ]
-
 const titleMap = new Map(navItems.map((item) => [item.to, item.label]))
 // 根据当前激活的路由路径映射解析出后台顶栏显示的主页签管理标题
 const currentTitle = computed(() => {
@@ -116,19 +104,16 @@ const currentTitle = computed(() => {
   }
   return `${titleMap.get(route.path) ?? '模块'}管理`
 })
-
 // 清除当前管理员的登录状态缓存和凭证令牌, 并重定向跳转回登录页
 function logout() {
   session.logout()
   router.push('/login')
 }
-
 // 切换左侧导航铁轨侧边栏的展开收起状态
 function toggleSidebar() {
   sidebarCollapsed.value = !sidebarCollapsed.value
 }
 </script>
-
 <style scoped>
 .admin-brand {
   display: inline-flex;
@@ -143,7 +128,6 @@ function toggleSidebar() {
   text-align: left;
   cursor: pointer;
 }
-
 .brand-copy {
   display: grid;
   gap: 2px;
@@ -157,7 +141,6 @@ function toggleSidebar() {
     opacity 180ms ease,
     transform 240ms cubic-bezier(0.2, 0, 0, 1);
 }
-
 .admin-brand small {
   color: var(--admin-muted);
   font-size: 11px;
@@ -166,7 +149,6 @@ function toggleSidebar() {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .brand-mark {
   display: inline-grid;
   width: 40px;
@@ -183,20 +165,17 @@ function toggleSidebar() {
     transform 240ms cubic-bezier(0.2, 0, 0, 1),
     box-shadow 180ms ease;
 }
-
 .brand-mark img {
   width: 72%;
   height: 72%;
   object-fit: contain;
 }
-
 .admin-nav {
   display: flex;
   align-items: stretch;
   flex-direction: column;
   gap: 6px;
 }
-
 .admin-nav a {
   display: grid;
   grid-template-columns: 20px minmax(0, 1fr);
@@ -217,7 +196,6 @@ function toggleSidebar() {
     padding 240ms cubic-bezier(0.2, 0, 0, 1),
     transform 180ms ease;
 }
-
 .admin-nav a span {
   min-width: 0;
   max-width: 88px;
@@ -231,24 +209,20 @@ function toggleSidebar() {
     opacity 180ms ease,
     transform 240ms cubic-bezier(0.2, 0, 0, 1);
 }
-
 .admin-nav a svg {
   transition: transform 220ms cubic-bezier(0.2, 0, 0, 1);
 }
-
 .admin-nav a.router-link-active,
 .admin-nav a:hover {
   background: var(--admin-primary-soft);
   color: var(--admin-primary-strong);
   box-shadow: inset 0 0 0 1px var(--admin-line);
 }
-
 .admin-topbar__actions {
   display: inline-flex;
   align-items: center;
   gap: 8px;
 }
-
 .admin-shell {
   --admin-bg: #f7f8fc;
   --admin-rail: rgba(255, 255, 255, 0.94);
@@ -271,11 +245,9 @@ function toggleSidebar() {
     var(--admin-bg);
   transition: grid-template-columns 280ms cubic-bezier(0.2, 0, 0, 1);
 }
-
 .admin-shell--collapsed {
   grid-template-columns: 78px minmax(0, 1fr);
 }
-
 .admin-rail {
   position: sticky;
   top: 0;
@@ -292,7 +264,6 @@ function toggleSidebar() {
     padding 280ms cubic-bezier(0.2, 0, 0, 1),
     background 180ms ease;
 }
-
 .admin-rail__note {
   display: grid;
   gap: 10px;
@@ -311,32 +282,26 @@ function toggleSidebar() {
     opacity 160ms ease,
     transform 220ms cubic-bezier(0.2, 0, 0, 1);
 }
-
 .admin-rail__note p {
   margin: 0;
   color: rgba(255, 255, 255, 0.78);
   font-size: 13px;
   line-height: 1.6;
 }
-
 .admin-workspace {
   min-width: 0;
 }
-
 .admin-shell--collapsed .admin-rail {
   align-items: center;
   padding-right: 12px;
   padding-left: 12px;
 }
-
 .admin-shell--collapsed .admin-brand {
   justify-content: center;
 }
-
 .admin-shell--collapsed .brand-mark {
   transform: scale(0.94);
 }
-
 .admin-shell--collapsed .brand-copy,
 .admin-shell--collapsed .admin-nav a span {
   max-width: 0;
@@ -344,7 +309,6 @@ function toggleSidebar() {
   pointer-events: none;
   transform: translateX(-8px);
 }
-
 .admin-shell--collapsed .admin-rail__note {
   max-height: 0;
   padding-top: 0;
@@ -353,22 +317,18 @@ function toggleSidebar() {
   pointer-events: none;
   transform: translateY(8px) scale(0.98);
 }
-
 .admin-shell--collapsed .admin-nav {
   width: 100%;
 }
-
 .admin-shell--collapsed .admin-nav a {
   grid-template-columns: 1fr;
   justify-items: center;
   padding-right: 0;
   padding-left: 0;
 }
-
 .admin-shell--collapsed .admin-nav a svg {
   transform: scale(1.04);
 }
-
 .admin-topbar {
   display: flex;
   align-items: center;
@@ -380,7 +340,6 @@ function toggleSidebar() {
   background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(18px);
 }
-
 .admin-topbar h1 {
   margin: 0;
   color: var(--admin-ink);
@@ -388,20 +347,16 @@ function toggleSidebar() {
   font-weight: 860;
   line-height: 1.2;
 }
-
 .admin-main {
   padding: 24px 28px 42px;
 }
-
 @media (max-width: 1020px) {
   .admin-shell {
     grid-template-columns: 1fr;
   }
-
   .admin-shell--collapsed {
     grid-template-columns: 1fr;
   }
-
   .admin-rail {
     position: static;
     height: auto;
@@ -409,7 +364,6 @@ function toggleSidebar() {
     border-right: 0;
     border-bottom: 1px solid var(--admin-line);
   }
-
   .admin-shell--collapsed .brand-copy {
     display: grid;
     max-width: 168px;
@@ -417,7 +371,6 @@ function toggleSidebar() {
     pointer-events: auto;
     transform: none;
   }
-
   .admin-shell--collapsed .admin-nav a span {
     display: inline;
     max-width: 88px;
@@ -425,7 +378,6 @@ function toggleSidebar() {
     pointer-events: auto;
     transform: none;
   }
-
   .admin-shell--collapsed .admin-rail__note {
     max-height: 160px;
     padding: 16px;
@@ -433,31 +385,26 @@ function toggleSidebar() {
     pointer-events: auto;
     transform: none;
   }
-
   .admin-nav {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
-
 @media (max-width: 760px) {
   .admin-nav {
     grid-template-columns: 1fr;
   }
-
   .admin-topbar,
   .admin-topbar__actions {
     align-items: flex-start;
     flex-direction: column;
   }
-
   .admin-main,
   .admin-topbar {
     padding-right: 20px;
     padding-left: 20px;
   }
 }
-
 @media (prefers-reduced-motion: reduce) {
   .admin-shell,
   .admin-rail,

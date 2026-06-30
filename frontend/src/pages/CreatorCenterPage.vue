@@ -1,6 +1,4 @@
 <template>
-<!-- 创作者中心个人工作台 -->
-<!-- 创作者个人控制台工作台 -->
   <section ref="root" class="creator-page">
     <PublicPageHeader title="创作中心" kicker="Creator Desk" theme="emerald">
       <div class="creator-hero__stats">
@@ -9,14 +7,12 @@
         <span>{{ files.length }} 张素材</span>
       </div>
     </PublicPageHeader>
-
     <div class="creator-tabs" data-reveal>
       <RouterLink v-for="tab in tabs" :key="tab.to" :to="tab.to">
         <component :is="tab.icon" :size="16" />
         {{ tab.label }}
       </RouterLink>
     </div>
-
     <section v-if="activeSection === 'articles'" class="creator-grid">
       <form class="creator-panel creator-form" data-reveal @submit.prevent="saveArticle">
         <div class="panel-title">
@@ -73,7 +69,6 @@
           <button v-if="editingArticleId" class="button button-tonal" type="button" @click="resetArticleForm">取消</button>
         </div>
       </form>
-
       <div class="creator-panel" data-reveal>
         <div class="panel-title">
           <h2>我的博客</h2>
@@ -107,7 +102,6 @@
         </article>
       </div>
     </section>
-
     <section v-else-if="activeSection === 'projects'" class="creator-grid">
       <form class="creator-panel creator-form" data-reveal @submit.prevent="saveProject">
         <div class="panel-title">
@@ -174,7 +168,6 @@
           <button v-if="editingProjectId" class="button button-tonal" type="button" @click="resetProjectForm">取消</button>
         </div>
       </form>
-
       <div class="creator-panel" data-reveal>
         <div class="panel-title">
           <h2>我的作品</h2>
@@ -208,7 +201,6 @@
         </article>
       </div>
     </section>
-
     <section v-else-if="activeSection === 'files'" class="creator-grid">
       <form class="creator-panel creator-form" data-reveal @submit.prevent="uploadFile">
         <div class="panel-title">
@@ -222,7 +214,6 @@
         <input type="file" accept="image/*" @change="selectFile" />
         <button class="button button-filled" type="submit">上传图片</button>
       </form>
-
       <div class="creator-panel" data-reveal>
         <div class="panel-title">
           <h2>我的素材</h2>
@@ -238,7 +229,6 @@
         </article>
       </div>
     </section>
-
     <section v-else class="creator-panel creator-favorites" data-reveal>
       <div class="panel-title">
         <h2>我的收藏</h2>
@@ -252,11 +242,9 @@
       </article>
       <p v-if="favorites.length === 0" class="muted-line">还没有收藏内容。</p>
     </section>
-
     <p v-if="notice" class="inline-notice">{{ notice }}</p>
   </section>
 </template>
-
 <script setup lang="ts">
 // 导入 Composition API 与路由依赖
 import { computed, onMounted, reactive, ref } from 'vue'
@@ -264,7 +252,6 @@ import { RouterLink, useRoute } from 'vue-router'
 import PublicPageHeader from '@/components/common/PublicPageHeader.vue'
 import { BookOpen, FileImage, Images, Star } from '@lucide/vue'
 import BaseSelect from '@/shared/components/BaseSelect.vue'
-
 import {
   createCreatorArticle,
   createCreatorProject,
@@ -298,7 +285,6 @@ import type {
   ProjectSummary,
   TagSummary,
 } from '@/shared/domain'
-
 // 初始化创作者工作台的响应式状态数据
 const root = ref<HTMLElement | null>(null)
 const route = useRoute()
@@ -315,18 +301,15 @@ const projectTechStack = ref('')
 const selectedFile = ref<File | null>(null)
 const fileModule = ref('ARTICLE')
 const newTagName = ref('')
-
 const categoryOptions = computed(() => [
   { label: '不绑定分类', value: null },
   ...articleCategories.value.map(c => ({ label: c.name, value: c.id }))
 ])
-
 const privacyOptions = [
   { label: '公开', value: 'PUBLIC' },
   { label: '仅自己', value: 'SELF' },
   { label: '好友可见', value: 'FRIENDS' },
 ]
-
 const fileModuleOptions = [
   { label: 'ARTICLE', value: 'ARTICLE' },
   { label: 'PROJECT', value: 'PROJECT' },
@@ -335,7 +318,6 @@ const fileModuleOptions = [
   { label: 'INSPIRATION', value: 'INSPIRATION' },
   { label: 'OTHER', value: 'OTHER' },
 ]
-
 const articleForm = reactive<ArticlePayload>({
   title: '',
   slug: '',
@@ -346,7 +328,6 @@ const articleForm = reactive<ArticlePayload>({
   tagIds: [],
   privacyType: 'PUBLIC',
 })
-
 const projectForm = reactive<ProjectPayload>({
   title: '',
   slug: '',
@@ -361,25 +342,20 @@ const projectForm = reactive<ProjectPayload>({
   tagIds: [],
   recommended: false,
 })
-
 const tabs = [
   { to: '/creator/articles', label: '文章', icon: BookOpen },
   { to: '/creator/projects', label: '作品', icon: Images },
   { to: '/creator/files', label: '素材', icon: FileImage },
   { to: '/creator/favorites', label: '收藏', icon: Star },
 ]
-
 const activeSection = computed(() => {
   const section = typeof route.params.section === 'string' ? route.params.section : 'articles'
   return ['articles', 'projects', 'files', 'favorites'].includes(section) ? section : 'articles'
 })
-
 usePageReveal(root)
-
 onMounted(async () => {
   await Promise.all([loadBaseData(), loadArticles(), loadProjects(), loadFiles(), loadFavorites()])
 })
-
 // 异步加载后台分类列表和全部标签数据, 并进行多字段映射绑定
 async function loadBaseData() {
   try {
@@ -390,7 +366,6 @@ async function loadBaseData() {
     notice.value = readError(error, '基础数据加载失败')
   }
 }
-
 // 异步加载当前登录创作者本人的文章列表队列, 每次最多拉取前 50 条数据
 async function loadArticles() {
   try {
@@ -399,7 +374,6 @@ async function loadArticles() {
     notice.value = readError(error, '文章队列加载失败')
   }
 }
-
 // 异步加载当前登录创作者本人的创意作品列表, 限制一次最多返回 50 条
 async function loadProjects() {
   try {
@@ -408,7 +382,6 @@ async function loadProjects() {
     notice.value = readError(error, '作品队列加载失败')
   }
 }
-
 // 异步加载当前创作者已上传的文件资源素材队列, 便于插入文章或作为封面
 async function loadFiles() {
   try {
@@ -417,7 +390,6 @@ async function loadFiles() {
     notice.value = readError(error, '素材列表加载失败')
   }
 }
-
 // 异步拉取当前登录读者的收藏历史记录列表, 发生异常时静默降级为空数组
 async function loadFavorites() {
   try {
@@ -426,7 +398,6 @@ async function loadFavorites() {
     favorites.value = []
   }
 }
-
 // 保存当前正在编辑的文章草稿, 根据是否带有编辑 ID 决定是发起 PUT 还是 POST 请求
 async function saveArticle() {
   if (!articleForm.title.trim() || !articleForm.slug.trim() || !articleForm.contentMarkdown.trim()) {
@@ -449,7 +420,6 @@ async function saveArticle() {
     notice.value = readError(error, '文章保存失败')
   }
 }
-
 // 获取创作者指定草稿的完整正文和配置参数, 并将反序列化后的字段绑定回输入表单
 async function editArticle(article: ArticleSummary) {
   try {
@@ -467,7 +437,6 @@ async function editArticle(article: ArticleSummary) {
     notice.value = readError(error, '文章详情读取失败')
   }
 }
-
 // 提交创作者草稿申请审核, 改变草稿状态为 PENDING_REVIEW 待管理员批复
 async function submitArticle(id: number) {
   try {
@@ -478,7 +447,6 @@ async function submitArticle(id: number) {
     notice.value = readError(error, '文章提交失败')
   }
 }
-
 // 创作者物理删除自己未公开的草稿或被驳回的记录, 并重置当前表单输入框
 async function removeArticle(id: number) {
   try {
@@ -490,7 +458,6 @@ async function removeArticle(id: number) {
     notice.value = readError(error, '文章删除失败')
   }
 }
-
 // 清理表单响应式状态字段, 重置表单为新建的默认参数
 function resetArticleForm() {
   editingArticleId.value = null
@@ -503,7 +470,6 @@ function resetArticleForm() {
   articleForm.tagIds = []
   articleForm.privacyType = 'PUBLIC'
 }
-
 async function saveProject() {
   if (!projectForm.title.trim() || !projectForm.slug.trim() || !projectForm.projectType.trim()) {
     notice.value = '请填写作品标题、URL 标识和类型'
@@ -525,7 +491,6 @@ async function saveProject() {
     notice.value = readError(error, '作品保存失败')
   }
 }
-
 async function editProject(project: ProjectSummary) {
   try {
     const detail = await fetchCreatorProject(project.id)
@@ -547,7 +512,6 @@ async function editProject(project: ProjectSummary) {
     notice.value = readError(error, '作品详情读取失败')
   }
 }
-
 async function submitProject(id: number) {
   try {
     await submitCreatorProject(id)
@@ -557,7 +521,6 @@ async function submitProject(id: number) {
     notice.value = readError(error, '作品提交失败')
   }
 }
-
 async function removeProject(id: number) {
   try {
     await deleteCreatorProject(id)
@@ -568,7 +531,6 @@ async function removeProject(id: number) {
     notice.value = readError(error, '作品删除失败')
   }
 }
-
 function resetProjectForm() {
   editingProjectId.value = null
   projectForm.title = ''
@@ -585,11 +547,9 @@ function resetProjectForm() {
   projectForm.recommended = false
   projectTechStack.value = ''
 }
-
 function selectFile(event: Event) {
   selectedFile.value = (event.target as HTMLInputElement).files?.[0] ?? null
 }
-
 async function uploadFile() {
   if (!selectedFile.value) {
     notice.value = '请选择图片'
@@ -604,7 +564,6 @@ async function uploadFile() {
     notice.value = readError(error, '图片上传失败')
   }
 }
-
 async function createNewTag(target: 'article' | 'project') {
   if (!newTagName.value.trim()) return
   try {
@@ -625,15 +584,12 @@ async function createNewTag(target: 'article' | 'project') {
     notice.value = readError(error, '标签创建失败')
   }
 }
-
 function canSubmitContent(status: string) {
   return status === 'DRAFT' || status === 'REJECTED'
 }
-
 function canDeleteContent(status: string) {
   return status === 'DRAFT' || status === 'REJECTED' || status === 'PENDING_REVIEW'
 }
-
 function statusLabel(status: string) {
   const labels: Record<string, string> = {
     DRAFT: '草稿',
@@ -647,14 +603,12 @@ function statusLabel(status: string) {
   }
   return labels[status] ?? status
 }
-
 function splitTechStack(value: string) {
   return value
     .split(/[,，\n]/)
     .map((item) => item.trim())
     .filter(Boolean)
 }
-
 function formatSize(value: number) {
   if (value < 1024) {
     return `${value} B`
@@ -664,28 +618,22 @@ function formatSize(value: number) {
   }
   return `${(value / 1024 / 1024).toFixed(1)} MB`
 }
-
 function readError(error: unknown, fallback: string) {
   return `${fallback}: ${toUserMessage(error, '请稍后再试')}`
 }
 </script>
-
 <style scoped>
 .creator-page {
   display: grid;
   gap: 18px;
   padding: 46px 0 84px;
 }
-
-
-
 .creator-hero__stats {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
 }
-
 .creator-hero__stats span,
 .creator-tabs a,
 .desk-row small,
@@ -693,7 +641,6 @@ function readError(error: unknown, fallback: string) {
   color: var(--tone-muted);
   font-size: 13px;
 }
-
 .creator-hero__stats span,
 .creator-tabs a {
   min-height: 36px;
@@ -703,33 +650,28 @@ function readError(error: unknown, fallback: string) {
   background: rgba(255, 255, 255, 0.68);
   font-weight: 760;
 }
-
 .creator-tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
 }
-
 .creator-tabs a {
   display: inline-flex;
   align-items: center;
   gap: 8px;
 }
-
 .creator-tabs a.router-link-active,
 .creator-tabs a:hover {
   border-color: rgba(49, 91, 255, 0.34);
   background: rgba(49, 91, 255, 0.1);
   color: var(--tone-ink);
 }
-
 .creator-grid {
   display: grid;
   grid-template-columns: 1fr;
   align-items: start;
   gap: 16px;
 }
-
 .creator-panel {
   border: 1px solid var(--tone-line);
   border-radius: var(--app-radius-sm);
@@ -737,19 +679,16 @@ function readError(error: unknown, fallback: string) {
   box-shadow: var(--tone-shadow);
   backdrop-filter: blur(20px);
 }
-
 .creator-form,
 .creator-favorites,
 .creator-panel:not(.creator-form) {
   padding: 20px;
 }
-
 .creator-form {
   display: grid;
   align-content: start;
   gap: 14px;
 }
-
 .panel-title {
   display: flex;
   align-items: center;
@@ -757,18 +696,15 @@ function readError(error: unknown, fallback: string) {
   gap: 16px;
   margin-bottom: 12px;
 }
-
 .panel-title h2 {
   margin: 0;
   font-size: 20px;
 }
-
 .panel-title span,
 .desk-row span {
   color: var(--tone-muted);
   font-size: 13px;
 }
-
 .creator-form label {
   display: grid;
   gap: 8px;
@@ -776,7 +712,6 @@ function readError(error: unknown, fallback: string) {
   font-size: 13px;
   font-weight: 760;
 }
-
 .creator-form input,
 .creator-form select,
 .creator-form textarea {
@@ -791,20 +726,17 @@ function readError(error: unknown, fallback: string) {
     box-shadow 0.18s ease,
     background 0.18s ease;
 }
-
 .creator-form input,
 .creator-form select {
   min-height: 42px;
   padding: 0 12px;
 }
-
 .creator-form input:not([type="checkbox"]):not([type="radio"]):hover,
 .creator-form select:hover,
 .creator-form textarea:hover {
   border-color: rgba(49, 91, 255, 0.28);
   background: #fff;
 }
-
 .creator-form input:not([type="checkbox"]):not([type="radio"]):focus,
 .creator-form select:focus,
 .creator-form textarea:focus {
@@ -812,23 +744,19 @@ function readError(error: unknown, fallback: string) {
   outline: none;
   box-shadow: 0 0 0 4px rgba(49, 91, 255, 0.1);
 }
-
 .tag-picker-wrap {
   display: grid;
   gap: 8px;
 }
-
 .tag-creator {
   display: flex;
   gap: 8px;
   align-items: center;
   margin-top: 4px;
 }
-
 .tag-creator input {
   flex: 1;
 }
-
 .creator-form select {
   appearance: none;
   padding-right: 38px;
@@ -847,13 +775,11 @@ function readError(error: unknown, fallback: string) {
   background-repeat: no-repeat;
   cursor: pointer;
 }
-
 .creator-form select option {
   background: #fff;
   color: var(--tone-strong);
   font-size: 14px;
 }
-
 .creator-form input[type="file"] {
   min-height: 48px;
   padding: 6px 10px;
@@ -864,7 +790,6 @@ function readError(error: unknown, fallback: string) {
   color: var(--tone-muted);
   cursor: pointer;
 }
-
 .creator-form input[type="file"]::file-selector-button {
   min-height: 34px;
   margin-right: 12px;
@@ -882,18 +807,15 @@ function readError(error: unknown, fallback: string) {
     color 0.18s ease,
     transform 0.18s ease;
 }
-
 .creator-form input[type="file"]:hover::file-selector-button {
   background: #315bff;
   color: #fff;
   transform: translateY(-1px);
 }
-
 .creator-form textarea {
   resize: vertical;
   padding: 12px;
 }
-
 .form-line,
 .form-actions,
 .row-actions {
@@ -902,18 +824,15 @@ function readError(error: unknown, fallback: string) {
   flex-wrap: wrap;
   gap: 10px;
 }
-
 .form-line > * {
   flex: 1;
   min-width: 180px;
 }
-
 .tag-picker {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
-
 .tag-picker .check-line {
   display: inline-flex;
   align-items: center;
@@ -924,12 +843,10 @@ function readError(error: unknown, fallback: string) {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.58);
 }
-
 .tag-picker input {
   width: 16px;
   min-height: 16px;
 }
-
 .desk-row {
   display: flex;
   align-items: center;
@@ -939,17 +856,14 @@ function readError(error: unknown, fallback: string) {
   border-radius: 8px;
   background: rgba(20, 21, 29, 0.04);
 }
-
 .desk-row + .desk-row {
   margin-top: 10px;
 }
-
 .desk-row div {
   display: grid;
   gap: 4px;
   min-width: 0;
 }
-
 .icon-text-button {
   border: 0;
   background: transparent;
@@ -960,27 +874,21 @@ function readError(error: unknown, fallback: string) {
   text-decoration: none;
   cursor: pointer;
 }
-
 .icon-text-button.danger {
   color: #b91c1c;
 }
-
 @media (max-width: 1020px) {
   .creator-grid {
     grid-template-columns: 1fr;
   }
-
   .creator-hero__stats {
     justify-content: flex-start;
   }
 }
-
 @media (max-width: 760px) {
   .creator-page {
     padding-top: 26px;
   }
-
-
   .desk-row,
   .panel-title {
     align-items: flex-start;
