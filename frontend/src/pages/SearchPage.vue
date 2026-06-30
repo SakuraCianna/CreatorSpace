@@ -14,17 +14,11 @@
       <div class="search-controls" data-reveal>
         <label>
           <span>类型</span>
-          <select v-model="activeType" @change="rerunIfSearched">
-            <option v-for="option in typeOptions" :key="option.value || 'ALL'" :value="option.value">{{ option.label }}</option>
-          </select>
+          <BaseSelect v-model="activeType" :options="typeOptions" @change="rerunIfSearched" />
         </label>
         <label>
           <span>排序</span>
-          <select v-model="activeSort" @change="rerunIfSearched">
-            <option value="relevance">相关度</option>
-            <option value="latest">最新</option>
-            <option value="popular">热度</option>
-          </select>
+          <BaseSelect v-model="activeSort" :options="sortOptions" @change="rerunIfSearched" />
         </label>
       </div>
     </header>
@@ -58,6 +52,7 @@
 import { ref } from 'vue'
 import { RouterLink, type RouteLocationRaw } from 'vue-router'
 import { ArrowRight, LoaderCircle, Search } from '@lucide/vue'
+import BaseSelect from '@/shared/components/BaseSelect.vue'
 
 import { searchContent } from '@/services/content'
 import { toUserMessage } from '@/services/http'
@@ -93,6 +88,12 @@ const typeOptions: Array<{ label: string; value: SearchResultType | '' }> = [
   { label: '标签', value: 'TAG' },
   { label: '分类', value: 'CATEGORY' },
   { label: '页面', value: 'PAGE' },
+]
+
+const sortOptions = [
+  { label: '相关度', value: 'relevance' },
+  { label: '最新', value: 'latest' },
+  { label: '热度', value: 'popular' },
 ]
 
 // 发起站内多维全文搜索, 覆盖文章、作品和灵感等多类型, 支持相关度、时间及流行度排序

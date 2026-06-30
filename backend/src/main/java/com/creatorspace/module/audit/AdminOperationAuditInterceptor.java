@@ -98,6 +98,9 @@ public class AdminOperationAuditInterceptor implements HandlerInterceptor {
         if (path.contains("/ai/tasks")) {
             return new AuditTarget("\u521b\u5efaAI\u4efb\u52a1", "AI", "AI_TASK", targetId);
         }
+        if (path.contains("/ai/workflows")) {
+            return new AuditTarget("\u521b\u5efaAI\u5de5\u4f5c\u6d41", "AI", "AI_WORKFLOW", targetId);
+        }
         return new AuditTarget(genericOperation(request, "\u540e\u53f0\u6570\u636e"), "ADMIN", "ADMIN", targetId);
     }
 

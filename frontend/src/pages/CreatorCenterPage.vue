@@ -40,20 +40,11 @@
         <div class="form-line">
           <label>
             分类
-            <select v-model="articleForm.categoryId">
-              <option :value="null">不绑定分类</option>
-              <option v-for="category in articleCategories" :key="category.id" :value="category.id">
-                {{ category.name }}
-              </option>
-            </select>
+            <BaseSelect v-model="articleForm.categoryId" :options="categoryOptions" />
           </label>
           <label>
             可见性
-            <select v-model="articleForm.privacyType">
-              <option value="PUBLIC">公开</option>
-              <option value="SELF">仅自己</option>
-              <option value="FRIENDS">好友可见</option>
-            </select>
+            <BaseSelect v-model="articleForm.privacyType" :options="privacyOptions" />
           </label>
         </div>
         <label>
@@ -68,11 +59,18 @@
           Markdown 正文
           <textarea v-model="articleForm.contentMarkdown" rows="9" />
         </label>
-        <div class="tag-picker">
-          <label v-for="tag in tags" :key="tag.id" class="check-line">
-            <input v-model="articleForm.tagIds" type="checkbox" :value="tag.id" />
-            {{ tag.name }}
-          </label>
+        <div class="tag-picker-wrap">
+          <label class="tag-picker-label">标签</label>
+          <div class="tag-picker">
+            <label v-for="tag in tags" :key="tag.id" class="check-line">
+              <input v-model="articleForm.tagIds" type="checkbox" :value="tag.id" />
+              {{ tag.name }}
+            </label>
+          </div>
+          <div class="tag-creator">
+            <input v-model="newTagName" placeholder="输入新标签" maxlength="50" @keydown.enter.prevent="createNewTag('article')" />
+            <button type="button" class="button button-tonal button-compact" :disabled="!newTagName.trim()" @click="createNewTag('article')">添加</button>
+          </div>
         </div>
         <div class="form-actions">
           <button class="button button-filled" type="submit">{{ editingArticleId ? '保存草稿' : '创建草稿' }}</button>
@@ -162,11 +160,18 @@
           Markdown 详情
           <textarea v-model="projectForm.contentMarkdown" rows="8" />
         </label>
-        <div class="tag-picker">
-          <label v-for="tag in tags" :key="tag.id" class="check-line">
-            <input v-model="projectForm.tagIds" type="checkbox" :value="tag.id" />
-            {{ tag.name }}
-          </label>
+        <div class="tag-picker-wrap">
+          <label class="tag-picker-label">标签</label>
+          <div class="tag-picker">
+            <label v-for="tag in tags" :key="tag.id" class="check-line">
+              <input v-model="projectForm.tagIds" type="checkbox" :value="tag.id" />
+              {{ tag.name }}
+            </label>
+          </div>
+          <div class="tag-creator">
+            <input v-model="newTagName" placeholder="输入新标签" maxlength="50" @keydown.enter.prevent="createNewTag('project')" />
+            <button type="button" class="button button-tonal button-compact" :disabled="!newTagName.trim()" @click="createNewTag('project')">添加</button>
+          </div>
         </div>
         <div class="form-actions">
           <button class="button button-filled" type="submit">{{ editingProjectId ? '保存作品' : '创建作品' }}</button>
@@ -216,14 +221,7 @@
         </div>
         <label>
           模块
-          <select v-model="fileModule">
-            <option value="ARTICLE">ARTICLE</option>
-            <option value="PROJECT">PROJECT</option>
-            <option value="COVER">COVER</option>
-            <option value="AVATAR">AVATAR</option>
-            <option value="INSPIRATION">INSPIRATION</option>
-            <option value="OTHER">OTHER</option>
-          </select>
+          <BaseSelect v-model="fileModule" :options="fileModuleOptions" />
         </label>
         <input type="file" accept="image/*" @change="selectFile" />
         <button class="button button-filled" type="submit">上传图片</button>
@@ -276,6 +274,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { BookOpen, ExternalLink, FileImage, Images, Star } from '@lucide/vue'
+import BaseSelect from '@/shared/components/BaseSelect.vue'
 
 import {
   createCreatorArticle,
@@ -290,6 +289,7 @@ import {
   fetchCreatorProjects,
   fetchMyFavorites,
   fetchTags,
+  createTag,
   submitCreatorArticle,
   submitCreatorProject,
   updateCreatorArticle,
@@ -324,7 +324,28 @@ const editingArticleId = ref<number | null>(null)
 const editingProjectId = ref<number | null>(null)
 const projectTechStack = ref('')
 const selectedFile = ref<File | null>(null)
-const fileModule = ref('PROJECT')
+const fileModule = ref('ARTICLE')
+const newTagName = ref('')
+
+const categoryOptions = computed(() => [
+  { label: '不绑定分类', value: null },
+  ...articleCategories.value.map(c => ({ label: c.name, value: c.id }))
+])
+
+const privacyOptions = [
+  { label: '公开', value: 'PUBLIC' },
+  { label: '仅自己', value: 'SELF' },
+  { label: '好友可见', value: 'FRIENDS' },
+]
+
+const fileModuleOptions = [
+  { label: 'ARTICLE', value: 'ARTICLE' },
+  { label: 'PROJECT', value: 'PROJECT' },
+  { label: 'COVER', value: 'COVER' },
+  { label: 'AVATAR', value: 'AVATAR' },
+  { label: 'INSPIRATION', value: 'INSPIRATION' },
+  { label: 'OTHER', value: 'OTHER' },
+]
 
 const articleForm = reactive<ArticlePayload>({
   title: '',
@@ -602,6 +623,27 @@ async function uploadFile() {
   }
 }
 
+async function createNewTag(target: 'article' | 'project') {
+  if (!newTagName.value.trim()) return
+  try {
+    const tag = await createTag({
+      name: newTagName.value.trim(),
+      slug: newTagName.value.trim().toLowerCase().replace(/\s+/g, '-'),
+      groupName: '用户创建'
+    })
+    tags.value.push(tag)
+    if (target === 'article') {
+      articleForm.tagIds.push(tag.id)
+    } else {
+      projectForm.tagIds.push(tag.id)
+    }
+    newTagName.value = ''
+    notice.value = '新标签已创建'
+  } catch (error) {
+    notice.value = readError(error, '标签创建失败')
+  }
+}
+
 function canSubmitContent(status: string) {
   return status === 'DRAFT' || status === 'REJECTED'
 }
@@ -724,7 +766,7 @@ function readError(error: unknown, fallback: string) {
 
 .creator-grid {
   display: grid;
-  grid-template-columns: minmax(0, 0.92fr) minmax(360px, 1.08fr);
+  grid-template-columns: 1fr;
   align-items: start;
   gap: 16px;
 }
@@ -826,6 +868,22 @@ a.desk-row--linked:hover {
   border-color: rgba(49, 91, 255, 0.48);
   outline: none;
   box-shadow: 0 0 0 4px rgba(49, 91, 255, 0.1);
+}
+
+.tag-picker-wrap {
+  display: grid;
+  gap: 8px;
+}
+
+.tag-creator {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.tag-creator input {
+  flex: 1;
 }
 
 .creator-form select {

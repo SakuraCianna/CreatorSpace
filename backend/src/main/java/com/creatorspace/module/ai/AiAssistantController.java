@@ -41,6 +41,19 @@ public class AiAssistantController {
         return ApiResponse.ok(aiAssistantService.taskById(id));
     }
 
+    @PostMapping("/api/admin/ai/tasks/{id}/messages")
+    public ApiResponse<AiAssistantService.AiTaskVO> continueTask(@PathVariable Long id, @Valid @RequestBody AiContinueRequest request) {
+        return ApiResponse.ok(aiAssistantService.continueTask(id, new AiAssistantService.AiContinueRequest(request.prompt())));
+    }
+
+    @PostMapping("/api/admin/ai/workflows")
+    public ApiResponse<AiAssistantService.AiTaskVO> createWorkflow(@Valid @RequestBody AiWorkflowRequest request) {
+        return ApiResponse.ok(aiAssistantService.createWorkflow(new AiAssistantService.AiWorkflowRequest(
+                request.workflowType(),
+                request.days()
+        )));
+    }
+
     @GetMapping("/api/admin/ai/suggestions")
     public ApiResponse<PageResponse<AiAssistantService.AiSuggestionVO>> suggestions(
             @RequestParam(defaultValue = "PENDING") String status,
@@ -65,6 +78,17 @@ public class AiAssistantController {
             @Size(max = 60) String targetType,
             Long targetId,
             @NotBlank @Size(max = 4000) String prompt
+    ) {
+    }
+
+    public record AiContinueRequest(
+            @NotBlank @Size(max = 4000) String prompt
+    ) {
+    }
+
+    public record AiWorkflowRequest(
+            @NotBlank @Size(max = 60) String workflowType,
+            @Min(1) @Max(90) Integer days
     ) {
     }
 }

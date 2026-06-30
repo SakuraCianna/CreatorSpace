@@ -81,6 +81,37 @@ class AiAssistantControllerTests extends PostgresIntegrationTestSupport {
     }
 
     @Test
+    void disabledAiCreatesWorkflowTaskWithClearNotice() throws Exception {
+        String token = loginAsAdmin();
+
+        mockMvc.perform(post("/api/admin/ai/workflows")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "workflowType", "OPERATION_REPORT",
+                                "days", 7
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.taskType", is("OPERATION_REPORT")))
+                .andExpect(jsonPath("$.data.targetType", is("SITE")))
+                .andExpect(jsonPath("$.data.status", is("FAILED")))
+                .andExpect(jsonPath("$.data.notice", containsString("AI 助手未启用")))
+                .andExpect(jsonPath("$.data.messages[0].role", is("SYSTEM")))
+                .andExpect(jsonPath("$.data.messages[1].role", is("USER")))
+                .andExpect(jsonPath("$.data.messages[2].content", containsString("AI 助手未启用")));
+
+        Integer workflowCount = jdbcTemplate.queryForObject("""
+                        select count(*)
+                        from ai_agent_tasks
+                        where task_type = 'OPERATION_REPORT'
+                          and target_type = 'SITE'
+                          and status = 'FAILED'
+                        """,
+                Integer.class);
+        assertThat(workflowCount).isGreaterThanOrEqualTo(1);
+    }
+    @Test
     void adminCanAdoptSuggestionAndWriteOperationLog() throws Exception {
         String token = loginAsAdmin();
         Long suggestionId = jdbcTemplate.queryForObject("""

@@ -130,7 +130,6 @@
               <component :is="visibilityIcon(card)" :size="13" />
               {{ visibilityLabel(card) }}
             </span>
-            <span class="card-order">优先级 {{ card.sortOrder }}</span>
           </div>
         </div>
         <h2>{{ card.title }}</h2>

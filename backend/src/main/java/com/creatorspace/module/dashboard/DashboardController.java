@@ -3,6 +3,7 @@ package com.creatorspace.module.dashboard;
 import com.creatorspace.common.cache.CacheKeys;
 import com.creatorspace.common.cache.RedisJsonCacheService;
 import com.creatorspace.common.result.ApiResponse;
+import com.creatorspace.module.statistics.DailyMetricKeys;
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -169,36 +170,40 @@ public class DashboardController {
                 ));
     }
 
-    // 最近 7 天访问趋势。
+    // 最近 7 天访问趋势：优先读取 daily_metrics，缺失日期回退实时日志。
     private List<TrendPointVO> visitTrend() {
-        return jdbcTemplate.query("""
-                        select day::date as metric_date,
-                               coalesce(count(v.id), 0) as pv
-                        from generate_series(current_date - interval '6 days', current_date, interval '1 day') day
-                        left join visit_logs v on v.created_at::date = day::date
-                        group by day
-                        order by day
-                        """,
-                (rs, rowNum) -> new TrendPointVO(
-                        rs.getObject("metric_date", LocalDate.class),
-                        rs.getLong("pv")
-                ));
+        return dailyTrend(DailyMetricKeys.SITE_PV, "visit_logs");
     }
 
-    // 最近 7 天搜索趋势。
+    // 最近 7 天搜索趋势：优先读取 daily_metrics，缺失日期回退实时日志。
     private List<TrendPointVO> searchTrend() {
+        return dailyTrend(DailyMetricKeys.SEARCH_COUNT, "search_logs");
+    }
+
+    private List<TrendPointVO> dailyTrend(String metricKey, String sourceTable) {
         return jdbcTemplate.query("""
-                        select day::date as metric_date,
-                               coalesce(count(s.id), 0) as pv
-                        from generate_series(current_date - interval '6 days', current_date, interval '1 day') day
-                        left join search_logs s on s.created_at::date = day::date
-                        group by day
-                        order by day
-                        """,
+                        with days as (
+                            select day::date as metric_date
+                            from generate_series(current_date - interval '6 days', current_date, interval '1 day') day
+                        ), live_counts as (
+                            select created_at::date as metric_date, count(*) as metric_value
+                            from %s
+                            where created_at::date between (current_date - interval '6 days')::date and current_date
+                            group by created_at::date
+                        )
+                        select d.metric_date,
+                               coalesce(dm.metric_value, live_counts.metric_value, 0) as pv
+                        from days d
+                        left join daily_metrics dm
+                               on dm.metric_date = d.metric_date and dm.metric_key = ?
+                        left join live_counts on live_counts.metric_date = d.metric_date
+                        order by d.metric_date
+                        """.formatted(sourceTable),
                 (rs, rowNum) -> new TrendPointVO(
                         rs.getObject("metric_date", LocalDate.class),
                         rs.getLong("pv")
-                ));
+                ),
+                metricKey);
     }
 
     // 热门搜索关键词 top 10。

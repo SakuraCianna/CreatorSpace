@@ -24,19 +24,11 @@
         <div class="form-line">
           <label>
             匹配方式
-            <select v-model="form.matchType">
-              <option v-for="opt in matchTypeOptions" :key="opt.value" :value="opt.value">
-                {{ opt.label }}
-              </option>
-            </select>
+            <BaseSelect v-model="form.matchType" :options="matchTypeOptions" />
           </label>
           <label>
             处理级别
-            <select v-model="form.severity">
-              <option v-for="opt in severityOptions" :key="opt.value" :value="opt.value">
-                {{ opt.label }}
-              </option>
-            </select>
+            <BaseSelect v-model="form.severity" :options="severityOptions" />
           </label>
         </div>
         <label class="check-line">
@@ -97,6 +89,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { Plus } from '@lucide/vue'
+import BaseSelect from '@/shared/components/BaseSelect.vue'
 
 import {
   createSensitiveWord,

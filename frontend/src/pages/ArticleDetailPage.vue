@@ -48,14 +48,6 @@
             <strong>{{ nextArticle.title }}</strong>
           </RouterLink>
         </nav>
-      </article>
-
-      <aside class="reading-aside" data-reveal>
-        <div class="toc-card">
-          <p class="page-kicker">On this page</p>
-          <a v-for="item in toc" :key="item" href="#" @click.prevent="scrollToHeading(item)">{{ item }}</a>
-          <span v-if="toc.length === 0">正文还没有二级标题。</span>
-        </div>
         <div v-if="article?.authorId" class="author-card">
           <RouterLink
             class="author-card__link"
@@ -155,7 +147,7 @@
           <p v-if="commentNotice" class="inline-notice">{{ commentNotice }}</p>
         </div>
         <p v-if="notice" class="inline-notice">{{ notice }}</p>
-      </aside>
+      </article>
     </div>
     <div v-else class="empty-state detail-state" data-reveal>
       <h2>没有找到这篇文章</h2>
@@ -235,13 +227,6 @@ const canFollowAuthor = computed(() => {
 const articleMarkdown = computed(() => normalizeMarkdownSource(article.value?.contentMarkdown ?? article.value?.summary))
 const htmlContent = computed(() => renderSafeMarkdown(articleMarkdown.value))
 const readingMinutes = computed(() => Math.max(1, Math.ceil(articleMarkdown.value.length / 420)))
-const toc = computed(() =>
-  articleMarkdown.value
-    .split(/\r?\n/)
-    .filter((line) => line.startsWith('## '))
-    .map((line) => line.replace(/^##\s*/, '').trim())
-    .filter(Boolean),
-)
 const articleCoverStyle = computed(() => ({
   '--detail-accent': article.value?.tags[0]?.color ?? '#6ea8ff',
   '--detail-cover': toCssImageUrl(article.value?.coverUrl),
@@ -388,12 +373,6 @@ function formatDate(value?: string | null): string {
   return formatDateToDay(value)
 }
 
-function scrollToHeading(title: string) {
-  const headings = Array.from(root.value?.querySelectorAll<HTMLHeadingElement>('.markdown-body h2') ?? [])
-  const target = headings.find((heading) => heading.textContent?.trim() === title)
-  target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}
-
 onMounted(loadArticle)
 watch(slug, loadArticle)
 </script>
@@ -411,7 +390,7 @@ watch(slug, loadArticle)
 
 .reading-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-columns: 1fr;
   gap: var(--theme-density-spacing, 16px);
   align-items: start;
 }
@@ -556,7 +535,6 @@ watch(slug, loadArticle)
 .markdown-body :deep(h1),
 .markdown-body :deep(h2),
 .markdown-body :deep(h3) {
-  max-width: 780px;
   margin: 32px 0 12px;
   color: var(--tone-ink);
   line-height: 1.24;
@@ -575,7 +553,6 @@ watch(slug, loadArticle)
 .markdown-body :deep(p),
 .markdown-body :deep(li),
 .markdown-body :deep(blockquote) {
-  max-width: 780px;
   margin: 0 0 16px;
   color: var(--tone-muted);
   font-size: 17px;
@@ -652,13 +629,6 @@ watch(slug, loadArticle)
   line-height: 1.36;
 }
 
-.reading-aside {
-  position: sticky;
-  top: 100px;
-  display: grid;
-  gap: calc(var(--theme-density-spacing, 16px) * 0.75);
-}
-
 .author-card {
   display: grid;
   gap: 12px;
@@ -719,7 +689,6 @@ watch(slug, loadArticle)
   width: 100%;
 }
 
-.toc-card,
 .reaction-card,
 .comments-card {
   border: 1px solid var(--tone-line);
@@ -731,29 +700,20 @@ watch(slug, loadArticle)
   backdrop-filter: blur(18px);
 }
 
-.toc-card,
 .reaction-card {
   padding: calc(var(--theme-density-spacing, 16px) * 1.125);
 }
 
-.toc-card {
-  display: grid;
-  gap: 10px;
-}
-
-.toc-card a,
-.toc-card span {
-  color: var(--tone-muted);
-  font-size: 14px;
-}
-
 .reaction-card {
-  display: grid;
-  gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
 }
 
 .reaction-card .icon-button {
-  justify-content: flex-start;
+  flex: 1;
+  justify-content: center;
 }
 
 .reaction-card .icon-button.is-liked {
@@ -883,11 +843,7 @@ watch(slug, loadArticle)
     grid-template-columns: 1fr;
   }
 
-  .reading-aside {
-    position: static;
-  }
-
-  .article-neighbors {
+    .article-neighbors {
     grid-template-columns: 1fr;
   }
 

@@ -132,22 +132,6 @@
         </section>
 
         <div class="markdown-body" v-html="htmlContent" />
-      </article>
-
-      <!-- 3D 交互侧栏控制面板 -->
-      <aside class="process-panel" data-reveal>
-        <section class="side-card">
-          <p class="page-kicker">Archive Path</p>
-          <h2>档案结构</h2>
-          <ol class="timeline-list">
-            <li v-for="item in timeline" :key="item.title">
-              <span>{{ item.phase }}</span>
-              <strong>{{ item.title }}</strong>
-              <p>{{ item.body }}</p>
-            </li>
-          </ol>
-        </section>
-
         <section class="side-card comments-card">
           <p class="page-kicker">Comments</p>
           <h2>作品反馈</h2>
@@ -199,7 +183,7 @@
         </section>
 
         <p v-if="notice" class="inline-notice">{{ notice }}</p>
-      </aside>
+      </article>
     </div>
 
     <div v-else class="empty-state detail-state" data-reveal>
@@ -713,7 +697,7 @@ watch(slug, loadProject)
 
 .project-record {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: 1fr;
   gap: var(--theme-density-spacing, 16px);
   align-items: start;
 }
@@ -1042,7 +1026,6 @@ watch(slug, loadProject)
 .markdown-body :deep(h1),
 .markdown-body :deep(h2),
 .markdown-body :deep(h3) {
-  max-width: 780px;
   margin: 14px 0 0;
   color: var(--tone-ink);
   line-height: 1.18;
@@ -1055,7 +1038,6 @@ watch(slug, loadProject)
 .markdown-body :deep(p),
 .markdown-body :deep(li),
 .markdown-body :deep(blockquote) {
-  max-width: 780px;
   margin: 0;
   color: var(--tone-muted);
   font-size: 16px;
@@ -1128,10 +1110,14 @@ watch(slug, loadProject)
 
 .reaction-row {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
 }
 
 .reaction-row .icon-button {
+  flex: 1;
+  justify-content: center;
   display: inline-flex;
   align-items: center;
   gap: 6px;
