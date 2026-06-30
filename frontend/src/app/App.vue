@@ -1,7 +1,11 @@
 <template>
 <!-- 全局动态布局容器组件 -->
   <component :is="layout">
-    <RouterView />
+    <RouterView v-slot="{ Component, route }">
+      <transition name="page-fade" mode="out-in">
+        <component :is="Component" :key="route.path" />
+      </transition>
+    </RouterView>
   </component>
 </template>
 
@@ -50,3 +54,20 @@ onMounted(async () => {
   }
 })
 </script>
+
+<style>
+.page-fade-enter-active,
+.page-fade-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.page-fade-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.page-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+</style>
