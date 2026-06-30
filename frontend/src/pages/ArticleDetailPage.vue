@@ -48,14 +48,7 @@
             <strong>{{ nextArticle.title }}</strong>
           </RouterLink>
         </nav>
-      </article>
 
-      <aside class="reading-aside" data-reveal>
-        <div class="toc-card">
-          <p class="page-kicker">On this page</p>
-          <a v-for="item in toc" :key="item" href="#" @click.prevent="scrollToHeading(item)">{{ item }}</a>
-          <span v-if="toc.length === 0">正文还没有二级标题。</span>
-        </div>
         <div class="reaction-card">
           <button
             class="icon-button"
@@ -149,7 +142,7 @@
           <p v-if="commentNotice" class="inline-notice">{{ commentNotice }}</p>
         </div>
         <p v-if="notice" class="inline-notice">{{ notice }}</p>
-      </aside>
+      </article>
     </div>
     <div v-else class="empty-state detail-state" data-reveal>
       <h2>没有找到这篇文章</h2>
@@ -392,7 +385,7 @@ watch(slug, loadArticle)
 
 .reading-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-columns: 1fr;
   gap: var(--theme-density-spacing, 16px);
   align-items: start;
 }
@@ -537,7 +530,6 @@ watch(slug, loadArticle)
 .markdown-body :deep(h1),
 .markdown-body :deep(h2),
 .markdown-body :deep(h3) {
-  max-width: 780px;
   margin: 32px 0 12px;
   color: var(--tone-ink);
   line-height: 1.24;
@@ -556,7 +548,6 @@ watch(slug, loadArticle)
 .markdown-body :deep(p),
 .markdown-body :deep(li),
 .markdown-body :deep(blockquote) {
-  max-width: 780px;
   margin: 0 0 16px;
   color: var(--tone-muted);
   font-size: 17px;
@@ -669,12 +660,15 @@ watch(slug, loadArticle)
 }
 
 .reaction-card {
-  display: grid;
-  gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
 }
 
 .reaction-card .icon-button {
-  justify-content: flex-start;
+  flex: 1;
+  justify-content: center;
 }
 
 .reaction-card .icon-button.is-liked {

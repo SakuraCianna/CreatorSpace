@@ -32,7 +32,7 @@ public class TagController {
         this.tagService = tagService;
     }
 
-    @PostMapping("/api/admin/tags")
+    @PostMapping({"/api/admin/tags", "/api/tags"})
     public ApiResponse<TagVO> create(@Valid @RequestBody TagRequest request) {
         return ApiResponse.ok(tagService.create(request));
     }

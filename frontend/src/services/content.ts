@@ -524,9 +524,9 @@ export async function fetchRecommendedTags(limit = 28): Promise<TagSummary[]> {
   return response.data
 }
 
-// 管理员创建标签。
+// 创作者/管理员创建标签。
 export async function createTag(payload: TagPayload): Promise<TagSummary> {
-  const response = await requestJson<ApiEnvelope<TagSummary>>('/api/admin/tags', {
+  const response = await requestJson<ApiEnvelope<TagSummary>>('/api/tags', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
