@@ -428,6 +428,7 @@ watch(slug, loadArticle)
 .detail-hero h1 {
   max-width: 860px;
   margin: 0;
+  color: inherit;
   font-size: clamp(34px, 4.4vw, 52px);
   font-weight: 860;
   line-height: 1.12;
