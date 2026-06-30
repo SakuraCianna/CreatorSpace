@@ -11,6 +11,26 @@
       </button>
     </header>
 
+    <section class="ai-panel workflow-panel">
+      <div class="board-title">
+        <div>
+          <h3>数据工作流</h3>
+          <span>把搜索、访问、热门内容和审核队列整理成可采纳的运营建议。</span>
+        </div>
+        <label class="days-control">
+          周期
+          <input v-model.number="workflowDays" min="1" max="90" type="number" />
+        </label>
+      </div>
+      <div class="workflow-actions">
+        <button v-for="item in workflowOptions" :key="item.value" class="workflow-card" type="button" :disabled="submitting" @click="runWorkflow(item.value)">
+          <component :is="item.icon" :size="18" />
+          <strong>{{ item.label }}</strong>
+          <span>{{ item.description }}</span>
+        </button>
+      </div>
+    </section>
+
     <section class="ai-grid">
       <form class="ai-panel ai-composer" @submit.prevent="submitTask">
         <div class="panel-title">
@@ -87,6 +107,13 @@
             <strong>{{ roleLabel(message.role) }}</strong>
             <p>{{ message.content }}</p>
           </article>
+          <form class="follow-up" @submit.prevent="submitFollowUp">
+            <input v-model="followUpPrompt" maxlength="4000" type="text" placeholder="继续追问：例如，把建议拆成今天可执行的三步" />
+            <button class="button button-filled" type="submit" :disabled="submitting || !followUpPrompt.trim()">
+              <Send :size="16" />
+              追问
+            </button>
+          </form>
         </div>
 
         <div v-else class="empty-state">
@@ -163,12 +190,15 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import {
   Bot,
   Check,
+  ClipboardList,
   ChevronLeft,
   ChevronRight,
   FileText,
   MessageSquareWarning,
+  Newspaper,
   RefreshCw,
   RotateCcw,
+  Send,
   Sparkles,
   Tags,
   TrendingUp,
@@ -176,9 +206,9 @@ import {
   X,
 } from '@lucide/vue'
 
-import { createAiTask, fetchAiSuggestions, updateAiSuggestionStatus } from '@/services/content'
+import { continueAiTask, createAiTask, createAiWorkflow, fetchAiSuggestions, updateAiSuggestionStatus } from '@/services/content'
 import { toUserMessage } from '@/services/http'
-import type { AiSuggestionStatus, AiSuggestionSummary, AiTaskPayload, AiTaskSummary, AiTaskType, PageResponse } from '@/shared/domain'
+import type { AiSuggestionStatus, AiSuggestionSummary, AiTaskPayload, AiTaskSummary, AiTaskType, AiWorkflowPayload, PageResponse } from '@/shared/domain'
 
 const taskOptions: Array<{ value: AiTaskType; label: string; icon: unknown }> = [
   { value: 'SUMMARY', label: '摘要', icon: FileText },
@@ -200,6 +230,8 @@ const suggestionStatus = ref<AiSuggestionStatus | 'ALL'>('PENDING')
 const submitting = ref(false)
 const loadingSuggestions = ref(false)
 const notice = ref('')
+const followUpPrompt = ref('')
+const workflowDays = ref(7)
 
 const totalPages = computed(() => Math.max(1, Math.ceil(suggestions.value.total / suggestions.value.pageSize)))
 const suggestionRange = computed(() => {
@@ -210,6 +242,20 @@ const suggestionRange = computed(() => {
 })
 
 onMounted(() => loadSuggestions())
+
+async function runWorkflow(workflowType: AiWorkflowPayload['workflowType']) {
+  notice.value = ''
+  submitting.value = true
+  try {
+    latestTask.value = await createAiWorkflow({ workflowType, days: workflowDays.value })
+    if (latestTask.value.notice) notice.value = latestTask.value.notice
+    await loadSuggestions(1)
+  } catch (error) {
+    notice.value = toUserMessage(error, 'AI 工作流创建失败')
+  } finally {
+    submitting.value = false
+  }
+}
 
 async function submitTask() {
   notice.value = ''
@@ -232,6 +278,22 @@ async function submitTask() {
     await loadSuggestions(1)
   } catch (error) {
     notice.value = toUserMessage(error, 'AI 任务创建失败')
+  } finally {
+    submitting.value = false
+  }
+}
+
+async function submitFollowUp() {
+  if (!latestTask.value || !followUpPrompt.value.trim()) return
+  notice.value = ''
+  submitting.value = true
+  try {
+    latestTask.value = await continueAiTask(latestTask.value.id, followUpPrompt.value.trim())
+    followUpPrompt.value = ''
+    if (latestTask.value.notice) notice.value = latestTask.value.notice
+    await loadSuggestions(1)
+  } catch (error) {
+    notice.value = toUserMessage(error, 'AI 追问失败')
   } finally {
     submitting.value = false
   }
@@ -373,6 +435,75 @@ function formatDateTime(value: string) {
   background: var(--admin-primary-soft);
   color: var(--admin-primary-strong);
   cursor: pointer;
+}
+
+.workflow-panel {
+  gap: 16px;
+}
+
+.workflow-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.workflow-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 10px;
+  min-height: 104px;
+  padding: 14px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  border-radius: 8px;
+  background: linear-gradient(145deg, #ffffff, #f7fbff);
+  color: var(--admin-ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.workflow-card svg {
+  grid-row: span 2;
+  color: var(--admin-primary-strong);
+}
+
+.workflow-card strong {
+  min-width: 0;
+  font-size: 15px;
+}
+
+.workflow-card span {
+  min-width: 0;
+  color: var(--admin-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.workflow-card:hover:not(:disabled) {
+  border-color: rgba(49, 91, 255, 0.28);
+  box-shadow: 0 12px 30px rgba(49, 91, 255, 0.1);
+}
+
+.workflow-card:disabled {
+  opacity: 0.52;
+  cursor: not-allowed;
+}
+
+.days-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.days-control input {
+  width: 72px;
+  min-height: 34px;
+  border: 1px solid var(--admin-line);
+  border-radius: 8px;
+  padding: 0 8px;
+  font: inherit;
 }
 
 .ai-grid {
@@ -523,6 +654,21 @@ function formatDateTime(value: string) {
   color: var(--admin-ink);
 }
 
+.follow-up {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.follow-up input {
+  min-width: 0;
+  min-height: 38px;
+  border: 1px solid var(--admin-line);
+  border-radius: 8px;
+  padding: 0 12px;
+  font: inherit;
+}
+
 .message-card p,
 .suggestion-card p {
   margin: 8px 0 0;
@@ -624,6 +770,7 @@ function formatDateTime(value: string) {
 }
 
 @media (max-width: 1080px) {
+  .workflow-actions,
   .ai-grid,
   .suggestion-card {
     grid-template-columns: 1fr;
@@ -644,7 +791,8 @@ function formatDateTime(value: string) {
   }
 
   .task-options,
-  .form-line {
+  .form-line,
+  .follow-up {
     grid-template-columns: 1fr;
   }
 }

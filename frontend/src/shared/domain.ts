@@ -446,6 +446,7 @@ export type OperationLogModule =
   | 'CATEGORY'
   | 'TAG'
   | 'ADMIN'
+  | 'AI'
 
 export interface OperationLogQuery {
   module?: OperationLogModule | ''
@@ -471,8 +472,8 @@ export interface OperationLogSummary {
   detailJson?: string | null
   createdAt: string
 }
-export type AiTaskType = 'SUMMARY' | 'TAGS' | 'REVIEW' | 'OPERATION' | 'GENERAL'
-export type AiTargetType = 'ARTICLE' | 'PROJECT' | 'COMMENT' | ''
+export type AiTaskType = 'SUMMARY' | 'TAGS' | 'REVIEW' | 'OPERATION' | 'GENERAL' | 'OPERATION_REPORT' | 'TOPIC_IDEAS' | 'HOMEPAGE_RECOMMENDATIONS' | 'COMMENT_RISK_QUEUE'
+export type AiTargetType = 'ARTICLE' | 'PROJECT' | 'COMMENT' | 'SITE' | ''
 export type AiTaskStatus = 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'DISCARDED'
 export type AiSuggestionStatus = 'PENDING' | 'ADOPTED' | 'REJECTED' | 'EXPIRED'
 
@@ -481,6 +482,11 @@ export interface AiTaskPayload {
   targetType?: AiTargetType
   targetId?: number | null
   prompt: string
+}
+
+export interface AiWorkflowPayload {
+  workflowType: Extract<AiTaskType, 'OPERATION_REPORT' | 'TOPIC_IDEAS' | 'HOMEPAGE_RECOMMENDATIONS' | 'COMMENT_RISK_QUEUE'>
+  days?: number | null
 }
 
 export interface AiMessageSummary {

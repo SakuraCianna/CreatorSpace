@@ -973,6 +973,24 @@ export async function createAiTask(payload: AiTaskPayload): Promise<AiTaskSummar
   return response.data
 }
 
+// 继续后台 AI 任务多轮对话
+export async function continueAiTask(id: number, prompt: string): Promise<AiTaskSummary> {
+  const response = await requestJson<ApiEnvelope<AiTaskSummary>>(`/api/admin/ai/tasks/${id}/messages`, {
+    method: 'POST',
+    body: JSON.stringify({ prompt }),
+  })
+  return response.data
+}
+
+// 创建数据驱动的后台 AI 工作流
+export async function createAiWorkflow(payload: AiWorkflowPayload): Promise<AiTaskSummary> {
+  const response = await requestJson<ApiEnvelope<AiTaskSummary>>('/api/admin/ai/workflows', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return response.data
+}
+
 // 查询 AI 建议列表
 export async function fetchAiSuggestions(options: {
   status?: AiSuggestionStatus | 'ALL'
