@@ -15,3 +15,13 @@ create table if not exists refresh_tokens (
 
 create index idx_refresh_tokens_token_hash on refresh_tokens(token_hash);
 create index idx_refresh_tokens_user_id on refresh_tokens(user_id);
+
+comment on table refresh_tokens is '刷新令牌表';
+comment on column refresh_tokens.id is '主键 ID';
+comment on column refresh_tokens.user_id is '用户 ID';
+comment on column refresh_tokens.token_hash is '令牌哈希值';
+comment on column refresh_tokens.expires_at is '过期时间';
+comment on column refresh_tokens.created_at is '创建时间';
+comment on column refresh_tokens.revoked_at is '撤销时间';
+comment on column users.failed_login_attempts is '连续登录失败次数';
+comment on column users.account_locked_until is '账号锁定截至时间';

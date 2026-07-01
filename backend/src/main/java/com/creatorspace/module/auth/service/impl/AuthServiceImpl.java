@@ -15,6 +15,7 @@ import com.creatorspace.module.user.entity.UserEntity;
 import com.creatorspace.module.user.mapper.RoleMapper;
 import com.creatorspace.module.user.mapper.UserMapper;
 import com.creatorspace.module.user.mapper.UserRoleMapper;
+import com.creatorspace.module.auth.service.HCaptchaService;
 import com.creatorspace.security.JwtService;
 import com.creatorspace.security.LoginUser;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,6 +49,7 @@ public class AuthServiceImpl implements AuthService {
     private final SecureRandom secureRandom;
     private final long accessTokenExpireMinutes;
     private final long refreshTokenExpireDays;
+    private final HCaptchaService hCaptchaService;
 
     public AuthServiceImpl(
             UserMapper userMapper,
@@ -57,6 +59,7 @@ public class AuthServiceImpl implements AuthService {
             JwtService jwtService,
             JdbcTemplate jdbcTemplate,
             EmailVerificationService emailVerificationService,
+            HCaptchaService hCaptchaService,
             @Value("${app.security.jwt-access-token-expire-minutes}") long accessTokenExpireMinutes,
             @Value("${app.security.jwt-refresh-token-expire-days}") long refreshTokenExpireDays
     ) {
@@ -67,6 +70,7 @@ public class AuthServiceImpl implements AuthService {
         this.jwtService = jwtService;
         this.jdbcTemplate = jdbcTemplate;
         this.emailVerificationService = emailVerificationService;
+        this.hCaptchaService = hCaptchaService;
         this.secureRandom = new SecureRandom();
         this.accessTokenExpireMinutes = accessTokenExpireMinutes;
         this.refreshTokenExpireDays = refreshTokenExpireDays;
@@ -75,6 +79,9 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public UserSummaryVO register(RegisterRequest request) {
+        if (!hCaptchaService.verify(request.hcaptchaToken())) {
+            throw BusinessException.badRequest("人机验证失败，请重试");
+        }
         String email = request.email().trim();
         if (!email.endsWith("@qq.com")) {
             throw BusinessException.badRequest("仅支持 QQ 邮箱注册");
@@ -156,6 +163,10 @@ public class AuthServiceImpl implements AuthService {
 
     // 校验账号密码、状态和角色要求，然后签发令牌对。
     private AuthTokenVO loginAndIssueToken(LoginRequest request, boolean adminRequired) {
+        if (!hCaptchaService.verify(request.hcaptchaToken())) {
+            throw BusinessException.badRequest("人机验证失败，请重试");
+        }
+
         UserEntity user = userMapper.selectOne(new LambdaQueryWrapper<UserEntity>()
                 .eq(UserEntity::getUsername, request.username().trim()));
         if (user == null) {

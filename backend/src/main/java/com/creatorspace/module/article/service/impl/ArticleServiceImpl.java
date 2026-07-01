@@ -11,6 +11,7 @@ import com.creatorspace.module.article.mapper.ArticleMapper;
 import com.creatorspace.module.article.mapper.ArticleTagMapper;
 import com.creatorspace.module.article.service.ArticleService;
 import com.creatorspace.module.article.vo.ArticleNeighborsVO;
+import com.creatorspace.module.article.vo.ArticleVersionVO;
 import com.creatorspace.module.article.vo.ArticleVO;
 import com.creatorspace.module.category.service.CategoryService;
 import com.creatorspace.module.category.vo.CategoryVO;
@@ -53,8 +54,7 @@ public class ArticleServiceImpl implements ArticleService {
             CategoryService categoryService,
             TagService tagService,
             JdbcTemplate jdbcTemplate,
-            VisitLogService visitLogService
-    ) {
+            VisitLogService visitLogService) {
         this.articleMapper = articleMapper;
         this.articleTagMapper = articleTagMapper;
         this.categoryService = categoryService;
@@ -86,6 +86,7 @@ public class ArticleServiceImpl implements ArticleService {
         article.setUpdatedBy(operatorId);
         articleMapper.insert(article);
         replaceTags(article.getId(), request.tagIds());
+        insertVersionSnapshot(article, operatorId);
         return toVO(article, true);
     }
 
@@ -113,8 +114,7 @@ public class ArticleServiceImpl implements ArticleService {
                 result.getRecords().stream().map(article -> toVO(article, false)).toList(),
                 result.getCurrent(),
                 result.getSize(),
-                result.getTotal()
-        );
+                result.getTotal());
     }
 
     // 当前创作者读取自己的文章。
@@ -146,6 +146,7 @@ public class ArticleServiceImpl implements ArticleService {
         article.setUpdatedBy(userId);
         articleMapper.updateEditableArticle(article);
         replaceTags(article.getId(), request.tagIds());
+        insertVersionSnapshot(article, userId);
         return toVO(article, true);
     }
 
@@ -165,8 +166,7 @@ public class ArticleServiceImpl implements ArticleService {
                 null,
                 null,
                 null,
-                userId
-        );
+                userId);
         article.setStatus(ContentConstants.STATUS_PENDING_REVIEW);
         article.setSubmittedAt(submittedAt);
         article.setReviewedBy(null);
@@ -207,6 +207,7 @@ public class ArticleServiceImpl implements ArticleService {
         article.setUpdatedBy(operatorId);
         articleMapper.updateEditableArticle(article);
         replaceTags(article.getId(), request.tagIds());
+        insertVersionSnapshot(article, operatorId);
         return toVO(article, true);
     }
 
@@ -267,8 +268,7 @@ public class ArticleServiceImpl implements ArticleService {
                 reviewedAt,
                 note == null ? "内容暂未通过审核，请修改后重新提交。" : note,
                 null,
-                operatorId
-        );
+                operatorId);
         article.setStatus(ContentConstants.STATUS_REJECTED);
         article.setSubmittedAt(submittedAt);
         article.setReviewedBy(operatorId);
@@ -342,6 +342,49 @@ public class ArticleServiceImpl implements ArticleService {
     @Override
     public ArticleVO getAdminById(Long id) {
         return toVO(requiredArticle(id), true);
+    }
+
+    // 管理员读取文章历史版本，按版本号倒序返回。
+    @Override
+    public List<ArticleVersionVO> listVersions(Long id) {
+        requiredArticle(id);
+        return jdbcTemplate.query("""
+                select id,
+                       article_id,
+                       version_no,
+                       title,
+                       summary,
+                       content_markdown,
+                       created_by,
+                       created_at
+                from article_versions
+                where article_id = ?
+                order by version_no desc, id desc
+                """,
+                (rs, rowNum) -> mapArticleVersion(rs),
+                id);
+    }
+
+    // 管理员读取单个历史版本，确保版本属于指定文章。
+    @Override
+    public ArticleVersionVO getVersion(Long articleId, Long versionId) {
+        requiredArticle(articleId);
+        return requiredVersion(articleId, versionId);
+    }
+
+    // 恢复历史版本只覆盖版本表记录的字段，保留当前分类、标签、封面、可见性和 URL 标识。
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ArticleVO restoreVersion(Long articleId, Long versionId, Long operatorId) {
+        ArticleEntity article = requiredArticle(articleId);
+        ArticleVersionVO version = requiredVersion(articleId, versionId);
+        article.setTitle(version.title());
+        article.setSummary(version.summary());
+        article.setContentMarkdown(version.contentMarkdown());
+        article.setUpdatedBy(operatorId);
+        articleMapper.updateEditableArticle(article);
+        insertVersionSnapshot(article, operatorId);
+        return toVO(article, true);
     }
 
     // 查询公开文章列表，支持关键字和标签筛选。
@@ -424,46 +467,42 @@ public class ArticleServiceImpl implements ArticleService {
     public ArticleNeighborsVO getPublicNeighbors(String slug) {
         String normalizedSlug = normalizeSlug(slug);
         List<ArticleNeighborIds> ids = jdbcTemplate.query("""
-                        select previous_id, next_id
-                        from (
-                            select id,
-                                   slug,
-                                   lead(id) over (
-                                       order by is_top desc, publish_time desc nulls last, id desc
-                                   ) as previous_id,
-                                   lag(id) over (
-                                       order by is_top desc, publish_time desc nulls last, id desc
-                                   ) as next_id
-                            from articles
-                            where status = ?
-                              and privacy_type = ?
-                        ) ranked_articles
-                        where slug = ?
-                        """,
+                select previous_id, next_id
+                from (
+                    select id,
+                           slug,
+                           lead(id) over (
+                               order by is_top desc, publish_time desc nulls last, id desc
+                           ) as previous_id,
+                           lag(id) over (
+                               order by is_top desc, publish_time desc nulls last, id desc
+                           ) as next_id
+                    from articles
+                    where status = ?
+                      and privacy_type = ?
+                ) ranked_articles
+                where slug = ?
+                """,
                 (rs, rowNum) -> new ArticleNeighborIds(
                         nullableLong(rs, "previous_id"),
-                        nullableLong(rs, "next_id")
-                ),
+                        nullableLong(rs, "next_id")),
                 ContentConstants.STATUS_PUBLISHED,
                 ContentConstants.PRIVACY_PUBLIC,
-                normalizedSlug
-        );
+                normalizedSlug);
         if (ids.isEmpty()) {
             throw BusinessException.notFound("文章不存在或不可见");
         }
         ArticleNeighborIds neighborIds = ids.getFirst();
         return new ArticleNeighborsVO(
                 publicNeighborById(neighborIds.previousId()),
-                publicNeighborById(neighborIds.nextId())
-        );
+                publicNeighborById(neighborIds.nextId()));
     }
 
     // 自增文章阅读量，同步更新 articles 表和 content_statistics 表。
     private void incrementViewCount(Long articleId) {
         jdbcTemplate.update(
                 "update articles set view_count = view_count + 1, updated_at = now() where id = ?",
-                articleId
-        );
+                articleId);
         jdbcTemplate.update("""
                 insert into content_statistics (target_type, target_id, view_count, last_viewed_at, updated_at)
                 values ('ARTICLE', ?, 1, now(), now())
@@ -472,8 +511,7 @@ public class ArticleServiceImpl implements ArticleService {
                     last_viewed_at = now(),
                     updated_at = now()
                 """,
-                articleId
-        );
+                articleId);
     }
 
     private ArticleVO publicNeighborById(Long id) {
@@ -501,13 +539,14 @@ public class ArticleServiceImpl implements ArticleService {
 
     // 提交审核时检查文章内容是否包含敏感词。
     private void ensureArticleContentAllowed(ArticleEntity article) {
-        String combined = (article.getTitle() + " " + article.getSummary() + " " + article.getContentMarkdown()).toLowerCase();
+        String combined = (article.getTitle() + " " + article.getSummary() + " " + article.getContentMarkdown())
+                .toLowerCase();
         List<String> words = jdbcTemplate.query("""
-                        select word, match_type, severity
-                        from sensitive_words
-                        where enabled = true and severity = 'REJECT'
-                        order by id
-                        """,
+                select word, match_type, severity
+                from sensitive_words
+                where enabled = true and severity = 'REJECT'
+                order by id
+                """,
                 (rs, rowNum) -> rs.getString("word") + "|" + rs.getString("match_type"));
         for (String entry : words) {
             String[] parts = entry.split("\\|", 2);
@@ -517,7 +556,8 @@ public class ArticleServiceImpl implements ArticleService {
                 case "EXACT" -> combined.contains(word.toLowerCase());
                 case "REGEX" -> {
                     try {
-                        yield java.util.regex.Pattern.compile(word, java.util.regex.Pattern.CASE_INSENSITIVE).matcher(combined).find();
+                        yield java.util.regex.Pattern.compile(word, java.util.regex.Pattern.CASE_INSENSITIVE)
+                                .matcher(combined).find();
                     } catch (java.util.regex.PatternSyntaxException e) {
                         yield true;
                     }
@@ -532,7 +572,8 @@ public class ArticleServiceImpl implements ArticleService {
 
     // 确认内容标识未被占用。
     private void ensureSlugAvailable(String slug, Long ignoredId) {
-        LambdaQueryWrapper<ArticleEntity> query = new LambdaQueryWrapper<ArticleEntity>().eq(ArticleEntity::getSlug, slug);
+        LambdaQueryWrapper<ArticleEntity> query = new LambdaQueryWrapper<ArticleEntity>().eq(ArticleEntity::getSlug,
+                slug);
         if (ignoredId != null) {
             query.ne(ArticleEntity::getId, ignoredId);
         }
@@ -549,6 +590,41 @@ public class ArticleServiceImpl implements ArticleService {
             throw BusinessException.notFound("文章不存在");
         }
         return article;
+    }
+
+    private ArticleVersionVO requiredVersion(Long articleId, Long versionId) {
+        List<ArticleVersionVO> versions = jdbcTemplate.query("""
+                select id,
+                       article_id,
+                       version_no,
+                       title,
+                       summary,
+                       content_markdown,
+                       created_by,
+                       created_at
+                from article_versions
+                where article_id = ?
+                  and id = ?
+                """,
+                (rs, rowNum) -> mapArticleVersion(rs),
+                articleId,
+                versionId);
+        if (versions.isEmpty()) {
+            throw BusinessException.notFound("文章版本不存在");
+        }
+        return versions.getFirst();
+    }
+
+    private ArticleVersionVO mapArticleVersion(ResultSet rs) throws SQLException {
+        return new ArticleVersionVO(
+                rs.getLong("id"),
+                rs.getLong("article_id"),
+                rs.getInt("version_no"),
+                rs.getString("title"),
+                rs.getString("summary"),
+                rs.getString("content_markdown"),
+                nullableLong(rs, "created_by"),
+                rs.getObject("created_at", OffsetDateTime.class));
     }
 
     // 校验文章分类存在且属于文章模块，避免把数据库外键异常暴露给接口调用方。
@@ -591,8 +667,37 @@ public class ArticleServiceImpl implements ArticleService {
         }
     }
 
+    // 保存文章快照到历史版本表，便于后台查看版本轨迹。
+    private void insertVersionSnapshot(ArticleEntity article, Long createdBy) {
+        Integer nextVersionNo = jdbcTemplate.queryForObject("""
+                select coalesce(max(version_no), 0) + 1
+                from article_versions
+                where article_id = ?
+                """,
+                Integer.class,
+                article.getId());
+        jdbcTemplate.update("""
+                insert into article_versions (
+                    article_id,
+                    version_no,
+                    title,
+                    summary,
+                    content_markdown,
+                    created_by
+                )
+                values (?, ?, ?, ?, ?, ?)
+                """,
+                article.getId(),
+                nextVersionNo == null ? 1 : nextVersionNo,
+                article.getTitle(),
+                article.getSummary(),
+                article.getContentMarkdown(),
+                createdBy);
+    }
+
     // 将请求中可编辑字段写回实体。
-    private void applyEditableFields(ArticleEntity article, ArticleCreateRequest request, String slug, String privacyType) {
+    private void applyEditableFields(ArticleEntity article, ArticleCreateRequest request, String slug,
+            String privacyType) {
         article.setTitle(request.title().trim());
         article.setSlug(slug);
         article.setSummary(blankToNull(request.summary()));
@@ -649,8 +754,7 @@ public class ArticleServiceImpl implements ArticleService {
                 authorBio,
                 entity.getSubmittedAt(),
                 entity.getReviewedAt(),
-                entity.getReviewNote()
-        );
+                entity.getReviewNote());
     }
 
     // 查询必须属于当前创作者的文章。

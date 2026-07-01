@@ -12,6 +12,7 @@ export default defineConfig(({ mode }) => {
   const envDir = fileURLToPath(new URL('..', import.meta.url))
   const env = loadEnv(mode, envDir, '')
   const apiTarget = env.VITE_API_PROXY_TARGET || env.API_BASE_URL || 'http://127.0.0.1:8080'
+  const devServerHost = env.VITE_DEV_SERVER_HOST || '127.0.0.1'
 
   return {
     envDir,
@@ -22,7 +23,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
-      host: '127.0.0.1',
+      host: devServerHost,
       port: readNumber(env.VITE_DEV_SERVER_PORT, 5173),
       proxy: {
         '/api': {

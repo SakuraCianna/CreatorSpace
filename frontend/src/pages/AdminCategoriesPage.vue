@@ -1,10 +1,6 @@
 <template>
   <section class="cms-page">
-    <header class="cms-header">
-      <div>
-        <h2>分类管理</h2>
-        <p>维护文章、作品和灵感模块的内容分类。</p>
-      </div>
+    <AdminPageHeader title="分类管理" description="维护文章、作品和灵感模块的内容分类。" theme="orange">
       <div class="module-tabs" role="tablist" aria-label="分类模块">
         <button
           v-for="item in moduleOptions"
@@ -16,7 +12,7 @@
           {{ item.label }}
         </button>
       </div>
-    </header>
+    </AdminPageHeader>
 
     <section class="cms-grid">
       <form class="cms-panel form-panel" @submit.prevent="saveCategory">
@@ -84,6 +80,7 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
+import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
 
 import {
   createCategory,
@@ -209,19 +206,6 @@ function moduleLabel(module: CategorySummary['module']) {
   gap: 18px;
 }
 
-.cms-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 22px 24px;
-}
-
-.cms-header p {
-  margin: 8px 0 0;
-  color: var(--admin-muted);
-  font-size: 14px;
-}
 
 .module-tabs button {
   min-height: 36px;
@@ -261,14 +245,8 @@ function moduleLabel(module: CategorySummary['module']) {
 }
 
 @media (max-width: 1020px) {
-  .cms-header,
   .cms-grid {
     grid-template-columns: 1fr;
-  }
-
-  .cms-header {
-    align-items: flex-start;
-    flex-direction: column;
   }
 }
 

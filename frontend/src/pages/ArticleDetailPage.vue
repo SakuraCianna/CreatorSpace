@@ -1,23 +1,19 @@
 <template>
-<!-- 文章详情长文阅读页面 -->
-<!-- 文章详情浏览排版布局 -->
   <section ref="root" class="detail-page">
     <RouterLink class="detail-back text-link" :to="{ name: 'articles' }" data-reveal>
       <ArrowLeft :size="16" />
       返回文章档案
     </RouterLink>
-
     <div v-if="isLoading" class="empty-state detail-state" data-reveal>
       <LoaderCircle class="spin" :size="24" />
       <h2>正在打开文章</h2>
     </div>
     <div v-else-if="article" class="reading-layout">
-      <article class="detail-panel" data-reveal>
+      <article class="detail-panel">
         <header class="detail-hero" :style="articleCoverStyle">
           <p class="page-kicker">{{ article.category?.name ?? 'Creator Journal' }}</p>
           <h1>{{ article.title }}</h1>
           <p v-if="article.summary" class="detail-summary">{{ article.summary }}</p>
-          <!-- 文章标题区与作者元信息 -->
             <div class="detail-meta">
             <span><CalendarDays :size="15" />{{ formatDate(article.publishTime) }}</span>
             <span><Eye :size="15" />公开阅读</span>
@@ -27,9 +23,7 @@
             <span v-for="tag in article.tags" :key="tag.id">#{{ tag.name }}</span>
           </div>
         </header>
-
         <div class="markdown-body" v-html="htmlContent" />
-
         <nav v-if="previousArticle || nextArticle" class="article-neighbors" aria-label="上一篇和下一篇文章">
           <RouterLink
             v-if="previousArticle"
@@ -155,7 +149,6 @@
     </div>
   </section>
 </template>
-
 <script setup lang="ts">
 // 引入状态生命周期钩子和相关组件
 import { computed, onMounted, ref, watch } from 'vue'
@@ -174,7 +167,6 @@ import {
   UserPlus,
   UserRound,
 } from '@lucide/vue'
-
 import {
   fetchArticleNeighbors,
   fetchArticleBySlug,
@@ -196,7 +188,6 @@ import { buildCommentTree } from '@/shared/domain'
 import CommentThread from '@/shared/components/CommentThread.vue'
 import { normalizeMarkdownSource, renderSafeMarkdown } from '@/shared/markdown'
 import { useSessionStore } from '@/shared/sessionStore'
-
 // 初始化文章数据与交互控制状态
 const route = useRoute()
 const root = ref<HTMLElement | null>(null)
@@ -218,7 +209,6 @@ const { liked, favorited, loadStatus: loadInteractionStatus, toggleLike, toggleF
 const { following, isFriend, loadStatus: loadFollowStatus, toggleFollow } = useFollow()
 
 usePageReveal(root)
-
 const canComment = computed(() => Boolean(session.accessToken))
 const canFollowAuthor = computed(() => {
   if (!canComment.value || !article.value?.authorId) return false
@@ -231,7 +221,6 @@ const articleCoverStyle = computed(() => ({
   '--detail-accent': article.value?.tags[0]?.color ?? '#6ea8ff',
   '--detail-cover': toCssImageUrl(article.value?.coverUrl),
 }))
-
 // 依据路由 slug 标识读取文章全量详情数据, 渲染完成后加载关联评论并播放电影式页面入场显影动效
 async function loadArticle() {
   if (!slug.value) {
@@ -240,7 +229,6 @@ async function loadArticle() {
     isLoading.value = false
     return
   }
-
   isLoading.value = true
   notice.value = ''
   comments.value = []
@@ -268,7 +256,6 @@ async function loadArticle() {
     void cinematic.play()
   }
 }
-
 // 向后端异步获取针对本文章审核通过的已公开评论反馈列表
 async function loadComments(options: { keepCurrentNotice?: boolean } = {}) {
   if (!article.value?.id) {
@@ -289,7 +276,6 @@ async function loadComments(options: { keepCurrentNotice?: boolean } = {}) {
     }
   }
 }
-
 // 提交用户对本文章的观点评论或指定楼层的回复, 校验完成后清空输入框并刷新评论流列表
 async function postComment() {
   if (!canComment.value) {
@@ -321,12 +307,10 @@ async function postComment() {
       : toUserMessage(error, '评论提交失败')
   }
 }
-
 function replyTo(comment: CommentSummary) {
   replyTarget.value = comment
   commentDraft.value = ''
 }
-
 async function toggleCommentLike(comment: CommentSummary) {
   if (!canComment.value) return
   const liked = commentLiked.value[comment.id]
@@ -346,7 +330,6 @@ async function toggleCommentLike(comment: CommentSummary) {
     console.error('toggleCommentLike error:', e)
   }
 }
-
 async function loadCommentLikes() {
   if (!canComment.value || comments.value.length === 0) return
   const ids = comments.value.map(c => c.id)
@@ -357,9 +340,12 @@ async function loadCommentLikes() {
     commentLiked.value = {}
   }
 }
-
 function cancelReply() {
   replyTarget.value = null
+}
+
+function commentInitial(username: string): string {
+  return username.trim().slice(0, 1).toUpperCase() || 'U'
 }
 
 function readRouteParam(value: string | string[] | undefined): string {
@@ -368,33 +354,34 @@ function readRouteParam(value: string | string[] | undefined): string {
   }
   return value ?? ''
 }
-
 function formatDate(value?: string | null): string {
   return formatDateToDay(value)
+}
+
+function scrollToHeading(title: string) {
+  const headings = Array.from(root.value?.querySelectorAll<HTMLHeadingElement>('.markdown-body h2') ?? [])
+  const target = headings.find((heading) => heading.textContent?.trim() === title)
+  target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 onMounted(loadArticle)
 watch(slug, loadArticle)
 </script>
-
 <style scoped>
 .detail-page {
   display: grid;
   gap: var(--theme-density-spacing, 16px);
   padding: 46px 0 84px;
 }
-
 .detail-back {
   justify-self: start;
 }
-
 .reading-layout {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--theme-density-spacing, 16px);
   align-items: start;
 }
-
 .detail-panel {
   position: relative;
   overflow: hidden;
@@ -406,7 +393,6 @@ watch(slug, loadArticle)
   box-shadow: var(--tone-shadow);
   backdrop-filter: blur(22px);
 }
-
 .detail-panel::before {
   content: "";
   position: absolute;
@@ -417,12 +403,10 @@ watch(slug, loadArticle)
     linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent 22%);
   opacity: 0.72;
 }
-
 .detail-panel > * {
   position: relative;
   z-index: 1;
 }
-
 .detail-hero {
   position: relative;
   display: grid;
@@ -437,7 +421,6 @@ watch(slug, loadArticle)
   color: #f8fafc;
   overflow: hidden;
 }
-
 .detail-hero::before {
   content: "";
   position: absolute;
@@ -448,7 +431,6 @@ watch(slug, loadArticle)
     linear-gradient(180deg, transparent, rgba(6, 8, 18, 0.32));
   z-index: 0;
 }
-
 .detail-hero::after {
   content: "";
   position: absolute;
@@ -460,22 +442,20 @@ watch(slug, loadArticle)
   mix-blend-mode: screen;
   opacity: 0.38;
 }
-
 .detail-hero > * {
   position: relative;
   z-index: 1;
 }
-
 .detail-hero h1 {
   max-width: 860px;
   margin: 0;
+  color: inherit;
   font-size: clamp(34px, 4.4vw, 52px);
   font-weight: 860;
   line-height: 1.12;
   letter-spacing: 0;
   text-shadow: 0 16px 34px rgba(0, 0, 0, 0.42);
 }
-
 .detail-summary {
   max-width: 760px;
   margin: 0;
@@ -484,20 +464,17 @@ watch(slug, loadArticle)
   line-height: 1.74;
   text-shadow: 0 12px 28px rgba(0, 0, 0, 0.36);
 }
-
 .detail-hero .page-kicker,
 .detail-hero .detail-meta,
 .detail-hero .tag-row {
   text-shadow: 0 10px 24px rgba(0, 0, 0, 0.38);
 }
-
 .detail-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   align-items: center;
 }
-
 .detail-meta span {
   display: inline-flex;
   align-items: center;
@@ -508,30 +485,25 @@ watch(slug, loadArticle)
   font-size: 13px;
   font-weight: 720;
 }
-
 .detail-hero .detail-meta span {
   border: 1px solid rgba(255, 255, 255, 0.16);
   background: rgba(6, 8, 18, 0.42);
   color: rgba(248, 250, 252, 0.86);
 }
-
 .detail-hero .tag-row span {
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: rgba(255, 255, 255, 0.14);
   color: #ffffff;
 }
-
 .detail-actions {
   padding: 0 48px;
 }
-
 .markdown-body {
   display: block;
   padding: clamp(32px, 4vw, 54px);
   color: var(--tone-ink);
   background: color-mix(in srgb, var(--tone-panel-solid) 72%, transparent);
 }
-
 .markdown-body :deep(h1),
 .markdown-body :deep(h2),
 .markdown-body :deep(h3) {
@@ -539,17 +511,14 @@ watch(slug, loadArticle)
   color: var(--tone-ink);
   line-height: 1.24;
 }
-
 .markdown-body :deep(h1:first-child),
 .markdown-body :deep(h2:first-child),
 .markdown-body :deep(h3:first-child) {
   margin-top: 0;
 }
-
 .markdown-body :deep(h2) {
   font-size: 28px;
 }
-
 .markdown-body :deep(p),
 .markdown-body :deep(li),
 .markdown-body :deep(blockquote) {
@@ -558,7 +527,6 @@ watch(slug, loadArticle)
   font-size: 17px;
   line-height: 1.86;
 }
-
 .markdown-body :deep(blockquote) {
   padding: 16px 18px;
   border: 1px solid color-mix(in srgb, var(--tone-teal) 20%, transparent);
@@ -566,12 +534,10 @@ watch(slug, loadArticle)
   border-radius: 8px;
   background: rgba(0, 124, 114, 0.07);
 }
-
 .markdown-body :deep(a) {
   color: var(--tone-primary);
   font-weight: 720;
 }
-
 .markdown-body :deep(code:not(pre code)) {
   padding: 2px 6px;
   border-radius: 6px;
@@ -579,14 +545,12 @@ watch(slug, loadArticle)
   color: #0b57d0;
   font-size: 0.92em;
 }
-
 .markdown-body :deep(pre) {
   max-width: 100%;
   overflow-x: auto;
   border-radius: 8px;
   margin: 18px 0;
 }
-
 .article-neighbors {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -594,7 +558,6 @@ watch(slug, loadArticle)
   padding: 0 clamp(32px, 4vw, 54px) clamp(32px, 4vw, 54px);
   background: color-mix(in srgb, var(--tone-panel-solid) 72%, transparent);
 }
-
 .article-neighbor {
   display: grid;
   gap: 8px;
@@ -606,11 +569,9 @@ watch(slug, loadArticle)
   color: var(--tone-ink);
   text-decoration: none;
 }
-
 .article-neighbor--next {
   text-align: right;
 }
-
 .article-neighbor span {
   display: inline-flex;
   align-items: center;
@@ -619,17 +580,18 @@ watch(slug, loadArticle)
   font-size: 12px;
   font-weight: 800;
 }
-
 .article-neighbor--next span {
   justify-content: flex-end;
 }
-
 .article-neighbor strong {
   font-size: 17px;
   line-height: 1.36;
 }
 
-.author-card {
+.author-card,
+.reading-aside {
+  position: sticky;
+  top: 100px;
   display: grid;
   gap: 12px;
   padding: calc(var(--theme-density-spacing, 16px) * 1.125);
@@ -689,6 +651,7 @@ watch(slug, loadArticle)
   width: 100%;
 }
 
+.toc-card,
 .reaction-card,
 .comments-card {
   border: 1px solid var(--tone-line);
@@ -700,8 +663,18 @@ watch(slug, loadArticle)
   backdrop-filter: blur(18px);
 }
 
+.toc-card,
 .reaction-card {
   padding: calc(var(--theme-density-spacing, 16px) * 1.125);
+}
+.toc-card {
+  display: grid;
+  gap: 10px;
+}
+.toc-card a,
+.toc-card span {
+  color: var(--tone-muted);
+  font-size: 14px;
 }
 
 .reaction-card {
@@ -710,12 +683,10 @@ watch(slug, loadArticle)
   align-items: center;
   gap: 12px;
 }
-
 .reaction-card .icon-button {
   flex: 1;
   justify-content: center;
 }
-
 .reaction-card .icon-button.is-liked {
   color: #e0455a;
   background: rgba(224, 69, 90, 0.1);
@@ -724,7 +695,6 @@ watch(slug, loadArticle)
   stroke: #e0455a;
   fill: #e0455a;
 }
-
 .reaction-card .icon-button.is-favorited {
   color: var(--tone-violet);
   background: rgba(103, 80, 164, 0.1);
@@ -733,7 +703,6 @@ watch(slug, loadArticle)
   stroke: var(--tone-violet);
   fill: var(--tone-violet);
 }
-
 .comment-action-btn.is-active {
   color: #e0455a;
 }
@@ -741,31 +710,26 @@ watch(slug, loadArticle)
   stroke: #e0455a;
   fill: #e0455a;
 }
-
 .comments-card {
   display: grid;
   gap: var(--theme-density-spacing, 16px);
   padding: calc(var(--theme-density-spacing, 16px) * 1.125);
 }
-
 .comments-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
 }
-
 .comments-head span {
   color: var(--tone-faint);
   font-size: 12px;
   font-weight: 720;
 }
-
 .comment-form {
   display: grid;
   gap: 10px;
 }
-
 .comment-form textarea {
   width: 100%;
   min-height: 112px;
@@ -780,13 +744,11 @@ watch(slug, loadArticle)
   line-height: 1.65;
   transition: border-color var(--transition-time, 180ms) ease, box-shadow var(--transition-time, 180ms) ease, background var(--transition-time, 180ms) ease;
 }
-
 .comment-form textarea:focus {
   border-color: color-mix(in srgb, var(--tone-primary) 48%, var(--tone-line-strong));
   background: var(--tone-panel-solid);
   box-shadow: 0 0 0 4px rgba(11, 87, 208, 0.08);
 }
-
 .comment-form__footer {
   display: flex;
   flex-wrap: wrap;
@@ -794,16 +756,96 @@ watch(slug, loadArticle)
   justify-content: space-between;
   gap: 10px;
 }
-
 .comment-form__footer span {
   color: var(--tone-faint);
   font-size: 12px;
   line-height: 1.5;
 }
-
 .comment-list {
   display: grid;
+  gap: 10px;
+}
+.comment-item {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px;
+  margin-left: calc(var(--depth, 0) * 20px);
+  border: 1px solid color-mix(in srgb, var(--tone-line) 76%, transparent);
+  border-radius: var(--app-radius-sm, 8px);
+  background: color-mix(in srgb, var(--tone-panel-solid) 72%, transparent);
+}
+.comment-item[style*="--depth: 1"],
+.comment-item[style*="--depth: 2"],
+.comment-item[style*="--depth: 3"],
+.comment-item[style*="--depth: 4"] {
+  background: rgba(0, 0, 0, 0.02);
+}
+.comment-avatar {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tone-primary) 12%, #ffffff);
+  color: var(--tone-primary);
+  font-size: 13px;
+  font-weight: 820;
+}
+.comment-reply-to {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 2px 0 4px;
+  font-size: 12px;
+  color: var(--tone-ink-2);
+}
+.comment-content {
+  min-width: 0;
+}
+.comment-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.comment-header strong {
+  color: var(--tone-ink);
+  font-size: 14px;
+}
+.comment-time {
+  color: var(--tone-faint);
+  font-size: 12px;
+}
+.comment-body {
+  margin: 4px 0 6px;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.comment-actions {
+  display: flex;
+  align-items: center;
   gap: 12px;
+}
+.comment-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border: none;
+  background: transparent;
+  color: var(--tone-muted);
+  cursor: pointer;
+  font-size: 12px;
+}
+.comment-action-btn:hover {
+  color: var(--tone-primary);
+}
+.comment-likes {
+  color: var(--tone-faint);
+  font-size: 12px;
 }
 
 .reply-hint {
@@ -818,7 +860,6 @@ watch(slug, loadArticle)
   font-size: 13px;
   color: var(--tone-muted);
 }
-
 .comment-empty {
   display: grid;
   gap: 4px;
@@ -827,55 +868,48 @@ watch(slug, loadArticle)
   border-radius: var(--app-radius-sm, 8px);
   background: color-mix(in srgb, var(--tone-panel-solid) 46%, transparent);
 }
-
 .comment-empty strong {
   color: var(--tone-ink);
   font-size: 14px;
 }
-
 .comment-empty span {
   color: var(--tone-muted);
   font-size: 13px;
 }
-
 @media (max-width: 1020px) {
   .reading-layout {
     grid-template-columns: 1fr;
   }
 
-    .article-neighbors {
+  .reading-aside {
+    position: static;
+  }
+  .article-neighbors {
     grid-template-columns: 1fr;
   }
-
   .article-neighbor--next {
     text-align: left;
   }
-
   .article-neighbor--next span {
     justify-content: flex-start;
   }
 }
-
 @media (max-width: 760px) {
   .detail-page {
     padding-top: 26px;
   }
-
   .detail-hero {
     padding: 22px;
   }
-
   .detail-hero h1 {
     font-size: 32px;
   }
-
   .detail-actions,
   .markdown-body {
     padding-right: 24px;
     padding-left: 24px;
   }
 }
-
 @media (max-width: 520px) {
   .detail-hero h1 {
     font-size: 28px;

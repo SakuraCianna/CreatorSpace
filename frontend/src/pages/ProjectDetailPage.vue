@@ -1,19 +1,15 @@
 <template>
-<!-- 作品详情页面布局外壳 -->
-<!-- 作品详情页排版布局 -->
   <section ref="root" class="detail-page">
     <RouterLink class="detail-back text-link" :to="{ name: 'projects' }" data-reveal>
       <ArrowLeft :size="16" />
       返回作品展厅
     </RouterLink>
-
     <div v-if="isLoading" class="empty-state detail-state" data-reveal>
       <LoaderCircle class="spin" :size="24" />
       <h2>正在调取作品档案</h2>
     </div>
-
     <div v-else-if="project" class="project-record">
-      <article class="detail-panel" data-reveal>
+      <article class="detail-panel">
         <header class="detail-hero project-hero" :style="projectCoverStyle">
           <div class="detail-hero__copy">
             <p class="page-kicker">{{ project.projectType }}</p>
@@ -36,19 +32,15 @@
             <span v-else>{{ project.projectType.slice(0, 2) }}</span>
           </div>
         </header>
-
         <section class="stats-strip" aria-label="作品互动数据">
           <span><Eye :size="16" />{{ formatCount(project.viewCount) }} 阅读</span>
           <span><Heart :size="16" />{{ formatCount(project.likeCount) }} 喜欢</span>
           <span><Bookmark :size="16" />{{ formatCount(project.favoriteCount) }} 收藏</span>
           <span><MessageCircle :size="16" />{{ formatCount(project.commentCount) }} 评论</span>
         </section>
-
-        <!-- 技术栈展示区块 -->
         <section class="project-stack" aria-label="技术栈">
           <span v-for="tech in project.techStack" :key="tech">{{ tech }}</span>
         </section>
-
         <section class="detail-actions" aria-label="作品链接">
           <a v-if="safeDemoUrl" class="button button-filled" :href="safeDemoUrl" target="_blank" rel="noreferrer">
             <ExternalLink :size="16" />
@@ -63,7 +55,6 @@
             视频记录
           </a>
         </section>
-
         <section class="project-extras" aria-label="作品扩展资料">
           <div class="extra-block">
             <div class="section-heading">
@@ -91,7 +82,6 @@
             </div>
             <p v-else class="extra-empty">后端接入 screenshots、images 或 projectImages 字段后会在这里展示多图。</p>
           </div>
-
           <div class="extra-block">
             <div class="section-heading">
               <p class="page-kicker">Milestones</p>
@@ -107,7 +97,6 @@
             </ol>
             <p v-else class="extra-empty">后端接入 timeline、milestones 或 processNotes 字段后会替换侧栏的基础档案结构。</p>
           </div>
-
           <div class="extra-block">
             <div class="section-heading">
               <p class="page-kicker">Resources</p>
@@ -130,7 +119,6 @@
             </RouterLink>
           </div>
         </section>
-
         <div class="markdown-body" v-html="htmlContent" />
         <section class="side-card comments-card">
           <p class="page-kicker">Comments</p>
@@ -181,18 +169,15 @@
           <p v-else class="comment-empty">还没有公开评论。</p>
           <p v-if="commentNotice" class="inline-notice">{{ commentNotice }}</p>
         </section>
-
         <p v-if="notice" class="inline-notice">{{ notice }}</p>
       </article>
     </div>
-
     <div v-else class="empty-state detail-state" data-reveal>
       <h2>没有找到这个作品</h2>
       <p>{{ notice || '它可能还没有公开展示。' }}</p>
     </div>
   </section>
 </template>
-
 <script setup lang="ts">
 // 导入所需的组件和 Vue 钩子
 import { computed, onMounted, ref, watch } from 'vue'
@@ -211,7 +196,6 @@ import {
   PlayCircle,
   Sparkles,
 } from '@lucide/vue'
-
 import {
   favoriteTarget,
   fetchCommentReactionsBatch,
@@ -234,13 +218,11 @@ import { buildCommentTree } from '@/shared/domain'
 import CommentThread from '@/shared/components/CommentThread.vue'
 import { renderSafeMarkdown } from '@/shared/markdown'
 import { useSessionStore } from '@/shared/sessionStore'
-
 interface DetailScreenshot {
   imageUrl: string
   caption: string
   sortOrder: number
 }
-
 interface DetailTimelineItem {
   phase: string
   title: string
@@ -248,21 +230,18 @@ interface DetailTimelineItem {
   date: string
   sortOrder: number
 }
-
 interface DetailResourceLink {
   label: string
   url: string
   kind: string
   sortOrder: number
 }
-
 interface ProjectDetailExtras {
   screenshots: DetailScreenshot[]
   timeline: DetailTimelineItem[]
   resources: DetailResourceLink[]
   relatedArticleSlug: string
 }
-
 // 声明页面的各类交互控制状态变量
 const route = useRoute()
 const root = ref<HTMLElement | null>(null)
@@ -282,42 +261,30 @@ const brokenScreenshotUrls = ref(new Set<string>())
 const slug = computed(() => readRouteParam(route.params.slug))
 const session = useSessionStore()
 const cinematic = useCinematicPageMotion(root)
-
 usePageReveal(root)
-
 // 检查用户是否具备发表评论和互动的权限, 即本地缓存中是否存在有效的访问令牌
 const canComment = computed(() => Boolean(session.accessToken))
-
 // 将作品的 Markdown 描述正文或简介通过 DOMPurify 净化转译为安全的 HTML 结构以防 XSS 攻击
 const htmlContent = computed(() => renderSafeMarkdown(project.value?.contentMarkdown ?? project.value?.description))
-
 // 过滤并规范化外部演示链接, 防止包含恶意脚本的 URL 协议注入
 const safeDemoUrl = computed(() => safeExternalUrl(project.value?.demoUrl))
-
 // 过滤并规范化 GitHub 源码仓库链接, 保障前台跳转安全
 const safeGithubUrl = computed(() => safeExternalUrl(project.value?.githubUrl))
-
 // 过滤并规范化视频记录地址链接, 确保视频展位数据来源合法
 const safeVideoUrl = computed(() => safeExternalUrl(project.value?.videoUrl))
-
 // 动态生成作品详情页的主题封面样式, 提取作品首个标签颜色作为主调色, 并映射封面图到 CSS 变量
 const projectCoverStyle = computed(() => ({
   '--detail-accent': project.value?.tags[0]?.color ?? '#6d3fd2',
   '--detail-cover': toCssImageUrl(project.value?.coverUrl),
 }))
-
 // 从后端返回的作品对象中反序列化并读取截图、时间线以及扩展链接等 JSON 附加属性
 const detailExtras = computed(() => readProjectExtras(project.value))
-
 // 优先采用后端存储的自定义里程碑时间线, 若不存在则调用本地函数稳定生成基础三阶段侧栏档案
 const timeline = computed(() => detailExtras.value.timeline.length ? detailExtras.value.timeline : buildTimeline(project.value))
-
 // 合并常规的演示、代码、视频链接与后端自定义配置的扩展链接列表, 并去除重复项
 const resourceLinks = computed(() => buildResourceLinks(project.value, detailExtras.value.resources))
-
 const projectCoverSrc = computed(() => project.value?.coverUrl?.trim() ?? '')
 const showProjectCover = computed(() => Boolean(projectCoverSrc.value) && !coverImageFailed.value)
-
 // 主函数: 根据路由参数中的唯一 slug 标识向后端获取作品的全部详情数据, 并在就绪后拉取评论列表并播放入场动效
 async function loadProject() {
   if (!slug.value) {
@@ -326,7 +293,6 @@ async function loadProject() {
     isLoading.value = false
     return
   }
-
   isLoading.value = true
   notice.value = ''
   comments.value = []
@@ -346,7 +312,6 @@ async function loadProject() {
     void cinematic.play()
   }
 }
-
 // 异步加载当前作品绑定的已通过审核的评论列表, 并根据传参决定是否保留已有的提示信息
 async function loadComments(options: { keepCurrentNotice?: boolean } = {}) {
   if (!project.value?.id) {
@@ -368,7 +333,6 @@ async function loadComments(options: { keepCurrentNotice?: boolean } = {}) {
     }
   }
 }
-
 // 提交用户对作品的想法评论或指定楼层的回复, 校验输入内容并在提交成功后重置输入框并刷新评论队列
 async function postComment() {
   if (!canComment.value) {
@@ -400,7 +364,6 @@ async function postComment() {
       : toUserMessage(error, '评论提交失败')
   }
 }
-
 // 切换当前登录用户对该作品的点赞状态, 实现即时喜欢与取消喜欢, 并更新页面响应状态
 async function toggleLike() {
   if (!project.value?.id || !canComment.value) return
@@ -418,7 +381,6 @@ async function toggleLike() {
     commentNotice.value = '操作失败，请重试'
   }
 }
-
 async function toggleFavorite() {
   if (!project.value?.id || !canComment.value) return
   try {
@@ -469,15 +431,12 @@ function replyTo(comment: CommentSummary) {
   replyTarget.value = comment
   commentDraft.value = ''
 }
-
 function cancelReply() {
   replyTarget.value = null
 }
-
 function markScreenshotBroken(imageUrl: string) {
   brokenScreenshotUrls.value = new Set([...brokenScreenshotUrls.value, imageUrl])
 }
-
 function buildTimeline(value: ProjectSummary | null): DetailTimelineItem[] {
   if (!value) {
     return []
@@ -507,7 +466,6 @@ function buildTimeline(value: ProjectSummary | null): DetailTimelineItem[] {
     },
   ]
 }
-
 function readProjectExtras(value: ProjectSummary | null): ProjectDetailExtras {
   const record = readRecord(value)
   return {
@@ -526,7 +484,6 @@ function readProjectExtras(value: ProjectSummary | null): ProjectDetailExtras {
     relatedArticleSlug: readRelatedArticleSlug(record),
   }
 }
-
 function buildResourceLinks(value: ProjectSummary | null, extras: DetailResourceLink[]): DetailResourceLink[] {
   if (!value) {
     return extras
@@ -545,7 +502,6 @@ function buildResourceLinks(value: ProjectSummary | null, extras: DetailResource
     return true
   })
 }
-
 function readScreenshot(value: unknown, index: number): DetailScreenshot | null {
   if (typeof value === 'string') {
     const imageUrl = safeAssetUrl(value)
@@ -567,7 +523,6 @@ function readScreenshot(value: unknown, index: number): DetailScreenshot | null 
     sortOrder: readNumber(record.sortOrder, index),
   }
 }
-
 function readTimelineItem(value: unknown, index: number): DetailTimelineItem | null {
   if (typeof value === 'string') {
     return { phase: String(index + 1).padStart(2, '0'), title: '记录', body: value, date: '', sortOrder: index }
@@ -586,7 +541,6 @@ function readTimelineItem(value: unknown, index: number): DetailTimelineItem | n
     sortOrder: readNumber(record.sortOrder, index),
   }
 }
-
 function readResourceLink(value: unknown, index: number): DetailResourceLink | null {
   const record = readRecord(value)
   const url = safeExternalUrl(readString(record.url) || readString(record.href))
@@ -600,7 +554,6 @@ function readResourceLink(value: unknown, index: number): DetailResourceLink | n
     sortOrder: readNumber(record.sortOrder, index),
   }
 }
-
 function readRelatedArticleSlug(record: Record<string, unknown>): string {
   const direct = readString(record.relatedArticleSlug)
   if (direct) {
@@ -609,27 +562,21 @@ function readRelatedArticleSlug(record: Record<string, unknown>): string {
   const article = readRecord(record.relatedArticle)
   return readString(article.slug)
 }
-
 function readRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
 }
-
 function readArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : []
 }
-
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
 }
-
 function readNumber(value: unknown, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback
 }
-
 function bySortOrder(left: { sortOrder: number }, right: { sortOrder: number }): number {
   return left.sortOrder - right.sortOrder
 }
-
 function statusLabel(status: ProjectStatus): string {
   const labels: Record<ProjectStatus, string> = {
     DRAFT: '草稿',
@@ -641,22 +588,18 @@ function statusLabel(status: ProjectStatus): string {
   }
   return labels[status] ?? status
 }
-
 function formatDate(value?: string | null): string {
   return formatMonthDay(value, '刚刚')
 }
-
 function formatCount(value?: number | null): string {
   return new Intl.NumberFormat('zh-CN', { notation: 'compact' }).format(value ?? 0)
 }
-
 function readRouteParam(value: string | string[] | undefined): string {
   if (Array.isArray(value)) {
     return value[0] ?? ''
   }
   return value ?? ''
 }
-
 function safeExternalUrl(value?: string | null): string {
   if (!value) {
     return ''
@@ -668,7 +611,6 @@ function safeExternalUrl(value?: string | null): string {
     return ''
   }
 }
-
 function safeAssetUrl(value?: string | null): string {
   const raw = value?.trim() ?? ''
   if (!raw) {
@@ -679,29 +621,24 @@ function safeAssetUrl(value?: string | null): string {
   }
   return safeExternalUrl(raw)
 }
-
 onMounted(loadProject)
 watch(slug, loadProject)
 </script>
-
 <style scoped>
 .detail-page {
   display: grid;
   gap: var(--theme-density-spacing, 16px);
   padding: 46px 0 84px;
 }
-
 .detail-back {
   justify-self: start;
 }
-
 .project-record {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--theme-density-spacing, 16px);
   align-items: start;
 }
-
 .detail-panel,
 .side-card {
   border: 1px solid var(--tone-line);
@@ -712,11 +649,9 @@ watch(slug, loadProject)
   box-shadow: var(--tone-shadow);
   backdrop-filter: blur(22px);
 }
-
 .detail-panel {
   overflow: hidden;
 }
-
 .detail-hero {
   position: relative;
   display: grid;
@@ -733,12 +668,10 @@ watch(slug, loadProject)
   background-size: cover;
   color: #f8fafc;
 }
-
 .detail-hero .page-kicker {
   color: #78a7ff;
   text-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
 }
-
 .detail-hero::before {
   content: "";
   position: absolute;
@@ -750,17 +683,14 @@ watch(slug, loadProject)
   clip-path: polygon(0 0, calc(100% - 40px) 0, 100% 40px, 100% 100%, 40px 100%, 0 calc(100% - 40px));
   pointer-events: none;
 }
-
 .detail-hero > * {
   position: relative;
   z-index: 1;
 }
-
 .detail-hero__copy {
   display: grid;
   gap: 14px;
 }
-
 .detail-hero h1 {
   max-width: 820px;
   margin: 0;
@@ -770,7 +700,6 @@ watch(slug, loadProject)
   line-height: 1.04;
   text-shadow: 0 18px 38px rgba(0, 0, 0, 0.62);
 }
-
 .detail-summary {
   max-width: 760px;
   margin: 0;
@@ -778,14 +707,12 @@ watch(slug, loadProject)
   font-size: 17px;
   line-height: 1.74;
 }
-
 .detail-meta,
 .stats-strip {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
 }
-
 .detail-meta span,
 .stats-strip span {
   display: inline-flex;
@@ -797,13 +724,11 @@ watch(slug, loadProject)
   font-size: 13px;
   font-weight: 740;
 }
-
 .detail-meta span {
   border: 1px solid rgba(255, 255, 255, 0.16);
   background: rgba(6, 8, 18, 0.42);
   color: rgba(248, 250, 252, 0.88);
 }
-
 .hero-cover {
   display: grid;
   width: 260px;
@@ -818,29 +743,24 @@ watch(slug, loadProject)
     rgba(255, 255, 255, 0.1);
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.24);
 }
-
 .hero-cover img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-
 .hero-cover span {
   color: rgba(248, 251, 255, 0.82);
   font-size: 44px;
   font-weight: 900;
   text-shadow: 0 14px 36px rgba(0, 0, 0, 0.34);
 }
-
 .stats-strip {
   padding: 18px clamp(24px, 4vw, 48px) 0;
 }
-
 .stats-strip span {
   background: rgba(49, 91, 255, 0.08);
   color: var(--tone-muted);
 }
-
 .project-stack,
 .detail-actions {
   display: flex;
@@ -848,7 +768,6 @@ watch(slug, loadProject)
   gap: 8px;
   padding: 18px clamp(24px, 4vw, 48px) 0;
 }
-
 .project-stack span {
   padding: 6px 10px;
   border-radius: 6px;
@@ -857,44 +776,37 @@ watch(slug, loadProject)
   font-size: 12px;
   font-weight: 740;
 }
-
 .project-extras {
   display: grid;
   gap: 4px;
   padding: 24px clamp(24px, 4vw, 48px) 0;
 }
-
 .extra-block {
   display: grid;
   gap: 14px;
   padding: 18px 0;
   border-top: 1px solid var(--tone-line);
 }
-
 .section-heading {
   display: grid;
   gap: 6px;
 }
-
 .section-heading h2 {
   margin: 0;
   color: var(--tone-ink);
   font-size: 24px;
   line-height: 1.18;
 }
-
 .screenshot-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
-
 .screenshot-grid figure {
   display: grid;
   gap: 8px;
   margin: 0;
 }
-
 .screenshot-grid img {
   width: 100%;
   aspect-ratio: 16 / 10;
@@ -902,7 +814,6 @@ watch(slug, loadProject)
   border-radius: 8px;
   object-fit: cover;
 }
-
 .screenshot-placeholder {
   display: grid;
   width: 100%;
@@ -916,17 +827,14 @@ watch(slug, loadProject)
     color-mix(in srgb, var(--tone-panel-solid) 76%, transparent);
   color: var(--tone-primary);
 }
-
 .screenshot-placeholder span {
   font-size: 28px;
   font-weight: 860;
 }
-
 .screenshot-grid figcaption {
   color: var(--tone-muted);
   font-size: 13px;
 }
-
 .extra-empty {
   margin: 0;
   padding: 14px 16px;
@@ -937,7 +845,6 @@ watch(slug, loadProject)
   font-size: 13px;
   line-height: 1.62;
 }
-
 .milestone-list {
   display: grid;
   gap: 10px;
@@ -945,7 +852,6 @@ watch(slug, loadProject)
   padding: 0;
   list-style: none;
 }
-
 .milestone-list li {
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr) auto;
@@ -954,39 +860,32 @@ watch(slug, loadProject)
   padding: 12px 0;
   border-bottom: 1px solid var(--tone-line);
 }
-
 .milestone-list li:last-child {
   border-bottom: 0;
 }
-
 .milestone-list span {
   color: var(--tone-primary);
   font-size: 12px;
   font-weight: 860;
 }
-
 .milestone-list strong {
   color: var(--tone-ink);
 }
-
 .milestone-list time {
   color: var(--tone-faint);
   font-size: 12px;
 }
-
 .milestone-list p {
   grid-column: 2 / -1;
   margin: 0;
   color: var(--tone-muted);
   line-height: 1.62;
 }
-
 .resource-list {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
-
 .resource-list a {
   display: grid;
   gap: 8px;
@@ -998,31 +897,25 @@ watch(slug, loadProject)
   background: color-mix(in srgb, var(--tone-panel-solid) 58%, transparent);
   color: var(--tone-ink);
 }
-
 .resource-list svg {
   color: var(--tone-primary);
 }
-
 .resource-list span {
   font-weight: 760;
 }
-
 .resource-list small {
   color: var(--tone-faint);
   font-size: 12px;
 }
-
 .related-link {
   justify-self: start;
 }
-
 .markdown-body {
   display: grid;
   gap: var(--theme-density-spacing, 18px);
   padding: 34px clamp(24px, 4vw, 48px) 52px;
   color: var(--tone-ink);
 }
-
 .markdown-body :deep(h1),
 .markdown-body :deep(h2),
 .markdown-body :deep(h3) {
@@ -1030,11 +923,9 @@ watch(slug, loadProject)
   color: var(--tone-ink);
   line-height: 1.18;
 }
-
 .markdown-body :deep(h2) {
   font-size: 30px;
 }
-
 .markdown-body :deep(p),
 .markdown-body :deep(li),
 .markdown-body :deep(blockquote) {
@@ -1043,38 +934,32 @@ watch(slug, loadProject)
   font-size: 16px;
   line-height: 1.88;
 }
-
 .markdown-body :deep(blockquote) {
   padding: 14px 18px;
   border-left: 4px solid var(--tone-teal);
   background: rgba(0, 124, 114, 0.08);
 }
-
 .markdown-body :deep(pre) {
   max-width: 100%;
   overflow-x: auto;
   border-radius: 8px;
 }
-
 .process-panel {
   position: sticky;
   top: 100px;
   display: grid;
   gap: 12px;
 }
-
 .side-card {
   display: grid;
   gap: 12px;
   padding: 18px;
 }
-
 .side-card h2 {
   margin: 0;
   color: var(--tone-ink);
   font-size: 22px;
 }
-
 .timeline-list {
   display: grid;
   gap: 14px;
@@ -1082,39 +967,33 @@ watch(slug, loadProject)
   padding: 0;
   list-style: none;
 }
-
 .timeline-list li {
   display: grid;
   gap: 6px;
   padding-left: 14px;
   border-left: 3px solid var(--tone-primary);
 }
-
 .timeline-list span {
   color: var(--tone-faint);
   font-size: 12px;
   font-weight: 800;
 }
-
 .timeline-list strong {
   color: var(--tone-ink);
   font-size: 14px;
 }
-
 .timeline-list p {
   margin: 0;
   color: var(--tone-muted);
   font-size: 13px;
   line-height: 1.62;
 }
-
 .reaction-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
 }
-
 .reaction-row .icon-button {
   flex: 1;
   justify-content: center;
@@ -1130,12 +1009,10 @@ watch(slug, loadProject)
   cursor: pointer;
   font-size: 13px;
 }
-
 .reaction-row .icon-button:disabled {
   cursor: not-allowed;
   opacity: 0.58;
 }
-
 .reaction-row .icon-button.is-liked {
   color: #e0455a;
   background: rgba(224, 69, 90, 0.1);
@@ -1145,7 +1022,6 @@ watch(slug, loadProject)
   stroke: #e0455a;
   fill: #e0455a;
 }
-
 .reaction-row .icon-button.is-favorited {
   color: var(--tone-violet);
   background: rgba(103, 80, 164, 0.1);
@@ -1156,11 +1032,18 @@ watch(slug, loadProject)
   fill: var(--tone-violet);
 }
 
+.comment-action-btn.is-active {
+  color: #e0455a;
+}
+.comment-action-btn.is-active svg {
+  stroke: #e0455a;
+  fill: #e0455a;
+}
+
 .comment-form {
   display: grid;
   gap: 10px;
 }
-
 .comment-form textarea {
   width: 100%;
   min-height: 112px;
@@ -1172,12 +1055,61 @@ watch(slug, loadProject)
   color: var(--tone-ink);
   line-height: 1.6;
 }
-
 .comment-list {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
+.comment-reply-to {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 2px 0 4px;
+  font-size: 12px;
+  color: var(--tone-ink-2);
+}
+.comment-item {
+  display: grid;
+  gap: 6px;
+  margin-left: calc(var(--depth, 0) * 16px);
+  padding: 12px;
+  border: 1px solid var(--tone-line);
+  border-radius: var(--app-radius-sm, 8px);
+  background: color-mix(in srgb, var(--tone-panel-solid) 62%, transparent);
+}
+.comment-header,
+.comment-actions,
+.reply-hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.comment-header strong {
+  color: var(--tone-ink);
+  font-size: 14px;
+}
+.comment-time,
+.comment-likes {
+  color: var(--tone-faint);
+  font-size: 12px;
+}
+.comment-body {
+  margin: 0;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.comment-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+  border: none;
+  background: transparent;
+  color: var(--tone-muted);
+  cursor: pointer;
+  font-size: 12px;
 
+}
 .reply-hint {
   display: flex;
   align-items: center;
@@ -1189,13 +1121,11 @@ watch(slug, loadProject)
   color: var(--tone-muted);
   font-size: 13px;
 }
-
 .comment-empty {
   margin: 0;
   color: var(--tone-muted);
   font-size: 14px;
 }
-
 .inline-notice {
   margin: 0;
   padding: 10px 12px;
@@ -1205,33 +1135,27 @@ watch(slug, loadProject)
   font-size: 13px;
   line-height: 1.55;
 }
-
 @media (max-width: 1020px) {
   .project-record,
   .detail-hero {
     grid-template-columns: 1fr;
   }
-
   .process-panel {
     position: static;
   }
 }
-
 @media (max-width: 760px) {
   .detail-page {
     padding-top: 26px;
   }
-
   .hero-cover {
     width: 100%;
   }
-
   .screenshot-grid,
   .resource-list,
   .milestone-list li {
     grid-template-columns: 1fr;
   }
-
   .milestone-list p {
     grid-column: 1;
   }

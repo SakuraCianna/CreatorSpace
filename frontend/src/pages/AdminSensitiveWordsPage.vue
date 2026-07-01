@@ -1,15 +1,11 @@
 <template>
   <section ref="root" class="admin-module">
-    <header class="module-hero" data-reveal>
-      <div>
-        <h2>敏感词管理</h2>
-        <p>新增、编辑、启用或禁用敏感词规则。评论和留言提交时自动匹配并处理。</p>
-      </div>
+    <AdminPageHeader title="敏感词管理" description="新增、编辑、启用或禁用敏感词规则。评论和留言提交时自动匹配并处理。" theme="rose">
       <button class="button button-filled" type="button" @click="startAdd">
         <Plus :size="16" />
         新增敏感词
       </button>
-    </header>
+    </AdminPageHeader>
 
     <form v-if="editingId !== null" class="workspace-grid" data-reveal @submit.prevent="saveWord">
       <div class="workspace-panel admin-form">
@@ -89,6 +85,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { Plus } from '@lucide/vue'
+import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
 import BaseSelect from '@/shared/components/BaseSelect.vue'
 
 import {
@@ -235,39 +232,6 @@ async function removeWord(id: number) {
 </script>
 
 <style scoped>
-.module-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 16px;
-  min-height: 152px;
-  padding: 24px 28px;
-  border: 1px solid var(--tone-line);
-  border-radius: var(--app-radius-sm);
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.58)),
-    radial-gradient(circle at 16% 20%, rgba(49, 91, 255, 0.14), transparent 34%),
-    radial-gradient(circle at 88% 18%, rgba(0, 124, 114, 0.16), transparent 28%),
-    linear-gradient(120deg, rgba(49, 91, 255, 0.08), rgba(194, 95, 58, 0.08), rgba(0, 124, 114, 0.1));
-  box-shadow: var(--tone-shadow);
-}
-
-.module-hero h2 {
-  max-width: 830px;
-  margin: 0;
-  color: var(--tone-ink);
-  font-size: 32px;
-  font-weight: 860;
-  line-height: 1.16;
-}
-
-.module-hero p {
-  max-width: 680px;
-  margin: 10px 0 0;
-  color: var(--tone-muted);
-  font-size: 14px;
-  line-height: 1.65;
-}
 
 .admin-module {
   display: grid;
@@ -470,21 +434,12 @@ async function removeWord(id: number) {
 }
 
 @media (max-width: 1020px) {
-  .module-hero,
   .workspace-grid {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 760px) {
-  .module-hero {
-    align-items: flex-start;
-    padding: 18px;
-  }
-
-  .module-hero h2 {
-    font-size: 28px;
-  }
 
   .panel-title {
     align-items: flex-start;

@@ -23,6 +23,8 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
@@ -50,6 +52,7 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
             (byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
             0x00, 0x00, 0x00, 0x00
     };
+    private static final String TEST_UPLOAD_ROOT = "target/test-uploads";
 
     @Container
     private static final PostgreSQLContainer POSTGRES = createPostgres("creatorspace_content_test");
@@ -65,7 +68,7 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
         registry.add("spring.data.redis.host", REDIS::getHost);
         registry.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));
         registry.add("spring.data.redis.password", () -> "");
-        registry.add("app.storage.local-root", () -> "target/test-uploads");
+        registry.add("app.storage.local-root", () -> TEST_UPLOAD_ROOT);
     }
 
     @Autowired
@@ -365,6 +368,80 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
         mockMvc.perform(get("/api/admin/articles/{id}", articleId)
                         .header("Authorization", bearer(token)))
                 .andExpect(status().isNotFound());
+    }
+
+    // 验证后台可以查看文章版本详情，并恢复到指定版本。
+    @Test
+    void adminCanViewAndRestoreArticleVersions() throws Exception {
+        String token = loginAsAdmin();
+        long categoryId = createCategory(token, "ARTICLE", "Article Version Category", "article-version-category");
+        long tagId = createTag(token, "Article Version Tag", "article-version-tag");
+
+        String createResponse = mockMvc.perform(post("/api/admin/articles")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "title", "Original Version Title",
+                                "slug", "article-version-restore",
+                                "summary", "Original version summary",
+                                "contentMarkdown", "Original version content",
+                                "categoryId", categoryId,
+                                "tagIds", new long[]{tagId},
+                                "privacyType", "PUBLIC"
+                        ))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        long articleId = dataId(createResponse);
+
+        mockMvc.perform(put("/api/admin/articles/{id}", articleId)
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "title", "Updated Version Title",
+                                "slug", "article-version-restore-updated",
+                                "summary", "Updated version summary",
+                                "contentMarkdown", "Updated version content",
+                                "categoryId", categoryId,
+                                "tagIds", new long[]{tagId},
+                                "privacyType", "PUBLIC"
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.slug", is("article-version-restore-updated")));
+
+        String versionsResponse = mockMvc.perform(get("/api/admin/articles/{id}/versions", articleId)
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(2)))
+                .andExpect(jsonPath("$.data[0].versionNo", is(2)))
+                .andExpect(jsonPath("$.data[1].versionNo", is(1)))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        JsonNode firstVersion = objectMapper.readTree(versionsResponse).path("data").get(1);
+        long firstVersionId = firstVersion.path("id").asLong();
+
+        mockMvc.perform(get("/api/admin/articles/{articleId}/versions/{versionId}", articleId, firstVersionId)
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.title", is("Original Version Title")))
+                .andExpect(jsonPath("$.data.contentMarkdown", is("Original version content")));
+
+        mockMvc.perform(put("/api/admin/articles/{articleId}/versions/{versionId}/restore", articleId, firstVersionId)
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.title", is("Original Version Title")))
+                .andExpect(jsonPath("$.data.slug", is("article-version-restore-updated")))
+                .andExpect(jsonPath("$.data.summary", is("Original version summary")))
+                .andExpect(jsonPath("$.data.contentMarkdown", is("Original version content")));
+
+        mockMvc.perform(get("/api/admin/articles/{id}/versions", articleId)
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(3)))
+                .andExpect(jsonPath("$.data[0].versionNo", is(3)))
+                .andExpect(jsonPath("$.data[0].title", is("Original Version Title")));
     }
 
     // 验证普通用户创建作品、提交审核和管理员通过后游客可读取。
@@ -914,13 +991,25 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                         .header("Authorization", bearer(adminToken)))
                 .andExpect(status().isOk());
 
+        // Add a sensitive word to trigger REVIEW
+        mockMvc.perform(post("/api/admin/sensitive-words")
+                        .header("Authorization", bearer(adminToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "word", "需要审核",
+                                "matchType", "CONTAINS",
+                                "severity", "REVIEW",
+                                "enabled", true
+                        ))))
+                .andExpect(status().isOk());
+
         String commentResponse = mockMvc.perform(post("/api/comments")
                         .header("Authorization", bearer(userToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(Map.of(
                                 "targetType", "ARTICLE",
                                 "targetId", articleId,
-                                "content", "这篇文章的结构很清楚。"
+                                "content", "这篇文章的结构很清楚。需要审核"
                         ))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status", is("PENDING")))
@@ -945,7 +1034,7 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                         .param("targetId", String.valueOf(articleId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.records", hasSize(1)))
-                .andExpect(jsonPath("$.data.records[0].content", is("这篇文章的结构很清楚。")));
+                .andExpect(jsonPath("$.data.records[0].content", is("这篇文章的结构很清楚。需要审核")));
     }
 
     // 验证回复只有审核通过后才进入公开回复数，驳回已通过回复会回退计数。
@@ -997,6 +1086,18 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                         .header("Authorization", bearer(adminToken)))
                 .andExpect(status().isOk());
 
+        // Add a sensitive word to trigger REVIEW
+        mockMvc.perform(post("/api/admin/sensitive-words")
+                        .header("Authorization", bearer(adminToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "word", "待审核的回复",
+                                "matchType", "CONTAINS",
+                                "severity", "REVIEW",
+                                "enabled", true
+                        ))))
+                .andExpect(status().isOk());
+
         String replyResponse = mockMvc.perform(post("/api/comments")
                         .header("Authorization", bearer(userToken))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -1004,7 +1105,7 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                                 "targetType", "ARTICLE",
                                 "targetId", articleId,
                                 "parentId", parentId,
-                                "content", "这是一条等待审核的回复。"
+                                "content", "这是一条待审核的回复。"
                         ))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status", is("PENDING")))
@@ -1459,6 +1560,62 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
                 .andExpect(jsonPath("$.data.operationLogs").doesNotExist());
     }
 
+    // 验证未被引用的文件资源可以删除，数据库记录和本地文件会同步清理。
+    @Test
+    void adminCanDeleteUnreferencedFileResource() throws Exception {
+        String token = loginAsAdmin();
+        String uploadResponse = uploadAdminPng(token, "delete-free.png");
+        JsonNode file = objectMapper.readTree(uploadResponse).path("data");
+        long fileId = file.path("id").asLong();
+        Path storedFile = uploadedTestFile(file);
+
+        assertThat(Files.exists(storedFile)).isTrue();
+
+        mockMvc.perform(delete("/api/admin/files/{id}", fileId)
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)));
+
+        Long count = jdbcTemplate.queryForObject(
+                "select count(*) from file_resources where id = ?",
+                Long.class,
+                fileId
+        );
+        assertThat(count).isZero();
+        assertThat(Files.exists(storedFile)).isFalse();
+    }
+
+    // 验证已被引用的文件资源会拒绝删除，避免破坏文章、作品、主题等内容中的资源链接。
+    @Test
+    void adminCannotDeleteReferencedFileResource() throws Exception {
+        String token = loginAsAdmin();
+        String uploadResponse = uploadAdminPng(token, "delete-referenced.png");
+        JsonNode file = objectMapper.readTree(uploadResponse).path("data");
+        long fileId = file.path("id").asLong();
+        Path storedFile = uploadedTestFile(file);
+
+        jdbcTemplate.update("""
+                        insert into file_resource_references (file_id, target_type, target_id, usage_type)
+                        values (?, 'ARTICLE', 999999, 'CONTENT')
+                        """,
+                fileId
+        );
+
+        mockMvc.perform(delete("/api/admin/files/{id}", fileId)
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.message", is("文件资源已被内容引用，不能删除")));
+
+        Long count = jdbcTemplate.queryForObject(
+                "select count(*) from file_resources where id = ?",
+                Long.class,
+                fileId
+        );
+        assertThat(count).isOne();
+        assertThat(Files.exists(storedFile)).isTrue();
+    }
+
     // 验证后台导航配置拒绝协议相对 URL，避免把 //evil.example 当作站内路径。
     @Test
     void adminSiteSettingsRejectsProtocolRelativeNavigationPath() throws Exception {
@@ -1612,6 +1769,47 @@ class ContentApiIntegrationTests extends PostgresIntegrationTestSupport {
         JsonNode first = objectMapper.readTree(response).path("data").get(0);
         assertThat(first.path("id").isNumber()).isTrue();
         return first.path("id").asLong();
+    }
+
+    // 上传测试 PNG 并返回接口响应。
+    private String uploadAdminPng(String token, String originalName) throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                originalName,
+                "image/png",
+                PNG_BYTES
+        );
+        return mockMvc.perform(multipart("/api/admin/files/upload")
+                        .file(file)
+                        .param("module", "OTHER")
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+    }
+
+    // Resolve test upload files with the same project-root rule used by FileResourceController.
+    private Path uploadedTestFile(JsonNode file) {
+        return resolveFromProjectRoot(TEST_UPLOAD_ROOT)
+                .resolve(file.path("relativePath").asText())
+                .normalize();
+    }
+
+    private Path resolveFromProjectRoot(String value) {
+        Path configured = Path.of(value);
+        if (configured.isAbsolute()) {
+            return configured.normalize();
+        }
+        Path cwd = Path.of("").toAbsolutePath().normalize();
+        if (cwd.getFileName() != null && "backend".equalsIgnoreCase(cwd.getFileName().toString())) {
+            Path parent = cwd.getParent();
+            if (parent != null) {
+                return parent.resolve(configured).normalize();
+            }
+        }
+        return cwd.resolve(configured).normalize();
     }
 
     // 从接口响应中读取 data.id。

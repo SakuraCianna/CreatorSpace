@@ -5,6 +5,7 @@ import com.creatorspace.common.result.PageResponse;
 import com.creatorspace.module.article.dto.ArticleCreateRequest;
 import com.creatorspace.module.article.service.ArticleService;
 import com.creatorspace.module.article.vo.ArticleNeighborsVO;
+import com.creatorspace.module.article.vo.ArticleVersionVO;
 import com.creatorspace.module.article.vo.ArticleVO;
 import com.creatorspace.security.LoginUser;
 import jakarta.servlet.http.HttpServletRequest;
@@ -119,6 +120,31 @@ public class ArticleController {
     @GetMapping("/api/admin/articles/{id}")
     public ApiResponse<ArticleVO> getAdmin(@PathVariable Long id) {
         return ApiResponse.ok(articleService.getAdminById(id));
+    }
+
+    // 管理员读取文章历史版本列表。
+    @GetMapping("/api/admin/articles/{id}/versions")
+    public ApiResponse<java.util.List<ArticleVersionVO>> listVersions(@PathVariable Long id) {
+        return ApiResponse.ok(articleService.listVersions(id));
+    }
+
+    // 管理员读取单个文章历史版本。
+    @GetMapping("/api/admin/articles/{articleId}/versions/{versionId}")
+    public ApiResponse<ArticleVersionVO> getVersion(
+            @PathVariable Long articleId,
+            @PathVariable Long versionId
+    ) {
+        return ApiResponse.ok(articleService.getVersion(articleId, versionId));
+    }
+
+    // 管理员将文章正文恢复到指定历史版本。
+    @PutMapping("/api/admin/articles/{articleId}/versions/{versionId}/restore")
+    public ApiResponse<ArticleVO> restoreVersion(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable Long articleId,
+            @PathVariable Long versionId
+    ) {
+        return ApiResponse.ok(articleService.restoreVersion(articleId, versionId, loginUser.userId()));
     }
 
     // 管理员更新文章内容。

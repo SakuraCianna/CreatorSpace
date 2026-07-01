@@ -20,7 +20,6 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 /**
  * 后台接口认证和授权配置。
@@ -55,26 +54,26 @@ public class SecurityConfig {
                         .requestMatchers("/api/health", "/actuator/health").permitAll()
                         .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers("/api/auth/register", "/api/auth/login", "/api/admin/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
-                        .requestMatchers(
-                                AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/articles/**"),
-                                AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/projects/**")
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/articles/**",
+                                "/api/projects/**"
                         ).permitAll()
-                        .requestMatchers(
-                                AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/inspirations/**"),
-                                AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/search"),
-                                AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/users/**")
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/inspirations/**",
+                                "/api/search",
+                                "/api/users/**"
                         ).permitAll()
-                        .requestMatchers(AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/comments")).permitAll()
-                        .requestMatchers(
-                                AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/site/config"),
-                                AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/site/statistics/summary"),
-                                AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/theme/current"),
-                                AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/themes")
+                        .requestMatchers(HttpMethod.GET, "/api/comments").permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/site/config",
+                                "/api/site/statistics/summary",
+                                "/api/theme/current",
+                                "/api/themes"
                         ).permitAll()
-                        .requestMatchers(
-                                AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/categories"),
-                                AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/tags"),
-                                AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/api/tags/recommended")
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/categories",
+                                "/api/tags",
+                                "/api/tags/recommended"
                         ).permitAll()
                         .requestMatchers("/api/creator/**", "/api/me/**").hasAnyRole("USER", "ADMIN")
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")

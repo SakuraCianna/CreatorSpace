@@ -1,11 +1,6 @@
 <template>
   <section ref="root" class="my-comments-page">
-    <header class="archive-hero page-hero" data-reveal>
-      <div>
-        <p class="page-kicker">My Comments</p>
-        <h1>我的评论</h1>
-      </div>
-    </header>
+    <PublicPageHeader title="我的评论" description="查看和管理我在所有文章下的评论与互动记录。" kicker="MY COMMENTS" theme="blue" />
 
     <div v-if="isLoading" class="empty-state">
       <LoaderCircle class="spin" :size="24" />
@@ -66,6 +61,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import PublicPageHeader from '@/components/common/PublicPageHeader.vue'
 import { BookOpen, Images, LoaderCircle } from '@lucide/vue'
 
 import { fetchMyComments } from '@/services/content'

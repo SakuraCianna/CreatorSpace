@@ -44,7 +44,7 @@ class AdminOperationAuditInterceptorTests {
                 eq("ARTICLE"),
                 eq(42L),
                 eq(request),
-                any(Map.class)
+                any()
         );
     }
 
@@ -69,8 +69,8 @@ class AdminOperationAuditInterceptorTests {
         interceptor.afterCompletion(themeRequest, response(200), null, null);
         interceptor.afterCompletion(siteRequest, response(200), null, null);
 
-        verify(operationLogService).record(any(), eq("\u5207\u6362\u4e3b\u9898"), eq("THEME"), eq("THEME"), eq(3L), eq(themeRequest), any(Map.class));
-        verify(operationLogService).record(any(), eq("\u66f4\u65b0\u7ad9\u70b9\u8bbe\u7f6e"), eq("SITE"), eq("SITE"), eq(null), eq(siteRequest), any(Map.class));
+        verify(operationLogService).record(any(), eq("\u5207\u6362\u4e3b\u9898"), eq("THEME"), eq("THEME"), eq(3L), eq(themeRequest), any());
+        verify(operationLogService).record(any(), eq("\u66f4\u65b0\u7ad9\u70b9\u8bbe\u7f6e"), eq("SITE"), eq("SITE"), eq(null), eq(siteRequest), any());
     }
 
     private HttpServletRequest request(String method, String path) {

@@ -53,7 +53,9 @@ export function useCinematicPageMotion(root: ScopeEl) {
   }
 
   onBeforeUnmount(() => {
-    context?.revert()
+    // We do not call context?.revert() here because it strips inline styles instantly,
+    // which causes a harsh flicker during Vue's out-in page transitions.
+    // The DOM nodes will be destroyed by Vue anyway.
     context = null
   })
 

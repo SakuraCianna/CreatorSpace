@@ -93,6 +93,17 @@ export interface ArticleSummary {
   reviewNote?: string | null
 }
 
+export interface ArticleVersionSummary {
+  id: number
+  articleId: number
+  versionNo: number
+  title: string
+  summary?: string | null
+  contentMarkdown: string
+  createdBy?: number | null
+  createdAt?: string | null
+}
+
 export interface ArticleNeighbors {
   previousArticle?: ArticleSummary | null
   nextArticle?: ArticleSummary | null

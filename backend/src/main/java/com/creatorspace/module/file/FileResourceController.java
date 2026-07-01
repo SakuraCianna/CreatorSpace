@@ -12,7 +12,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -153,6 +155,20 @@ public class FileResourceController {
         return ApiResponse.ok(listResources(module, page, pageSize, loginUser.userId()));
     }
 
+    // 管理员删除未被引用的本地文件资源。
+    @Transactional(rollbackFor = Exception.class)
+    @DeleteMapping("/api/admin/files/{id}")
+    public ApiResponse<Void> delete(@PathVariable Long id) {
+        FileResourceVO file = getFile(id);
+        long referenceCount = referenceCount(id);
+        if (referenceCount > 0) {
+            throw BusinessException.conflict("文件资源已被内容引用，不能删除");
+        }
+        jdbcTemplate.update("delete from file_resources where id = ?", id);
+        deleteStoredFileStrict(resolveStoredFile(file.relativePath()));
+        return ApiResponse.ok(null);
+    }
+
     private PageResponse<FileResourceVO> listResources(String module, long page, long pageSize, Long createdBy) {
         String normalizedModule = module == null || module.isBlank() ? "" : normalizeModule(module);
         List<Object> whereParams = new java.util.ArrayList<>();
@@ -209,6 +225,15 @@ public class FileResourceController {
                         """,
                 (rs, rowNum) -> toFile(rs),
                 id).stream().findFirst().orElseThrow(() -> BusinessException.notFound("文件资源不存在"));
+    }
+
+    private long referenceCount(Long id) {
+        Long count = jdbcTemplate.queryForObject(
+                "select count(*) from file_resource_references where file_id = ?",
+                Long.class,
+                id
+        );
+        return count == null ? 0 : count;
     }
 
     private ValidatedUpload validateFile(MultipartFile file, String originalName) {
@@ -321,6 +346,22 @@ public class FileResourceController {
         } catch (IOException ignored) {
             // 数据库失败后的文件清理是补偿动作，不能覆盖原始异常。
         }
+    }
+
+    private void deleteStoredFileStrict(Path target) {
+        try {
+            Files.deleteIfExists(target);
+        } catch (IOException exception) {
+            throw BusinessException.badRequest("文件删除失败，请稍后重试");
+        }
+    }
+
+    private Path resolveStoredFile(String relativePath) {
+        Path target = storageRoot.resolve(relativePath == null ? "" : relativePath).normalize();
+        if (!target.startsWith(storageRoot)) {
+            throw BusinessException.badRequest("文件路径不合法");
+        }
+        return target;
     }
 
     private Path resolveFromProjectRoot(String value) {

@@ -1,7 +1,6 @@
 <template>
-<!-- 后台指标数据概览面板 -->
   <section ref="root" class="admin-dashboard">
-    <!-- 核心数据度量网格 -->
+    <AdminPageHeader title="控制台概览" description="系统运行数据与业务指标总览。" theme="slate" />
     <div class="dashboard-grid">
       <article v-for="metric in overview.metrics" :key="metric.label" class="metric-card" data-reveal>
         <span>{{ metric.label }}</span>
@@ -9,7 +8,6 @@
         <p>{{ metric.note }}</p>
       </article>
     </div>
-
     <section class="workspace-grid">
       <div class="workspace-panel" data-reveal>
         <div class="panel-title">
@@ -19,10 +17,8 @@
           </div>
           <span>访问 {{ totalPv }} 次 · 搜索 {{ totalSearch }} 次</span>
         </div>
-        <!-- 近七日流量与搜索趋势图表卡片 -->
         <div ref="visitChartRef" class="visit-chart" aria-label="近七日访问与搜索趋势图" />
       </div>
-
       <div class="workspace-panel" data-reveal>
         <div class="panel-title">
           <div>
@@ -41,7 +37,6 @@
         <span v-if="overview.recentActivities.length === 0" class="empty-hint">暂无操作记录</span>
       </div>
     </section>
-
     <section class="workspace-grid workspace-grid--even">
       <div class="workspace-panel" data-reveal>
         <div class="panel-title">
@@ -72,7 +67,6 @@
         <span v-if="overview.hotProjects.length === 0" class="empty-hint">暂无热门作品</span>
       </div>
     </section>
-
     <section class="workspace-grid workspace-grid--even">
       <div class="workspace-panel" data-reveal>
         <div class="panel-title">
@@ -101,7 +95,6 @@
         </div>
       </div>
     </section>
-
     <p v-if="notice" class="inline-notice">{{ notice }}</p>
   </section>
 </template>
@@ -113,14 +106,14 @@ import { GridComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
-
+import * as echarts from 'echarts/core'
+import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
 import { fetchDashboardOverview } from '@/services/content'
 import { HttpError, toUserMessage } from '@/services/http'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import { formatDateTimeToSecond } from '@/shared/datetime'
 import type { DashboardOverview } from '@/shared/domain'
 import { useSessionStore } from '@/shared/sessionStore'
-
 const root = ref<HTMLElement | null>(null)
 const visitChartRef = ref<HTMLDivElement | null>(null)
 let visitChart: EChartsType | null = null
@@ -138,13 +131,10 @@ const overview = ref<DashboardOverview>(emptyOverview)
 const notice = ref('')
 const router = useRouter()
 const session = useSessionStore()
-
 use([BarChart, GridComponent, TooltipComponent, CanvasRenderer])
 usePageReveal(root)
-
 const totalPv = computed(() => overview.value.visitTrend.reduce((sum, item) => sum + item.pv, 0))
 const totalSearch = computed(() => overview.value.searchTrend.reduce((sum, item) => sum + item.pv, 0))
-
 // 获取并渲染后台概览统计数据
 // 向后端发起 API 请求获取总计访问、热门文章和热门作品等核心度量概览数据, 并渲染 ECharts 趋势图
 async function loadOverview() {
@@ -163,14 +153,12 @@ async function loadOverview() {
     notice.value = `后台概览接口暂不可用：${toUserMessage(error, '请稍后再试')}`
   }
 }
-
 function formatDay(value: string) {
   if (value.includes('-')) {
     return value.slice(5)
   }
   return value
 }
-
 // 使用 ECharts 配置并绘制访问和搜索趋势柱状图
 // 初始化并实例化 ECharts 图表, 绘制过去 7 日内的全站浏览量与搜索量的柱状趋势对比图
 function renderVisitChart() {
@@ -252,7 +240,6 @@ function renderVisitChart() {
 function resizeVisitChart() {
   visitChart?.resize()
 }
-
 watch(
   () => [overview.value.visitTrend, overview.value.searchTrend],
   () => {
@@ -260,7 +247,6 @@ watch(
   },
   { deep: true },
 )
-
 // 生命周期挂载时初始化图表并绑定大小缩放监听器
 onMounted(() => {
   loadOverview()
@@ -270,7 +256,6 @@ onMounted(() => {
     visitChartObserver.observe(visitChartRef.value)
   }
 })
-
 onBeforeUnmount(() => {
   window.removeEventListener('resize', resizeVisitChart)
   visitChartObserver?.disconnect()
@@ -279,59 +264,49 @@ onBeforeUnmount(() => {
   visitChart = null
 })
 </script>
-
 <style scoped>
 .admin-dashboard,
 .admin-module {
   display: grid;
   gap: 18px;
 }
-
 .dashboard-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
 }
-
 @media (min-width: 1200px) {
   .dashboard-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
-
 .metric-card {
   min-height: 112px;
   padding: 16px;
 }
-
 .metric-card span {
   font-weight: 720;
 }
-
 .metric-card strong {
   display: block;
   margin-top: 12px;
   font-size: 30px;
   line-height: 1;
 }
-
 .workspace-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
   gap: 14px;
   margin-top: 16px;
 }
-
 .workspace-grid--even {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
-
 .tag-picker {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
-
 .tag-picker .check-line {
   min-height: 34px;
   padding: 6px 10px;
@@ -342,23 +317,19 @@ onBeforeUnmount(() => {
   font-size: 12px;
   font-weight: 760;
 }
-
 .check-line {
   display: flex !important;
   grid-template-columns: none;
   align-items: center;
   gap: 10px;
 }
-
 .check-line input {
   width: 18px;
   min-height: 18px;
 }
-
 .panel-title h2 {
   font-size: 18px;
 }
-
 .theme-dot {
   display: inline-block;
   width: 12px;
@@ -368,7 +339,6 @@ onBeforeUnmount(() => {
   border-radius: 50%;
   vertical-align: -1px;
 }
-
 .comments-card {
   display: grid;
   gap: 12px;
@@ -378,36 +348,30 @@ onBeforeUnmount(() => {
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.72);
 }
-
 .comment-item {
   display: grid;
   gap: 4px;
   padding: 12px 0;
   border-top: 1px solid var(--tone-line);
 }
-
 .comment-item p {
   margin: 0;
 }
-
 .comment-item span,
 .comments-card > span {
   color: var(--tone-muted);
   font-size: 13px;
 }
-
 .visit-chart {
   width: 100%;
   height: 254px;
   min-height: 220px;
 }
-
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
-
 .summary-item {
   display: grid;
   gap: 4px;
@@ -415,22 +379,18 @@ onBeforeUnmount(() => {
   border-radius: 8px;
   background: rgba(49, 91, 255, 0.06);
 }
-
 .summary-item span {
   color: var(--tone-muted);
   font-size: 12px;
 }
-
 .summary-item strong {
   font-size: 24px;
   line-height: 1;
 }
-
 .empty-hint {
   color: var(--tone-muted);
   font-size: 13px;
 }
-
 .inline-notice {
   margin-top: 16px;
   padding: 12px 14px;
@@ -445,17 +405,14 @@ onBeforeUnmount(() => {
   .workspace-grid--even {
     grid-template-columns: 1fr;
   }
-
   .dashboard-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-
 @media (max-width: 760px) {
   .dashboard-grid {
     grid-template-columns: 1fr;
   }
-
   .panel-title {
     align-items: flex-start;
     flex-direction: column;
