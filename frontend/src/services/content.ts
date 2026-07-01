@@ -70,10 +70,10 @@ export async function registerUser(payload: RegisterPayload): Promise<UserSummar
 }
 
 // 发送注册验证码
-export async function sendRegisterCode(email: string): Promise<void> {
+export async function sendRegisterCode(email: string, hcaptchaToken: string): Promise<void> {
   await requestJson<ApiEnvelope<void>>('/api/auth/send-code', {
     method: 'POST',
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email, hcaptchaToken }),
   })
 }
 

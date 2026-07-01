@@ -11,7 +11,6 @@ public record RegisterRequest(
         @NotBlank @Size(min = 3, max = 64) String username,
         @NotBlank @Size(min = 6, max = 72) String password,
         @NotBlank @Email String email,
-        @NotBlank @Size(min = 6, max = 6) String verificationCode,
-        String hcaptchaToken
+        @NotBlank @Size(min = 6, max = 6) String verificationCode
 ) {
 }

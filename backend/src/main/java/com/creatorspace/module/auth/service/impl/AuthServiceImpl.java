@@ -79,9 +79,6 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public UserSummaryVO register(RegisterRequest request) {
-        if (!hCaptchaService.verify(request.hcaptchaToken())) {
-            throw BusinessException.badRequest("人机验证失败，请重试");
-        }
         String email = request.email().trim();
         if (!email.endsWith("@qq.com")) {
             throw BusinessException.badRequest("仅支持 QQ 邮箱注册");
@@ -261,7 +258,10 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public void sendVerificationCode(String email, String purpose) {
+    public void sendVerificationCode(String email, String hcaptchaToken, String purpose) {
+        if (!hCaptchaService.verify(hcaptchaToken)) {
+            throw BusinessException.badRequest("人机验证失败，请重试");
+        }
         emailVerificationService.sendCode(email, purpose);
     }
 

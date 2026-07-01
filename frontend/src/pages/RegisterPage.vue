@@ -35,6 +35,18 @@
             </div>
 
             <div class="input-group">
+              <label>验证码</label>
+              <div class="input-with-button">
+                <input v-model="form.verificationCode" type="text" placeholder="6位验证码" maxlength="6" />
+                <button type="button" class="send-code-btn" :disabled="isSendingCode || countdown > 0 || !hcaptchaToken || !form.email" @click="sendCode">
+                  <LoaderCircle v-if="isSendingCode" class="spin" :size="16" />
+                  <span v-else-if="countdown > 0">{{ countdown }}s 后重试</span>
+                  <span v-else>发送验证码</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="input-group">
               <label>密码</label>
               <div class="input-inner">
                 <input v-model="form.password" type="password" autocomplete="new-password" placeholder="至少 8 位，包含字母和数字" />
@@ -45,7 +57,7 @@
               <VueHcaptcha ref="hcaptchaRef" :sitekey="hcaptchaSiteKey" @verify="onVerify" @expired="onExpired" @error="onError" />
             </div>
 
-            <button class="submit-btn" :disabled="isSubmitting || !hcaptchaToken" type="submit">
+            <button class="submit-btn" :disabled="isSubmitting" type="submit">
               <LoaderCircle v-if="isSubmitting" class="spin" :size="18" />
               <span v-else>注册账号</span>
             </button>
@@ -66,11 +78,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch, onUnmounted } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { LoaderCircle, ShieldCheck } from '@lucide/vue'
 import VueHcaptcha from '@hcaptcha/vue3-hcaptcha'
-import { registerUser } from '@/services/content'
+import { registerUser, sendRegisterCode } from '@/services/content'
 import { HttpError, toUserMessage } from '@/services/http'
 import { normalizeAuthRedirect } from '@/shared/authRedirect'
 
@@ -80,11 +92,15 @@ const route = useRoute()
 const form = reactive({
   username: '',
   email: '',
+  verificationCode: '',
   password: '',
 })
 const message = ref('')
 const isSuccess = ref(false)
 const isSubmitting = ref(false)
+const isSendingCode = ref(false)
+const countdown = ref(0)
+let timer: number | undefined
 
 const loginRoute = computed(() => ({
   name: 'login',
@@ -107,19 +123,52 @@ function onError() {
   hcaptchaToken.value = ''
 }
 
-watch([() => form.username, () => form.email, () => form.password], () => {
+watch([() => form.username, () => form.email, () => form.password, () => form.verificationCode], () => {
   message.value = ''
   isSuccess.value = false
 })
 
-async function submitRegister() {
-  if (!form.username.trim() || !form.email.trim() || !form.password) {
-    message.value = '请填写完整的注册信息'
+async function sendCode() {
+  if (!form.email.trim()) {
+    message.value = '请先输入邮箱'
     isSuccess.value = false
     return
   }
   if (!hcaptchaToken.value) {
-    message.value = '请完成人机验证'
+    message.value = '请先完成人机验证'
+    isSuccess.value = false
+    return
+  }
+  isSendingCode.value = true
+  message.value = ''
+  isSuccess.value = false
+  try {
+    await sendRegisterCode(form.email.trim(), hcaptchaToken.value)
+    message.value = '验证码已发送，请查收'
+    isSuccess.value = true
+    countdown.value = 60
+    timer = window.setInterval(() => {
+      countdown.value--
+      if (countdown.value <= 0) {
+        clearInterval(timer)
+      }
+    }, 1000)
+    // Optional: reset hcaptcha so they have to verify again to resend
+    if (hcaptchaRef.value) hcaptchaRef.value.reset()
+    hcaptchaToken.value = ''
+  } catch (error) {
+    isSuccess.value = false
+    message.value = registerErrorMessage(error)
+    if (hcaptchaRef.value) hcaptchaRef.value.reset()
+    hcaptchaToken.value = ''
+  } finally {
+    isSendingCode.value = false
+  }
+}
+
+async function submitRegister() {
+  if (!form.username.trim() || !form.email.trim() || !form.password || !form.verificationCode.trim()) {
+    message.value = '请填写完整的注册信息'
     isSuccess.value = false
     return
   }
@@ -131,7 +180,7 @@ async function submitRegister() {
       username: form.username.trim(),
       email: form.email.trim(),
       password: form.password,
-      hcaptchaToken: hcaptchaToken.value,
+      verificationCode: form.verificationCode.trim(),
     })
     isSuccess.value = true
     message.value = '注册成功！正在跳转至登录页面...'
@@ -145,8 +194,6 @@ async function submitRegister() {
       })
     }, 1200)
   } catch (error) {
-    if (hcaptchaRef.value) hcaptchaRef.value.reset()
-    hcaptchaToken.value = ''
     isSuccess.value = false
     message.value = registerErrorMessage(error)
   } finally {
@@ -156,18 +203,22 @@ async function submitRegister() {
 
 function registerErrorMessage(error: unknown) {
   if (!(error instanceof HttpError)) {
-    return '注册失败，请稍后重试'
+    return '请求失败，请稍后重试'
   }
   if (error.status === 0) {
     return '无法连接到服务器，请检查网络'
   }
-  return error.backendMessage || toUserMessage(error, '注册失败')
+  return error.backendMessage || toUserMessage(error, '请求失败')
 }
 
 function readPublicRedirectPath() {
   const redirect = normalizeAuthRedirect(route.query.redirect, '/articles')
   return redirect.startsWith('/admin') ? '/articles' : redirect
 }
+
+onUnmounted(() => {
+  if (timer) clearInterval(timer)
+})
 </script>
 
 <style scoped>
@@ -177,10 +228,7 @@ function readPublicRedirectPath() {
   width: 100%;
   align-items: center;
   justify-content: center;
-  background-color: #f3f4f6;
-  background-image: url('@/assets/images/auth_page_bg.jpg');
-  background-size: cover;
-  background-position: center;
+  background: transparent;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   padding: 24px;
 }
@@ -246,11 +294,12 @@ function readPublicRedirectPath() {
   font-weight: 700;
   margin: 0 0 16px 0;
   letter-spacing: -1px;
+  color: #ffffff !important;
 }
 
 .left-content p {
   font-size: 15px;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.9) !important;
   margin: 0;
 }
 
@@ -326,6 +375,45 @@ function readPublicRedirectPath() {
   border-color: #6366f1;
   background: #ffffff;
   box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+}
+
+.input-with-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-with-button input {
+  padding-right: 120px;
+}
+
+.send-code-btn {
+  position: absolute;
+  right: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 6px;
+  background: #4f46e5;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: all 0.2s;
+}
+
+.send-code-btn:hover:not(:disabled) {
+  background: #4338ca;
+}
+
+.send-code-btn:disabled {
+  background: #e5e7eb;
+  color: #9ca3af;
+  cursor: not-allowed;
 }
 
 .hcaptcha-wrapper {

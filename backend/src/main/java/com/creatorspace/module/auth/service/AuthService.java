@@ -18,7 +18,7 @@ public interface AuthService {
 
     void logout(String refreshToken);
 
-    void sendVerificationCode(String email, String purpose);
+    void sendVerificationCode(String email, String hcaptchaToken, String purpose);
 
     void resetPassword(ResetPasswordRequest request);
 }

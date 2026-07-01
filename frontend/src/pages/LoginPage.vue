@@ -178,10 +178,7 @@ function readRedirectPath() {
   width: 100%;
   align-items: center;
   justify-content: center;
-  background-color: #f3f4f6;
-  background-image: url('@/assets/images/auth_page_bg.jpg');
-  background-size: cover;
-  background-position: center;
+  background: transparent;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   padding: 24px;
 }
@@ -247,11 +244,12 @@ function readRedirectPath() {
   font-weight: 700;
   margin: 0 0 16px 0;
   letter-spacing: -1px;
+  color: #ffffff !important;
 }
 
 .left-content p {
   font-size: 15px;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.9) !important;
   margin: 0;
 }
 

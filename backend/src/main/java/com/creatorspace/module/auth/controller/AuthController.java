@@ -54,13 +54,13 @@ public class AuthController {
 
     @PostMapping("/api/auth/send-code")
     public ApiResponse<Void> sendCode(@Valid @RequestBody EmailRequest request) {
-        authService.sendVerificationCode(request.email(), "REGISTER");
+        authService.sendVerificationCode(request.email(), request.hcaptchaToken(), "REGISTER");
         return ApiResponse.ok(null);
     }
 
     @PostMapping("/api/auth/forgot-password")
     public ApiResponse<Void> forgotPassword(@Valid @RequestBody EmailRequest request) {
-        authService.sendVerificationCode(request.email(), "RESET_PASSWORD");
+        authService.sendVerificationCode(request.email(), request.hcaptchaToken(), "RESET_PASSWORD");
         return ApiResponse.ok(null);
     }
 
