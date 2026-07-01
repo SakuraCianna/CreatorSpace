@@ -144,7 +144,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
+import AdminPageHeader from '../components/admin/AdminPageHeader.vue'
 import {
   ChevronDown,
   ChevronLeft,
@@ -154,11 +154,11 @@ import {
   Search,
   ShieldCheck,
 } from '@lucide/vue'
-import BaseSelect from '@/shared/components/BaseSelect.vue'
+import BaseSelect from '../shared/components/BaseSelect.vue'
 
-import { fetchAdminOperationLogs } from '@/services/content'
-import { toUserMessage } from '@/services/http'
-import type { OperationLogModule, OperationLogQuery, OperationLogSummary, PageResponse } from '@/shared/domain'
+import { fetchAdminOperationLogs } from '../services/content'
+import { toUserMessage } from '../services/http'
+import type { OperationLogModule, OperationLogQuery, OperationLogSummary, PageResponse } from '../shared/domain'
 
 const moduleOptions: Array<{ value: OperationLogModule | 'ALL'; label: string }> = [
   { value: 'ALL', label: '全部模块' },

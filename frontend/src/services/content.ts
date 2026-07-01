@@ -1,4 +1,4 @@
-import { requestJson } from '@/services/http'
+import { requestJson } from './http'
 import type {
   AdminThemeConfig,
   ArticleNeighbors,
@@ -35,7 +35,7 @@ import type {
   ThemePayload,
   UserProfile,
   UserSummary,
-} from '@/shared/domain'
+} from '../shared/domain'
 
 interface ApiEnvelope<T> {
   success: boolean
@@ -1383,3 +1383,4 @@ export async function fetchPendingReview(): Promise<{ pendingComments: number; p
   const response = await requestJson<ApiEnvelope<{ pendingComments: number; pendingGuestbook: number; pendingArticles: number; pendingProjects: number; total: number }>>('/api/admin/pending-review')
   return response.data
 }
+export async function updateMyPassword(payload: any): Promise<void> { await requestJson('/api/me/password', { method: 'PUT', body: JSON.stringify(payload) }) }

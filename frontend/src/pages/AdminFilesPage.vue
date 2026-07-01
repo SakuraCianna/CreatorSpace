@@ -110,10 +110,10 @@
 import { computed, onMounted, ref } from 'vue'
 import { ChevronLeft, ChevronRight, Copy, ExternalLink, FileText, RefreshCw, Trash2, Upload, UploadCloud } from '@lucide/vue'
 
-import { appConfig } from '@/app/config'
-import { deleteAdminFile, fetchAdminFiles, uploadAdminFile } from '@/services/content'
-import { toUserMessage } from '@/services/http'
-import type { FileResource } from '@/shared/domain'
+import { appConfig } from '../app/config'
+import { deleteAdminFile, fetchAdminFiles, uploadAdminFile } from '../services/content'
+import { toUserMessage } from '../services/http'
+import type { FileResource } from '../shared/domain'
 
 type FileModule = 'AVATAR' | 'COVER' | 'ARTICLE' | 'PROJECT' | 'INSPIRATION' | 'OTHER'
 

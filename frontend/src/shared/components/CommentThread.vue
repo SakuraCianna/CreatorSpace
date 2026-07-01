@@ -67,9 +67,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { Reply, Heart, MessageCircle, ChevronDown, ChevronUp } from '@lucide/vue'
-import { formatDateToDay } from '@/shared/datetime'
-import type { CommentTree } from '@/shared/domain'
-import type { CommentSummary } from '@/shared/domain'
+import { formatDateToDay } from '../datetime'
+import type { CommentTree } from '../domain'
+import type { CommentSummary } from '../domain'
 
 defineOptions({ name: 'CommentThread' })
 

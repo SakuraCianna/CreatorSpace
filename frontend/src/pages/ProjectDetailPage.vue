@@ -207,17 +207,17 @@ import {
   unfavoriteTarget,
   unreactFromComment,
   unlikeTarget,
-} from '@/services/content'
-import { HttpError, toUserMessage } from '@/services/http'
-import { useCinematicPageMotion } from '@/shared/composables/useCinematicPageMotion'
-import { usePageReveal } from '@/shared/composables/usePageReveal'
-import { toCssImageUrl } from '@/shared/cssImage'
-import { formatMonthDay } from '@/shared/datetime'
-import type { CommentSummary, CommentTree, ProjectStatus, ProjectSummary } from '@/shared/domain'
-import { buildCommentTree } from '@/shared/domain'
-import CommentThread from '@/shared/components/CommentThread.vue'
-import { renderSafeMarkdown } from '@/shared/markdown'
-import { useSessionStore } from '@/shared/sessionStore'
+} from '../services/content'
+import { HttpError, toUserMessage } from '../services/http'
+import { useCinematicPageMotion } from '../shared/composables/useCinematicPageMotion'
+import { usePageReveal } from '../shared/composables/usePageReveal'
+import { toCssImageUrl } from '../shared/cssImage'
+import { formatMonthDay } from '../shared/datetime'
+import type { CommentSummary, CommentTree, ProjectStatus, ProjectSummary } from '../shared/domain'
+import { buildCommentTree } from '../shared/domain'
+import CommentThread from '../shared/components/CommentThread.vue'
+import { renderSafeMarkdown } from '../shared/markdown'
+import { useSessionStore } from '../shared/sessionStore'
 interface DetailScreenshot {
   imageUrl: string
   caption: string

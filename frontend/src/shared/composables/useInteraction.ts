@@ -7,8 +7,8 @@ import {
   likeTarget,
   unfavoriteTarget,
   unlikeTarget,
-} from '@/services/content'
-import { ACCESS_TOKEN_KEY } from '@/services/http'
+} from '../../services/content'
+import { ACCESS_TOKEN_KEY } from '../../services/http'
 
 export function useInteraction(targetType: 'ARTICLE' | 'PROJECT' | 'COMMENT' | 'INSPIRATION') {
   const liked = ref(false)

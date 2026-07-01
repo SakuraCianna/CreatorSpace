@@ -141,14 +141,14 @@
 // 导入组件生命周期钩子和相关组件
 import { computed, onMounted, ref, watch, onBeforeUnmount } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import PublicPageHeader from '@/components/common/PublicPageHeader.vue'
+import PublicPageHeader from '../components/common/PublicPageHeader.vue'
 import { LoaderCircle, Search, UserRound } from '@lucide/vue'
 
-import { fetchArticles, fetchTags } from '@/services/content'
-import { toUserMessage } from '@/services/http'
-import { usePageReveal } from '@/shared/composables/usePageReveal'
-import { formatMonthDay } from '@/shared/datetime'
-import type { ArticleSummary, TagSummary } from '@/shared/domain'
+import { fetchArticles, fetchTags } from '../services/content'
+import { toUserMessage } from '../services/http'
+import { usePageReveal } from '../shared/composables/usePageReveal'
+import { formatMonthDay } from '../shared/datetime'
+import type { ArticleSummary, TagSummary } from '../shared/domain'
 const coverPalettes = [
   ['#111827', '#6ea8ff', '#f8fafc'],
   ['#2f163f', '#b18cff', '#fff7ed'],

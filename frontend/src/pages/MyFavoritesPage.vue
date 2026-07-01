@@ -67,10 +67,10 @@ import { onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { ArrowLeft, ArrowRight, LoaderCircle, Star } from '@lucide/vue'
 
-import { fetchMyFavorites } from '@/services/content'
-import { usePageReveal } from '@/shared/composables/usePageReveal'
-import { formatDateToDay } from '@/shared/datetime'
-import type { FavoriteRecord } from '@/shared/domain'
+import { fetchMyFavorites } from '../services/content'
+import { usePageReveal } from '../shared/composables/usePageReveal'
+import { formatDateToDay } from '../shared/datetime'
+import type { FavoriteRecord } from '../shared/domain'
 
 const coverPalettes = [
   ['#111827', '#6ea8ff', '#f8fafc'],

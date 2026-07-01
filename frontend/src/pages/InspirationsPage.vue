@@ -239,7 +239,7 @@
 // 导入所需的组件和 Vue 钩子
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, type Component } from 'vue'
 import { RouterLink, type RouteLocationRaw } from 'vue-router'
-import PublicPageHeader from '@/components/common/PublicPageHeader.vue'
+import PublicPageHeader from '../components/common/PublicPageHeader.vue'
 import {
   BookOpen,
   CalendarDays,
@@ -257,13 +257,13 @@ import {
   StickyNote,
   X,
 } from '@lucide/vue'
-import { fetchAdminInspirations, fetchInspirations } from '@/services/content'
-import { toUserMessage } from '@/services/http'
-import { useCinematicPageMotion } from '@/shared/composables/useCinematicPageMotion'
-import { usePageReveal } from '@/shared/composables/usePageReveal'
-import { formatMonthDay } from '@/shared/datetime'
-import { useSessionStore } from '@/shared/sessionStore'
-import type { InspirationCard, InspirationRelation, InspirationType } from '@/shared/domain'
+import { fetchAdminInspirations, fetchInspirations } from '../services/content'
+import { toUserMessage } from '../services/http'
+import { useCinematicPageMotion } from '../shared/composables/useCinematicPageMotion'
+import { usePageReveal } from '../shared/composables/usePageReveal'
+import { formatMonthDay } from '../shared/datetime'
+import { useSessionStore } from '../shared/sessionStore'
+import type { InspirationCard, InspirationRelation, InspirationType } from '../shared/domain'
 type InspirationFilter = InspirationType | 'ALL'
 interface InspirationFilterItem {
   value: InspirationFilter

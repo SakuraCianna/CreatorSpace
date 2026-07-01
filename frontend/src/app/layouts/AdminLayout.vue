@@ -51,7 +51,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { fetchPendingReview } from '@/services/content'
+import { fetchPendingReview } from '../../services/content'
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import {
@@ -71,8 +71,8 @@ import {
   Sparkles,
   Tags,
 } from '@lucide/vue'
-import { useSessionStore } from '@/shared/sessionStore'
-import { useSiteIdentity } from '@/shared/siteIdentity'
+import { useSessionStore } from '../../shared/sessionStore'
+import { useSiteIdentity } from '../../shared/siteIdentity'
 // 初始化后台导航状态和路由相关参数
 const route = useRoute()
 const router = useRouter()

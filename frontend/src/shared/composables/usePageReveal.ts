@@ -1,7 +1,7 @@
 import { onBeforeUnmount, onMounted, type Ref } from 'vue'
 import { animate, stagger, type JSAnimation } from 'animejs'
 
-import { prefersReducedMotion } from '@/shared/composables/useReducedMotion'
+import { prefersReducedMotion } from './useReducedMotion'
 
 // 用 anime.js 处理非主页页面的轻量入场, 区别于主页的滚动叙事动画
 // 解析标有 data-reveal 属性的后代元素, 延迟分批添加 is-revealed 展示类名

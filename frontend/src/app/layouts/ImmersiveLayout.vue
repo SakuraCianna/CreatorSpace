@@ -21,8 +21,8 @@
 </template>
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
-import ThemeHUD from '@/shared/components/ThemeHUD.vue'
-import { useSiteIdentity } from '@/shared/siteIdentity'
+import ThemeHUD from '../../shared/components/ThemeHUD.vue'
+import { useSiteIdentity } from '../../shared/siteIdentity'
 interface ImmersiveNavItem {
   label: string
   to: string

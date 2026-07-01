@@ -82,9 +82,9 @@ import { computed, reactive, ref, watch, onUnmounted } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { LoaderCircle, ShieldCheck } from '@lucide/vue'
 import VueHcaptcha from '@hcaptcha/vue3-hcaptcha'
-import { registerUser, sendRegisterCode } from '@/services/content'
-import { HttpError, toUserMessage } from '@/services/http'
-import { normalizeAuthRedirect } from '@/shared/authRedirect'
+import { registerUser, sendRegisterCode } from '../services/content'
+import { HttpError, toUserMessage } from '../services/http'
+import { normalizeAuthRedirect } from '../shared/authRedirect'
 
 const router = useRouter()
 const route = useRoute()
@@ -224,20 +224,23 @@ onUnmounted(() => {
 <style scoped>
 .auth-page-wrapper {
   display: flex;
-  min-height: 100vh;
+  height: calc(100vh - 64px);
   width: 100%;
   align-items: center;
   justify-content: center;
   background: transparent;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  padding: 24px;
+  padding: 12px 24px;
+  box-sizing: border-box;
 }
 
 .auth-card {
   display: flex;
   width: 100%;
   max-width: 1000px;
-  height: 640px;
+  height: auto;
+  min-height: 600px;
+  max-height: 100%;
   background: #ffffff;
   border-radius: 24px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
@@ -247,7 +250,7 @@ onUnmounted(() => {
 .auth-card-left {
   flex: 1;
   position: relative;
-  background-image: url('@/assets/images/auth_illustration.jpg');
+  background-image: url('../assets/images/auth_illustration.jpg');
   background-size: cover;
   background-position: center;
   color: white;

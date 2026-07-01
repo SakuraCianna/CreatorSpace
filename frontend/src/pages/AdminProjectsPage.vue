@@ -52,37 +52,9 @@
         </label>
 
         <label>
-          封面地址
-          <div class="input-with-action">
-            <input v-model="projectForm.coverUrl" placeholder="/uploads/project/cover.png" />
-            <button class="button button-tonal button-compact" type="button" @click="toggleResourcePicker">
-              <Images :size="16" />
-              资源
-            </button>
-          </div>
+          封面图片 (建议比例 16:9)
+          <FileUpload v-model="projectForm.coverUrl" module="COVER" accept="image/*" hint="最大 10MB" />
         </label>
-
-        <div v-if="showResourcePicker" class="resource-picker">
-          <div class="panel-title">
-            <h3>选择封面</h3>
-            <button class="text-button" type="button" :disabled="filesLoading" @click="loadProjectFiles">刷新</button>
-          </div>
-          <div v-if="filesLoading" class="empty-hint">资源加载中...</div>
-          <div v-else-if="projectFiles.length === 0" class="empty-hint">作品资源库还没有可选文件。</div>
-          <div v-else class="resource-options">
-            <button
-              v-for="file in projectFiles"
-              :key="file.id"
-              class="resource-option"
-              type="button"
-              @click="selectCover(file.publicUrl)"
-            >
-              <img v-if="isImage(file)" :src="file.publicUrl" :alt="file.originalName" loading="lazy" />
-              <FileText v-else :size="20" />
-              <span>{{ file.originalName }}</span>
-            </button>
-          </div>
-        </div>
 
         <div class="form-line">
           <label>
@@ -90,14 +62,14 @@
             <input v-model="projectForm.githubUrl" placeholder="https://github.com/..." />
           </label>
           <label>
-            Demo
+            演示地址 (可选 URL)
             <input v-model="projectForm.demoUrl" placeholder="https://demo.example.com" />
           </label>
         </div>
 
         <label>
-          视频地址
-          <input v-model="projectForm.videoUrl" placeholder="https://... 或 /uploads/project/demo.mp4" />
+          演示视频 (支持 MP4/WebM，最大 100MB)
+          <FileUpload v-model="projectForm.videoUrl" module="PROJECT" accept="video/mp4,video/webm,video/quicktime,video/x-matroska" hint="最大 100MB" />
         </label>
 
         <label>
@@ -201,13 +173,13 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { FileText, Images, Plus, RefreshCw } from '@lucide/vue'
+import { Plus, RefreshCw } from '@lucide/vue'
+import FileUpload from '../components/common/FileUpload.vue'
 
 import {
   approveProject,
   createProject,
   deleteProject,
-  fetchAdminFiles,
   fetchAdminProject,
   fetchAdminProjects,
   fetchTags,
@@ -215,15 +187,14 @@ import {
   setProjectRecommend,
   setProjectStatus,
   updateProject,
-} from '@/services/content'
-import { toUserMessage } from '@/services/http'
-import type { FileResource, ProjectPayload, ProjectStatus, ProjectSummary, TagSummary } from '@/shared/domain'
+} from '../services/content'
+import { toUserMessage } from '../services/http'
+import type { ProjectPayload, ProjectStatus, ProjectSummary, TagSummary } from '../shared/domain'
 
 type ProjectStatusFilter = ProjectStatus | 'ALL'
 
 const projects = ref<ProjectSummary[]>([])
 const tags = ref<TagSummary[]>([])
-const projectFiles = ref<FileResource[]>([])
 const editingProjectId = ref<number | null>(null)
 const keyword = ref('')
 const statusFilter = ref<ProjectStatusFilter>('ALL')
@@ -231,8 +202,6 @@ const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
 const loading = ref(false)
-const filesLoading = ref(false)
-const showResourcePicker = ref(false)
 const notice = ref('')
 const projectTechStack = ref('')
 
@@ -426,30 +395,7 @@ async function removeProject(id: number) {
   }
 }
 
-async function toggleResourcePicker() {
-  showResourcePicker.value = !showResourcePicker.value
-  if (showResourcePicker.value && projectFiles.value.length === 0) {
-    await loadProjectFiles()
-  }
-}
 
-async function loadProjectFiles() {
-  filesLoading.value = true
-  notice.value = ''
-  try {
-    const result = await fetchAdminFiles({ module: 'PROJECT', page: 1, pageSize: 12 })
-    projectFiles.value = result.records
-  } catch (error) {
-    notice.value = toUserMessage(error, '作品资源加载失败')
-  } finally {
-    filesLoading.value = false
-  }
-}
-
-function selectCover(url: string) {
-  projectForm.coverUrl = url
-  showResourcePicker.value = false
-}
 
 function resetProjectForm() {
   editingProjectId.value = null
@@ -484,9 +430,7 @@ function splitTechStack(value: string) {
     .filter(Boolean)
 }
 
-function isImage(file: FileResource) {
-  return file.fileType.startsWith('image/')
-}
+
 
 function projectStatusLabel(value: string) {
   return {
@@ -541,57 +485,7 @@ function projectStatusLabel(value: string) {
   gap: 14px;
 }
 
-.input-with-action {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-}
 
-.resource-picker {
-  display: grid;
-  gap: 10px;
-  padding: 12px;
-  border: 1px solid var(--admin-line);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.72);
-}
-
-.resource-options {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.resource-option {
-  display: grid;
-  align-content: start;
-  gap: 6px;
-  min-width: 0;
-  min-height: 96px;
-  padding: 8px;
-  border: 1px solid var(--admin-line);
-  border-radius: 8px;
-  background: #fff;
-  color: #344154;
-  font: inherit;
-  font-size: 12px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.resource-option img {
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  border-radius: 6px;
-  object-fit: cover;
-  background: #eef2ff;
-}
-
-.resource-option span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 .tag-picker {
   display: flex;
@@ -678,18 +572,13 @@ function projectStatusLabel(value: string) {
 
 @media (max-width: 1020px) {
   .cms-header,
-  .project-grid,
-  .input-with-action {
+  .project-grid {
     grid-template-columns: 1fr;
   }
 
   .cms-header {
     align-items: flex-start;
     flex-direction: column;
-  }
-
-  .resource-options {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 </style>

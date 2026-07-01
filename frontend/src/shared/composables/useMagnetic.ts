@@ -1,6 +1,6 @@
 import { gsap } from 'gsap'
 
-import { prefersReducedMotion } from '@/shared/composables/useReducedMotion'
+import { prefersReducedMotion } from './useReducedMotion'
 
 interface MagneticOptions {
   strength?: number

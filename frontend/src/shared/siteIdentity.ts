@@ -1,7 +1,7 @@
 import { computed, onMounted, ref, type ComputedRef, type Ref } from 'vue'
 
-import { fetchSiteConfig } from '@/services/content'
-import type { SiteConfigEntry, SiteSettings } from '@/shared/domain'
+import { fetchSiteConfig } from '../services/content'
+import type { SiteConfigEntry, SiteSettings } from './domain'
 
 export interface SiteIdentity {
   name: string

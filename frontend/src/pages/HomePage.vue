@@ -14,7 +14,7 @@ import { RouterLink } from 'vue-router'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
-import type { HeroSceneHandles } from '@/shared/heroScene'
+import type { HeroSceneHandles } from '../shared/heroScene'
 import {
   fetchArticles,
   fetchCurrentTheme,
@@ -25,25 +25,25 @@ import {
   fetchSiteStatisticsSummary,
   fetchTags,
   fetchThemes,
-} from '@/services/content'
-import { useGsapContext } from '@/shared/composables/useGsapScroll'
-import { useLenis } from '@/shared/composables/useLenis'
-import { attachMagnetic } from '@/shared/composables/useMagnetic'
-import { prefersReducedMotion } from '@/shared/composables/useReducedMotion'
-import { toCssImageUrl } from '@/shared/cssImage'
-import { formatDateToDay } from '@/shared/datetime'
+} from '../services/content'
+import { useGsapContext } from '../shared/composables/useGsapScroll'
+import { useLenis } from '../shared/composables/useLenis'
+import { attachMagnetic } from '../shared/composables/useMagnetic'
+import { prefersReducedMotion } from '../shared/composables/useReducedMotion'
+import { toCssImageUrl } from '../shared/cssImage'
+import { formatDateToDay } from '../shared/datetime'
 import {
   DEFAULT_SITE_IDENTITY,
   resolveSiteIdentity,
   syncSiteIdentityFromConfig,
   type SiteIdentity,
-} from '@/shared/siteIdentity'
-import inspirationBg01 from '@/assets/homepage/inspiration-bg-01.svg'
-import inspirationBg02 from '@/assets/homepage/inspiration-bg-02.svg'
-import inspirationBg03 from '@/assets/homepage/inspiration-bg-03.svg'
-import inspirationBg04 from '@/assets/homepage/inspiration-bg-04.svg'
-import inspirationBg05 from '@/assets/homepage/inspiration-bg-05.svg'
-import inspirationBg06 from '@/assets/homepage/inspiration-bg-06.svg'
+} from '../shared/siteIdentity'
+import inspirationBg01 from '../assets/homepage/inspiration-bg-01.svg'
+import inspirationBg02 from '../assets/homepage/inspiration-bg-02.svg'
+import inspirationBg03 from '../assets/homepage/inspiration-bg-03.svg'
+import inspirationBg04 from '../assets/homepage/inspiration-bg-04.svg'
+import inspirationBg05 from '../assets/homepage/inspiration-bg-05.svg'
+import inspirationBg06 from '../assets/homepage/inspiration-bg-06.svg'
 import {
   type AgentCapability,
   type ApproachStep,
@@ -56,8 +56,8 @@ import {
   type PortfolioProject,
   type SiteConfig,
   type ThemePreset,
-} from '@/content/home'
-import type { ArticleSummary, InspirationCard, ProjectSummary, PublicThemeConfig, SiteStatisticsSummary, TagSummary } from '@/shared/domain'
+} from '../content/home'
+import type { ArticleSummary, InspirationCard, ProjectSummary, PublicThemeConfig, SiteStatisticsSummary, TagSummary } from '../shared/domain'
 
 
 gsap.registerPlugin(ScrollTrigger)
@@ -162,7 +162,7 @@ const HeroWebGLScene = defineComponent({
         isStatic.value = true
         return
       }
-      import('@/shared/heroScene')
+      import('../shared/heroScene')
         .then(({ createHeroScene }) => {
           if (cancelled || !host.value) {
             return

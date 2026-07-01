@@ -1,12 +1,12 @@
 <template>
-  <!-- 用户公开主页：展示个人信息、文章、好友、关注、粉丝 -->
   <section ref="root" class="profile-page">
     <div v-if="isLoading" class="empty-state profile-state" data-reveal>
       <LoaderCircle class="spin" :size="24" />
       <h2>正在加载用户信息</h2>
     </div>
     <template v-else-if="profile">
-      <header class="profile-hero page-hero" data-reveal>
+      <header class="profile-hero" data-reveal>
+        <div class="profile-hero__bg"></div>
         <div class="profile-hero__main">
           <div class="profile-avatar-frame">
             <img
@@ -16,109 +16,80 @@
               class="profile-avatar-img"
               loading="lazy"
             />
-            <UserRound v-else :size="48" class="profile-avatar-placeholder" />
+            <UserRound v-else :size="64" class="profile-avatar-placeholder" />
           </div>
           <div class="profile-hero__info">
             <template v-if="editing">
-              <input v-model="editForm.nickname" class="edit-input edit-input--title" placeholder="昵称" />
-              <input v-model="editForm.avatarUrl" class="edit-input" placeholder="头像 URL" />
-              <textarea v-model="editForm.bio" class="edit-input edit-input--textarea" placeholder="个人简介" rows="3" />
+              <div class="edit-mode-form">
+                <input v-model="editForm.nickname" class="edit-input edit-input--title" placeholder="昵称" />
+                <div class="avatar-upload-wrapper">
+                  <FileUpload
+                    v-model="editForm.avatarUrl"
+                    module="AVATAR"
+                    accept="image/*"
+                    hint="建议 800x800，最大 100MB"
+                  />
+                </div>
+                <textarea v-model="editForm.bio" class="edit-input edit-input--textarea" placeholder="个人简介" rows="3" />
+                <div class="password-edit-section">
+                  <input v-model="passwordForm.oldPassword" type="password" class="edit-input" placeholder="原密码 (留空不改)" />
+                  <input v-model="passwordForm.newPassword" type="password" class="edit-input" placeholder="新密码" />
+                </div>
+                <div class="profile-actions edit-actions">
+                  <button class="button button-filled" type="button" :disabled="saving" @click="saveProfile">
+                    {{ saving ? '保存中...' : '保存修改' }}
+                  </button>
+                  <button class="button button-outline" type="button" :disabled="saving" @click="cancelEditing">取消</button>
+                </div>
+              </div>
             </template>
             <template v-else>
               <h1>{{ profile.nickname || profile.username }}</h1>
-              <p class="profile-username">@{{ profile.username }}</p>
               <p v-if="profile.bio" class="profile-bio">{{ profile.bio }}</p>
+              <div v-if="isOwnProfile" class="profile-actions">
+                <button class="button button-outline" type="button" @click="startEditing">
+                  <PenLine :size="16" />
+                  编辑资料
+                </button>
+              </div>
+              <div v-else-if="canFollow" class="profile-actions">
+                <button
+                  class="button"
+                  :class="following ? 'button-outline' : 'button-filled'"
+                  type="button"
+                  @click="toggleFollow(profile.id)"
+                >
+                  <UserPlus v-if="!following" :size="16" />
+                  <UserCheck v-else :size="16" />
+                  {{ isFriend ? '互相关注' : following ? '已关注' : '关注' }}
+                </button>
+              </div>
             </template>
-            <div v-if="isOwnProfile" class="profile-actions">
-              <button
-                v-if="!editing"
-                class="button button-outline"
-                type="button"
-                @click="startEditing"
-              >
-                <PenLine :size="15" />
-                编辑资料
-              </button>
-              <template v-else>
-                <button
-                  class="button button-filled"
-                  type="button"
-                  :disabled="saving"
-                  @click="saveProfile"
-                >
-                  {{ saving ? '保存中...' : '保存' }}
-                </button>
-                <button
-                  class="button button-outline"
-                  type="button"
-                  :disabled="saving"
-                  @click="cancelEditing"
-                >
-                  取消
-                </button>
-              </template>
-            </div>
-            <div v-else-if="canFollow" class="profile-actions">
-              <button
-                class="button"
-                :class="following ? 'button-outline' : 'button-filled'"
-                type="button"
-                @click="toggleFollow(profile.id)"
-              >
-                <UserPlus v-if="!following" :size="15" />
-                <UserCheck v-else :size="15" />
-                {{ isFriend ? '互相关注' : following ? '已关注' : '关注' }}
-              </button>
-            </div>
           </div>
         </div>
         <div class="profile-stats-bar">
-          <button
-            :class="{ 'is-active': activeTab === 'articles' }"
-            type="button"
-            @click="activeTab = 'articles'"
-          >
+          <button :class="{ 'is-active': activeTab === 'articles' }" type="button" @click="activeTab = 'articles'">
             <strong>{{ profile.articleCount }}</strong>
             <span>文章</span>
           </button>
-          <button
-            :class="{ 'is-active': activeTab === 'friends' }"
-            type="button"
-            @click="activeTab = 'friends'"
-          >
+          <button :class="{ 'is-active': activeTab === 'friends' }" type="button" @click="activeTab = 'friends'">
             <strong>{{ profile.friendCount }}</strong>
             <span>好友</span>
           </button>
-          <button
-            :class="{ 'is-active': activeTab === 'following' }"
-            type="button"
-            @click="activeTab = 'following'"
-          >
+          <button :class="{ 'is-active': activeTab === 'following' }" type="button" @click="activeTab = 'following'">
             <strong>{{ profile.followingCount }}</strong>
             <span>关注</span>
           </button>
-          <button
-            :class="{ 'is-active': activeTab === 'followers' }"
-            type="button"
-            @click="activeTab = 'followers'"
-          >
+          <button :class="{ 'is-active': activeTab === 'followers' }" type="button" @click="activeTab = 'followers'">
             <strong>{{ profile.followerCount }}</strong>
             <span>粉丝</span>
           </button>
           <template v-if="isOwnProfile">
-            <button
-              :class="{ 'is-active': activeTab === 'favorites' }"
-              type="button"
-              @click="activeTab = 'favorites'"
-            >
+            <button :class="{ 'is-active': activeTab === 'favorites' }" type="button" @click="activeTab = 'favorites'">
               <strong>{{ favoriteRecords.length }}</strong>
               <span>收藏</span>
             </button>
-            <button
-              :class="{ 'is-active': activeTab === 'likes' }"
-              type="button"
-              @click="activeTab = 'likes'"
-            >
+            <button :class="{ 'is-active': activeTab === 'likes' }" type="button" @click="activeTab = 'likes'">
               <strong>{{ likeRecords.length }}</strong>
               <span>喜欢</span>
             </button>
@@ -266,6 +237,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { ArrowLeft, ArrowRight, LoaderCircle, PenLine, UserCheck, UserPlus, UserRound } from '@lucide/vue'
+import FileUpload from '../components/common/FileUpload.vue'
 import {
   fetchUserProfile,
   fetchUserArticles,
@@ -275,13 +247,14 @@ import {
   fetchMyFavorites,
   fetchMyLikes,
   updateMyProfile,
-} from '@/services/content'
-import { toUserMessage } from '@/services/http'
-import { useFollow } from '@/shared/composables/useFollow'
-import { usePageReveal } from '@/shared/composables/usePageReveal'
-import { formatDateToDay } from '@/shared/datetime'
-import { useSessionStore } from '@/shared/sessionStore'
-import type { ArticleSummary, FavoriteRecord, FollowUser, InteractionRecord, UserProfile } from '@/shared/domain'
+  updateMyPassword,
+} from '../services/content'
+import { toUserMessage } from '../services/http'
+import { useFollow } from '../shared/composables/useFollow'
+import { usePageReveal } from '../shared/composables/usePageReveal'
+import { formatDateToDay } from '../shared/datetime'
+import { useSessionStore } from '../shared/sessionStore'
+import type { ArticleSummary, FavoriteRecord, FollowUser, InteractionRecord, UserProfile } from '../shared/domain'
 
 const route = useRoute()
 const root = ref<HTMLElement | null>(null)
@@ -315,6 +288,7 @@ const isOwnProfile = computed(() => {
 const editing = ref(false)
 const saving = ref(false)
 const editForm = ref({ nickname: '', avatarUrl: '', bio: '' })
+const passwordForm = ref({ oldPassword: '', newPassword: '' })
 
 function startEditing() {
   if (!profile.value) return
@@ -323,6 +297,7 @@ function startEditing() {
     avatarUrl: profile.value.avatarUrl ?? '',
     bio: profile.value.bio ?? '',
   }
+  passwordForm.value = { oldPassword: '', newPassword: '' }
   editing.value = true
 }
 
@@ -339,10 +314,20 @@ async function saveProfile() {
       avatarUrl: editForm.value.avatarUrl || null,
       bio: editForm.value.bio || null,
     })
+    
+    if (passwordForm.value.oldPassword && passwordForm.value.newPassword) {
+      await updateMyPassword({
+        oldPassword: passwordForm.value.oldPassword,
+        newPassword: passwordForm.value.newPassword,
+      })
+      alert('密码修改成功，请使用新密码重新登录')
+      // Optional: force logout here
+    }
+    
     profile.value = updated
     editing.value = false
   } catch (e) {
-    notice.value = '保存失败，请稍后重试'
+    notice.value = toUserMessage(e, '保存失败，请稍后重试')
   } finally {
     saving.value = false
   }
@@ -532,35 +517,54 @@ onMounted(loadProfile)
 }
 
 .profile-hero {
+  position: relative;
   display: grid;
   gap: 24px;
-  padding: clamp(24px, 3vw, 40px);
-  border: 1px solid var(--tone-line);
-  border-radius: var(--app-radius-sm);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--tone-panel-solid) 92%, transparent), color-mix(in srgb, var(--tone-panel-solid) 72%, transparent)),
-    var(--tone-panel);
-  box-shadow: var(--tone-shadow);
-  position: relative;
+  padding: 0;
+  border-radius: 20px;
+  background: var(--tone-panel);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.04);
   overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.profile-hero::before {
+  content: '';
+  display: block;
+  width: 100%;
+  height: 140px;
+  background: 
+    radial-gradient(circle at 0% 0%, #315bff 0%, transparent 50%),
+    radial-gradient(circle at 100% 100%, #1e3a8a 0%, transparent 50%),
+    radial-gradient(circle at 100% 0%, #38bdf8 0%, transparent 50%),
+    linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  background-size: cover;
+  background-position: center;
 }
 
 .profile-hero__main {
   display: flex;
-  gap: 24px;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+  padding: 0 40px;
+  margin-top: -50px;
+  position: relative;
+  z-index: 2;
+  text-align: center;
 }
 
 .profile-avatar-frame {
-  width: 88px;
-  height: 88px;
+  width: 100px;
+  height: 100px;
   border-radius: 50%;
-  border: 3px solid var(--tone-primary);
+  border: 4px solid #ffffff;
   overflow: hidden;
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  background: var(--tone-night);
+  background: #f1f5f9;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
 
 .profile-avatar-img {
@@ -570,117 +574,151 @@ onMounted(loadProfile)
 }
 
 .profile-avatar-placeholder {
-  color: rgba(255, 255, 255, 0.6);
+  color: #94a3b8;
 }
 
 .profile-hero__info {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
 }
 
 .profile-hero__info h1 {
   margin: 0;
-  font-size: clamp(28px, 3.2vw, 36px);
-  font-weight: 840;
-  line-height: 1.12;
-  color: var(--tone-ink);
+  font-size: clamp(24px, 2.5vw, 28px);
+  font-weight: 800;
+  line-height: 1.2;
+  color: #0f172a;
+  letter-spacing: -0.01em;
 }
 
 .profile-username {
   margin: 0;
-  color: var(--tone-faint);
-  font-size: 15px;
+  color: #64748b;
+  font-size: 16px;
+  font-weight: 500;
 }
 
 .profile-bio {
   margin: 4px 0 0;
-  color: var(--tone-muted);
+  color: #475569;
   font-size: 15px;
   line-height: 1.6;
-  max-width: 640px;
+  max-width: 600px;
 }
 
 .profile-actions {
   display: flex;
-  gap: 8px;
+  gap: 12px;
   flex-wrap: wrap;
-  margin-top: 8px;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.edit-mode-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 480px;
+  gap: 12px;
 }
 
 .edit-input {
   display: block;
   width: 100%;
-  max-width: 480px;
-  padding: 10px 12px;
+  padding: 12px 16px;
   border: 1px solid var(--tone-line-strong);
-  border-radius: var(--app-radius-sm);
+  border-radius: 12px;
   background: var(--tone-panel-solid);
   color: var(--tone-ink);
   font: inherit;
-  font-size: 14px;
+  font-size: 15px;
   outline: none;
-  transition: border-color 180ms ease, box-shadow 180ms ease;
+  transition: all 0.2s ease;
 }
 
 .edit-input:focus {
-  border-color: color-mix(in srgb, var(--tone-primary) 48%, var(--tone-line-strong));
-  box-shadow: 0 0 0 3px rgba(11, 87, 208, 0.08);
+  border-color: #315bff;
+  box-shadow: 0 0 0 4px rgba(49, 91, 255, 0.1);
 }
 
 .edit-input--title {
-  font-size: 22px;
-  font-weight: 740;
+  font-size: 20px;
+  font-weight: 700;
+  text-align: center;
 }
 
 .edit-input--textarea {
   resize: vertical;
-  min-height: 72px;
+  min-height: 80px;
   line-height: 1.6;
+}
+
+.avatar-upload-wrapper {
+  width: 100%;
+  margin: 4px 0;
+}
+
+.password-edit-section {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.password-edit-section .edit-input {
+  flex: 1;
 }
 
 .profile-stats-bar {
   display: flex;
-  gap: 8px;
+  gap: 12px;
   flex-wrap: wrap;
+  justify-content: center;
+  padding: 24px 40px 40px;
 }
 
 .profile-stats-bar button {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  min-width: 80px;
-  padding: 12px 18px;
-  border: 1px solid var(--tone-line);
-  border-radius: var(--app-radius-sm);
-  background: color-mix(in srgb, var(--tone-panel-solid) 80%, transparent);
-  color: var(--tone-muted);
+  gap: 6px;
+  min-width: 90px;
+  padding: 16px;
+  border: none;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #64748b;
   cursor: pointer;
   font: inherit;
-  font-size: 13px;
-  transition: border-color var(--transition-time, 180ms) ease, background var(--transition-time, 180ms) ease;
+  transition: all 0.2s ease;
 }
 
 .profile-stats-bar button:hover {
-  border-color: color-mix(in srgb, var(--tone-primary) 30%, var(--tone-line));
-  background: color-mix(in srgb, var(--tone-primary) 6%, transparent);
+  background: #f1f5f9;
+  transform: translateY(-2px);
 }
 
 .profile-stats-bar button.is-active {
-  border-color: var(--tone-primary);
-  background: color-mix(in srgb, var(--tone-primary) 10%, transparent);
+  background: #eef2ff;
+  color: #315bff;
 }
 
 .profile-stats-bar button strong {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 800;
-  color: var(--tone-ink);
+  color: #0f172a;
+}
+
+.profile-stats-bar button.is-active strong {
+  color: #315bff;
 }
 
 .profile-stats-bar button span {
-  font-size: 12px;
-  color: var(--tone-faint);
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .profile-section {
@@ -703,30 +741,32 @@ onMounted(loadProfile)
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 14px 16px;
-  border: 1px solid var(--tone-line);
-  border-radius: var(--app-radius-sm);
-  background: var(--tone-panel);
-  box-shadow: var(--tone-shadow);
+  padding: 16px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid #f1f5f9;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
   text-decoration: none;
   color: inherit;
-  transition: border-color var(--transition-time, 180ms) ease;
+  transition: all 0.2s ease;
 }
 
 .profile-user-card:hover {
-  border-color: color-mix(in srgb, var(--tone-primary) 30%, var(--tone-line));
+  border-color: #e2e8f0;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
 }
 
 .profile-user-card__avatar {
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   overflow: hidden;
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  background: var(--tone-night);
-  color: rgba(255, 255, 255, 0.5);
+  background: #f1f5f9;
+  color: #94a3b8;
 }
 
 .profile-user-card__avatar img {
@@ -742,16 +782,17 @@ onMounted(loadProfile)
 }
 
 .profile-user-card__info strong {
-  color: var(--tone-ink);
-  font-size: 14px;
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .profile-user-card__info span {
-  color: var(--tone-faint);
-  font-size: 12px;
+  color: #64748b;
+  font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -759,34 +800,32 @@ onMounted(loadProfile)
 
 .journal-grid {
   display: grid;
-  gap: var(--theme-density-spacing, 16px);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
 }
 
 .journal-card {
   display: grid;
-  grid-template-rows: 190px minmax(0, 1fr);
-  min-height: 260px;
-  overflow: hidden;
-  border: 1px solid var(--tone-line);
-  border-radius: var(--app-radius-sm);
-  background: var(--tone-panel);
+  grid-template-rows: 200px minmax(0, 1fr);
+  border-radius: 16px;
+  background: #fff;
   text-decoration: none;
   color: inherit;
-  box-shadow: var(--tone-shadow);
-  transition: transform var(--transition-time, 180ms) ease, border-color var(--transition-time, 180ms) ease, box-shadow var(--transition-time, 180ms) ease;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  border: 1px solid #f1f5f9;
+  overflow: hidden;
+  transition: all 0.25s ease;
 }
 
 .journal-card:hover {
-  border-color: rgba(49, 91, 255, 0.34);
-  box-shadow: 0 26px 68px rgba(20, 24, 38, 0.14);
-  transform: translateY(-3px);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  transform: translateY(-4px);
 }
 
 .journal-card__visual {
   position: relative;
   display: grid;
-  height: 190px;
+  height: 200px;
   place-items: center;
   overflow: hidden;
   background: radial-gradient(circle at 78% 18%, color-mix(in srgb, var(--cover-accent) 42%, transparent), transparent 34%),
@@ -805,7 +844,7 @@ onMounted(loadProfile)
 
 .journal-card__visual img {
   width: 100%;
-  height: 190px;
+  height: 200px;
   object-fit: cover;
 }
 
@@ -822,14 +861,15 @@ onMounted(loadProfile)
   display: grid;
   align-content: start;
   gap: 10px;
-  padding: calc(var(--theme-density-spacing, 16px) * 1.25);
+  padding: 24px;
 }
 
 .journal-card h2 {
   margin: 0;
-  color: var(--tone-ink);
-  font-size: clamp(18px, 2vw, 22px);
-  line-height: 1.25;
+  color: #0f172a;
+  font-size: 20px;
+  line-height: 1.3;
+  font-weight: 700;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -838,9 +878,9 @@ onMounted(loadProfile)
 
 .article-summary {
   margin: 0;
-  color: var(--tone-muted);
-  font-size: 13px;
-  line-height: 1.5;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.6;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -852,7 +892,8 @@ onMounted(loadProfile)
   flex-wrap: wrap;
   gap: 6px;
   font-size: 12px;
-  color: var(--tone-faint);
+  color: #94a3b8;
+  font-weight: 500;
 }
 
 .article-meta-row {
@@ -866,9 +907,9 @@ onMounted(loadProfile)
   font-size: 11px;
   font-weight: 700;
   padding: 2px 8px;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--tone-warning) 18%, transparent);
-  color: var(--tone-warning);
+  border-radius: 6px;
+  background: #fffbeb;
+  color: #d97706;
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -878,12 +919,16 @@ onMounted(loadProfile)
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--tone-primary);
+  color: #315bff;
+  background: #eef2ff;
+  padding: 2px 8px;
+  border-radius: 6px;
 }
 
 .article-date {
-  color: var(--tone-muted);
+  color: #94a3b8;
   font-size: 13px;
+  font-weight: 500;
 }
 
 @media (max-width: 760px) {
@@ -895,6 +940,8 @@ onMounted(loadProfile)
     flex-direction: column;
     align-items: center;
     text-align: center;
+    padding: 0 20px;
+    margin-top: -60px;
   }
 
   .profile-hero__info {

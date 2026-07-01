@@ -71,10 +71,39 @@ public class MeController {
         return getMyProfile(loginUser);
     }
 
+    @Transactional(rollbackFor = Exception.class)
+    @PutMapping("/api/me/password")
+    public ApiResponse<Void> updateMyPassword(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestBody UpdatePasswordRequest request,
+            org.springframework.security.crypto.password.PasswordEncoder passwordEncoder
+    ) {
+        String currentEncoded = jdbcTemplate.queryForObject(
+                "select password from users where id = ?",
+                String.class,
+                loginUser.userId()
+        );
+        if (currentEncoded == null || !passwordEncoder.matches(request.oldPassword(), currentEncoded)) {
+            throw BusinessException.badRequest("原密码不正确");
+        }
+        jdbcTemplate.update(
+                "update users set password = ?, updated_at = now() where id = ?",
+                passwordEncoder.encode(request.newPassword()),
+                loginUser.userId()
+        );
+        return ApiResponse.ok(null);
+    }
+
     public record UpdateProfileRequest(
             String nickname,
             String avatarUrl,
             String bio
+    ) {
+    }
+
+    public record UpdatePasswordRequest(
+            String oldPassword,
+            String newPassword
     ) {
     }
 }

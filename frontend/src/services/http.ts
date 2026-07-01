@@ -1,4 +1,4 @@
-import { appConfig } from '@/app/config'
+import { appConfig } from '../app/config'
 
 export const ACCESS_TOKEN_KEY = 'creatorspace.accessToken'
 export const REFRESH_TOKEN_KEY = 'creatorspace.refreshToken'

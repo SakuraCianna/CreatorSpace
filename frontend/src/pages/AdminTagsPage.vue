@@ -64,11 +64,11 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
-import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
+import AdminPageHeader from '../components/admin/AdminPageHeader.vue'
 
-import { createTag, deleteTag, fetchTags, updateTag } from '@/services/content'
-import { toUserMessage } from '@/services/http'
-import type { TagPayload, TagSummary } from '@/shared/domain'
+import { createTag, deleteTag, fetchTags, updateTag } from '../services/content'
+import { toUserMessage } from '../services/http'
+import type { TagPayload, TagSummary } from '../shared/domain'
 
 const tags = ref<TagSummary[]>([])
 const editingId = ref<number | null>(null)

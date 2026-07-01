@@ -3,7 +3,7 @@ import Lenis from 'lenis'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
-import { prefersReducedMotion } from '@/shared/composables/useReducedMotion'
+import { prefersReducedMotion } from './useReducedMotion'
 
 gsap.registerPlugin(ScrollTrigger)
 

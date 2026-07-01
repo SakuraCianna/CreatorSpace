@@ -82,9 +82,9 @@ import { computed, onBeforeUnmount, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { LoaderCircle, ShieldCheck } from '@lucide/vue'
 
-import { sendForgotPasswordCode, resetPassword } from '@/services/content'
-import { toUserMessage } from '@/services/http'
-import { usePageReveal } from '@/shared/composables/usePageReveal'
+import { sendForgotPasswordCode, resetPassword } from '../services/content'
+import { toUserMessage } from '../services/http'
+import { usePageReveal } from '../shared/composables/usePageReveal'
 
 const root = ref<HTMLElement | null>(null)
 const router = useRouter()

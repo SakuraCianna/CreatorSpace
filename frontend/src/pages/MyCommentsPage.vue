@@ -61,13 +61,13 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import PublicPageHeader from '@/components/common/PublicPageHeader.vue'
+import PublicPageHeader from '../components/common/PublicPageHeader.vue'
 import { BookOpen, Images, LoaderCircle } from '@lucide/vue'
 
-import { fetchMyComments } from '@/services/content'
-import { usePageReveal } from '@/shared/composables/usePageReveal'
-import { formatDateTimeToSecond } from '@/shared/datetime'
-import type { CommentSummary } from '@/shared/domain'
+import { fetchMyComments } from '../services/content'
+import { usePageReveal } from '../shared/composables/usePageReveal'
+import { formatDateTimeToSecond } from '../shared/datetime'
+import type { CommentSummary } from '../shared/domain'
 
 const root = ref<HTMLElement | null>(null)
 usePageReveal(root)

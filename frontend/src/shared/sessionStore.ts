@@ -1,8 +1,8 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 
-import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, clearAuth, USER_SUMMARY_KEY } from '@/services/http'
-import type { UserSummary } from '@/shared/domain'
+import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, clearAuth, USER_SUMMARY_KEY } from '../services/http'
+import type { UserSummary } from './domain'
 
 // 读者和管理员会话状态仓储, 保存凭证 Token 与简要画像并同步到 localStorage 缓存中
 export const useSessionStore = defineStore('session', () => {

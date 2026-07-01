@@ -120,12 +120,12 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type Compon
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { BookOpen, Bell, Home, Images, Info, Lightbulb, Menu, MessageCircle, Palette, PenLine, Search, ShieldCheck, UserRound, X } from '@lucide/vue'
 
-import ThemeHUD from '@/shared/components/ThemeHUD.vue'
+import ThemeHUD from '../../shared/components/ThemeHUD.vue'
 
-import { fetchMyProfile, fetchSiteConfig, fetchUnreadNotificationCount } from '@/services/content'
-import { prefersReducedMotion } from '@/shared/composables/useReducedMotion'
-import { useSessionStore } from '@/shared/sessionStore'
-import { syncSiteIdentityFromConfig, useSiteIdentity } from '@/shared/siteIdentity'
+import { fetchMyProfile, fetchSiteConfig, fetchUnreadNotificationCount } from '../../services/content'
+import { prefersReducedMotion } from '../../shared/composables/useReducedMotion'
+import { useSessionStore } from '../../shared/sessionStore'
+import { syncSiteIdentityFromConfig, useSiteIdentity } from '../../shared/siteIdentity'
 // 声明前台公共布局的状态变量
 const navOpen = ref(false)
 const sceneHost = ref<HTMLElement | null>(null)
@@ -234,7 +234,7 @@ async function mountFrontstageScene() {
     return
   }
   try {
-    const { createFrontstageScene } = await import('@/shared/frontstageScene')
+    const { createFrontstageScene } = await import('../../shared/frontstageScene')
     if (!sceneHost.value) {
       return
     }
@@ -299,12 +299,9 @@ function withRequiredPublicEntries(items: PublicNavItem[]): PublicNavItem[] {
     { to: '/inspirations', label: '灵感', icon: Lightbulb, external: false },
     { to: '/search', label: '搜索', icon: Search, external: false },
     { to: '/guestbook', label: '留言', icon: MessageCircle, external: false },
-    { to: '/about', label: '关于', icon: Info, external: false },
   ]
   if (!nextItems.some((item) => item.to === '/themes')) {
-    const aboutIndex = nextItems.findIndex((item) => item.to === '/about')
-    const insertAt = aboutIndex >= 0 ? aboutIndex : nextItems.length
-    nextItems.splice(insertAt, 0, { to: '/themes', label: '主题', icon: Palette, external: false })
+    nextItems.push({ to: '/themes', label: '主题', icon: Palette, external: false })
   }
   if (!nextItems.some((item) => item.to === '/guestbook')) {
     const searchIndex = nextItems.findIndex((item) => item.to === '/search')

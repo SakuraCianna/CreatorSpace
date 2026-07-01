@@ -1,6 +1,6 @@
 import { ref } from 'vue'
-import { followUser, unfollowUser, fetchFollowStatus } from '@/services/content'
-import { ACCESS_TOKEN_KEY } from '@/services/http'
+import { followUser, unfollowUser, fetchFollowStatus } from '../../services/content'
+import { ACCESS_TOKEN_KEY } from '../../services/http'
 
 export function useFollow() {
   const following = ref(false)

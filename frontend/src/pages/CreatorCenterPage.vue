@@ -44,8 +44,8 @@
           <textarea v-model="articleForm.summary" rows="3" maxlength="1200" />
         </label>
         <label>
-          封面地址
-          <input v-model="articleForm.coverUrl" placeholder="/uploads/article/2026/06/cover.webp" />
+          封面图片 (建议比例 16:9)
+          <FileUpload v-model="articleForm.coverUrl" module="COVER" accept="image/*" hint="最大 10MB" />
         </label>
         <label>
           Markdown 正文
@@ -133,19 +133,23 @@
           <textarea v-model="projectForm.description" rows="3" maxlength="2000" />
         </label>
         <label>
-          封面地址
-          <input v-model="projectForm.coverUrl" placeholder="/uploads/project/2026/06/cover.webp" />
+          封面图片 (建议比例 16:9)
+          <FileUpload v-model="projectForm.coverUrl" module="COVER" accept="image/*" hint="最大 10MB" />
         </label>
         <div class="form-line">
           <label>
-            GitHub
+            GitHub 地址
             <input v-model="projectForm.githubUrl" placeholder="https://github.com/..." />
           </label>
           <label>
-            Demo
+            演示地址 (可选 URL)
             <input v-model="projectForm.demoUrl" placeholder="https://demo.example.com" />
           </label>
         </div>
+        <label>
+          演示视频 (支持 MP4/WebM，最大 100MB)
+          <FileUpload v-model="projectForm.videoUrl" module="PROJECT" accept="video/mp4,video/webm,video/quicktime,video/x-matroska" hint="最大 100MB" />
+        </label>
         <label>
           Markdown 详情
           <textarea v-model="projectForm.contentMarkdown" rows="8" />
@@ -257,10 +261,11 @@
 // 导入 Composition API 与路由依赖
 import { computed, onMounted, reactive, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
-import PublicPageHeader from '@/components/common/PublicPageHeader.vue'
+import PublicPageHeader from '../components/common/PublicPageHeader.vue'
+import FileUpload from '../components/common/FileUpload.vue'
 import { BookOpen, ExternalLink, FileImage, Images, Star } from '@lucide/vue'
 
-import BaseSelect from '@/shared/components/BaseSelect.vue'
+import BaseSelect from '../shared/components/BaseSelect.vue'
 import {
   createCreatorArticle,
   createCreatorProject,
@@ -280,10 +285,10 @@ import {
   updateCreatorArticle,
   updateCreatorProject,
   uploadCreatorFile,
-} from '@/services/content'
-import { toUserMessage } from '@/services/http'
-import { usePageReveal } from '@/shared/composables/usePageReveal'
-import { formatDateTimeToSecond } from '@/shared/datetime'
+} from '../services/content'
+import { toUserMessage } from '../services/http'
+import { usePageReveal } from '../shared/composables/usePageReveal'
+import { formatDateTimeToSecond } from '../shared/datetime'
 import type {
   ArticlePayload,
   ArticleSummary,
@@ -293,7 +298,7 @@ import type {
   ProjectPayload,
   ProjectSummary,
   TagSummary,
-} from '@/shared/domain'
+} from '../shared/domain'
 // 初始化创作者工作台的响应式状态数据
 const root = ref<HTMLElement | null>(null)
 const route = useRoute()

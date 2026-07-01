@@ -172,7 +172,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
+import AdminPageHeader from '../components/admin/AdminPageHeader.vue'
 import {
   Bot,
   Check,
@@ -191,11 +191,11 @@ import {
   WandSparkles,
   X,
 } from '@lucide/vue'
-import BaseSelect from '@/shared/components/BaseSelect.vue'
+import BaseSelect from '../shared/components/BaseSelect.vue'
 
-import { continueAiTask, createAiTask, createAiWorkflow, fetchAiSuggestions, updateAiSuggestionStatus } from '@/services/content'
-import { toUserMessage } from '@/services/http'
-import type { AiSuggestionStatus, AiSuggestionSummary, AiTaskPayload, AiTaskSummary, AiTaskType, AiWorkflowPayload, PageResponse } from '@/shared/domain'
+import { continueAiTask, createAiTask, createAiWorkflow, fetchAiSuggestions, updateAiSuggestionStatus } from '../services/content'
+import { toUserMessage } from '../services/http'
+import type { AiSuggestionStatus, AiSuggestionSummary, AiTaskPayload, AiTaskSummary, AiTaskType, AiWorkflowPayload, PageResponse } from '../shared/domain'
 
 const taskOptions: Array<{ value: AiTaskType; label: string; icon: unknown }> = [
   { value: 'SUMMARY', label: '摘要', icon: FileText },

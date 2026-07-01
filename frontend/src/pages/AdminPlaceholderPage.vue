@@ -727,7 +727,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Plus } from '@lucide/vue'
-import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
+import AdminPageHeader from '../components/admin/AdminPageHeader.vue'
 import {
   approveArticle,
   approveProject,
@@ -765,10 +765,10 @@ import {
   updateSiteSettings,
   updateTheme,
   uploadAdminFile,
-} from '@/services/content'
-import { toUserMessage } from '@/services/http'
-import { usePageReveal } from '@/shared/composables/usePageReveal'
-import { formatDateTimeToSecond } from '@/shared/datetime'
+} from '../services/content'
+import { toUserMessage } from '../services/http'
+import { usePageReveal } from '../shared/composables/usePageReveal'
+import { formatDateTimeToSecond } from '../shared/datetime'
 import type {
   AdminThemeConfig,
   ArticlePayload,
@@ -791,8 +791,8 @@ import type {
   SocialLink,
   TagSummary,
   ThemePayload,
-} from '@/shared/domain'
-import { syncSiteIdentityFromSettings, useSiteIdentity } from '@/shared/siteIdentity'
+} from '../shared/domain'
+import { syncSiteIdentityFromSettings, useSiteIdentity } from '../shared/siteIdentity'
 interface ModuleConfig {
   title: string
   description: string
@@ -808,7 +808,7 @@ type NavigationItemForm = Omit<NavigationItem, 'extraJson' | 'icon'> & {
 type SocialLinkForm = Omit<SocialLink, 'icon'> & {
   icon: string
 }
-import BaseSelect from '@/shared/components/BaseSelect.vue'
+import BaseSelect from '../shared/components/BaseSelect.vue'
 type PageConfigForm = Omit<PageConfig, 'contentJson' | 'layoutJson' | 'seoTitle' | 'seoDescription'> & {
   seoTitle: string
   seoDescription: string

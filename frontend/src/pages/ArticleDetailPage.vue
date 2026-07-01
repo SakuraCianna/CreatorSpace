@@ -175,19 +175,19 @@ import {
   reactToComment,
   submitComment,
   unreactFromComment,
-} from '@/services/content'
-import { HttpError, toUserMessage } from '@/services/http'
-import { useCinematicPageMotion } from '@/shared/composables/useCinematicPageMotion'
-import { useFollow } from '@/shared/composables/useFollow'
-import { useInteraction } from '@/shared/composables/useInteraction'
-import { usePageReveal } from '@/shared/composables/usePageReveal'
-import { toCssImageUrl } from '@/shared/cssImage'
-import { formatDateToDay } from '@/shared/datetime'
-import type { ArticleSummary, CommentSummary, CommentTree } from '@/shared/domain'
-import { buildCommentTree } from '@/shared/domain'
-import CommentThread from '@/shared/components/CommentThread.vue'
-import { normalizeMarkdownSource, renderSafeMarkdown } from '@/shared/markdown'
-import { useSessionStore } from '@/shared/sessionStore'
+} from '../services/content'
+import { HttpError, toUserMessage } from '../services/http'
+import { useCinematicPageMotion } from '../shared/composables/useCinematicPageMotion'
+import { useFollow } from '../shared/composables/useFollow'
+import { useInteraction } from '../shared/composables/useInteraction'
+import { usePageReveal } from '../shared/composables/usePageReveal'
+import { toCssImageUrl } from '../shared/cssImage'
+import { formatDateToDay } from '../shared/datetime'
+import type { ArticleSummary, CommentSummary, CommentTree } from '../shared/domain'
+import { buildCommentTree } from '../shared/domain'
+import CommentThread from '../shared/components/CommentThread.vue'
+import { normalizeMarkdownSource, renderSafeMarkdown } from '../shared/markdown'
+import { useSessionStore } from '../shared/sessionStore'
 // 初始化文章数据与交互控制状态
 const route = useRoute()
 const root = ref<HTMLElement | null>(null)
