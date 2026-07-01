@@ -1,94 +1,64 @@
 <template>
-  <section ref="root" class="auth-page auth-page--material">
-    <form class="auth-card auth-card--material" data-reveal @submit.prevent="submitRegister">
-      <div class="auth-card__visual auth-card__visual--material auth-card__visual--warm">
-        <span class="material-icon-badge">
-          <UserPlus :size="24" />
-        </span>
-        <p class="page-kicker">Join {{ siteName }}</p>
-        <h1>注册读者身份</h1>
-        <p>使用 QQ 邮箱注册，仅限 @qq.com 邮箱。</p>
-        <div class="material-benefits" aria-label="注册能力">
-          <span>Reader</span>
-          <span>Comment</span>
-          <span>Favorite</span>
+  <section ref="root" class="premium-auth-page">
+    <div class="glass-card glass-card--register" data-reveal>
+      <div class="card-header">
+        <div class="logo-box">
+          <UserPlus :size="28" :stroke-width="2" />
         </div>
+        <h1>加入 {{ siteName }}</h1>
+        <p class="subtitle">创建您的读者账号</p>
       </div>
-      <div class="auth-card__form">
-        <div>
-          <p class="page-kicker">Create account</p>
-          <h2>普通用户注册</h2>
+
+      <form class="auth-form" @submit.prevent="submitRegister">
+        <div class="input-row">
+          <div class="input-group">
+            <label>用户名</label>
+            <input v-model="form.username" autocomplete="username" maxlength="64" minlength="3" placeholder="起个名字" />
+          </div>
+          <div class="input-group">
+            <label>密码</label>
+            <input v-model="form.password" type="password" autocomplete="new-password" minlength="6" placeholder="设置密码" />
+          </div>
         </div>
-        <label class="md-field">
-          <span>用户名</span>
-          <input
-            v-model="form.username"
-            autocomplete="username"
-            maxlength="64"
-            minlength="3"
-            name="username"
-          />
-        </label>
-        <label class="md-field">
-          <span>QQ 邮箱</span>
-          <input
-            v-model="form.email"
-            autocomplete="email"
-            name="email"
-            type="email"
-            placeholder="yourname@qq.com"
-          />
-        </label>
-        <label class="md-field">
-          <span>验证码</span>
-          <input
-            v-model="form.verificationCode"
-            autocomplete="one-time-code"
-            maxlength="6"
-            name="verificationCode"
-            inputmode="numeric"
-            placeholder="输入 6 位验证码"
-          />
-          <button
-            class="button button-tonal code-send-btn"
-            type="button"
-            :disabled="codeCountdown > 0 || !isValidEmail"
-            @click="sendCode"
-          >
-            {{ codeCountdown > 0 ? `重新发送(${codeCountdown}s)` : '发送验证码' }}
-          </button>
-        </label>
-        <label class="md-field">
-          <span>密码</span>
-          <input
-            v-model="form.password"
-            autocomplete="new-password"
-            maxlength="72"
-            minlength="6"
-            name="password"
-            type="password"
-          />
-        </label>
-        <VueHcaptcha
-          ref="hcaptchaRef"
-          :sitekey="hcaptchaSiteKey"
-          @verify="onVerify"
-          @expired="onExpired"
-          @error="onError"
-          style="margin-top: 8px;"
-        />
-        <button class="button button-filled" :disabled="isSubmitting || isRedirecting || !hcaptchaToken" type="submit">
-          <LoaderCircle v-if="isSubmitting" class="spin" :size="16" />
-          {{ isSubmitting ? '创建中...' : isRedirecting ? '正在前往登录页' : '创建账号' }}
+
+        <div class="input-group">
+          <label>电子邮箱</label>
+          <input v-model="form.email" type="email" autocomplete="email" placeholder="输入邮箱地址" />
+        </div>
+
+        <div class="input-group input-group--with-btn">
+          <label>验证码</label>
+          <div class="code-input-row">
+            <input v-model="form.verificationCode" autocomplete="one-time-code" maxlength="6" inputmode="numeric" placeholder="6位验证码" />
+            <button class="send-code-btn" type="button" :disabled="codeCountdown > 0 || !isValidEmail" @click="sendCode">
+              {{ codeCountdown > 0 ? `${codeCountdown}s 后重试` : '获取验证码' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="hcaptcha-wrapper">
+          <VueHcaptcha ref="hcaptchaRef" :sitekey="hcaptchaSiteKey" @verify="onVerify" @expired="onExpired" @error="onError" />
+        </div>
+
+        <button class="submit-btn" :disabled="isSubmitting || isRedirecting || !hcaptchaToken" type="submit">
+          <LoaderCircle v-if="isSubmitting || isRedirecting" class="spin" :size="18" />
+          <span v-else>立即注册</span>
         </button>
-        <RouterLink class="auth-switch" :to="loginRoute">已有账号，去登录</RouterLink>
-        <p v-if="message" class="form-message" :class="`form-message--${messageType}`">{{ message }}</p>
-      </div>
-    </form>
+
+        <div class="card-footer">
+          <span class="text-muted">已有账号？</span>
+          <RouterLink class="link" :to="loginRoute">直接登录</RouterLink>
+        </div>
+
+        <div v-if="message" class="error-msg" :class="{'success-msg': messageType === 'success'}">
+          {{ message }}
+        </div>
+      </form>
+    </div>
   </section>
 </template>
+
 <script setup lang="ts">
-// 导入所需的 Composition API 和 Vue 依赖
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { LoaderCircle, UserPlus } from '@lucide/vue'
@@ -98,7 +68,7 @@ import { HttpError, toUserMessage } from '@/services/http'
 import { normalizeAuthRedirect } from '@/shared/authRedirect'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
 import { useSiteIdentity } from '@/shared/siteIdentity'
-// 声明读者账号注册表单和处理状态变量
+
 const root = ref<HTMLElement | null>(null)
 const route = useRoute()
 const router = useRouter()
@@ -122,7 +92,8 @@ const USERNAME_MAX_LENGTH = 64
 const PASSWORD_MIN_LENGTH = 6
 const PASSWORD_MAX_LENGTH = 72
 
-const isValidEmail = computed(() => /^[^\s@]+@qq\.com$/.test(form.email))
+// Allow basic email check for UX, backend restricts to QQ email if needed
+const isValidEmail = computed(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
 
 function sendCode() {
   sendRegisterCode(form.email)
@@ -170,7 +141,6 @@ watch([() => form.username, () => form.password], () => {
     clearMessage()
   }
 })
-// 提交读者注册表单, 校验通过后向后端创建新用户, 注册成功后自动延时跳转登录页
 async function submitRegister() {
   clearRedirectTimer()
   isRedirecting.value = false
@@ -202,7 +172,7 @@ async function submitRegister() {
     }
     isRedirecting.value = true
     form.password = ''
-    setMessage(`账号 ${user.username} 创建成功，正在前往登录页完成登录。`, 'success')
+    setMessage(`账号 ${user.username} 创建成功，正在前往登录页。`, 'success')
     redirectTimer = window.setTimeout(() => {
       router.push(loginRoute.value)
     }, 900)
@@ -219,7 +189,6 @@ async function submitRegister() {
     isSubmitting.value = false
   }
 }
-// 对注册表单输入进行前台基础长度与合法性限制校验
 function validateRegisterForm(username: string, password: string): string {
   if (!username) {
     return '请输入用户名'
@@ -227,8 +196,8 @@ function validateRegisterForm(username: string, password: string): string {
   if (username.length < USERNAME_MIN_LENGTH || username.length > USERNAME_MAX_LENGTH) {
     return `用户名长度必须是 ${USERNAME_MIN_LENGTH} 到 ${USERNAME_MAX_LENGTH} 个字符`
   }
-  if (!form.email || !/^[^\s@]+@qq\.com$/.test(form.email)) {
-    return '请输入有效的 QQ 邮箱'
+  if (!form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+    return '请输入有效的邮箱'
   }
   if (!form.verificationCode || form.verificationCode.length !== 6) {
     return '请输入 6 位验证码'
@@ -264,234 +233,250 @@ function readRegisterRedirectPath() {
   return redirect.startsWith('/admin') ? '/creator/articles' : redirect
 }
 </script>
+
 <style scoped>
-.auth-page {
-  display: grid;
-  min-height: calc(100vh - 72px);
-  place-items: center;
-  padding: clamp(28px, 5vw, 72px) 0;
-}
-.auth-card {
-  width: min(960px, 100%);
-  border: 1px solid var(--md-sys-color-outline-variant);
-  border-radius: 28px;
-  background: var(--md-sys-color-surface-container-lowest);
-  box-shadow: var(--md-sys-elevation-2);
-}
-.auth-card--wide {
-  display: grid;
-  grid-template-columns: 1fr 0.9fr;
-  overflow: hidden;
-}
-.auth-card--material {
-  display: grid;
-  grid-template-columns: minmax(0, 1.02fr) minmax(360px, 0.82fr);
-  gap: 0;
-  min-height: 560px;
-  overflow: hidden;
-}
-.auth-card__visual,
-.auth-card__form {
-  display: grid;
-  gap: 18px;
-  padding: 32px;
-}
-.auth-card__form {
-  align-content: center;
-  gap: 18px;
-  padding: clamp(28px, 4vw, 48px);
-}
-.auth-mode-switch {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  min-height: 48px;
-  overflow: hidden;
-  border: 1px solid var(--md-sys-color-outline);
-  border-radius: 999px;
-  background: var(--md-sys-color-surface-container-lowest);
-}
-.auth-mode-switch button {
-  min-height: 46px;
-  border: 0;
-  background: transparent;
-  color: var(--md-sys-color-on-surface-variant);
-  font: inherit;
-  font-weight: 760;
-  cursor: pointer;
-  transition: background 180ms ease, color 180ms ease;
-}
-.auth-mode-switch button:hover {
-  background: #e8efff;
-  color: #174ea6;
-}
-.auth-mode-switch button.is-active {
-  background: var(--md-sys-color-secondary-container);
-  color: #00201c;
-}
-.auth-card__visual {
-  align-content: end;
-  min-height: 420px;
-  background:
-    linear-gradient(145deg, rgba(16, 19, 31, 0.88), rgba(49, 91, 255, 0.66)),
-    var(--tone-night);
-  color: #fff;
-}
-.auth-card__visual--material {
-  position: relative;
-  align-content: end;
-  min-height: 100%;
-  padding: clamp(32px, 5vw, 56px);
-  overflow: hidden;
-  background:
-    linear-gradient(160deg, rgba(216, 226, 255, 0.9), rgba(156, 242, 228, 0.62)),
-    var(--md-sys-color-primary-container);
-  color: var(--md-sys-color-on-primary-container);
-}
-.auth-card__visual--material::before {
-  content: "";
-  position: absolute;
-  right: -90px;
-  bottom: -120px;
-  width: 320px;
-  height: 320px;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--md-sys-color-primary) 28%, transparent);
-}
-.auth-card__visual--warm {
-  background:
-    linear-gradient(160deg, rgba(255, 221, 176, 0.96), rgba(216, 226, 255, 0.72)),
-    var(--md-sys-color-tertiary-container);
-}
-.auth-card__visual--material > * {
-  position: relative;
-  z-index: 1;
-}
-.auth-card__visual--material h1,
-.auth-card__visual--material p,
-.auth-card__visual--material .page-kicker,
-.auth-card__visual--material svg {
-  color: inherit;
-}
-.auth-card h1 {
-  margin: 0;
-  font-size: clamp(34px, 4vw, 52px);
-  line-height: 1.08;
-}
-.auth-card h2 {
-  margin: 6px 0 0;
-  color: var(--md-sys-color-on-surface);
-  font-size: 26px;
-  line-height: 1.16;
-}
-.auth-card label {
-  display: grid;
-  gap: 8px;
-  color: var(--md-sys-color-on-surface-variant);
-  font-size: 13px;
-  font-weight: 750;
-}
-.auth-card input {
-  width: 100%;
-  min-height: 56px;
-  border: 1px solid transparent;
-  border-bottom: 1px solid var(--md-sys-color-outline);
-  border-radius: 12px 12px 0 0;
-  padding: 0 14px;
-  background: var(--md-sys-color-surface-container);
-  color: var(--md-sys-color-on-surface);
-  outline: 0;
-  transition: background 180ms ease, border-color 180ms ease;
-}
-.auth-card input:focus {
-  border-bottom-color: var(--md-sys-color-primary);
-  background: var(--md-sys-color-surface-container-high);
-}
-.auth-card button {
-  width: 100%;
-}
-.auth-switch {
-  display: inline-flex;
+.premium-auth-page {
+  display: flex;
   justify-content: center;
-  color: var(--md-sys-color-primary);
-  font-size: 14px;
-  font-weight: 760;
+  align-items: center;
+  min-height: calc(100vh - 72px);
+  padding: 20px;
+  background-image: url('@/assets/images/auth_bg.jpg');
+  background-size: cover;
+  background-position: center;
+  position: relative;
 }
 
-.code-send-btn {
-  margin-top: 8px;
+.premium-auth-page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.glass-card {
+  position: relative;
+  z-index: 10;
   width: 100%;
+  max-width: 440px;
+  padding: 36px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 28px;
+  box-shadow: 0 40px 80px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.4) inset;
+  animation: floatUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.material-icon-badge {
-  display: inline-grid;
+@keyframes floatUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.card-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.logo-box {
   width: 56px;
   height: 56px;
-  place-items: center;
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--md-sys-color-surface) 72%, transparent);
-  box-shadow: var(--md-sys-elevation-1);
-}
-.material-benefits {
+  margin: 0 auto 16px;
+  background: linear-gradient(135deg, #1f2937, #111827);
+  color: white;
+  border-radius: 16px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12px 24px rgba(17, 24, 39, 0.25);
 }
-.material-benefits span {
-  min-height: 32px;
-  padding: 7px 12px;
-  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--md-sys-color-surface) 54%, transparent);
-  font-size: 12px;
-  font-weight: 780;
+
+.card-header h1 {
+  font-size: 26px;
+  font-weight: 800;
+  color: #111827;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.5px;
 }
-.form-message {
-  margin: 0;
-  padding: 10px 12px;
-  border-left: 3px solid transparent;
-  border-radius: 8px;
+
+.card-header .subtitle {
   font-size: 14px;
-  line-height: 1.55;
+  color: #6b7280;
+  margin: 0;
+  font-weight: 500;
 }
-.form-message--error {
-  border-left-color: var(--tone-coral);
-  background: rgba(194, 95, 58, 0.08);
-  color: #754226;
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
-.form-message--success {
-  border-left-color: var(--tone-teal);
-  background: rgba(0, 124, 114, 0.08);
-  color: #055f57;
+
+.input-row {
+  display: flex;
+  gap: 12px;
 }
-@media (max-width: 1020px) {
-  .auth-card--wide,
-  .auth-card--material {
-    grid-template-columns: 1fr;
-  }
-  .auth-card--material {
-    min-height: auto;
-  }
-  .auth-card__visual--material {
-    min-height: 280px;
-  }
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
 }
-@media (max-width: 760px) {
-  .auth-page {
-    padding-top: 28px;
-  }
-  .auth-card {
+
+.input-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-left: 4px;
+}
+
+.input-group input {
+  height: 48px;
+  padding: 0 16px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  color: #111827;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.input-group input:focus {
+  outline: none;
+  border-color: #315bff;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(49, 91, 255, 0.1);
+}
+
+.code-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.send-code-btn {
+  height: 48px;
+  padding: 0 16px;
+  border: none;
+  background: rgba(17, 24, 39, 0.06);
+  color: #111827;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.send-code-btn:hover:not(:disabled) {
+  background: rgba(17, 24, 39, 0.12);
+}
+
+.send-code-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  color: #6b7280;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.hcaptcha-wrapper {
+  display: flex;
+  justify-content: center;
+  transform: scale(0.95);
+  transform-origin: center;
+  margin: -4px 0;
+}
+
+.submit-btn {
+  height: 52px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #111827, #374151);
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 20px rgba(17, 24, 39, 0.2);
+  margin-top: 6px;
+}
+
+.submit-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(17, 24, 39, 0.3);
+  background: linear-gradient(135deg, #000000, #1f2937);
+}
+
+.submit-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 14px;
+}
+
+.link {
+  color: #315bff;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.link:hover {
+  color: #174ea6;
+  text-decoration: underline;
+}
+
+.text-muted {
+  color: #6b7280;
+}
+
+.error-msg {
+  text-align: center;
+  font-size: 13px;
+  color: #dc2626;
+  background: #fee2e2;
+  padding: 10px;
+  border-radius: 10px;
+  margin-top: 4px;
+  font-weight: 500;
+}
+.success-msg {
+  color: #059669;
+  background: #d1fae5;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 480px) {
+  .glass-card {
+    padding: 32px 24px;
     border-radius: 24px;
   }
-  .auth-card__visual--material,
-  .auth-card__form {
-    padding: 24px;
-  }
-  .auth-card__visual--material {
-    min-height: 240px;
-  }
-  .auth-card h1 {
-    font-size: 34px;
+  .input-row {
+    flex-direction: column;
+    gap: 16px;
   }
 }
 </style>

@@ -167,10 +167,13 @@ public class AuthServiceImpl implements AuthService {
             throw BusinessException.badRequest("人机验证失败，请重试");
         }
 
+        String account = request.username().trim();
         UserEntity user = userMapper.selectOne(new LambdaQueryWrapper<UserEntity>()
-                .eq(UserEntity::getUsername, request.username().trim()));
+                .eq(UserEntity::getUsername, account)
+                .or()
+                .eq(UserEntity::getEmail, account));
         if (user == null) {
-            throw new BusinessException(HttpStatus.UNAUTHORIZED, "用户名不存在");
+            throw new BusinessException(HttpStatus.UNAUTHORIZED, "账号不存在");
         }
         checkAccountLocked(user);
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {

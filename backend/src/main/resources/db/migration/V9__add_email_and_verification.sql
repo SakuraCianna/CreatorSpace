@@ -2,7 +2,7 @@
 alter table users
     add column if not exists email varchar(320);
 alter table users
-    add constraint if not exists uk_users_email unique (email);
+    add constraint uk_users_email unique (email);
 
 -- 邮件验证码表
 create table if not exists email_verification_codes (
