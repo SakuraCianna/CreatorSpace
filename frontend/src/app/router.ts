@@ -98,6 +98,12 @@ const router = createRouter({
       meta: { layout: "public" },
     },
     {
+      path: "/forgot-password",
+      name: "forgot-password",
+      component: () => import("@/pages/ForgotPasswordPage.vue"),
+      meta: { layout: "public" },
+    },
+    {
       path: "/login",
       name: "login",
       component: () => import("@/pages/LoginPage.vue"),

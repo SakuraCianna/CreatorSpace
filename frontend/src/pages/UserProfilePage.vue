@@ -437,7 +437,8 @@ async function loadArticles() {
   try {
     const page = await fetchUserArticles(profile.value.id)
     articles.value = page.records
-  } catch {
+  } catch (e) {
+    console.error('Failed to load articles:', e)
     articles.value = []
   } finally {
     articlesLoading.value = false

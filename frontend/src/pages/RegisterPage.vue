@@ -9,7 +9,7 @@
         </span>
         <p class="page-kicker">Join {{ siteName }}</p>
         <h1>注册读者身份</h1>
-        <p>普通用户可以为后续评论、点赞、收藏和好友可见内容预留身份。第一阶段只需要用户名和密码。</p>
+        <p>使用 QQ 邮箱注册，仅限 @qq.com 邮箱。</p>
         <div class="material-benefits" aria-label="注册能力">
           <span>Reader</span>
           <span>Comment</span>
@@ -30,6 +30,35 @@
             minlength="3"
             name="username"
           />
+        </label>
+        <label class="md-field">
+          <span>QQ 邮箱</span>
+          <input
+            v-model="form.email"
+            autocomplete="email"
+            name="email"
+            type="email"
+            placeholder="yourname@qq.com"
+          />
+        </label>
+        <label class="md-field">
+          <span>验证码</span>
+          <input
+            v-model="form.verificationCode"
+            autocomplete="one-time-code"
+            maxlength="6"
+            name="verificationCode"
+            inputmode="numeric"
+            placeholder="输入 6 位验证码"
+          />
+          <button
+            class="button button-tonal code-send-btn"
+            type="button"
+            :disabled="codeCountdown > 0 || !isValidEmail"
+            @click="sendCode"
+          >
+            {{ codeCountdown > 0 ? `重新发送(${codeCountdown}s)` : '发送验证码' }}
+          </button>
         </label>
         <label class="md-field">
           <span>密码</span>
@@ -59,7 +88,7 @@ import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { LoaderCircle, UserPlus } from '@lucide/vue'
 
-import { registerUser } from '@/services/content'
+import { registerUser, sendRegisterCode } from '@/services/content'
 import { HttpError, toUserMessage } from '@/services/http'
 import { normalizeAuthRedirect } from '@/shared/authRedirect'
 import { usePageReveal } from '@/shared/composables/usePageReveal'
@@ -72,8 +101,12 @@ const router = useRouter()
 const { siteName } = useSiteIdentity({ load: false })
 const form = reactive({
   username: '',
+  email: '',
+  verificationCode: '',
   password: '',
 })
+const codeCountdown = ref(0)
+let codeTimer: number | undefined
 const message = ref('')
 const messageType = ref<'idle' | 'success' | 'error'>('idle')
 const isSubmitting = ref(false)
@@ -84,6 +117,20 @@ const USERNAME_MIN_LENGTH = 3
 const USERNAME_MAX_LENGTH = 64
 const PASSWORD_MIN_LENGTH = 6
 const PASSWORD_MAX_LENGTH = 72
+
+const isValidEmail = computed(() => /^[^\s@]+@qq\.com$/.test(form.email))
+
+function sendCode() {
+  sendRegisterCode(form.email)
+  codeCountdown.value = 60
+  codeTimer = window.setInterval(() => {
+    codeCountdown.value--
+    if (codeCountdown.value <= 0) {
+      clearInterval(codeTimer)
+      codeTimer = undefined
+    }
+  }, 1000)
+}
 const loginRoute = computed(() => ({
   name: 'login',
   query: {
@@ -92,7 +139,13 @@ const loginRoute = computed(() => ({
 }))
 
 usePageReveal(root)
-onBeforeUnmount(clearRedirectTimer)
+onBeforeUnmount(() => {
+  clearRedirectTimer()
+  if (codeTimer !== undefined) {
+    clearInterval(codeTimer)
+    codeTimer = undefined
+  }
+})
 watch([() => form.username, () => form.password], () => {
   if (isRedirecting.value) {
     return
@@ -121,6 +174,8 @@ async function submitRegister() {
   try {
     const user = await registerUser({
       username,
+      email: form.email.trim(),
+      verificationCode: form.verificationCode,
       password: form.password,
     })
     if (!isCurrentRegisterAttempt(attemptId, username)) {
@@ -151,6 +206,12 @@ function validateRegisterForm(username: string, password: string): string {
   }
   if (username.length < USERNAME_MIN_LENGTH || username.length > USERNAME_MAX_LENGTH) {
     return `用户名长度必须是 ${USERNAME_MIN_LENGTH} 到 ${USERNAME_MAX_LENGTH} 个字符`
+  }
+  if (!form.email || !/^[^\s@]+@qq\.com$/.test(form.email)) {
+    return '请输入有效的 QQ 邮箱'
+  }
+  if (!form.verificationCode || form.verificationCode.length !== 6) {
+    return '请输入 6 位验证码'
   }
   if (!password) {
     return '请输入密码'
@@ -362,6 +423,11 @@ function readRegisterRedirectPath() {
   color: var(--md-sys-color-primary);
   font-size: 14px;
   font-weight: 760;
+}
+
+.code-send-btn {
+  margin-top: 8px;
+  width: 100%;
 }
 
 .material-icon-badge {

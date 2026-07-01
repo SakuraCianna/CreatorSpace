@@ -30,6 +30,8 @@ public class UserEntity {
 
     private String bio;
 
+    private String email;
+
     @TableField("last_login_at")
     private OffsetDateTime lastLoginAt;
 
@@ -103,6 +105,14 @@ public class UserEntity {
     // 设置账号状态。
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     // 获取last login at。

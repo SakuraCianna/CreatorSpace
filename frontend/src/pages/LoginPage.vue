@@ -39,7 +39,10 @@
           <LoaderCircle v-if="isSubmitting" class="spin" :size="16" />
           {{ isSubmitting ? '登录中...' : loginMode === 'ADMIN' ? '登录后台' : '登录账号' }}
         </button>
-        <RouterLink class="auth-switch" :to="registerRoute">没有账号，先注册普通用户</RouterLink>
+        <div class="auth-links">
+          <RouterLink class="auth-switch" :to="{ name: 'forgot-password' }">忘记密码？</RouterLink>
+          <RouterLink class="auth-switch" :to="registerRoute">没有账号，先注册普通用户</RouterLink>
+        </div>
         <p v-if="message" class="form-message">{{ message }}</p>
       </div>
     </form>
@@ -344,6 +347,13 @@ function readRedirectPath() {
 .auth-card .button-filled:hover {
   color: #ffffff;
   background: linear-gradient(135deg, #254be8, #123f92);
+}
+
+.auth-links {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .auth-switch {

@@ -84,8 +84,7 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
   const timeoutId = window.setTimeout(() => controller.abort(), appConfig.apiTimeoutMs)
   const requestPath = path.startsWith('/') ? path : `/${path}`
   const method = init?.method?.toUpperCase() ?? 'GET'
-  const isPublicGet = method === 'GET' && isPublicApi(requestPath)
-  const token = isPublicGet ? null : window.localStorage.getItem(ACCESS_TOKEN_KEY)
+  const token = isPublicApi(requestPath) ? null : window.localStorage.getItem(ACCESS_TOKEN_KEY)
   const isFormData = init?.body instanceof FormData
 
   try {

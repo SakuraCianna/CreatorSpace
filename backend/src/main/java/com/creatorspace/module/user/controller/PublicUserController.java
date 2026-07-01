@@ -22,6 +22,7 @@ import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 @Validated
 @RestController
@@ -47,9 +48,15 @@ public class PublicUserController {
             currentUserId = loginUser.userId();
         }
         boolean isOwner = currentUserId != null && currentUserId.equals(userId);
-        String articleCountSql = isOwner
-                ? "(select count(*) from articles a where a.created_by = u.id and a.status in ('PUBLISHED', 'PRIVATE')) as article_count"
-                : "(select count(*) from articles a where a.created_by = u.id and a.status = 'PUBLISHED' and a.privacy_type = 'PUBLIC') as article_count";
+        boolean isFriend = !isOwner && currentUserId != null && isMutualFollow(currentUserId, userId);
+        String articleCountSql;
+        if (isOwner) {
+            articleCountSql = "(select count(*) from articles a where a.created_by = u.id and a.status in ('PUBLISHED', 'PRIVATE')) as article_count";
+        } else if (isFriend) {
+            articleCountSql = "(select count(*) from articles a where a.created_by = u.id and a.status = 'PUBLISHED' and a.privacy_type in ('PUBLIC', 'FRIENDS')) as article_count";
+        } else {
+            articleCountSql = "(select count(*) from articles a where a.created_by = u.id and a.status = 'PUBLISHED' and a.privacy_type = 'PUBLIC') as article_count";
+        }
         List<UserPublicVO> profiles = jdbcTemplate.query("""
                         select u.id, u.username, u.nickname, u.avatar_url, u.bio,
                                %s,
@@ -83,6 +90,7 @@ public class PublicUserController {
             currentUserId = loginUser.userId();
         }
         boolean isOwner = currentUserId != null && currentUserId.equals(userId);
+        boolean isFriend = !isOwner && currentUserId != null && isMutualFollow(currentUserId, userId);
         long offset = (page - 1) * pageSize;
         String countSql;
         String listSql;
@@ -94,7 +102,17 @@ public class PublicUserController {
             listSql = """
                     select a.* from articles a
                     where a.created_by = ? and a.status in ('PUBLISHED', 'PRIVATE')
-                    order by a.top desc, a.publish_time desc, a.id desc
+                    order by a.is_top desc, a.publish_time desc, a.id desc
+                    limit ? offset ?
+                    """;
+            listParams = new Object[]{userId, pageSize, offset};
+        } else if (isFriend) {
+            countSql = "select count(*) from articles where created_by = ? and status = 'PUBLISHED' and privacy_type in ('PUBLIC', 'FRIENDS')";
+            countParams = new Object[]{userId};
+            listSql = """
+                    select a.* from articles a
+                    where a.created_by = ? and a.status = 'PUBLISHED' and a.privacy_type in ('PUBLIC', 'FRIENDS')
+                    order by a.is_top desc, a.publish_time desc, a.id desc
                     limit ? offset ?
                     """;
             listParams = new Object[]{userId, pageSize, offset};
@@ -104,7 +122,7 @@ public class PublicUserController {
             listSql = """
                     select a.* from articles a
                     where a.created_by = ? and a.status = 'PUBLISHED' and a.privacy_type = 'PUBLIC'
-                    order by a.top desc, a.publish_time desc, a.id desc
+                    order by a.is_top desc, a.publish_time desc, a.id desc
                     limit ? offset ?
                     """;
             listParams = new Object[]{userId, pageSize, offset};
@@ -191,6 +209,17 @@ public class PublicUserController {
         return ApiResponse.ok(new PageResponse<>(records, page, pageSize, total == null ? 0 : total));
     }
 
+    private boolean isMutualFollow(Long userId, Long otherUserId) {
+        if (userId == null || otherUserId == null) return false;
+        Long count = jdbcTemplate.queryForObject("""
+                        select count(*) from user_follows f1
+                        join user_follows f2 on f1.follower_id = f2.followee_id and f1.followee_id = f2.follower_id
+                        where f1.follower_id = ? and f1.followee_id = ?
+                        """,
+                Long.class, userId, otherUserId);
+        return count != null && count > 0;
+    }
+
     private UserPublicVO toPublicVO(ResultSet rs) throws SQLException {
         Long id = rs.getObject("id", Long.class);
         if (id == null) return null;
@@ -253,8 +282,8 @@ public class PublicUserController {
                 rs.getObject("view_count", Long.class),
                 rs.getObject("like_count", Long.class),
                 rs.getObject("comment_count", Long.class),
-                rs.getObject("top", Boolean.class),
-                rs.getObject("recommend", Boolean.class),
+                rs.getObject("is_top", Boolean.class),
+                rs.getObject("is_recommend", Boolean.class),
                 category,
                 tags,
                 rs.getObject("publish_time", OffsetDateTime.class),

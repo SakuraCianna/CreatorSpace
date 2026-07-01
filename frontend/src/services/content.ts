@@ -50,6 +50,8 @@ type ReactionType = 'LIKE' | 'THANKS' | 'INSIGHTFUL'
 interface RegisterPayload {
   username: string
   password: string
+  email: string
+  verificationCode: string
 }
 
 interface LoginPayload {
@@ -64,6 +66,30 @@ export async function registerUser(payload: RegisterPayload): Promise<UserSummar
     body: JSON.stringify(payload),
   })
   return response.data
+}
+
+// 发送注册验证码
+export async function sendRegisterCode(email: string): Promise<void> {
+  await requestJson<ApiEnvelope<void>>('/api/auth/send-code', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  })
+}
+
+// 发送找回密码验证码
+export async function sendForgotPasswordCode(email: string): Promise<void> {
+  await requestJson<ApiEnvelope<void>>('/api/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  })
+}
+
+// 重置密码
+export async function resetPassword(payload: { email: string; verificationCode: string; newPassword: string }): Promise<void> {
+  await requestJson<ApiEnvelope<void>>('/api/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
 }
 
 // 调用普通用户登录接口
