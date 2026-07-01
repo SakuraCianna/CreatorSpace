@@ -138,6 +138,12 @@ const router = createRouter({
       meta: { layout: "admin", requiresAdmin: true },
     },
     {
+      path: "/admin/projects",
+      name: "admin-projects",
+      component: () => import("@/pages/AdminProjectsPage.vue"),
+      meta: { layout: "admin", requiresAdmin: true },
+    },
+    {
       path: "/admin/content-rules",
       name: "admin-content-rules",
       component: () => import("@/pages/ContentRulesPage.vue"),
