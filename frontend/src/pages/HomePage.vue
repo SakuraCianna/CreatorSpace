@@ -1815,7 +1815,7 @@ const TagCloudSection = defineComponent({
                     fontSize: tagSize(tag),
                   },
                 },
-                `#${tag.name}`,
+                { default: () => `#${tag.name}` },
               ),
             ))
           : h('p', { class: 'cs-empty-line' }, '标签数据暂未公开。'),
