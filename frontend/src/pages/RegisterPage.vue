@@ -1,59 +1,65 @@
 <template>
-  <div class="saas-auth-layout">
-    <div class="auth-split auth-visual">
-      <div class="visual-content">
+  <div class="auth-page-wrapper">
+    <div class="auth-card">
+      <div class="auth-card-left">
         <div class="brand-logo">
-          <ShieldCheck :size="32" :stroke-width="1.5" />
+          <ShieldCheck :size="24" :stroke-width="1.5" />
           <span>CreatorSpace</span>
         </div>
-        <div class="visual-quote">
-          <h2>"记录创意，<br/>开始搭建您的数字花园。"</h2>
+        <div class="left-content">
+          <h2>"记录创意，<br/>搭建数字花园。"</h2>
           <p>Join our community of builders and creators.</p>
         </div>
       </div>
-    </div>
-    
-    <div class="auth-split auth-form-container">
-      <div class="form-wrapper">
-        <div class="form-header">
-          <h1>创建账号</h1>
-          <p>只需几秒，开启您的专属创作空间</p>
+      
+      <div class="auth-card-right">
+        <div class="form-wrapper">
+          <div class="form-header">
+            <h1>创建账号</h1>
+            <p>只需几秒，开启您的专属创作空间</p>
+          </div>
+          
+          <form class="auth-form" @submit.prevent="submitRegister">
+            <div class="input-group">
+              <label>用户名</label>
+              <div class="input-inner">
+                <input v-model="form.username" autocomplete="username" placeholder="请输入字母和数字" />
+              </div>
+            </div>
+
+            <div class="input-group">
+              <label>邮箱</label>
+              <div class="input-inner">
+                <input v-model="form.email" type="email" autocomplete="email" placeholder="请输入常用邮箱" />
+              </div>
+            </div>
+
+            <div class="input-group">
+              <label>密码</label>
+              <div class="input-inner">
+                <input v-model="form.password" type="password" autocomplete="new-password" placeholder="至少 8 位，包含字母和数字" />
+              </div>
+            </div>
+
+            <div class="hcaptcha-wrapper">
+              <VueHcaptcha ref="hcaptchaRef" :sitekey="hcaptchaSiteKey" @verify="onVerify" @expired="onExpired" @error="onError" />
+            </div>
+
+            <button class="submit-btn" :disabled="isSubmitting || !hcaptchaToken" type="submit">
+              <LoaderCircle v-if="isSubmitting" class="spin" :size="18" />
+              <span v-else>注册账号</span>
+            </button>
+
+            <div class="form-footer">
+              <span class="text-muted">已有账号？</span>
+              <RouterLink class="link-primary" :to="loginRoute">直接登录</RouterLink>
+            </div>
+
+            <div v-if="message" class="error-msg" :class="{ 'success-msg': isSuccess }">
+              {{ message }}
+            </div>
+          </form>
         </div>
-        
-        <form class="auth-form" @submit.prevent="submitRegister">
-          <div class="input-group">
-            <label>用户名</label>
-            <input v-model="form.username" autocomplete="username" placeholder="请输入字母和数字" />
-          </div>
-
-          <div class="input-group">
-            <label>邮箱</label>
-            <input v-model="form.email" type="email" autocomplete="email" placeholder="请输入常用邮箱" />
-          </div>
-
-          <div class="input-group">
-            <label>密码</label>
-            <input v-model="form.password" type="password" autocomplete="new-password" placeholder="至少 8 位，包含字母和数字" />
-          </div>
-
-          <div class="hcaptcha-wrapper">
-            <VueHcaptcha ref="hcaptchaRef" :sitekey="hcaptchaSiteKey" @verify="onVerify" @expired="onExpired" @error="onError" />
-          </div>
-
-          <button class="submit-btn" :disabled="isSubmitting || !hcaptchaToken" type="submit">
-            <LoaderCircle v-if="isSubmitting" class="spin" :size="18" />
-            <span v-else>注册账号</span>
-          </button>
-
-          <div class="form-footer">
-            <span class="text-muted">已有账号？</span>
-            <RouterLink class="link-primary" :to="loginRoute">直接登录</RouterLink>
-          </div>
-
-          <div v-if="message" class="error-msg" :class="{ 'success-msg': isSuccess }">
-            {{ message }}
-          </div>
-        </form>
       </div>
     </div>
   </div>
@@ -165,88 +171,109 @@ function readPublicRedirectPath() {
 </script>
 
 <style scoped>
-.saas-auth-layout {
+.auth-page-wrapper {
   display: flex;
   min-height: 100vh;
   width: 100%;
-  background-color: #ffffff;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-}
-
-.auth-split {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.auth-visual {
-  background-image: url('@/assets/images/auth_split_bg.jpg');
+  align-items: center;
+  justify-content: center;
+  background-color: #f3f4f6;
+  background-image: url('@/assets/images/auth_page_bg.jpg');
   background-size: cover;
   background-position: center;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  padding: 24px;
+}
+
+.auth-card {
+  display: flex;
+  width: 100%;
+  max-width: 1000px;
+  height: 640px;
+  background: #ffffff;
+  border-radius: 24px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.auth-card-left {
+  flex: 1;
   position: relative;
+  background-image: url('@/assets/images/auth_illustration.jpg');
+  background-size: cover;
+  background-position: center;
   color: white;
-  padding: 48px;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
   justify-content: space-between;
 }
 
-.auth-visual::after {
+.auth-card-left::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.6) 100%);
-  z-index: 1;
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.8) 0%, rgba(124, 58, 237, 0.8) 100%);
+  mix-blend-mode: multiply;
 }
 
-.visual-content {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  justify-content: space-between;
+.auth-card-left::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 60%);
 }
 
 .brand-logo {
+  position: relative;
+  z-index: 10;
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: 24px;
+  gap: 10px;
+  font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.5px;
 }
 
-.visual-quote h2 {
-  font-size: 40px;
-  line-height: 1.2;
-  font-weight: 600;
+.left-content {
+  position: relative;
+  z-index: 10;
+}
+
+.left-content h2 {
+  font-size: 36px;
+  line-height: 1.25;
+  font-weight: 700;
   margin: 0 0 16px 0;
   letter-spacing: -1px;
 }
 
-.visual-quote p {
-  font-size: 16px;
-  color: rgba(255, 255, 255, 0.8);
+.left-content p {
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.85);
   margin: 0;
 }
 
-.auth-form-container {
+.auth-card-right {
+  flex: 1;
+  display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #ffffff;
-  padding: 24px;
+  padding: 40px;
+  background: #ffffff;
 }
 
 .form-wrapper {
   width: 100%;
-  max-width: 400px;
+  max-width: 360px;
 }
 
 .form-header {
-  margin-bottom: 32px;
+  margin-bottom: 28px;
 }
 
 .form-header h1 {
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 700;
   color: #111827;
   margin: 0 0 8px 0;
@@ -254,7 +281,7 @@ function readPublicRedirectPath() {
 }
 
 .form-header p {
-  font-size: 15px;
+  font-size: 14px;
   color: #6b7280;
   margin: 0;
 }
@@ -262,75 +289,88 @@ function readPublicRedirectPath() {
 .auth-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 
 .input-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .input-group label {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 600;
   color: #374151;
 }
 
+.input-inner {
+  position: relative;
+}
+
 .input-group input {
+  width: 100%;
   height: 44px;
-  padding: 0 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 15px;
+  padding: 0 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 14px;
   color: #111827;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  background: #f9fafb;
+  transition: all 0.2s;
+  box-sizing: border-box;
 }
 
 .input-group input:focus {
   outline: none;
-  border-color: #000000;
-  box-shadow: 0 0 0 1px #000000;
+  border-color: #6366f1;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
 }
 
 .hcaptcha-wrapper {
   display: flex;
   justify-content: center;
-  transform: scale(0.95);
-  transform-origin: left center;
-  margin-top: 4px;
+  transform: scale(0.92);
+  transform-origin: center center;
 }
 
 .submit-btn {
   height: 44px;
   border: none;
-  border-radius: 8px;
-  background: #111827;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
   color: white;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: background 0.2s;
-  margin-top: 8px;
+  transition: opacity 0.2s, transform 0.1s;
+  margin-top: 4px;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
 }
 
 .submit-btn:hover:not(:disabled) {
-  background: #374151;
+  opacity: 0.9;
+}
+
+.submit-btn:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .submit-btn:disabled {
-  opacity: 0.7;
+  opacity: 0.6;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .form-footer {
   text-align: center;
-  margin-top: 16px;
-  font-size: 14px;
+  margin-top: 8px;
+  font-size: 13px;
 }
 
 .text-muted {
@@ -339,7 +379,7 @@ function readPublicRedirectPath() {
 }
 
 .link-primary {
-  color: #111827;
+  color: #4f46e5;
   font-weight: 600;
   text-decoration: none;
 }
@@ -349,18 +389,20 @@ function readPublicRedirectPath() {
 }
 
 .error-msg {
-  font-size: 14px;
-  color: #dc2626;
-  background: #fee2e2;
-  padding: 12px;
+  font-size: 13px;
+  color: #b91c1c;
+  background: #fef2f2;
+  padding: 10px;
   border-radius: 8px;
   text-align: center;
   font-weight: 500;
+  border: 1px solid #fecaca;
 }
 
 .success-msg {
   color: #059669;
   background: #d1fae5;
+  border-color: #a7f3d0;
 }
 
 .spin {
@@ -372,12 +414,20 @@ function readPublicRedirectPath() {
 }
 
 @media (max-width: 860px) {
-  .auth-visual {
-    display: none;
+  .auth-card {
+    height: auto;
+    max-width: 420px;
+    flex-direction: column;
   }
-  .form-wrapper {
-    max-width: 100%;
-    padding: 0 24px;
+  .auth-card-left {
+    padding: 32px 24px;
+    min-height: 200px;
+  }
+  .left-content h2 {
+    font-size: 28px;
+  }
+  .auth-card-right {
+    padding: 32px 24px;
   }
 }
 </style>
