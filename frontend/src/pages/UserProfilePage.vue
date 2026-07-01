@@ -4,228 +4,239 @@
       <LoaderCircle class="spin" :size="24" />
       <h2>正在加载用户信息</h2>
     </div>
+
     <template v-else-if="profile">
-      <header class="profile-hero" data-reveal>
-        <div class="profile-hero__bg"></div>
-        <div class="profile-hero__main">
-          <div class="profile-avatar-frame">
-            <img
-              v-if="profile.avatarUrl"
-              :src="profile.avatarUrl"
-              alt=""
-              class="profile-avatar-img"
-              loading="lazy"
-            />
-            <UserRound v-else :size="64" class="profile-avatar-placeholder" />
-          </div>
-          <div class="profile-hero__info">
+      <div class="profile-layout" data-reveal>
+        
+        <!-- Left Sidebar: Identity -->
+        <aside class="profile-sidebar">
+          <div class="profile-identity">
+            <div class="profile-avatar-wrapper">
+              <img
+                v-if="profile.avatarUrl"
+                :src="profile.avatarUrl"
+                alt=""
+                class="profile-avatar-img"
+                loading="lazy"
+              />
+              <UserRound v-else :size="48" class="profile-avatar-placeholder" />
+            </div>
+
             <template v-if="editing">
-              <div class="edit-mode-form">
-                <input v-model="editForm.nickname" class="edit-input edit-input--title" placeholder="昵称" />
-                <div class="avatar-upload-wrapper">
-                  <FileUpload
-                    v-model="editForm.avatarUrl"
-                    module="AVATAR"
-                    accept="image/*"
-                    hint="建议 800x800，最大 100MB"
-                  />
+              <div class="edit-form">
+                <div class="avatar-edit-wrapper" @click="triggerAvatarUpload">
+                  <img v-if="editForm.avatarUrl" :src="editForm.avatarUrl" alt="" class="avatar-edit-img" />
+                  <UserRound v-else :size="48" class="avatar-edit-placeholder" />
+                  <div class="avatar-edit-overlay">
+                    <LoaderCircle v-if="avatarUploading" class="spin" :size="24" />
+                    <Camera v-else :size="24" />
+                  </div>
+                  <input type="file" ref="avatarInput" class="hidden-input" accept="image/*" @change="handleAvatarSelect" />
                 </div>
+                <input v-model="editForm.nickname" class="edit-input edit-input--title" placeholder="昵称" />
                 <textarea v-model="editForm.bio" class="edit-input edit-input--textarea" placeholder="个人简介" rows="3" />
-                <div class="password-edit-section">
+                <div class="password-section">
                   <input v-model="passwordForm.oldPassword" type="password" class="edit-input" placeholder="原密码 (留空不改)" />
                   <input v-model="passwordForm.newPassword" type="password" class="edit-input" placeholder="新密码" />
                 </div>
-                <div class="profile-actions edit-actions">
-                  <button class="button button-filled" type="button" :disabled="saving" @click="saveProfile">
-                    {{ saving ? '保存中...' : '保存修改' }}
+                <div class="edit-actions">
+                  <button class="btn-solid" type="button" :disabled="saving" @click="saveProfile">
+                    {{ saving ? '保存中...' : '保存' }}
                   </button>
-                  <button class="button button-outline" type="button" :disabled="saving" @click="cancelEditing">取消</button>
+                  <button class="btn-outline" type="button" :disabled="saving" @click="cancelEditing">取消</button>
                 </div>
               </div>
             </template>
+            
             <template v-else>
-              <h1>{{ profile.nickname || profile.username }}</h1>
+              <div class="profile-titles">
+                <h1 class="profile-name">{{ profile.nickname || profile.username }}</h1>
+                <p class="profile-handle">{{ profile.username }}</p>
+              </div>
+              
               <p v-if="profile.bio" class="profile-bio">{{ profile.bio }}</p>
-              <div v-if="isOwnProfile" class="profile-actions">
-                <button class="button button-outline" type="button" @click="startEditing">
-                  <PenLine :size="16" />
+              
+              <div class="profile-raw-stats">
+                <div class="stat-item">
+                  <strong>{{ profile.articleCount }}</strong>
+                  <span>文章</span>
+                </div>
+                <div class="stat-item">
+                  <strong>{{ profile.followerCount }}</strong>
+                  <span>粉丝</span>
+                </div>
+                <div class="stat-item">
+                  <strong>{{ profile.followingCount }}</strong>
+                  <span>关注</span>
+                </div>
+              </div>
+
+              <div class="profile-actions">
+                <button v-if="isOwnProfile" class="btn-outline w-full" type="button" @click="startEditing">
                   编辑资料
                 </button>
-              </div>
-              <div v-else-if="canFollow" class="profile-actions">
                 <button
-                  class="button"
-                  :class="following ? 'button-outline' : 'button-filled'"
+                  v-else-if="canFollow"
+                  class="w-full"
+                  :class="following ? 'btn-outline' : 'btn-solid'"
                   type="button"
                   @click="toggleFollow(profile.id)"
                 >
-                  <UserPlus v-if="!following" :size="16" />
-                  <UserCheck v-else :size="16" />
                   {{ isFriend ? '互相关注' : following ? '已关注' : '关注' }}
                 </button>
               </div>
             </template>
           </div>
-        </div>
-        <div class="profile-stats-bar">
-          <button :class="{ 'is-active': activeTab === 'articles' }" type="button" @click="activeTab = 'articles'">
-            <strong>{{ profile.articleCount }}</strong>
-            <span>文章</span>
-          </button>
-          <button :class="{ 'is-active': activeTab === 'friends' }" type="button" @click="activeTab = 'friends'">
-            <strong>{{ profile.friendCount }}</strong>
-            <span>好友</span>
-          </button>
-          <button :class="{ 'is-active': activeTab === 'following' }" type="button" @click="activeTab = 'following'">
-            <strong>{{ profile.followingCount }}</strong>
-            <span>关注</span>
-          </button>
-          <button :class="{ 'is-active': activeTab === 'followers' }" type="button" @click="activeTab = 'followers'">
-            <strong>{{ profile.followerCount }}</strong>
-            <span>粉丝</span>
-          </button>
-          <template v-if="isOwnProfile">
-            <button :class="{ 'is-active': activeTab === 'favorites' }" type="button" @click="activeTab = 'favorites'">
-              <strong>{{ favoriteRecords.length }}</strong>
-              <span>收藏</span>
-            </button>
-            <button :class="{ 'is-active': activeTab === 'likes' }" type="button" @click="activeTab = 'likes'">
-              <strong>{{ likeRecords.length }}</strong>
-              <span>喜欢</span>
-            </button>
-          </template>
-        </div>
-      </header>
+        </aside>
 
-      <!-- 文章列表 -->
-      <div v-if="activeTab === 'articles'" class="profile-section" data-reveal>
-        <div v-if="articlesLoading" class="empty-state">
-          <LoaderCircle class="spin" :size="20" />
-        </div>
-        <div v-else-if="articles.length === 0" class="empty-state">
-          <h3>还没有公开文章</h3>
-        </div>
-        <div v-else class="journal-grid">
-          <RouterLink
-            v-for="(article, index) in articles"
-            :key="article.id"
-            class="journal-card"
-            :to="{ name: 'article-detail', params: { slug: article.slug } }"
-            :style="coverStyle(index)"
-          >
-            <div class="journal-card__visual" aria-hidden="true">
-              <img v-if="article.coverUrl" :src="article.coverUrl" alt="" loading="lazy" />
-              <span v-else>{{ (article.title || '文章').slice(0, 2) }}</span>
-            </div>
-            <div>
-              <div class="article-meta-row">
-                <span v-if="article.privacyType !== 'PUBLIC'" class="privacy-badge">{{ privacyLabel(article.privacyType) }}</span>
-                <span class="article-date">{{ formatDate(article.publishTime) }}</span>
+        <!-- Right Content: Navigation & Data -->
+        <main class="profile-main">
+          <nav class="profile-nav">
+            <button :class="{ 'is-active': activeTab === 'articles' }" @click="activeTab = 'articles'">文章</button>
+            <button :class="{ 'is-active': activeTab === 'friends' }" @click="activeTab = 'friends'">好友 <span>{{ profile.friendCount }}</span></button>
+            <button :class="{ 'is-active': activeTab === 'following' }" @click="activeTab = 'following'">关注 <span>{{ profile.followingCount }}</span></button>
+            <button :class="{ 'is-active': activeTab === 'followers' }" @click="activeTab = 'followers'">粉丝 <span>{{ profile.followerCount }}</span></button>
+            <template v-if="isOwnProfile">
+              <button :class="{ 'is-active': activeTab === 'favorites' }" @click="activeTab = 'favorites'">收藏 <span>{{ favoriteRecords.length }}</span></button>
+              <button :class="{ 'is-active': activeTab === 'likes' }" @click="activeTab = 'likes'">喜欢 <span>{{ likeRecords.length }}</span></button>
+            </template>
+          </nav>
+
+          <div class="profile-content-area">
+            
+            <!-- 文章列表 -->
+            <div v-if="activeTab === 'articles'" class="content-fade-in">
+              <div v-if="articlesLoading" class="empty-state">
+                <LoaderCircle class="spin" :size="20" />
               </div>
-              <h2>{{ article.title }}</h2>
-              <p class="article-summary">{{ article.summary }}</p>
-              <div class="tag-row" v-if="article.tags?.length">
-                <span v-for="tag in article.tags.slice(0, 3)" :key="tag.id">#{{ tag.name }}</span>
+              <div v-else-if="articles.length === 0" class="empty-state">
+                <h3>还没有公开文章</h3>
+              </div>
+              <div v-else class="journal-grid">
+                <RouterLink
+                  v-for="(article, index) in articles"
+                  :key="article.id"
+                  class="journal-card"
+                  :to="{ name: 'article-detail', params: { slug: article.slug } }"
+                  :style="coverStyle(index)"
+                >
+                  <div class="journal-card__visual" aria-hidden="true">
+                    <img v-if="article.coverUrl" :src="article.coverUrl" alt="" loading="lazy" />
+                    <span v-else>{{ (article.title || '文章').slice(0, 2) }}</span>
+                  </div>
+                  <div class="journal-card__content">
+                    <div class="article-meta-row">
+                      <span v-if="article.privacyType !== 'PUBLIC'" class="privacy-badge">{{ privacyLabel(article.privacyType) }}</span>
+                      <span class="article-date">{{ formatDate(article.publishTime) }}</span>
+                    </div>
+                    <h2>{{ article.title }}</h2>
+                    <p class="article-summary">{{ article.summary }}</p>
+                    <div class="tag-row" v-if="article.tags?.length">
+                      <span v-for="tag in article.tags.slice(0, 3)" :key="tag.id">#{{ tag.name }}</span>
+                    </div>
+                  </div>
+                </RouterLink>
               </div>
             </div>
-          </RouterLink>
-        </div>
-      </div>
 
-      <!-- 收藏列表（仅自己可见） -->
-      <div v-if="activeTab === 'favorites'" class="profile-section" data-reveal>
-        <div v-if="favoritesLoading" class="empty-state">
-          <LoaderCircle class="spin" :size="20" />
-        </div>
-        <div v-else-if="favoriteRecords.length === 0" class="empty-state">
-          <h3>还没有收藏</h3>
-        </div>
-        <div v-else class="journal-grid">
-          <RouterLink
-            v-for="(fav, index) in favoriteRecords"
-            :key="fav.id"
-            :to="favoriteRoute(fav)"
-            class="journal-card"
-            :style="coverStyle(index)"
-          >
-            <div class="journal-card__visual" aria-hidden="true">
-              <img v-if="fav.coverUrl" :src="fav.coverUrl" alt="" loading="lazy" />
-              <span v-else>{{ coverFallback(fav) }}</span>
-            </div>
-            <div>
-              <div class="article-meta-row">
-                <span class="favorite-type-badge">{{ fav.targetType === 'ARTICLE' ? '文章' : '作品' }}</span>
-                <span class="article-date">{{ formatDate(fav.createdAt) }}</span>
+            <!-- 收藏列表（仅自己可见） -->
+            <div v-if="activeTab === 'favorites'" class="content-fade-in">
+              <div v-if="favoritesLoading" class="empty-state">
+                <LoaderCircle class="spin" :size="20" />
               </div>
-              <h2>{{ fav.title || '未命名' }}</h2>
-            </div>
-          </RouterLink>
-        </div>
-      </div>
-
-      <!-- 喜欢列表（仅自己可见） -->
-      <div v-if="activeTab === 'likes'" class="profile-section" data-reveal>
-        <div v-if="likesLoading" class="empty-state">
-          <LoaderCircle class="spin" :size="20" />
-        </div>
-        <div v-else-if="likeRecords.length === 0" class="empty-state">
-          <h3>还没有喜欢</h3>
-        </div>
-        <div v-else class="journal-grid">
-          <RouterLink
-            v-for="(like, index) in likeRecords"
-            :key="like.id"
-            :to="likeRoute(like)"
-            class="journal-card"
-            :style="coverStyle(index)"
-          >
-            <div class="journal-card__visual" aria-hidden="true">
-              <img v-if="like.coverUrl" :src="like.coverUrl" alt="" loading="lazy" />
-              <span v-else>{{ (like.title || '喜欢').slice(0, 2) }}</span>
-            </div>
-            <div>
-              <div class="article-meta-row">
-                <span class="favorite-type-badge">{{ like.targetType === 'ARTICLE' ? '文章' : like.targetType }}</span>
-                <span class="article-date">{{ formatDate(like.createdAt) }}</span>
+              <div v-else-if="favoriteRecords.length === 0" class="empty-state">
+                <h3>还没有收藏</h3>
               </div>
-              <h2>{{ like.title || `${like.targetType} #${like.targetId}` }}</h2>
+              <div v-else class="journal-grid">
+                <RouterLink
+                  v-for="(fav, index) in favoriteRecords"
+                  :key="fav.id"
+                  :to="favoriteRoute(fav)"
+                  class="journal-card"
+                  :style="coverStyle(index)"
+                >
+                  <div class="journal-card__visual" aria-hidden="true">
+                    <img v-if="fav.coverUrl" :src="fav.coverUrl" alt="" loading="lazy" />
+                    <span v-else>{{ coverFallback(fav) }}</span>
+                  </div>
+                  <div class="journal-card__content">
+                    <div class="article-meta-row">
+                      <span class="favorite-type-badge">{{ fav.targetType === 'ARTICLE' ? '文章' : '作品' }}</span>
+                      <span class="article-date">{{ formatDate(fav.createdAt) }}</span>
+                    </div>
+                    <h2>{{ fav.title || '未命名' }}</h2>
+                  </div>
+                </RouterLink>
+              </div>
             </div>
-          </RouterLink>
-        </div>
-      </div>
 
-      <!-- 好友 / 关注 / 粉丝列表 -->
-      <div v-if="['friends', 'following', 'followers'].includes(activeTab)" class="profile-section" data-reveal>
-        <div v-if="relationLoading" class="empty-state">
-          <LoaderCircle class="spin" :size="20" />
-        </div>
-        <div v-else-if="relationList.length === 0" class="empty-state">
-          <h3>{{ emptyRelationText }}</h3>
-        </div>
-        <div v-else class="profile-user-list">
-          <RouterLink
-            v-for="user in relationList"
-            :key="user.id"
-            class="profile-user-card"
-            :to="{ name: 'user-profile', params: { userId: user.id } }"
-          >
-            <div class="profile-user-card__avatar">
-              <img
-                v-if="user.avatarUrl"
-                :src="user.avatarUrl"
-                alt=""
-                loading="lazy"
-              />
-              <UserRound v-else :size="24" />
+            <!-- 喜欢列表（仅自己可见） -->
+            <div v-if="activeTab === 'likes'" class="content-fade-in">
+              <div v-if="likesLoading" class="empty-state">
+                <LoaderCircle class="spin" :size="20" />
+              </div>
+              <div v-else-if="likeRecords.length === 0" class="empty-state">
+                <h3>还没有喜欢</h3>
+              </div>
+              <div v-else class="journal-grid">
+                <RouterLink
+                  v-for="(like, index) in likeRecords"
+                  :key="like.id"
+                  :to="likeRoute(like)"
+                  class="journal-card"
+                  :style="coverStyle(index)"
+                >
+                  <div class="journal-card__visual" aria-hidden="true">
+                    <img v-if="like.coverUrl" :src="like.coverUrl" alt="" loading="lazy" />
+                    <span v-else>{{ (like.title || '喜欢').slice(0, 2) }}</span>
+                  </div>
+                  <div class="journal-card__content">
+                    <div class="article-meta-row">
+                      <span class="favorite-type-badge">{{ like.targetType === 'ARTICLE' ? '文章' : like.targetType }}</span>
+                      <span class="article-date">{{ formatDate(like.createdAt) }}</span>
+                    </div>
+                    <h2>{{ like.title || `${like.targetType} #${like.targetId}` }}</h2>
+                  </div>
+                </RouterLink>
+              </div>
             </div>
-            <div class="profile-user-card__info">
-              <strong>{{ user.nickname || user.username }}</strong>
-              <span>@{{ user.username }}</span>
+
+            <!-- 好友 / 关注 / 粉丝列表 -->
+            <div v-if="['friends', 'following', 'followers'].includes(activeTab)" class="content-fade-in">
+              <div v-if="relationLoading" class="empty-state">
+                <LoaderCircle class="spin" :size="20" />
+              </div>
+              <div v-else-if="relationList.length === 0" class="empty-state">
+                <h3>{{ emptyRelationText }}</h3>
+              </div>
+              <div v-else class="profile-user-list">
+                <RouterLink
+                  v-for="user in relationList"
+                  :key="user.id"
+                  class="profile-user-card"
+                  :to="{ name: 'user-profile', params: { userId: user.id } }"
+                >
+                  <div class="profile-user-card__avatar">
+                    <img
+                      v-if="user.avatarUrl"
+                      :src="user.avatarUrl"
+                      alt=""
+                      loading="lazy"
+                    />
+                    <UserRound v-else :size="20" />
+                  </div>
+                  <div class="profile-user-card__info">
+                    <strong>{{ user.nickname || user.username }}</strong>
+                    <span>@{{ user.username }}</span>
+                  </div>
+                </RouterLink>
+              </div>
             </div>
-          </RouterLink>
-        </div>
+          </div>
+        </main>
       </div>
     </template>
+    
     <div v-else class="empty-state profile-state" data-reveal>
       <h2>用户不存在</h2>
       <p>{{ notice }}</p>
@@ -236,8 +247,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
-import { ArrowLeft, ArrowRight, LoaderCircle, PenLine, UserCheck, UserPlus, UserRound } from '@lucide/vue'
-import FileUpload from '../components/common/FileUpload.vue'
+import { LoaderCircle, UserRound, Camera } from '@lucide/vue'
+import { uploadFile } from '../services/file'
 import {
   fetchUserProfile,
   fetchUserArticles,
@@ -287,6 +298,8 @@ const isOwnProfile = computed(() => {
 
 const editing = ref(false)
 const saving = ref(false)
+const avatarUploading = ref(false)
+const avatarInput = ref<HTMLInputElement | null>(null)
 const editForm = ref({ nickname: '', avatarUrl: '', bio: '' })
 const passwordForm = ref({ oldPassword: '', newPassword: '' })
 
@@ -305,6 +318,31 @@ function cancelEditing() {
   editing.value = false
 }
 
+function triggerAvatarUpload() {
+  avatarInput.value?.click()
+}
+
+async function handleAvatarSelect(event: Event) {
+  const target = event.target as HTMLInputElement
+  if (!target.files || target.files.length === 0) return
+  
+  const file = target.files[0]
+  if (!file) return
+  
+  avatarUploading.value = true
+  try {
+    const res = await uploadFile(file, 'AVATAR', session.isAdmin)
+    editForm.value.avatarUrl = res.publicUrl
+  } catch (err: any) {
+    alert(err.message || '头像上传失败')
+  } finally {
+    avatarUploading.value = false
+    if (avatarInput.value) {
+      avatarInput.value.value = ''
+    }
+  }
+}
+
 async function saveProfile() {
   if (!profile.value) return
   saving.value = true
@@ -321,7 +359,6 @@ async function saveProfile() {
         newPassword: passwordForm.value.newPassword,
       })
       alert('密码修改成功，请使用新密码重新登录')
-      // Optional: force logout here
     }
     
     profile.value = updated
@@ -347,11 +384,11 @@ const emptyRelationText = computed(() => {
 usePageReveal(root)
 
 const coverPalettes = [
-  ['#111827', '#6ea8ff', '#f8fafc'],
-  ['#2f163f', '#b18cff', '#fff7ed'],
-  ['#10312e', '#54e6c8', '#f7fee7'],
-  ['#3a2508', '#ff9d6e', '#fff8db'],
-  ['#172554', '#60a5fa', '#eef6ff'],
+  ['#18181b', '#3b82f6', '#f8fafc'],
+  ['#18181b', '#10b981', '#f8fafc'],
+  ['#18181b', '#f59e0b', '#f8fafc'],
+  ['#18181b', '#8b5cf6', '#f8fafc'],
+  ['#18181b', '#ef4444', '#f8fafc'],
 ]
 
 function favoriteRoute(item: FavoriteRecord) {
@@ -508,63 +545,51 @@ onMounted(loadProfile)
 </script>
 
 <style scoped>
+/* --- Core Layout --- */
 .profile-page {
-  padding: 36px 0 78px;
+  min-height: 100dvh;
+  background: var(--tone-background, #fafafa);
+  color: var(--tone-ink, #09090b);
+  padding: 40px 24px 120px;
 }
 
-.profile-state {
-  min-height: 320px;
-}
-
-.profile-hero {
-  position: relative;
+.profile-layout {
+  max-width: 1440px;
+  margin: 0 auto;
   display: grid;
-  gap: 24px;
-  padding: 0;
-  border-radius: 20px;
-  background: var(--tone-panel);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.04);
-  overflow: hidden;
-  border: 1px solid rgba(0, 0, 0, 0.04);
+  grid-template-columns: 1fr;
+  gap: 48px;
+  align-items: start;
 }
 
-.profile-hero::before {
-  content: '';
-  display: block;
-  width: 100%;
-  height: 140px;
-  background: 
-    radial-gradient(circle at 0% 0%, #315bff 0%, transparent 50%),
-    radial-gradient(circle at 100% 100%, #1e3a8a 0%, transparent 50%),
-    radial-gradient(circle at 100% 0%, #38bdf8 0%, transparent 50%),
-    linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-  background-size: cover;
-  background-position: center;
+@media (min-width: 1024px) {
+  .profile-layout {
+    grid-template-columns: 320px 1fr;
+    gap: 80px;
+  }
 }
 
-.profile-hero__main {
+/* --- Left Sidebar (Identity) --- */
+.profile-sidebar {
+  position: sticky;
+  top: 40px;
+}
+
+.profile-identity {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  align-items: center;
-  padding: 0 40px;
-  margin-top: -50px;
-  position: relative;
-  z-index: 2;
-  text-align: center;
+  gap: 24px;
 }
 
-.profile-avatar-frame {
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  border: 4px solid #ffffff;
+.profile-avatar-wrapper {
+  width: 120px;
+  height: 120px;
+  border-radius: 20px; /* Squircle style */
   overflow: hidden;
-  flex-shrink: 0;
+  background: #e4e4e7;
   display: grid;
   place-items: center;
-  background: #f1f5f9;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
 .profile-avatar-img {
@@ -574,313 +599,397 @@ onMounted(loadProfile)
 }
 
 .profile-avatar-placeholder {
-  color: #94a3b8;
+  color: #a1a1aa;
 }
 
-.profile-hero__info {
+.profile-titles {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
+  gap: 4px;
 }
 
-.profile-hero__info h1 {
-  margin: 0;
-  font-size: clamp(24px, 2.5vw, 28px);
+.profile-name {
+  font-size: clamp(28px, 3vw, 36px);
   font-weight: 800;
-  line-height: 1.2;
-  color: #0f172a;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: #09090b;
+  margin: 0;
 }
 
-.profile-username {
+.profile-handle {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 14px;
+  color: #71717a;
   margin: 0;
-  color: #64748b;
-  font-size: 16px;
-  font-weight: 500;
 }
 
 .profile-bio {
-  margin: 4px 0 0;
-  color: #475569;
   font-size: 15px;
   line-height: 1.6;
-  max-width: 600px;
+  color: #52525b;
+  margin: 0;
+  max-width: 90%;
+}
+
+.profile-raw-stats {
+  display: flex;
+  gap: 32px;
+  padding-top: 16px;
+  border-top: 1px solid #e4e4e7;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stat-item strong {
+  font-size: 20px;
+  font-weight: 700;
+  color: #09090b;
+  letter-spacing: -0.02em;
+}
+
+.stat-item span {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #71717a;
+  font-weight: 600;
 }
 
 .profile-actions {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  justify-content: center;
-  margin-top: 16px;
+  padding-top: 16px;
 }
 
-.edit-mode-form {
+.w-full {
+  width: 100%;
+}
+
+/* --- Edit Form --- */
+.edit-form {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  width: 100%;
-  max-width: 480px;
-  gap: 12px;
-}
-
-.edit-input {
-  display: block;
-  width: 100%;
-  padding: 12px 16px;
-  border: 1px solid var(--tone-line-strong);
-  border-radius: 12px;
-  background: var(--tone-panel-solid);
-  color: var(--tone-ink);
-  font: inherit;
-  font-size: 15px;
-  outline: none;
-  transition: all 0.2s ease;
-}
-
-.edit-input:focus {
-  border-color: #315bff;
-  box-shadow: 0 0 0 4px rgba(49, 91, 255, 0.1);
-}
-
-.edit-input--title {
-  font-size: 20px;
-  font-weight: 700;
-  text-align: center;
-}
-
-.edit-input--textarea {
-  resize: vertical;
-  min-height: 80px;
-  line-height: 1.6;
-}
-
-.avatar-upload-wrapper {
-  width: 100%;
-  margin: 4px 0;
-}
-
-.password-edit-section {
-  display: flex;
-  gap: 12px;
-  width: 100%;
-}
-
-.password-edit-section .edit-input {
-  flex: 1;
-}
-
-.profile-stats-bar {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  justify-content: center;
-  padding: 24px 40px 40px;
-}
-
-.profile-stats-bar button {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  min-width: 90px;
-  padding: 16px;
-  border: none;
-  border-radius: 12px;
-  background: #f8fafc;
-  color: #64748b;
-  cursor: pointer;
-  font: inherit;
-  transition: all 0.2s ease;
-}
-
-.profile-stats-bar button:hover {
-  background: #f1f5f9;
-  transform: translateY(-2px);
-}
-
-.profile-stats-bar button.is-active {
-  background: #eef2ff;
-  color: #315bff;
-}
-
-.profile-stats-bar button strong {
-  font-size: 24px;
-  font-weight: 800;
-  color: #0f172a;
-}
-
-.profile-stats-bar button.is-active strong {
-  color: #315bff;
-}
-
-.profile-stats-bar button span {
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.profile-section {
-  margin-top: var(--theme-density-spacing, 16px);
-}
-
-.article-date {
-  color: var(--tone-primary);
-  font-size: 12px;
-  font-weight: 720;
-}
-
-.profile-user-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: var(--theme-density-spacing, 16px);
-}
-
-.profile-user-card {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 16px;
-  border-radius: 12px;
+  gap: 16px;
   background: #fff;
-  border: 1px solid #f1f5f9;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-  text-decoration: none;
-  color: inherit;
-  transition: all 0.2s ease;
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid #e4e4e7;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
 }
 
-.profile-user-card:hover {
-  border-color: #e2e8f0;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
-  transform: translateY(-2px);
-}
-
-.profile-user-card__avatar {
-  width: 48px;
-  height: 48px;
+.avatar-edit-wrapper {
+  position: relative;
+  width: 80px;
+  height: 80px;
   border-radius: 50%;
   overflow: hidden;
-  flex-shrink: 0;
+  background: #e4e4e7;
   display: grid;
   place-items: center;
-  background: #f1f5f9;
-  color: #94a3b8;
+  cursor: pointer;
+  margin: 0 auto 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
 }
 
-.profile-user-card__avatar img {
+.avatar-edit-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.profile-user-card__info {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
+.avatar-edit-placeholder {
+  color: #a1a1aa;
 }
 
-.profile-user-card__info strong {
-  color: #0f172a;
+.avatar-edit-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.avatar-edit-wrapper:hover .avatar-edit-overlay {
+  opacity: 1;
+}
+
+.hidden-input {
+  display: none;
+}
+
+.edit-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #d4d4d8;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 14px;
+  color: #09090b;
+  background: #fafafa;
+  transition: all 0.2s;
+}
+
+.edit-input:focus {
+  outline: none;
+  border-color: #09090b;
+  background: #fff;
+  box-shadow: 0 0 0 1px #09090b;
+}
+
+.edit-input--title {
+  font-weight: 600;
+}
+
+.edit-input--textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.password-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.edit-actions button {
+  flex: 1;
+}
+
+/* --- Buttons --- */
+.btn-solid {
+  background: #09090b;
+  color: #fff;
+  border: 1px solid #09090b;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-solid:hover {
+  background: #27272a;
+  border-color: #27272a;
+}
+
+.btn-solid:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-outline {
+  background: transparent;
+  color: #09090b;
+  border: 1px solid #d4d4d8;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-outline:hover {
+  border-color: #09090b;
+  background: #f4f4f5;
+}
+
+.btn-outline:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* --- Right Content (Nav & Grid) --- */
+.profile-nav {
+  display: flex;
+  gap: 24px;
+  border-bottom: 1px solid #e4e4e7;
+  margin-bottom: 32px;
+  overflow-x: auto;
+  scrollbar-width: none; /* Firefox */
+}
+
+.profile-nav::-webkit-scrollbar {
+  display: none; /* Safari and Chrome */
+}
+
+.profile-nav button {
+  background: none;
+  border: none;
+  padding: 0 0 16px 0;
   font-size: 15px;
-  font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-weight: 600;
+  color: #71717a;
+  cursor: pointer;
+  position: relative;
   white-space: nowrap;
+  transition: color 0.2s;
 }
 
-.profile-user-card__info span {
-  color: #64748b;
-  font-size: 13px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.profile-nav button span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #f4f4f5;
+  color: #52525b;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  margin-left: 6px;
+}
+
+.profile-nav button:hover {
+  color: #09090b;
+}
+
+.profile-nav button.is-active {
+  color: #09090b;
+}
+
+.profile-nav button.is-active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: #09090b;
+  border-radius: 2px;
+}
+
+/* --- Content Area --- */
+.content-fade-in {
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.empty-state {
+  padding: 60px 0;
+  text-align: center;
+  color: #71717a;
+}
+
+.empty-state h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #09090b;
 }
 
 .journal-grid {
   display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 24px;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
 }
 
+/* Redesigned Journal Card */
 .journal-card {
-  display: grid;
-  grid-template-rows: 200px minmax(0, 1fr);
-  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
   background: #fff;
+  border: 1px solid #e4e4e7;
+  border-radius: 12px;
+  overflow: hidden;
   text-decoration: none;
   color: inherit;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-  border: 1px solid #f1f5f9;
-  overflow: hidden;
-  transition: all 0.25s ease;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .journal-card:hover {
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
   transform: translateY(-4px);
+  border-color: #d4d4d8;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.06);
 }
 
 .journal-card__visual {
-  position: relative;
+  width: 100%;
+  height: 160px;
+  background: var(--cover-from, #18181b);
   display: grid;
-  height: 200px;
   place-items: center;
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--cover-accent, #fff);
+  position: relative;
   overflow: hidden;
-  background: radial-gradient(circle at 78% 18%, color-mix(in srgb, var(--cover-accent) 42%, transparent), transparent 34%),
-              linear-gradient(135deg, color-mix(in srgb, var(--cover-from) 86%, #ffffff), color-mix(in srgb, var(--cover-accent) 74%, #f8fbff));
-}
-
-.journal-card__visual::after {
-  content: "";
-  position: absolute;
-  inset: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.12), transparent 42%),
-              repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 20px);
-  pointer-events: none;
 }
 
 .journal-card__visual img {
   width: 100%;
-  height: 200px;
+  height: 100%;
   object-fit: cover;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.journal-card__visual span {
-  position: relative;
-  z-index: 1;
-  color: rgba(248, 251, 255, 0.88);
-  font-size: 42px;
-  font-weight: 900;
-  text-shadow: 0 16px 34px rgba(0, 0, 0, 0.26);
+.journal-card:hover .journal-card__visual img {
+  transform: scale(1.05);
 }
 
-.journal-card > div:last-child {
-  display: grid;
-  align-content: start;
-  gap: 10px;
-  padding: 24px;
+.journal-card__content {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.article-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+}
+
+.privacy-badge, .favorite-type-badge {
+  background: #f4f4f5;
+  color: #52525b;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.article-date {
+  color: #a1a1aa;
 }
 
 .journal-card h2 {
-  margin: 0;
-  color: #0f172a;
-  font-size: 20px;
-  line-height: 1.3;
+  font-size: 18px;
   font-weight: 700;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  line-height: 1.3;
+  margin: 0;
+  color: #09090b;
 }
 
 .article-summary {
-  margin: 0;
-  color: #64748b;
   font-size: 14px;
-  line-height: 1.6;
+  color: #52525b;
+  line-height: 1.5;
+  margin: 0;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -891,79 +1000,81 @@ onMounted(loadProfile)
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  margin-top: 8px;
+}
+
+.tag-row span {
   font-size: 12px;
-  color: #94a3b8;
-  font-weight: 500;
+  color: #71717a;
+  background: #f4f4f5;
+  padding: 2px 8px;
+  border-radius: 999px;
 }
 
-.article-meta-row {
+/* Redesigned User List */
+.profile-user-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.profile-user-card {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 16px;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid #e4e4e7;
+  border-radius: 12px;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.2s;
 }
 
-.privacy-badge {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 6px;
-  background: #fffbeb;
-  color: #d97706;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+.profile-user-card:hover {
+  border-color: #09090b;
+  background: #fafafa;
 }
 
-.favorite-type-badge {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #315bff;
-  background: #eef2ff;
-  padding: 2px 8px;
-  border-radius: 6px;
+.profile-user-card__avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px; /* Matching the squircle aesthetic */
+  background: #e4e4e7;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  color: #71717a;
 }
 
-.article-date {
-  color: #94a3b8;
-  font-size: 13px;
-  font-weight: 500;
+.profile-user-card__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-@media (max-width: 760px) {
-  .profile-page {
-    padding-top: 24px;
-  }
+.profile-user-card__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
 
-  .profile-hero__main {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    padding: 0 20px;
-    margin-top: -60px;
-  }
+.profile-user-card__info strong {
+  font-size: 15px;
+  font-weight: 600;
+  color: #09090b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
-  .profile-hero__info {
-    text-align: center;
-  }
-
-  .profile-bio {
-    margin-left: auto;
-    margin-right: auto;
-  }
-
-  .profile-actions {
-    display: flex;
-    justify-content: center;
-  }
-
-  .profile-stats-bar {
-    justify-content: center;
-  }
-
-  .journal-grid {
-    grid-template-columns: 1fr;
-  }
+.profile-user-card__info span {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 12px;
+  color: #71717a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>

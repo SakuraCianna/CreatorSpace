@@ -73,7 +73,10 @@ async function handleFile(file: File) {
 function onFileSelected(event: Event) {
   const target = event.target as HTMLInputElement
   if (target.files && target.files.length > 0) {
-    handleFile(target.files[0])
+    const file = target.files[0]
+    if (file) {
+      handleFile(file)
+    }
   }
 }
 
