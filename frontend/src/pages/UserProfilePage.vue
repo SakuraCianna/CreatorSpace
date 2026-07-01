@@ -47,11 +47,9 @@
                 </div>
               </div>
             </template>
-            
             <template v-else>
               <div class="profile-titles">
                 <h1 class="profile-name">{{ profile.nickname || profile.username }}</h1>
-                <p class="profile-handle">{{ profile.username }}</p>
               </div>
               
               <p v-if="profile.bio" class="profile-bio">{{ profile.bio }}</p>
