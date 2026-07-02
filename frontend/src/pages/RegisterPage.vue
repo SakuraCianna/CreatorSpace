@@ -1,102 +1,118 @@
 <template>
-  <section ref="root" class="auth-page auth-page--material">
-    <form class="auth-card auth-card--material" data-reveal @submit.prevent="submitRegister">
-      <div class="auth-card__visual auth-card__visual--material auth-card__visual--warm">
-        <span class="material-icon-badge">
-          <UserPlus :size="24" />
-        </span>
-        <p class="page-kicker">Join {{ siteName }}</p>
-        <h1>注册读者身份</h1>
-        <p>普通用户可以为后续评论、点赞、收藏和好友可见内容预留身份。第一阶段只需要用户名和密码。</p>
-        <div class="material-benefits" aria-label="注册能力">
-          <span>Reader</span>
-          <span>Comment</span>
-          <span>Favorite</span>
+  <div class="auth-page-wrapper">
+    <div class="auth-card">
+      <div class="auth-card-left">
+        <div class="brand-logo">
+          <ShieldCheck :size="24" :stroke-width="1.5" />
+          <span>CreatorSpace</span>
+        </div>
+        <div class="left-content">
+          <h2>"记录创意，<br/>搭建数字花园。"</h2>
+          <p>Join our community of builders and creators.</p>
         </div>
       </div>
-      <div class="auth-card__form">
-        <div>
-          <p class="page-kicker">Create account</p>
-          <h2>普通用户注册</h2>
+      
+      <div class="auth-card-right">
+        <div class="form-wrapper">
+          <div class="form-header">
+            <h1>创建账号</h1>
+            <p>只需几秒，开启您的专属创作空间</p>
+          </div>
+          
+          <form class="auth-form" @submit.prevent="submitRegister">
+            <div class="input-group">
+              <label>用户名</label>
+              <div class="input-inner">
+                <input v-model="form.username" autocomplete="username" placeholder="请输入字母和数字" />
+              </div>
+            </div>
+
+            <div class="input-group">
+              <label>邮箱</label>
+              <div class="input-inner">
+                <input v-model="form.email" type="email" autocomplete="email" placeholder="请输入常用邮箱" />
+              </div>
+            </div>
+
+            <div class="input-group">
+              <label>验证码</label>
+              <div class="input-with-button">
+                <input v-model="form.verificationCode" type="text" placeholder="6位验证码" maxlength="6" />
+                <button type="button" class="send-code-btn" :disabled="isSendingCode || countdown > 0 || !hcaptchaToken || !form.email" @click="sendCode">
+                  <LoaderCircle v-if="isSendingCode" class="spin" :size="16" />
+                  <span v-else-if="countdown > 0">{{ countdown }}s 后重试</span>
+                  <span v-else>发送验证码</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="input-group">
+              <label>密码</label>
+              <div class="input-inner">
+                <input v-model="form.password" type="password" autocomplete="new-password" placeholder="至少 8 位，包含字母和数字" />
+              </div>
+            </div>
+
+            <div class="hcaptcha-wrapper">
+              <VueHcaptcha ref="hcaptchaRef" :sitekey="hcaptchaSiteKey" @verify="onVerify" @expired="onExpired" @error="onError" />
+            </div>
+
+            <button class="submit-btn" :disabled="isSubmitting" type="submit">
+              <LoaderCircle v-if="isSubmitting" class="spin" :size="18" />
+              <span v-else>注册账号</span>
+            </button>
+
+            <div class="form-footer">
+              <span class="text-muted">已有账号？</span>
+              <RouterLink class="link-primary" :to="loginRoute">直接登录</RouterLink>
+            </div>
+
+            <div v-if="message" class="error-msg" :class="{ 'success-msg': isSuccess }">
+              {{ message }}
+            </div>
+          </form>
         </div>
-        <label class="md-field">
-          <span>用户名</span>
-          <input
-            v-model="form.username"
-            autocomplete="username"
-            maxlength="64"
-            minlength="3"
-            name="username"
-          />
-        </label>
-        <label class="md-field">
-          <span>密码</span>
-          <input
-            v-model="form.password"
-            autocomplete="new-password"
-            maxlength="72"
-            minlength="6"
-            name="password"
-            type="password"
-          />
-        </label>
-        <VueHcaptcha
-          ref="hcaptchaRef"
-          :sitekey="hcaptchaSiteKey"
-          @verify="onVerify"
-          @expired="onExpired"
-          @error="onError"
-          style="margin-top: 8px;"
-        />
-        <button class="button button-filled" :disabled="isSubmitting || isRedirecting || !hcaptchaToken" type="submit">
-          <LoaderCircle v-if="isSubmitting" class="spin" :size="16" />
-          {{ isSubmitting ? '创建中...' : isRedirecting ? '正在前往登录页' : '创建账号' }}
-        </button>
-        <RouterLink class="auth-switch" :to="loginRoute">已有账号，去登录</RouterLink>
-        <p v-if="message" class="form-message" :class="`form-message--${messageType}`">{{ message }}</p>
       </div>
-    </form>
-  </section>
+    </div>
+  </div>
 </template>
+
 <script setup lang="ts">
-// 导入所需的 Composition API 和 Vue 依赖
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch, onUnmounted } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { LoaderCircle, UserPlus } from '@lucide/vue'
+import { LoaderCircle, ShieldCheck } from '@lucide/vue'
 import VueHcaptcha from '@hcaptcha/vue3-hcaptcha'
-import { registerUser } from '@/services/content'
-import { HttpError, toUserMessage } from '@/services/http'
-import { normalizeAuthRedirect } from '@/shared/authRedirect'
-import { usePageReveal } from '@/shared/composables/usePageReveal'
-import { useSiteIdentity } from '@/shared/siteIdentity'
-// 声明读者账号注册表单和处理状态变量
-const root = ref<HTMLElement | null>(null)
-const route = useRoute()
+import { registerUser, sendRegisterCode } from '../services/content'
+import { HttpError, toUserMessage } from '../services/http'
+import { normalizeAuthRedirect } from '../shared/authRedirect'
+
 const router = useRouter()
-const { siteName } = useSiteIdentity({ load: false })
+const route = useRoute()
+
 const form = reactive({
   username: '',
+  email: '',
+  verificationCode: '',
   password: '',
 })
 const message = ref('')
-const messageType = ref<'idle' | 'success' | 'error'>('idle')
+const isSuccess = ref(false)
 const isSubmitting = ref(false)
-const isRedirecting = ref(false)
-const registerAttemptId = ref(0)
-let redirectTimer: number | undefined
-const USERNAME_MIN_LENGTH = 3
-const USERNAME_MAX_LENGTH = 64
-const PASSWORD_MIN_LENGTH = 6
-const PASSWORD_MAX_LENGTH = 72
+const isSendingCode = ref(false)
+const countdown = ref(0)
+let timer: number | undefined
+
 const loginRoute = computed(() => ({
   name: 'login',
   query: {
-    redirect: readRegisterRedirectPath(),
+    redirect: readPublicRedirectPath(),
   },
 }))
+
 const hcaptchaToken = ref('')
 const hcaptchaRef = ref<any>(null)
 const hcaptchaSiteKey = import.meta.env.VITE_HCAPTCHA_SITE_KEY
+
 function onVerify(token: string) {
   hcaptchaToken.value = token
 }
@@ -106,325 +122,403 @@ function onExpired() {
 function onError() {
   hcaptchaToken.value = ''
 }
-usePageReveal(root)
-onBeforeUnmount(clearRedirectTimer)
-watch([() => form.username, () => form.password], () => {
-  if (isRedirecting.value) {
-    return
-  }
-  registerAttemptId.value += 1
-  if (!isSubmitting.value) {
-    clearMessage()
-  }
+
+watch([() => form.username, () => form.email, () => form.password, () => form.verificationCode], () => {
+  message.value = ''
+  isSuccess.value = false
 })
-// 提交读者注册表单, 校验通过后向后端创建新用户, 注册成功后自动延时跳转登录页
-async function submitRegister() {
-  clearRedirectTimer()
-  isRedirecting.value = false
-  const username = form.username.trim()
-  const validationMessage = validateRegisterForm(username, form.password)
-  if (validationMessage) {
-    registerAttemptId.value += 1
-    setMessage(validationMessage, 'error')
+
+async function sendCode() {
+  if (!form.email.trim()) {
+    message.value = '请先输入邮箱'
+    isSuccess.value = false
     return
   }
   if (!hcaptchaToken.value) {
-    registerAttemptId.value += 1
-    setMessage('请完成人机验证', 'error')
+    message.value = '请先完成人机验证'
+    isSuccess.value = false
+    return
+  }
+  isSendingCode.value = true
+  message.value = ''
+  isSuccess.value = false
+  try {
+    await sendRegisterCode(form.email.trim(), hcaptchaToken.value)
+    message.value = '验证码已发送，请查收'
+    isSuccess.value = true
+    countdown.value = 60
+    timer = window.setInterval(() => {
+      countdown.value--
+      if (countdown.value <= 0) {
+        clearInterval(timer)
+      }
+    }, 1000)
+    // Optional: reset hcaptcha so they have to verify again to resend
+    if (hcaptchaRef.value) hcaptchaRef.value.reset()
+    hcaptchaToken.value = ''
+  } catch (error) {
+    isSuccess.value = false
+    message.value = registerErrorMessage(error)
+    if (hcaptchaRef.value) hcaptchaRef.value.reset()
+    hcaptchaToken.value = ''
+  } finally {
+    isSendingCode.value = false
+  }
+}
+
+async function submitRegister() {
+  if (!form.username.trim() || !form.email.trim() || !form.password || !form.verificationCode.trim()) {
+    message.value = '请填写完整的注册信息'
+    isSuccess.value = false
     return
   }
   isSubmitting.value = true
-  clearMessage()
-  const attemptId = ++registerAttemptId.value
+  message.value = ''
+  isSuccess.value = false
   try {
-    const user = await registerUser({
-      username,
+    await registerUser({
+      username: form.username.trim(),
+      email: form.email.trim(),
       password: form.password,
-      hcaptchaToken: hcaptchaToken.value,
+      verificationCode: form.verificationCode.trim(),
     })
-    if (!isCurrentRegisterAttempt(attemptId, username)) {
-      return
-    }
-    isRedirecting.value = true
-    form.password = ''
-    setMessage(`账号 ${user.username} 创建成功，正在前往登录页完成登录。`, 'success')
-    redirectTimer = window.setTimeout(() => {
-      router.push(loginRoute.value)
-    }, 900)
+    isSuccess.value = true
+    message.value = '注册成功！正在跳转至登录页面...'
+    setTimeout(() => {
+      router.push({
+        name: 'login',
+        query: {
+          redirect: readPublicRedirectPath(),
+          username: form.username.trim(),
+        },
+      })
+    }, 1200)
   } catch (error) {
-    if (hcaptchaRef.value) hcaptchaRef.value.reset()
-    hcaptchaToken.value = ''
-    if (isCurrentRegisterAttempt(attemptId, username)) {
-      const msg = error instanceof HttpError
-        ? (error.backendMessage || toUserMessage(error, '注册失败，请稍后重试'))
-        : '注册失败，请稍后重试'
-      setMessage(msg, 'error')
-    }
+    isSuccess.value = false
+    message.value = registerErrorMessage(error)
   } finally {
     isSubmitting.value = false
   }
 }
-// 对注册表单输入进行前台基础长度与合法性限制校验
-function validateRegisterForm(username: string, password: string): string {
-  if (!username) {
-    return '请输入用户名'
+
+function registerErrorMessage(error: unknown) {
+  if (!(error instanceof HttpError)) {
+    return '请求失败，请稍后重试'
   }
-  if (username.length < USERNAME_MIN_LENGTH || username.length > USERNAME_MAX_LENGTH) {
-    return `用户名长度必须是 ${USERNAME_MIN_LENGTH} 到 ${USERNAME_MAX_LENGTH} 个字符`
+  if (error.status === 0) {
+    return '无法连接到服务器，请检查网络'
   }
-  if (!password) {
-    return '请输入密码'
-  }
-  if (password.length < PASSWORD_MIN_LENGTH || password.length > PASSWORD_MAX_LENGTH) {
-    return `密码长度必须是 ${PASSWORD_MIN_LENGTH} 到 ${PASSWORD_MAX_LENGTH} 个字符`
-  }
-  return ''
+  return error.backendMessage || toUserMessage(error, '请求失败')
 }
-function setMessage(value: string, type: 'success' | 'error') {
-  message.value = value
-  messageType.value = type
+
+function readPublicRedirectPath() {
+  const redirect = normalizeAuthRedirect(route.query.redirect, '/articles')
+  return redirect.startsWith('/admin') ? '/articles' : redirect
 }
-function clearMessage() {
-  message.value = ''
-  messageType.value = 'idle'
-}
-function isCurrentRegisterAttempt(attemptId: number, username: string): boolean {
-  return attemptId === registerAttemptId.value && username === form.username.trim()
-}
-function clearRedirectTimer() {
-  if (redirectTimer === undefined) {
-    return
-  }
-  window.clearTimeout(redirectTimer)
-  redirectTimer = undefined
-}
-function readRegisterRedirectPath() {
-  const redirect = normalizeAuthRedirect(route.query.redirect, '/creator/articles')
-  return redirect.startsWith('/admin') ? '/creator/articles' : redirect
-}
+
+onUnmounted(() => {
+  if (timer) clearInterval(timer)
+})
 </script>
+
 <style scoped>
-.auth-page {
-  display: grid;
-  min-height: calc(100vh - 72px);
-  place-items: center;
-  padding: clamp(28px, 5vw, 72px) 0;
-}
-.auth-card {
-  width: min(960px, 100%);
-  border: 1px solid var(--md-sys-color-outline-variant);
-  border-radius: 28px;
-  background: var(--md-sys-color-surface-container-lowest);
-  box-shadow: var(--md-sys-elevation-2);
-}
-.auth-card--wide {
-  display: grid;
-  grid-template-columns: 1fr 0.9fr;
-  overflow: hidden;
-}
-.auth-card--material {
-  display: grid;
-  grid-template-columns: minmax(0, 1.02fr) minmax(360px, 0.82fr);
-  gap: 0;
-  min-height: 560px;
-  overflow: hidden;
-}
-.auth-card__visual,
-.auth-card__form {
-  display: grid;
-  gap: 18px;
-  padding: 32px;
-}
-.auth-card__form {
-  align-content: center;
-  gap: 18px;
-  padding: clamp(28px, 4vw, 48px);
-}
-.auth-mode-switch {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  min-height: 48px;
-  overflow: hidden;
-  border: 1px solid var(--md-sys-color-outline);
-  border-radius: 999px;
-  background: var(--md-sys-color-surface-container-lowest);
-}
-.auth-mode-switch button {
-  min-height: 46px;
-  border: 0;
-  background: transparent;
-  color: var(--md-sys-color-on-surface-variant);
-  font: inherit;
-  font-weight: 760;
-  cursor: pointer;
-  transition: background 180ms ease, color 180ms ease;
-}
-.auth-mode-switch button:hover {
-  background: #e8efff;
-  color: #174ea6;
-}
-.auth-mode-switch button.is-active {
-  background: var(--md-sys-color-secondary-container);
-  color: #00201c;
-}
-.auth-card__visual {
-  align-content: end;
-  min-height: 420px;
-  background:
-    linear-gradient(145deg, rgba(16, 19, 31, 0.88), rgba(49, 91, 255, 0.66)),
-    var(--tone-night);
-  color: #fff;
-}
-.auth-card__visual--material {
-  position: relative;
-  align-content: end;
-  min-height: 100%;
-  padding: clamp(32px, 5vw, 56px);
-  overflow: hidden;
-  background:
-    linear-gradient(160deg, rgba(216, 226, 255, 0.9), rgba(156, 242, 228, 0.62)),
-    var(--md-sys-color-primary-container);
-  color: var(--md-sys-color-on-primary-container);
-}
-.auth-card__visual--material::before {
-  content: "";
-  position: absolute;
-  right: -90px;
-  bottom: -120px;
-  width: 320px;
-  height: 320px;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--md-sys-color-primary) 28%, transparent);
-}
-.auth-card__visual--warm {
-  background:
-    linear-gradient(160deg, rgba(255, 221, 176, 0.96), rgba(216, 226, 255, 0.72)),
-    var(--md-sys-color-tertiary-container);
-}
-.auth-card__visual--material > * {
-  position: relative;
-  z-index: 1;
-}
-.auth-card__visual--material h1,
-.auth-card__visual--material p,
-.auth-card__visual--material .page-kicker,
-.auth-card__visual--material svg {
-  color: inherit;
-}
-.auth-card h1 {
-  margin: 0;
-  font-size: clamp(34px, 4vw, 52px);
-  line-height: 1.08;
-}
-.auth-card h2 {
-  margin: 6px 0 0;
-  color: var(--md-sys-color-on-surface);
-  font-size: 26px;
-  line-height: 1.16;
-}
-.auth-card label {
-  display: grid;
-  gap: 8px;
-  color: var(--md-sys-color-on-surface-variant);
-  font-size: 13px;
-  font-weight: 750;
-}
-.auth-card input {
-  width: 100%;
-  min-height: 56px;
-  border: 1px solid transparent;
-  border-bottom: 1px solid var(--md-sys-color-outline);
-  border-radius: 12px 12px 0 0;
-  padding: 0 14px;
-  background: var(--md-sys-color-surface-container);
-  color: var(--md-sys-color-on-surface);
-  outline: 0;
-  transition: background 180ms ease, border-color 180ms ease;
-}
-.auth-card input:focus {
-  border-bottom-color: var(--md-sys-color-primary);
-  background: var(--md-sys-color-surface-container-high);
-}
-.auth-card button {
-  width: 100%;
-}
-.auth-switch {
-  display: inline-flex;
-  justify-content: center;
-  color: var(--md-sys-color-primary);
-  font-size: 14px;
-  font-weight: 760;
-}
-.material-icon-badge {
-  display: inline-grid;
-  width: 56px;
-  height: 56px;
-  place-items: center;
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--md-sys-color-surface) 72%, transparent);
-  box-shadow: var(--md-sys-elevation-1);
-}
-.material-benefits {
+.auth-page-wrapper {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
+  height: calc(100vh - 64px);
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  padding: 12px 24px;
+  box-sizing: border-box;
 }
-.material-benefits span {
-  min-height: 32px;
-  padding: 7px 12px;
-  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--md-sys-color-surface) 54%, transparent);
-  font-size: 12px;
-  font-weight: 780;
+
+.auth-card {
+  display: flex;
+  width: 100%;
+  max-width: 1000px;
+  height: auto;
+  min-height: 600px;
+  max-height: 100%;
+  background: #ffffff;
+  border-radius: 24px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
 }
-.form-message {
+
+.auth-card-left {
+  flex: 1;
+  position: relative;
+  background-image: url('../assets/images/auth_illustration.jpg');
+  background-size: cover;
+  background-position: center;
+  color: white;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.auth-card-left::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.8) 0%, rgba(124, 58, 237, 0.8) 100%);
+  mix-blend-mode: multiply;
+}
+
+.auth-card-left::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 60%);
+}
+
+.brand-logo {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.left-content {
+  position: relative;
+  z-index: 10;
+}
+
+.left-content h2 {
+  font-size: 36px;
+  line-height: 1.25;
+  font-weight: 700;
+  margin: 0 0 16px 0;
+  letter-spacing: -1px;
+  color: #ffffff !important;
+}
+
+.left-content p {
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.9) !important;
   margin: 0;
-  padding: 10px 12px;
-  border-left: 3px solid transparent;
-  border-radius: 8px;
+}
+
+.auth-card-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  background: #ffffff;
+}
+
+.form-wrapper {
+  width: 100%;
+  max-width: 360px;
+}
+
+.form-header {
+  margin-bottom: 28px;
+}
+
+.form-header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 8px 0;
+  letter-spacing: -0.5px;
+}
+
+.form-header p {
   font-size: 14px;
-  line-height: 1.55;
+  color: #6b7280;
+  margin: 0;
 }
-.form-message--error {
-  border-left-color: var(--tone-coral);
-  background: rgba(194, 95, 58, 0.08);
-  color: #754226;
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
-.form-message--success {
-  border-left-color: var(--tone-teal);
-  background: rgba(0, 124, 114, 0.08);
-  color: #055f57;
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
-@media (max-width: 1020px) {
-  .auth-card--wide,
-  .auth-card--material {
-    grid-template-columns: 1fr;
-  }
-  .auth-card--material {
-    min-height: auto;
-  }
-  .auth-card__visual--material {
-    min-height: 280px;
-  }
+
+.input-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
 }
-@media (max-width: 760px) {
-  .auth-page {
-    padding-top: 28px;
-  }
+
+.input-inner {
+  position: relative;
+}
+
+.input-group input {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #111827;
+  background: #f9fafb;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+
+.input-group input:focus {
+  outline: none;
+  border-color: #6366f1;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+}
+
+.input-with-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-with-button input {
+  padding-right: 120px;
+}
+
+.send-code-btn {
+  position: absolute;
+  right: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 6px;
+  background: #4f46e5;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: all 0.2s;
+}
+
+.send-code-btn:hover:not(:disabled) {
+  background: #4338ca;
+}
+
+.send-code-btn:disabled {
+  background: #e5e7eb;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.hcaptcha-wrapper {
+  display: flex;
+  justify-content: center;
+  transform: scale(0.92);
+  transform-origin: center center;
+}
+
+.submit-btn {
+  height: 44px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: opacity 0.2s, transform 0.1s;
+  margin-top: 4px;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+}
+
+.submit-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.submit-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.form-footer {
+  text-align: center;
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.text-muted {
+  color: #6b7280;
+  margin-right: 6px;
+}
+
+.link-primary {
+  color: #4f46e5;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.link-primary:hover {
+  text-decoration: underline;
+}
+
+.error-msg {
+  font-size: 13px;
+  color: #b91c1c;
+  background: #fef2f2;
+  padding: 10px;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 500;
+  border: 1px solid #fecaca;
+}
+
+.success-msg {
+  color: #059669;
+  background: #d1fae5;
+  border-color: #a7f3d0;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 860px) {
   .auth-card {
-    border-radius: 24px;
+    height: auto;
+    max-width: 420px;
+    flex-direction: column;
   }
-  .auth-card__visual--material,
-  .auth-card__form {
-    padding: 24px;
+  .auth-card-left {
+    padding: 32px 24px;
+    min-height: 200px;
   }
-  .auth-card__visual--material {
-    min-height: 240px;
+  .left-content h2 {
+    font-size: 28px;
   }
-  .auth-card h1 {
-    font-size: 34px;
+  .auth-card-right {
+    padding: 32px 24px;
   }
 }
 </style>

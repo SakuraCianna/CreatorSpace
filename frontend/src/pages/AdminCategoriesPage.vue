@@ -80,16 +80,16 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
-import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
+import AdminPageHeader from '../components/admin/AdminPageHeader.vue'
 
 import {
   createCategory,
   fetchAdminCategories,
   setCategoryEnabled,
   updateCategory,
-} from '@/services/content'
-import { toUserMessage } from '@/services/http'
-import type { CategoryPayload, CategorySummary } from '@/shared/domain'
+} from '../services/content'
+import { toUserMessage } from '../services/http'
+import type { CategoryPayload, CategorySummary } from '../shared/domain'
 
 const moduleOptions: Array<{ value: CategorySummary['module']; label: string }> = [
   { value: 'ARTICLE', label: '文章' },

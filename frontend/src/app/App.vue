@@ -10,11 +10,11 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
-import AdminLayout from '@/app/layouts/AdminLayout.vue'
-import ImmersiveLayout from '@/app/layouts/ImmersiveLayout.vue'
-import PublicLayout from '@/app/layouts/PublicLayout.vue'
-import { fetchCurrentTheme } from '@/services/content'
-import { applyThemeConfig } from '@/shared/theme'
+import AdminLayout from './layouts/AdminLayout.vue'
+import ImmersiveLayout from './layouts/ImmersiveLayout.vue'
+import PublicLayout from './layouts/PublicLayout.vue'
+import { fetchCurrentTheme } from '../services/content'
+import { applyThemeConfig } from '../shared/theme'
 const route = useRoute()
 // 根据路由元信息选择前台、后台或沉浸式布局
 // 根据路由元信息动态判断切换后台布局、沉浸式布局或前台公共布局

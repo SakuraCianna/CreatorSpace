@@ -85,8 +85,8 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { Plus } from '@lucide/vue'
-import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
-import BaseSelect from '@/shared/components/BaseSelect.vue'
+import AdminPageHeader from '../components/admin/AdminPageHeader.vue'
+import BaseSelect from '../shared/components/BaseSelect.vue'
 
 import {
   createSensitiveWord,
@@ -94,10 +94,10 @@ import {
   fetchAdminSensitiveWords,
   toggleSensitiveWord,
   updateSensitiveWord,
-} from '@/services/content'
-import { toUserMessage } from '@/services/http'
-import { usePageReveal } from '@/shared/composables/usePageReveal'
-import type { SensitiveWordSummary } from '@/shared/domain'
+} from '../services/content'
+import { toUserMessage } from '../services/http'
+import { usePageReveal } from '../shared/composables/usePageReveal'
+import type { SensitiveWordSummary } from '../shared/domain'
 
 interface WordForm {
   word: string

@@ -87,10 +87,10 @@ import {
   fetchAdminArticleVersion,
   fetchAdminArticleVersions,
   restoreAdminArticleVersion,
-} from '@/services/content'
-import { toUserMessage } from '@/services/http'
-import { formatDateTimeToSecond } from '@/shared/datetime'
-import type { ArticleSummary, ArticleVersionSummary } from '@/shared/domain'
+} from '../services/content'
+import { toUserMessage } from '../services/http'
+import { formatDateTimeToSecond } from '../shared/datetime'
+import type { ArticleSummary, ArticleVersionSummary } from '../shared/domain'
 
 const route = useRoute()
 const articleId = computed(() => Number(route.params.id))

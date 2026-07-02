@@ -51,12 +51,12 @@
 <script setup lang="ts">
 // 导入 Composition API 与 Lucide 图标资源
 import { computed, onMounted, ref } from 'vue'
-import PublicPageHeader from '@/components/common/PublicPageHeader.vue'
+import PublicPageHeader from '../components/common/PublicPageHeader.vue'
 import { Heart, LoaderCircle } from '@lucide/vue'
-import { fetchGuestbook, fetchLikeStatus, likeTarget, submitGuestbook, unlikeTarget } from '@/services/content'
-import { usePageReveal } from '@/shared/composables/usePageReveal'
-import { formatDateTimeToSecond } from '@/shared/datetime'
-import { useSessionStore } from '@/shared/sessionStore'
+import { fetchGuestbook, fetchLikeStatus, likeTarget, submitGuestbook, unlikeTarget } from '../services/content'
+import { usePageReveal } from '../shared/composables/usePageReveal'
+import { formatDateTimeToSecond } from '../shared/datetime'
+import { useSessionStore } from '../shared/sessionStore'
 interface GuestbookEntry {
   id: number
   userId?: number | null
@@ -234,7 +234,11 @@ onMounted(loadEntries)
   color: var(--tone-primary);
 }
 .comment-action-btn.is-active {
-  color: var(--tone-primary);
+  color: #e0455a;
+}
+.comment-action-btn.is-active svg {
+  stroke: #e0455a;
+  fill: #e0455a;
 }
 .inline-notice {
   margin: 8px 0 0;

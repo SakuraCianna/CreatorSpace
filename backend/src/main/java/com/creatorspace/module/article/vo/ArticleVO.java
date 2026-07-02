@@ -27,6 +27,9 @@ public record ArticleVO(
         List<TagVO> tags,
         OffsetDateTime publishTime,
         Long authorId,
+        String authorName,
+        String authorAvatar,
+        String authorBio,
         OffsetDateTime submittedAt,
         OffsetDateTime reviewedAt,
         String reviewNote

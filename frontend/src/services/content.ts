@@ -1,5 +1,4 @@
-import { appConfig } from '@/app/config'
-import { ACCESS_TOKEN_KEY, requestJson } from '@/services/http'
+import { requestJson } from './http'
 import type {
   AdminThemeConfig,
   ArticleNeighbors,
@@ -11,7 +10,10 @@ import type {
   CategoryPayload,
   CommentSummary,
   DashboardOverview,
+  FavoriteRecord,
   FileResource,
+  FollowStatus,
+  FollowUser,
   InteractionRecord,
   InspirationCard,
   InspirationPayload,
@@ -36,8 +38,9 @@ import type {
   TagPayload,
   ThemeConfig,
   ThemePayload,
+  UserProfile,
   UserSummary,
-} from '@/shared/domain'
+} from '../shared/domain'
 
 interface ApiEnvelope<T> {
   success: boolean
@@ -53,6 +56,8 @@ type ReactionType = 'LIKE' | 'THANKS' | 'INSIGHTFUL'
 interface RegisterPayload {
   username: string
   password: string
+  email: string
+  verificationCode: string
 }
 
 interface LoginPayload {
@@ -67,6 +72,30 @@ export async function registerUser(payload: RegisterPayload): Promise<UserSummar
     body: JSON.stringify(payload),
   })
   return response.data
+}
+
+// 发送注册验证码
+export async function sendRegisterCode(email: string, hcaptchaToken: string): Promise<void> {
+  await requestJson<ApiEnvelope<void>>('/api/auth/send-code', {
+    method: 'POST',
+    body: JSON.stringify({ email, hcaptchaToken }),
+  })
+}
+
+// 发送找回密码验证码
+export async function sendForgotPasswordCode(email: string): Promise<void> {
+  await requestJson<ApiEnvelope<void>>('/api/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  })
+}
+
+// 重置密码
+export async function resetPassword(payload: { email: string; verificationCode: string; newPassword: string }): Promise<void> {
+  await requestJson<ApiEnvelope<void>>('/api/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
 }
 
 // 调用普通用户登录接口
@@ -893,14 +922,27 @@ export async function fetchCommentReactionsBatch(commentIds: number[]): Promise<
   return response.data
 }
 
-// 登录用户查询自己的收藏
-export async function fetchMyFavorites(targetType?: Exclude<InteractionTargetType, 'COMMENT'>): Promise<PageResponse<InteractionRecord>> {
+// 登录用户查询自己的点赞记录。
+export async function fetchMyLikes(targetType?: string): Promise<PageResponse<InteractionRecord>> {
   const params = new URLSearchParams()
   if (targetType) {
     params.set('targetType', targetType)
   }
   const query = params.toString()
   const response = await requestJson<ApiEnvelope<PageResponse<InteractionRecord>>>(
+    query ? `/api/me/likes?${query}` : '/api/me/likes',
+  )
+  return response.data
+}
+
+// 登录用户查询自己的收藏（含标题、slug、封面）。
+export async function fetchMyFavorites(targetType?: string): Promise<PageResponse<FavoriteRecord>> {
+  const params = new URLSearchParams()
+  if (targetType) {
+    params.set('targetType', targetType)
+  }
+  const query = params.toString()
+  const response = await requestJson<ApiEnvelope<PageResponse<FavoriteRecord>>>(
     query ? `/api/me/favorites?${query}` : '/api/me/favorites',
   )
   return response.data
@@ -1313,3 +1355,132 @@ export async function batchReviewGuestbook(ids: number[], action: 'approve' | 'r
     body: JSON.stringify({ ids }),
   })
 }
+
+// ====== 用户社交相关 API（关注、粉丝、好友） ======
+
+// 获取用户公开主页信息
+export async function fetchUserProfile(userId: number): Promise<UserProfile> {
+  const response = await requestJson<ApiEnvelope<UserProfile>>(`/api/users/${userId}`)
+  return response.data
+}
+
+// 获取用户公开文章列表
+export async function fetchUserArticles(userId: number, options: { page?: number; pageSize?: number } = {}): Promise<PageResponse<ArticleSummary>> {
+  const params = new URLSearchParams()
+  if (options.page) params.set('page', String(options.page))
+  if (options.pageSize) params.set('pageSize', String(options.pageSize))
+  const query = params.toString()
+  const response = await requestJson<ApiEnvelope<PageResponse<ArticleSummary>>>(
+    query ? `/api/users/${userId}/articles?${query}` : `/api/users/${userId}/articles`,
+  )
+  return response.data
+}
+
+// 获取用户的粉丝列表
+export async function fetchUserFollowers(userId: number, options: { page?: number; pageSize?: number } = {}): Promise<PageResponse<FollowUser>> {
+  const params = new URLSearchParams()
+  if (options.page) params.set('page', String(options.page))
+  if (options.pageSize) params.set('pageSize', String(options.pageSize))
+  const query = params.toString()
+  const response = await requestJson<ApiEnvelope<PageResponse<FollowUser>>>(
+    query ? `/api/users/${userId}/followers?${query}` : `/api/users/${userId}/followers`,
+  )
+  return response.data
+}
+
+// 获取用户的关注列表
+export async function fetchUserFollowing(userId: number, options: { page?: number; pageSize?: number } = {}): Promise<PageResponse<FollowUser>> {
+  const params = new URLSearchParams()
+  if (options.page) params.set('page', String(options.page))
+  if (options.pageSize) params.set('pageSize', String(options.pageSize))
+  const query = params.toString()
+  const response = await requestJson<ApiEnvelope<PageResponse<FollowUser>>>(
+    query ? `/api/users/${userId}/following?${query}` : `/api/users/${userId}/following`,
+  )
+  return response.data
+}
+
+// 获取用户的好友列表（互相关注）
+export async function fetchUserFriends(userId: number, options: { page?: number; pageSize?: number } = {}): Promise<PageResponse<FollowUser>> {
+  const params = new URLSearchParams()
+  if (options.page) params.set('page', String(options.page))
+  if (options.pageSize) params.set('pageSize', String(options.pageSize))
+  const query = params.toString()
+  const response = await requestJson<ApiEnvelope<PageResponse<FollowUser>>>(
+    query ? `/api/users/${userId}/friends?${query}` : `/api/users/${userId}/friends`,
+  )
+  return response.data
+}
+
+// 关注用户
+export async function followUser(userId: number): Promise<void> {
+  await requestJson<ApiEnvelope<null>>(`/api/me/follow/${userId}`, { method: 'POST' })
+}
+
+// 取消关注
+export async function unfollowUser(userId: number): Promise<void> {
+  await requestJson<ApiEnvelope<null>>(`/api/me/follow/${userId}`, { method: 'DELETE' })
+}
+
+// 查询是否已关注、是否好友
+export async function fetchFollowStatus(userId: number): Promise<FollowStatus> {
+  const response = await requestJson<ApiEnvelope<FollowStatus>>(`/api/me/follow/status/${userId}`)
+  return response.data
+}
+
+// 获取当前登录用户的完整个人资料
+export async function fetchMyProfile(): Promise<UserProfile> {
+  const response = await requestJson<ApiEnvelope<UserProfile>>('/api/me/profile')
+  return response.data
+}
+
+// 更新当前登录用户的个人资料（昵称、头像、简介）
+export async function updateMyProfile(payload: { nickname?: string | null; avatarUrl?: string | null; bio?: string | null }): Promise<UserProfile> {
+  const response = await requestJson<ApiEnvelope<UserProfile>>('/api/me/profile', {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+  return response.data
+}
+
+// ====== 通知相关 API ======
+
+// 获取当前登录用户的通知列表
+export async function fetchNotifications(options: { page?: number; pageSize?: number } = {}): Promise<PageResponse<NotificationRecord>> {
+  const params = new URLSearchParams()
+  if (options.page) params.set('page', String(options.page))
+  if (options.pageSize) params.set('pageSize', String(options.pageSize))
+  const query = params.toString()
+  const response = await requestJson<ApiEnvelope<PageResponse<NotificationRecord>>>(
+    query ? `/api/me/notifications?${query}` : '/api/me/notifications',
+  )
+  return response.data
+}
+
+// 获取未读通知数量
+export async function fetchUnreadNotificationCount(): Promise<{ count: number }> {
+  const response = await requestJson<ApiEnvelope<{ count: number }>>('/api/me/notifications/unread-count')
+  return response.data
+}
+
+// 标记单条通知为已读
+export async function markNotificationRead(id: number): Promise<void> {
+  await requestJson<ApiEnvelope<null>>(`/api/me/notifications/${id}/read`, { method: 'PUT' })
+}
+
+// 标记所有通知为已读
+export async function markAllNotificationsRead(): Promise<void> {
+  await requestJson<ApiEnvelope<null>>('/api/me/notifications/read-all', { method: 'PUT' })
+}
+
+// 删除一条通知
+export async function deleteNotification(id: number): Promise<void> {
+  await requestJson<ApiEnvelope<null>>(`/api/me/notifications/${id}`, { method: 'DELETE' })
+}
+
+// 管理员获取待审核概览
+export async function fetchPendingReview(): Promise<{ pendingComments: number; pendingGuestbook: number; pendingArticles: number; pendingProjects: number; total: number }> {
+  const response = await requestJson<ApiEnvelope<{ pendingComments: number; pendingGuestbook: number; pendingArticles: number; pendingProjects: number; total: number }>>('/api/admin/pending-review')
+  return response.data
+}
+export async function updateMyPassword(payload: any): Promise<void> { await requestJson('/api/me/password', { method: 'PUT', body: JSON.stringify(payload) }) }

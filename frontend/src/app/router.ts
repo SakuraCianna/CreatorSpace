@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 
-import { ACCESS_TOKEN_KEY, USER_SUMMARY_KEY } from "@/services/http";
-import { normalizeAuthRedirect } from "@/shared/authRedirect";
+import { ACCESS_TOKEN_KEY, USER_SUMMARY_KEY } from "../services/http";
+import { normalizeAuthRedirect } from "../shared/authRedirect";
 
 // 统一路由表配置, 包含前端公共页面、后台管理页和创作者中心页签的路径分配与布局映射
 const router = createRouter({
@@ -10,79 +10,97 @@ const router = createRouter({
     {
       path: "/",
       name: "home",
-      component: () => import("@/pages/HomePage.vue"),
+      component: () => import("../pages/HomePage.vue"),
       meta: { layout: "immersive" },
     },
     {
       path: "/articles",
       name: "articles",
-      component: () => import("@/pages/ArticlesPage.vue"),
+      component: () => import("../pages/ArticlesPage.vue"),
       meta: { layout: "public" },
     },
     {
       path: "/articles/:slug",
       name: "article-detail",
-      component: () => import("@/pages/ArticleDetailPage.vue"),
+      component: () => import("../pages/ArticleDetailPage.vue"),
       meta: { layout: "public" },
     },
     {
       path: "/projects",
       name: "projects",
-      component: () => import("@/pages/ProjectsPage.vue"),
+      component: () => import("../pages/ProjectsPage.vue"),
       meta: { layout: "public" },
     },
     {
       path: "/projects/:slug",
       name: "project-detail",
-      component: () => import("@/pages/ProjectDetailPage.vue"),
+      component: () => import("../pages/ProjectDetailPage.vue"),
       meta: { layout: "public" },
     },
     {
       path: "/inspirations",
       name: "inspirations",
-      component: () => import("@/pages/InspirationsPage.vue"),
+      component: () => import("../pages/InspirationsPage.vue"),
       meta: { layout: "public" },
     },
     {
       path: "/themes",
       name: "themes",
-      component: () => import("@/pages/ThemeShowcasePage.vue"),
+      component: () => import("../pages/ThemeShowcasePage.vue"),
       meta: { layout: "public" },
     },
     {
       path: "/search",
       name: "search",
-      component: () => import("@/pages/SearchPage.vue"),
-      meta: { layout: "public" },
-    },
-    {
-      path: "/about",
-      name: "about",
-      component: () => import("@/pages/AboutPage.vue"),
+      component: () => import("../pages/SearchPage.vue"),
       meta: { layout: "public" },
     },
     {
       path: "/guestbook",
       name: "guestbook",
-      component: () => import("@/pages/GuestbookPage.vue"),
+      component: () => import("../pages/GuestbookPage.vue"),
       meta: { layout: "public" },
     },
     {
       path: "/my-comments",
       name: "my-comments",
-      component: () => import("@/pages/MyCommentsPage.vue"),
+      component: () => import("../pages/MyCommentsPage.vue"),
       meta: { layout: "public", requiresAuth: true },
+    },
+    {
+      path: "/my-favorites",
+      name: "my-favorites",
+      component: () => import("../pages/MyFavoritesPage.vue"),
+      meta: { layout: "public", requiresAuth: true },
+    },
+    {
+      path: "/my-notifications",
+      name: "my-notifications",
+      component: () => import("../pages/MyNotificationsPage.vue"),
+      meta: { layout: "public", requiresAuth: true },
+    },
+    {
+      path: "/users/:userId",
+      name: "user-profile",
+      component: () => import("../pages/UserProfilePage.vue"),
+      meta: { layout: "public" },
     },
     {
       path: "/register",
       name: "register",
-      component: () => import("@/pages/RegisterPage.vue"),
+      component: () => import("../pages/RegisterPage.vue"),
+      meta: { layout: "public" },
+    },
+    {
+      path: "/forgot-password",
+      name: "forgot-password",
+      component: () => import("../pages/ForgotPasswordPage.vue"),
       meta: { layout: "public" },
     },
     {
       path: "/login",
       name: "login",
-      component: () => import("@/pages/LoginPage.vue"),
+      component: () => import("../pages/LoginPage.vue"),
       meta: { layout: "public" },
     },
     {
@@ -92,73 +110,79 @@ const router = createRouter({
     {
       path: "/creator/:section",
       name: "creator-center",
-      component: () => import("@/pages/CreatorCenterPage.vue"),
+      component: () => import("../pages/CreatorCenterPage.vue"),
       meta: { layout: "public", requiresAuth: true },
     },
     {
       path: "/admin",
       name: "admin-dashboard",
-      component: () => import("@/pages/AdminDashboardPage.vue"),
+      component: () => import("../pages/AdminDashboardPage.vue"),
       meta: { layout: "admin", requiresAdmin: true },
     },
     {
       path: "/admin/articles",
       name: "admin-articles",
-      component: () => import("@/pages/AdminArticlesPage.vue"),
+      component: () => import("../pages/AdminArticlesPage.vue"),
       meta: { layout: "admin", requiresAdmin: true },
     },
     {
       path: "/admin/articles/:id/versions",
       name: "admin-article-versions",
-      component: () => import("@/pages/AdminArticleVersionsPage.vue"),
+      component: () => import("../pages/AdminArticleVersionsPage.vue"),
+      meta: { layout: "admin", requiresAdmin: true },
+    },
+    {
+      path: "/admin/projects",
+      name: "admin-projects",
+      component: () => import("../pages/AdminProjectsPage.vue"),
       meta: { layout: "admin", requiresAdmin: true },
     },
     {
       path: "/admin/content-rules",
       name: "admin-content-rules",
-      component: () => import("@/pages/ContentRulesPage.vue"),
+      component: () => import("../pages/ContentRulesPage.vue"),
       meta: { layout: "admin", requiresAdmin: true },
     },
     {
       path: '/admin/sensitive-words',
       name: 'admin-sensitive-words',
-      component: () => import('@/pages/AdminSensitiveWordsPage.vue'),
+      component: () => import('../pages/AdminSensitiveWordsPage.vue'),
       meta: { layout: 'admin', requiresAdmin: true },
     },
     {
       path: "/admin/categories",
       name: "admin-categories",
-      component: () => import("@/pages/AdminCategoriesPage.vue"),
+      component: () => import("../pages/AdminCategoriesPage.vue"),
       meta: { layout: "admin", requiresAdmin: true },
     },
     {
       path: "/admin/tags",
       name: "admin-tags",
-      component: () => import("@/pages/AdminTagsPage.vue"),
+      component: () => import("../pages/AdminTagsPage.vue"),
       meta: { layout: "admin", requiresAdmin: true },
     },
     {
       path: "/admin/files",
       name: "admin-files",
-      component: () => import("@/pages/AdminFilesPage.vue"),
+      component: () => import("../pages/AdminFilesPage.vue"),
       meta: { layout: "admin", requiresAdmin: true },
     },
     {
       path: "/admin/operation-logs",
       name: "admin-operation-logs",
-      component: () => import("@/pages/AdminOperationLogsPage.vue"),
+      component: () => import("../pages/AdminOperationLogsPage.vue"),
       meta: { layout: "admin", requiresAdmin: true },
     },
     {
       path: "/admin/ai-assistant",
       name: "admin-ai-assistant",
-      component: () => import("@/pages/AdminAiAssistantPage.vue"),
+      component: () => import("../pages/AdminAiAssistantPage.vue"),
       meta: { layout: "admin", requiresAdmin: true },
     },
     {
       path: '/admin/:section',
       name: 'admin-placeholder',
-      component: () => import('@/pages/AdminPlaceholderPage.vue'),
+      component: () => import('../pages/AdminPlaceholderPage.vue'),
       meta: { layout: 'admin', requiresAdmin: true },
     },
   ],

@@ -41,14 +41,18 @@ import java.util.UUID;
 public class FileResourceController {
 
     private static final Set<String> ALLOWED_MODULES = Set.of("AVATAR", "COVER", "ARTICLE", "PROJECT", "INSPIRATION", "OTHER");
-    private static final Map<String, UploadPolicy> ALLOWED_FILE_TYPES = Map.of(
-            "image/webp", new UploadPolicy(".webp", Set.of(".webp")),
-            "image/png", new UploadPolicy(".png", Set.of(".png")),
-            "image/jpeg", new UploadPolicy(".jpg", Set.of(".jpg", ".jpeg")),
-            "image/gif", new UploadPolicy(".gif", Set.of(".gif")),
-            "application/pdf", new UploadPolicy(".pdf", Set.of(".pdf")),
-            "text/plain", new UploadPolicy(".txt", Set.of(".txt")),
-            "text/markdown", new UploadPolicy(".md", Set.of(".md", ".markdown"))
+    private static final Map<String, UploadPolicy> ALLOWED_FILE_TYPES = Map.ofEntries(
+            Map.entry("image/webp", new UploadPolicy(".webp", Set.of(".webp"))),
+            Map.entry("image/png", new UploadPolicy(".png", Set.of(".png"))),
+            Map.entry("image/jpeg", new UploadPolicy(".jpg", Set.of(".jpg", ".jpeg"))),
+            Map.entry("image/gif", new UploadPolicy(".gif", Set.of(".gif"))),
+            Map.entry("application/pdf", new UploadPolicy(".pdf", Set.of(".pdf"))),
+            Map.entry("text/plain", new UploadPolicy(".txt", Set.of(".txt"))),
+            Map.entry("text/markdown", new UploadPolicy(".md", Set.of(".md", ".markdown"))),
+            Map.entry("video/mp4", new UploadPolicy(".mp4", Set.of(".mp4"))),
+            Map.entry("video/webm", new UploadPolicy(".webm", Set.of(".webm"))),
+            Map.entry("video/quicktime", new UploadPolicy(".mov", Set.of(".mov"))),
+            Map.entry("video/x-matroska", new UploadPolicy(".mkv", Set.of(".mkv")))
     );
 
     private final JdbcTemplate jdbcTemplate;
@@ -77,8 +81,8 @@ public class FileResourceController {
         String normalizedModule = normalizeModule(module);
         String originalName = safeOriginalName(file.getOriginalFilename());
         ValidatedUpload validatedUpload = validateFile(file, originalName);
-        if (isCreatorUpload(request) && !isImageContentType(validatedUpload.contentType())) {
-            throw BusinessException.badRequest("普通用户只能上传图片资源");
+        if (isCreatorUpload(request) && !isImageContentType(validatedUpload.contentType()) && !isVideoContentType(validatedUpload.contentType())) {
+            throw BusinessException.badRequest("普通用户只能上传图片和视频资源");
         }
         String fileName = UUID.randomUUID() + validatedUpload.extension();
         LocalDate today = LocalDate.now();
@@ -307,6 +311,7 @@ public class FileResourceController {
                     && header[11] == 0x50;
             case "application/pdf" -> startsWith(header, new byte[]{0x25, 0x50, 0x44, 0x46});
             case "text/plain", "text/markdown" -> looksLikeText(header);
+            case "video/mp4", "video/webm", "video/quicktime", "video/x-matroska" -> true; // Skip strict header check for videos
             default -> false;
         };
     }
@@ -317,6 +322,10 @@ public class FileResourceController {
 
     private boolean isImageContentType(String contentType) {
         return contentType != null && contentType.startsWith("image/");
+    }
+
+    private boolean isVideoContentType(String contentType) {
+        return contentType != null && contentType.startsWith("video/");
     }
 
     private boolean startsWith(byte[] value, byte[] prefix) {

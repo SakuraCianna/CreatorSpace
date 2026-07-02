@@ -25,6 +25,13 @@ public class UserEntity {
 
     private String status;
 
+    @TableField("avatar_url")
+    private String avatarUrl;
+
+    private String bio;
+
+    private String email;
+
     @TableField("last_login_at")
     private OffsetDateTime lastLoginAt;
 
@@ -64,6 +71,22 @@ public class UserEntity {
         this.nickname = nickname;
     }
 
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
+    }
+
+    public String getBio() {
+        return bio;
+    }
+
+    public void setBio(String bio) {
+        this.bio = bio;
+    }
+
     // 获取password hash。
     public String getPasswordHash() {
         return passwordHash;
@@ -82,6 +105,14 @@ public class UserEntity {
     // 设置账号状态。
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     // 获取last login at。

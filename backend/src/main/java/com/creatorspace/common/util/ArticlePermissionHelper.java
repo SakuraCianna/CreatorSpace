@@ -8,7 +8,7 @@ public class ArticlePermissionHelper {
         String privacyType = jdbcTemplate.query("""
                         select a.privacy_type
                         from articles a
-                        where a.id = ? and a.status = 'PUBLISHED'
+                        where a.id = ? and a.status in ('PUBLISHED', 'PRIVATE')
                         """,
                 (rs, rowNum) -> rs.getString("privacy_type"),
                 articleId).stream().findFirst().orElse(null);
@@ -40,20 +40,19 @@ public class ArticlePermissionHelper {
 
     private static Long getAuthorId(JdbcTemplate jdbcTemplate, Long articleId) {
         return jdbcTemplate.query(
-                        "select user_id from articles where id = ?",
-                        (rs, rowNum) -> rs.getLong("user_id"),
+                        "select created_by from articles where id = ?",
+                        (rs, rowNum) -> rs.getLong("created_by"),
                         articleId).stream().findFirst().orElse(null);
     }
 
     private static boolean isFriend(JdbcTemplate jdbcTemplate, Long userId, Long otherUserId) {
         if (userId == null || otherUserId == null) return false;
         Long count = jdbcTemplate.queryForObject("""
-                        select count(*) from user_friendships
-                        where ((requester_id = ? and addressee_id = ?)
-                           or (requester_id = ? and addressee_id = ?))
-                          and status = 'ACCEPTED'
+                        select count(*) from user_follows f1
+                        join user_follows f2 on f1.follower_id = f2.followee_id and f1.followee_id = f2.follower_id
+                        where f1.follower_id = ? and f1.followee_id = ?
                         """,
-                Long.class, userId, otherUserId, otherUserId, userId);
+                Long.class, userId, otherUserId);
         return count != null && count > 0;
     }
 

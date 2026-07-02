@@ -226,8 +226,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
-import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
+import { computed, onMounted, reactive, ref } from 'vue'
+import AdminPageHeader from '../components/admin/AdminPageHeader.vue'
 import {
   Bot,
   Check,
@@ -246,21 +246,11 @@ import {
   WandSparkles,
   X,
 } from '@lucide/vue'
-import BaseSelect from '@/shared/components/BaseSelect.vue'
+import BaseSelect from '../shared/components/BaseSelect.vue'
 
-import { fetchAdminArticles, fetchAdminComments, fetchAdminProjects, fetchAiTask, fetchAiTasks, fetchAiSuggestions, streamAiFollowUp, streamAiTask, streamAiWorkflow, updateAiSuggestionStatus } from '@/services/content'
-import { toUserMessage } from '@/services/http'
-import type { AiSuggestionStatus, AiSuggestionSummary, AiTargetType, AiTaskPayload, AiTaskSummary, AiTaskType, AiWorkflowPayload, ArticleSummary, CommentSummary, PageResponse, ProjectSummary } from '@/shared/domain'
-
-type PickableTargetType = Extract<AiTargetType, 'ARTICLE' | 'PROJECT' | 'COMMENT'>
-
-interface SelectableTarget {
-  type: PickableTargetType
-  id: number
-  title: string
-  meta: string
-  detail: string
-}
+import { continueAiTask, createAiTask, createAiWorkflow, fetchAiSuggestions, updateAiSuggestionStatus } from '../services/content'
+import { toUserMessage } from '../services/http'
+import type { AiSuggestionStatus, AiSuggestionSummary, AiTaskPayload, AiTaskSummary, AiTaskType, AiWorkflowPayload, PageResponse } from '../shared/domain'
 
 const taskOptions: Array<{ value: AiTaskType; label: string; icon: unknown }> = [
   { value: 'SUMMARY', label: '摘要', icon: FileText },

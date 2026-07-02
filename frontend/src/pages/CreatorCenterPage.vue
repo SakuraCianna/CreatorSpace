@@ -44,8 +44,8 @@
           <textarea v-model="articleForm.summary" rows="3" maxlength="1200" />
         </label>
         <label>
-          封面地址
-          <input v-model="articleForm.coverUrl" placeholder="/uploads/article/2026/06/cover.webp" />
+          封面图片 (建议比例 16:9)
+          <FileUpload v-model="articleForm.coverUrl" module="COVER" accept="image/*" hint="最大 10MB" />
         </label>
         <label>
           Markdown 正文
@@ -133,19 +133,23 @@
           <textarea v-model="projectForm.description" rows="3" maxlength="2000" />
         </label>
         <label>
-          封面地址
-          <input v-model="projectForm.coverUrl" placeholder="/uploads/project/2026/06/cover.webp" />
+          封面图片 (建议比例 16:9)
+          <FileUpload v-model="projectForm.coverUrl" module="COVER" accept="image/*" hint="最大 10MB" />
         </label>
         <div class="form-line">
           <label>
-            GitHub
+            GitHub 地址
             <input v-model="projectForm.githubUrl" placeholder="https://github.com/..." />
           </label>
           <label>
-            Demo
+            演示地址 (可选 URL)
             <input v-model="projectForm.demoUrl" placeholder="https://demo.example.com" />
           </label>
         </div>
+        <label>
+          演示视频 (支持 MP4/WebM，最大 100MB)
+          <FileUpload v-model="projectForm.videoUrl" module="PROJECT" accept="video/mp4,video/webm,video/quicktime,video/x-matroska" hint="最大 100MB" />
+        </label>
         <label>
           Markdown 详情
           <textarea v-model="projectForm.contentMarkdown" rows="8" />
@@ -232,14 +236,22 @@
     <section v-else class="creator-panel creator-favorites" data-reveal>
       <div class="panel-title">
         <h2>我的收藏</h2>
-        <button class="icon-text-button" type="button" @click="loadFavorites">刷新</button>
-      </div>
-      <article v-for="favorite in favorites" :key="favorite.id" class="desk-row">
-        <div>
-          <strong>{{ favorite.targetType }} #{{ favorite.targetId }}</strong>
-          <span>{{ formatDateTimeToSecond(favorite.createdAt, '刚刚') }}</span>
+        <div class="panel-title-actions">
+          <RouterLink class="icon-text-button" to="/my-favorites">查看全部</RouterLink>
+          <button class="icon-text-button" type="button" @click="loadFavorites">刷新</button>
         </div>
-      </article>
+      </div>
+      <RouterLink
+        v-for="favorite in favorites"
+        :key="favorite.id"
+        :to="favoriteRoute(favorite)"
+        class="desk-row desk-row--linked"
+      >
+        <div>
+          <strong>{{ favorite.title || `${favorite.targetType} #${favorite.targetId}` }}</strong>
+          <span>{{ favorite.targetType === 'ARTICLE' ? '文章' : '作品' }} · {{ formatDateTimeToSecond(favorite.createdAt, '刚刚') }}</span>
+        </div>
+      </RouterLink>
       <p v-if="favorites.length === 0" class="muted-line">还没有收藏内容。</p>
     </section>
     <p v-if="notice" class="inline-notice">{{ notice }}</p>
@@ -249,9 +261,11 @@
 // 导入 Composition API 与路由依赖
 import { computed, onMounted, reactive, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
-import PublicPageHeader from '@/components/common/PublicPageHeader.vue'
-import { BookOpen, FileImage, Images, Star } from '@lucide/vue'
-import BaseSelect from '@/shared/components/BaseSelect.vue'
+import PublicPageHeader from '../components/common/PublicPageHeader.vue'
+import FileUpload from '../components/common/FileUpload.vue'
+import { BookOpen, ExternalLink, FileImage, Images, Star } from '@lucide/vue'
+
+import BaseSelect from '../shared/components/BaseSelect.vue'
 import {
   createCreatorArticle,
   createCreatorProject,
@@ -271,20 +285,20 @@ import {
   updateCreatorArticle,
   updateCreatorProject,
   uploadCreatorFile,
-} from '@/services/content'
-import { toUserMessage } from '@/services/http'
-import { usePageReveal } from '@/shared/composables/usePageReveal'
-import { formatDateTimeToSecond } from '@/shared/datetime'
+} from '../services/content'
+import { toUserMessage } from '../services/http'
+import { usePageReveal } from '../shared/composables/usePageReveal'
+import { formatDateTimeToSecond } from '../shared/datetime'
 import type {
   ArticlePayload,
   ArticleSummary,
   CategorySummary,
+  FavoriteRecord,
   FileResource,
-  InteractionRecord,
   ProjectPayload,
   ProjectSummary,
   TagSummary,
-} from '@/shared/domain'
+} from '../shared/domain'
 // 初始化创作者工作台的响应式状态数据
 const root = ref<HTMLElement | null>(null)
 const route = useRoute()
@@ -292,7 +306,7 @@ const notice = ref('')
 const articles = ref<ArticleSummary[]>([])
 const projects = ref<ProjectSummary[]>([])
 const files = ref<FileResource[]>([])
-const favorites = ref<InteractionRecord[]>([])
+const favorites = ref<FavoriteRecord[]>([])
 const tags = ref<TagSummary[]>([])
 const articleCategories = ref<CategorySummary[]>([])
 const editingArticleId = ref<number | null>(null)
@@ -398,7 +412,16 @@ async function loadFavorites() {
     favorites.value = []
   }
 }
+
+function favoriteRoute(item: FavoriteRecord) {
+  if (item.targetType === 'ARTICLE') {
+    return { name: 'article-detail', params: { slug: item.slug } }
+  }
+  return { name: 'project-detail', params: { slug: item.slug } }
+}
+
 // 保存当前正在编辑的文章草稿, 根据是否带有编辑 ID 决定是发起 PUT 还是 POST 请求
+
 async function saveArticle() {
   if (!articleForm.title.trim() || !articleForm.slug.trim() || !articleForm.contentMarkdown.trim()) {
     notice.value = '请填写文章标题、URL 标识和正文'
@@ -700,6 +723,23 @@ function readError(error: unknown, fallback: string) {
   margin: 0;
   font-size: 20px;
 }
+
+.panel-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+a.desk-row--linked {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+a.desk-row--linked:hover {
+  background: rgba(20, 21, 29, 0.07);
+}
+
 .panel-title span,
 .desk-row span {
   color: var(--tone-muted);

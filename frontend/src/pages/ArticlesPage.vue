@@ -65,6 +65,22 @@
           <h2>{{ featuredArticle.title }}</h2>
           <p>{{ featuredArticle.summary }}</p>
           <footer>
+            <span v-if="featuredArticle.authorId">
+              <RouterLink
+                class="author-badge"
+                :to="{ name: 'user-profile', params: { userId: featuredArticle.authorId } }"
+              >
+                <span class="author-badge__avatar">
+                  <img
+                    v-if="featuredArticle.authorAvatar"
+                    :src="featuredArticle.authorAvatar"
+                    alt=""
+                  />
+                  <UserRound v-else :size="11" />
+                </span>
+                {{ featuredArticle.authorName || '匿名' }}
+              </RouterLink>
+            </span>
             <span>{{ formatDate(featuredArticle.publishTime) }}</span>
             <span>{{ featuredArticle.category?.name ?? '未分类' }}</span>
             <span>{{ featuredArticle.tags.length }} tags</span>
@@ -90,7 +106,25 @@
               <span v-else>{{ article.category?.name?.slice(0, 2) || article.title.slice(0, 2) }}</span>
             </div>
             <div>
-              <span class="article-date">{{ formatDate(article.publishTime) }}</span>
+              <div class="article-meta-row">
+                <span v-if="article.authorId" class="article-author">
+                  <RouterLink
+                    class="author-badge"
+                    :to="{ name: 'user-profile', params: { userId: article.authorId } }"
+                  >
+                    <span class="author-badge__avatar">
+                      <img
+                        v-if="article.authorAvatar"
+                        :src="article.authorAvatar"
+                        alt=""
+                      />
+                      <UserRound v-else :size="11" />
+                    </span>
+                    {{ article.authorName || '匿名' }}
+                  </RouterLink>
+                </span>
+                <span class="article-date">{{ formatDate(article.publishTime) }}</span>
+              </div>
               <h2>{{ article.title }}</h2>
               <p>{{ article.summary }}</p>
               <div class="tag-row">
@@ -107,13 +141,14 @@
 // 导入组件生命周期钩子和相关组件
 import { computed, onMounted, ref, watch, onBeforeUnmount } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import PublicPageHeader from '@/components/common/PublicPageHeader.vue'
-import { LoaderCircle, Search } from '@lucide/vue'
-import { fetchArticles, fetchTags } from '@/services/content'
-import { toUserMessage } from '@/services/http'
-import { usePageReveal } from '@/shared/composables/usePageReveal'
-import { formatMonthDay } from '@/shared/datetime'
-import type { ArticleSummary, TagSummary } from '@/shared/domain'
+import PublicPageHeader from '../components/common/PublicPageHeader.vue'
+import { LoaderCircle, Search, UserRound } from '@lucide/vue'
+
+import { fetchArticles, fetchTags } from '../services/content'
+import { toUserMessage } from '../services/http'
+import { usePageReveal } from '../shared/composables/usePageReveal'
+import { formatMonthDay } from '../shared/datetime'
+import type { ArticleSummary, TagSummary } from '../shared/domain'
 const coverPalettes = [
   ['#111827', '#6ea8ff', '#f8fafc'],
   ['#2f163f', '#b18cff', '#fff7ed'],
@@ -556,6 +591,60 @@ onBeforeUnmount(() => {
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
+
+.author-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: inherit;
+  text-decoration: none;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 600;
+}
+
+.author-badge:hover {
+  text-decoration: underline;
+}
+
+.author-badge__avatar {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  overflow: hidden;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.15);
+  flex-shrink: 0;
+}
+
+.author-badge__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.article-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.article-author {
+  display: inline-flex;
+  align-items: center;
+}
+
+.journal-card .article-date {
+  color: var(--tone-primary);
+}
+
+.journal-card .article-author {
+  color: var(--tone-muted);
+}
+
 .journal-featured h2 {
   max-width: 720px;
   margin: 14px 0 0;
@@ -640,9 +729,11 @@ onBeforeUnmount(() => {
   gap: 10px;
   padding: calc(var(--theme-density-spacing, 16px) * 1.25);
 }
+
 .journal-card .article-date {
   color: var(--tone-primary);
 }
+
 .journal-card h2 {
   margin: 0;
   color: var(--tone-ink);

@@ -60,7 +60,8 @@ public class SecurityConfig {
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/api/inspirations/**",
-                                "/api/search"
+                                "/api/search",
+                                "/api/users/**"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/comments").permitAll()
                         .requestMatchers(HttpMethod.GET,

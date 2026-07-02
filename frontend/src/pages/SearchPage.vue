@@ -1,67 +1,108 @@
 <template>
   <section ref="root" class="search-page">
-    <PublicPageHeader title="站内搜索" description="输入关键词全局检索，支持根据相关度或时间排序。" kicker="GLOBAL SEARCH" theme="cyan">
-      <div style="display: flex; flex-direction: column; gap: 16px; width: 100%;">
-        <form class="archive-search archive-search--large" @submit.prevent="runSearch">
-          <Search :size="18" />
-          <input v-model="keyword" placeholder="试试搜索 内容系统、动效、Prompt" aria-label="站内搜索" />
-          <button class="button button-filled button-compact" type="submit">搜索</button>
+    <PublicPageHeader title="站内搜索" kicker="GLOBAL SEARCH" theme="blue">
+      <div class="search-interface">
+        <form class="main-search-form" @submit.prevent="runSearch">
+          <Search class="search-icon" :size="20" />
+          <input
+            v-model="keyword"
+            type="text"
+            placeholder="搜索 文章、作品、灵感..."
+          />
+          <button type="submit">搜索</button>
         </form>
-        <div class="search-controls" data-reveal>
-          <label>
-            <span>类型</span>
-            <BaseSelect v-model="activeType" :options="typeOptions" @change="rerunIfSearched" />
-          </label>
-          <label>
-            <span>排序</span>
-            <BaseSelect v-model="activeSort" :options="sortOptions" @change="rerunIfSearched" />
-          </label>
-        </div>
       </div>
     </PublicPageHeader>
-    <section class="search-results" data-reveal>
-      <article v-for="result in results" :key="`${result.type}-${result.slug}`" class="search-result">
-        <span>{{ typeLabels[result.type] }}</span>
-        <h2>{{ result.title }}</h2>
-        <p>{{ result.description || fallbackDescription(result) }}</p>
-        <RouterLink class="text-link" :to="resultTarget(result)">
-          打开
-          <ArrowRight :size="15" />
-        </RouterLink>
-      </article>
-      <div v-if="!isLoading && results.length === 0" class="empty-state">
-        <h2>{{ searched ? '没有找到匹配内容' : '输入关键词开始搜索' }}</h2>
-        <p>搜索会覆盖公开文章、可见作品、公开灵感、标签、分类和公开页面配置。</p>
+
+    <div class="search-controls-bar" data-reveal>
+      <div class="search-controls">
+        <label>
+          <span>类型</span>
+          <BaseSelect v-model="activeType" :options="typeOptions" @change="rerunIfSearched" />
+        </label>
+        <label>
+          <span>排序</span>
+          <BaseSelect v-model="activeSort" :options="sortOptions" @change="rerunIfSearched" />
+        </label>
       </div>
+    </div>
+
+    <section class="search-results-section" data-reveal>
+      <!-- Before Searching: Show Latest Content -->
+      <div v-if="!searched && !isLoading" class="default-content">
+        <h3 class="section-title">最新发布</h3>
+        <div class="default-grid">
+          <RouterLink
+            v-for="article in latestArticles"
+            :key="article.id"
+            :to="{ name: 'article-detail', params: { slug: article.slug } }"
+            class="default-card"
+          >
+            <div class="default-card__meta">
+              <span class="badge">文章</span>
+              <time>{{ formatDate(article.publishTime) }}</time>
+            </div>
+            <h4>{{ article.title }}</h4>
+            <p>{{ article.summary || '暂无摘要' }}</p>
+          </RouterLink>
+        </div>
+      </div>
+
+      <!-- Loading State -->
       <div v-if="isLoading" class="empty-state">
         <LoaderCircle class="spin" :size="24" />
-        <h2>正在搜索</h2>
+        <h2>正在检索中...</h2>
+      </div>
+
+      <!-- No Results -->
+      <div v-if="searched && !isLoading && results.length === 0" class="empty-state">
+        <h2>没有找到相关的匹配内容</h2>
+        <p>尝试更换关键词，或者放宽搜索类型限制。</p>
+      </div>
+
+      <!-- Search Results -->
+      <div v-if="searched && !isLoading && results.length > 0" class="results-list">
+        <article v-for="result in results" :key="`${result.type}-${result.slug}`" class="result-item">
+          <div class="result-meta">
+            <span class="type-badge">{{ typeLabels[result.type] }}</span>
+            <time v-if="result.occurredAt">{{ formatDate(result.occurredAt) }}</time>
+          </div>
+          <RouterLink class="result-link" :to="resultTarget(result)">
+            <h2>{{ result.title }}</h2>
+          </RouterLink>
+          <p>{{ result.description || fallbackDescription(result) }}</p>
+        </article>
       </div>
     </section>
     <p v-if="notice" class="inline-notice">{{ notice }}</p>
   </section>
 </template>
+
 <script setup lang="ts">
-// 导入所需的组件和 Vue 钩子
-import { ref } from 'vue'
-import { RouterLink, type RouteLocationRaw } from 'vue-router'
-import PublicPageHeader from '@/components/common/PublicPageHeader.vue'
-import { ArrowRight, LoaderCircle, Search } from '@lucide/vue'
-import BaseSelect from '@/shared/components/BaseSelect.vue'
-import { searchContent } from '@/services/content'
-import { toUserMessage } from '@/services/http'
-import { usePageReveal } from '@/shared/composables/usePageReveal'
-import type { SearchResult, SearchResultType, SearchSortType } from '@/shared/domain'
-// 声明检索输入和搜索结果的响应式数据
+import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import type { RouteLocationRaw } from 'vue-router'
+import PublicPageHeader from '../components/common/PublicPageHeader.vue'
+import BaseSelect from '../shared/components/BaseSelect.vue'
+import { LoaderCircle, Search } from '@lucide/vue'
+import { searchContent, fetchArticles } from '../services/content'
+import { toUserMessage } from '../services/http'
+import { usePageReveal } from '../shared/composables/usePageReveal'
+import { formatDateToDay } from '../shared/datetime'
+import type { SearchResult, SearchResultType, SearchSortType, ArticleSummary } from '../shared/domain'
+
 const root = ref<HTMLElement | null>(null)
 const keyword = ref('')
 const activeType = ref<SearchResultType | ''>('')
 const activeSort = ref<SearchSortType>('relevance')
 const results = ref<SearchResult[]>([])
+const latestArticles = ref<ArticleSummary[]>([])
 const isLoading = ref(false)
 const searched = ref(false)
 const notice = ref('')
+
 usePageReveal(root)
+
 const typeLabels: Record<SearchResult['type'], string> = {
   ARTICLE: '文章',
   PROJECT: '作品',
@@ -70,8 +111,9 @@ const typeLabels: Record<SearchResult['type'], string> = {
   CATEGORY: '分类',
   PAGE: '页面',
 }
+
 const typeOptions: Array<{ label: string; value: SearchResultType | '' }> = [
-  { label: '全部', value: '' },
+  { label: '全部内容', value: '' },
   { label: '文章', value: 'ARTICLE' },
   { label: '作品', value: 'PROJECT' },
   { label: '灵感', value: 'INSPIRATION' },
@@ -79,19 +121,28 @@ const typeOptions: Array<{ label: string; value: SearchResultType | '' }> = [
   { label: '分类', value: 'CATEGORY' },
   { label: '页面', value: 'PAGE' },
 ]
+
 const sortOptions = [
-  { label: '相关度', value: 'relevance' },
-  { label: '最新', value: 'latest' },
-  { label: '热度', value: 'popular' },
+  { label: '最相关', value: 'relevance' },
+  { label: '最新发布', value: 'latest' },
+  { label: '热度最高', value: 'popular' },
 ]
-// 发起站内多维全文搜索, 覆盖文章、作品和灵感等多类型, 支持相关度、时间及流行度排序
+
+onMounted(() => {
+  loadLatestArticles()
+})
+
+async function loadLatestArticles() {
+  try {
+    const page = await fetchArticles('', undefined, { pageSize: 6 })
+    latestArticles.value = page.records
+  } catch (e) {
+    console.error('Failed to load latest articles', e)
+  }
+}
+
 async function runSearch() {
   const value = keyword.value.trim()
-  if (!value) {
-    results.value = []
-    searched.value = false
-    return
-  }
   isLoading.value = true
   searched.value = true
   notice.value = ''
@@ -110,191 +161,328 @@ async function runSearch() {
     isLoading.value = false
   }
 }
+
 function rerunIfSearched() {
-  if (searched.value) {
-    runSearch()
-  }
+  runSearch()
 }
-// 根据搜索结果的目标类型构建对应的路由跳转信息
+
 function resultTarget(result: SearchResult): RouteLocationRaw {
-  if (result.type === 'ARTICLE') {
-    return { name: 'article-detail', params: { slug: result.slug } }
-  }
-  if (result.type === 'PROJECT') {
-    return { name: 'project-detail', params: { slug: result.slug } }
-  }
-  if (result.type === 'TAG') {
-    return { name: 'articles', query: { keyword: result.title } }
-  }
-  if (result.type === 'CATEGORY') {
-    return { name: 'articles', query: { keyword: result.title } }
-  }
-  if (result.type === 'PAGE' && result.slug === 'about') {
-    return { name: 'about' }
-  }
+  if (result.type === 'ARTICLE') return { name: 'article-detail', params: { slug: result.slug } }
+  if (result.type === 'PROJECT') return { name: 'project-detail', params: { slug: result.slug } }
+  if (result.type === 'TAG') return { name: 'articles', query: { keyword: result.title } }
+  if (result.type === 'CATEGORY') return { name: 'articles', query: { keyword: result.title } }
+  if (result.type === 'PAGE' && result.slug === 'about') return { name: 'about' }
   return { name: 'inspirations' }
 }
+
 function fallbackDescription(result: SearchResult) {
   if (result.type === 'TAG') return `查看与 #${result.title} 相关的公开内容。`
   if (result.type === 'CATEGORY') return `查看 ${result.title} 分类下的公开内容。`
   if (result.type === 'PAGE') return '打开公开页面。'
   return '暂无摘要。'
 }
+
+function formatDate(value?: string | null): string {
+  if (!value) return ''
+  return formatDateToDay(value)
+}
 </script>
+
 <style scoped>
 .search-page {
   padding: 46px 0 84px;
 }
-.archive-search {
-  position: relative;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  grid-column: 1 / -1;
-  align-items: center;
-  gap: 10px;
-  max-width: 760px;
-  min-height: 58px;
-  padding: 8px 8px 8px 16px;
-  border: 1px solid color-mix(in srgb, var(--hero-accent) 22%, var(--tone-line-strong));
-  border-radius: 999px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 252, 0.7)),
-    color-mix(in srgb, var(--hero-accent) 4%, transparent);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.92),
-    0 18px 44px rgba(32, 33, 36, 0.12);
-  backdrop-filter: blur(18px);
-  overflow: hidden;
-}
-.archive-search::before {
-  content: "";
-  position: absolute;
-  inset: 5px;
-  border-radius: inherit;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--hero-accent) 8%, transparent), transparent 36%);
-  pointer-events: none;
-}
-.archive-search > * {
-  position: relative;
-  z-index: 1;
-}
-.archive-search svg {
-  color: var(--hero-accent);
-}
-.archive-search input {
+
+.search-interface {
   width: 100%;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--tone-ink);
+  min-width: 320px;
 }
+
+.main-search-form {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 6px;
+  transition: all 0.3s ease;
+}
+
+.main-search-form:focus-within {
+  border-color: #315bff;
+  box-shadow: 0 0 0 4px rgba(49, 91, 255, 0.1);
+  background: #ffffff;
+}
+
+.search-icon {
+  color: #94a3b8;
+  margin: 0 12px;
+  flex-shrink: 0;
+}
+
+.main-search-form input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 8px 0;
+  font-size: 15px;
+  color: #0f172a;
+  outline: none;
+  min-width: 0;
+}
+
+.main-search-form input::placeholder {
+  color: #94a3b8;
+}
+
+.main-search-form button {
+  background: #0f172a;
+  color: #ffffff;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.main-search-form button:hover {
+  background: #1e293b;
+  transform: translateY(-1px);
+}
+
+.search-controls-bar {
+  position: relative;
+  z-index: 20;
+  margin-top: 24px;
+  margin-bottom: 32px;
+}
+
 .search-controls {
   display: flex;
-  grid-column: 1 / -1;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-.search-controls label {
-  display: grid;
-  gap: 6px;
-  min-width: 160px;
-  color: var(--tone-muted);
-  font-size: 12px;
-  font-weight: 760;
-}
-.search-controls select {
-  appearance: none;
-  min-height: 40px;
-  padding: 0 38px 0 12px;
-  border: 1px solid var(--tone-line);
-  border-radius: 8px;
-  background:
-    linear-gradient(45deg, transparent 50%, #315bff 50%),
-    linear-gradient(135deg, #315bff 50%, transparent 50%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(246, 248, 255, 0.9));
-  background-position:
-    calc(100% - 18px) 50%,
-    calc(100% - 13px) 50%,
-    0 0;
-  background-size:
-    5px 5px,
-    5px 5px,
-    100% 100%;
-  background-repeat: no-repeat;
-  color: var(--tone-ink);
-  font: inherit;
-  cursor: pointer;
-  transition:
-    border-color 0.18s ease,
-    box-shadow 0.18s ease,
-    background 0.18s ease;
-}
-.search-controls select:hover {
-  border-color: rgba(49, 91, 255, 0.28);
-}
-.search-controls select:focus {
-  border-color: rgba(49, 91, 255, 0.48);
-  outline: none;
-  box-shadow: 0 0 0 4px rgba(49, 91, 255, 0.1);
-}
-.search-controls select option {
-  background: #fff;
-  color: var(--tone-ink);
-  font-size: 14px;
-}
-.search-page,
-.search-results {
-  display: grid;
-  gap: 16px;
-}
-.search-result {
-  display: grid;
-  grid-template-columns: 120px minmax(0, 1fr) auto;
+  gap: 20px;
   align-items: center;
-  gap: 18px;
-  padding: 18px;
-  border: 1px solid var(--tone-line);
-  border-radius: var(--app-radius-sm);
-  background: var(--tone-panel);
-  box-shadow: var(--tone-shadow);
-  backdrop-filter: blur(18px);
+  justify-content: flex-end;
 }
-.search-result > span {
-  color: var(--tone-teal);
+
+.search-controls label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.search-controls label span {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.search-controls :deep(.base-select) {
+  min-width: 130px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #0f172a;
+}
+
+.search-controls :deep(.base-select:hover) {
+  background: #ffffff;
+}
+
+.search-results-section {
+  position: relative;
+  z-index: 10;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 24px;
+}
+
+.default-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+}
+
+.default-card {
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+}
+
+.default-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  transform: translateY(-4px);
+}
+
+.default-card__meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.badge {
   font-size: 12px;
-  font-weight: 850;
-  letter-spacing: 0.12em;
+  font-weight: 800;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: #f0f9ff;
+  color: #0ea5e9;
+  letter-spacing: 0.05em;
 }
-.search-result h2,
-.search-result p {
+
+.default-card__meta time {
+  font-size: 13px;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.default-card h4 {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.default-card p {
   margin: 0;
+  font-size: 15px;
+  color: #64748b;
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
-.search-result h2 {
-  color: var(--tone-ink);
-  font-size: 24px;
-  line-height: 1.18;
+
+.results-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
-.search-result p {
-  color: var(--tone-muted);
-  line-height: 1.68;
+
+.result-item {
+  padding: 28px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
 }
+
+.result-item:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.05);
+  transform: translateY(-2px);
+}
+
+.result-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.type-badge {
+  font-size: 13px;
+  font-weight: 800;
+  color: #ffffff;
+  background: #0ea5e9;
+  padding: 4px 12px;
+  border-radius: 6px;
+  letter-spacing: 0.05em;
+}
+
+.result-meta time {
+  font-size: 14px;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.result-link {
+  text-decoration: none;
+  display: inline-block;
+}
+
+.result-link h2 {
+  margin: 0 0 12px;
+  font-size: 22px;
+  font-weight: 800;
+  color: #0f172a;
+  transition: color 0.2s ease;
+}
+
+.result-link:hover h2 {
+  color: #0ea5e9;
+}
+
+.result-item p {
+  margin: 0;
+  font-size: 16px;
+  color: #475569;
+  line-height: 1.7;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 80px 20px;
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px dashed #cbd5e1;
+  margin-top: 20px;
+}
+
+.empty-state h2 {
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 16px 0 8px;
+}
+
+.empty-state p {
+  color: #64748b;
+  font-size: 15px;
+}
+
 @media (max-width: 760px) {
-  .search-page {
-    padding-top: 26px;
+  .search-interface {
+    min-width: auto;
   }
-  .archive-search {
-    grid-template-columns: auto minmax(0, 1fr);
-    border-radius: 8px;
+
+  .main-search-form {
+    flex-direction: column;
+    padding: 12px;
+    gap: 12px;
   }
-  .archive-search button {
-    grid-column: 1 / -1;
+  
+  .main-search-form button {
     width: 100%;
   }
+  
   .search-controls {
-    display: grid;
-  }
-  .search-result {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
   }
 }
 </style>

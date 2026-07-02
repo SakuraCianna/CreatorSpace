@@ -107,12 +107,12 @@
 // 导入 Vue 生命周期钩子和路由支持
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import PublicPageHeader from '@/components/common/PublicPageHeader.vue'
+import PublicPageHeader from '../components/common/PublicPageHeader.vue'
 import { ArrowRight, Bookmark, Eye, Heart, LoaderCircle, MessageCircle, Search } from '@lucide/vue'
-import { fetchProjectFilterRecommendations, fetchProjects } from '@/services/content'
-import { toUserMessage } from '@/services/http'
-import { usePageReveal } from '@/shared/composables/usePageReveal'
-import type { ProjectSummary } from '@/shared/domain'
+import { fetchProjectFilterRecommendations, fetchProjects } from '../services/content'
+import { toUserMessage } from '../services/http'
+import { usePageReveal } from '../shared/composables/usePageReveal'
+import type { ProjectSummary } from '../shared/domain'
 type ProjectTypeFilter = 'ALL' | string
 type TechFilter = 'ALL' | string
 const coverPalettes = [

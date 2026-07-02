@@ -17,9 +17,10 @@
         </span>
       </button>
       <nav class="admin-nav">
-        <RouterLink v-for="item in navItems" :key="item.to" :to="item.to" :title="item.label">
+        <RouterLink v-for="item in navItems" :key="item.to" :to="item.to" :title="item.label" :class="{ 'has-badge': item.badgeCount && item.badgeCount.value > 0 }">
           <component :is="item.icon" :size="18" />
           <span>{{ item.label }}</span>
+          <span v-if="item.badgeCount && item.badgeCount.value > 0" class="nav-badge">{{ item.badgeCount.value }}</span>
         </RouterLink>
       </nav>
       <div class="admin-rail__note">
@@ -50,7 +51,8 @@
   </div>
 </template>
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { fetchPendingReview } from '../../services/content'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import {
   Ban,
@@ -69,25 +71,27 @@ import {
   Sparkles,
   Tags,
 } from '@lucide/vue'
-import { useSessionStore } from '@/shared/sessionStore'
-import { useSiteIdentity } from '@/shared/siteIdentity'
+import { useSessionStore } from '../../shared/sessionStore'
+import { useSiteIdentity } from '../../shared/siteIdentity'
 // 初始化后台导航状态和路由相关参数
 const route = useRoute()
 const router = useRouter()
 const session = useSessionStore()
 const { siteSlogan } = useSiteIdentity()
 const sidebarCollapsed = ref(false)
+const pendingCounts = ref({ pendingComments: 0, pendingGuestbook: 0, pendingArticles: 0, pendingProjects: 0, total: 0 })
+
 // 后台菜单配置项
 // 后台侧边栏菜单项及图标配置映射表
 const navItems = [
   { to: '/admin', label: '概览', icon: BarChart3 },
-  { to: '/admin/articles', label: '文章', icon: FileText },
-  { to: '/admin/projects', label: '作品', icon: Images },
+  { to: '/admin/articles', label: '文章', icon: FileText, badgeCount: computed(() => pendingCounts.value.pendingArticles) },
+  { to: '/admin/projects', label: '作品', icon: Images, badgeCount: computed(() => pendingCounts.value.pendingProjects) },
   { to: '/admin/categories', label: '分类', icon: Tags },
   { to: '/admin/tags', label: '标签', icon: Tags },
   { to: '/admin/inspirations', label: '灵感', icon: Lightbulb },
-  { to: '/admin/comments', label: '评论', icon: MessageSquare },
-  { to: '/admin/guestbook', label: '留言', icon: MessageSquare },
+  { to: '/admin/comments', label: '评论', icon: MessageSquare, badgeCount: computed(() => pendingCounts.value.pendingComments) },
+  { to: '/admin/guestbook', label: '留言', icon: MessageSquare, badgeCount: computed(() => pendingCounts.value.pendingGuestbook) },
   { to: '/admin/files', label: '文件', icon: FileImage },
   { to: '/admin/themes', label: '主题', icon: Palette },
   { to: '/admin/content-rules', label: '规则', icon: ShieldCheck },
@@ -95,7 +99,8 @@ const navItems = [
   { to: '/admin/operation-logs', label: '日志', icon: ScrollText },
   { to: '/admin/ai-assistant', label: 'AI 助手', icon: Sparkles },
   { to: '/admin/settings', label: '设置', icon: Settings },
-]
+] as const
+
 const titleMap = new Map(navItems.map((item) => [item.to, item.label]))
 // 根据当前激活的路由路径映射解析出后台顶栏显示的主页签管理标题
 const currentTitle = computed(() => {
@@ -113,6 +118,14 @@ function logout() {
 function toggleSidebar() {
   sidebarCollapsed.value = !sidebarCollapsed.value
 }
+
+onMounted(async () => {
+  try {
+    pendingCounts.value = await fetchPendingReview()
+  } catch {
+    // 静默忽略
+  }
+})
 </script>
 <style scoped>
 .admin-brand {
@@ -178,7 +191,7 @@ function toggleSidebar() {
 }
 .admin-nav a {
   display: grid;
-  grid-template-columns: 20px minmax(0, 1fr);
+  grid-template-columns: 20px minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   width: 100%;
@@ -196,7 +209,7 @@ function toggleSidebar() {
     padding 240ms cubic-bezier(0.2, 0, 0, 1),
     transform 180ms ease;
 }
-.admin-nav a span {
+.admin-nav a span:not(.nav-badge) {
   min-width: 0;
   max-width: 88px;
   overflow: hidden;
@@ -218,6 +231,26 @@ function toggleSidebar() {
   color: var(--admin-primary-strong);
   box-shadow: inset 0 0 0 1px var(--admin-line);
 }
+
+.admin-nav a.has-badge {
+  position: relative;
+}
+
+.nav-badge {
+  justify-self: end;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  border-radius: 999px;
+  background: #e0455a;
+  color: #fff;
+  pointer-events: none;
+}
+
 .admin-topbar__actions {
   display: inline-flex;
   align-items: center;
@@ -303,12 +336,17 @@ function toggleSidebar() {
   transform: scale(0.94);
 }
 .admin-shell--collapsed .brand-copy,
-.admin-shell--collapsed .admin-nav a span {
+.admin-shell--collapsed .admin-nav a span:not(.nav-badge) {
   max-width: 0;
   opacity: 0;
   pointer-events: none;
   transform: translateX(-8px);
 }
+
+.admin-shell--collapsed .admin-nav a .nav-badge {
+  display: none;
+}
+
 .admin-shell--collapsed .admin-rail__note {
   max-height: 0;
   padding-top: 0;
@@ -371,13 +409,18 @@ function toggleSidebar() {
     pointer-events: auto;
     transform: none;
   }
-  .admin-shell--collapsed .admin-nav a span {
+  .admin-shell--collapsed .admin-nav a span:not(.nav-badge) {
     display: inline;
     max-width: 88px;
     opacity: 1;
     pointer-events: auto;
     transform: none;
   }
+
+  .admin-shell--collapsed .admin-nav a .nav-badge {
+    display: inline;
+  }
+
   .admin-shell--collapsed .admin-rail__note {
     max-height: 160px;
     padding: 16px;

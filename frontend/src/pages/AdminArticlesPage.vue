@@ -156,9 +156,9 @@ import {
   setArticleRecommend,
   setArticleTop,
   updateArticle,
-} from '@/services/content'
-import { toUserMessage } from '@/services/http'
-import type { ArticlePayload, ArticlePrivacy, ArticleSummary, CategorySummary, TagSummary } from '@/shared/domain'
+} from '../services/content'
+import { toUserMessage } from '../services/http'
+import type { ArticlePayload, ArticlePrivacy, ArticleSummary, CategorySummary, TagSummary } from '../shared/domain'
 
 const articlePrivacies: ArticlePrivacy[] = ['PUBLIC', 'SELF', 'FRIENDS', 'SELECTED_FRIENDS', 'EXCLUDED_FRIENDS']
 

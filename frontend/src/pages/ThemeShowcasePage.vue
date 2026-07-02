@@ -135,15 +135,15 @@
 </template>
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import PublicPageHeader from '@/components/common/PublicPageHeader.vue'
+import PublicPageHeader from '../components/common/PublicPageHeader.vue'
 import { CheckCircle, Copy, Download, LoaderCircle, Palette, RotateCcw, WandSparkles } from '@lucide/vue'
-import { fetchCurrentTheme, fetchThemes } from '@/services/content'
-import { toUserMessage } from '@/services/http'
-import { usePageReveal } from '@/shared/composables/usePageReveal'
-import { toCssImageUrl } from '@/shared/cssImage'
-import type { PublicThemeConfig, ThemeConfig } from '@/shared/domain'
-import { applyThemeConfig } from '@/shared/theme'
-import BaseSelect from '@/shared/components/BaseSelect.vue'
+import { fetchCurrentTheme, fetchThemes } from '../services/content'
+import { toUserMessage } from '../services/http'
+import { usePageReveal } from '../shared/composables/usePageReveal'
+import { toCssImageUrl } from '../shared/cssImage'
+import type { PublicThemeConfig, ThemeConfig } from '../shared/domain'
+import { applyThemeConfig } from '../shared/theme'
+import BaseSelect from '../shared/components/BaseSelect.vue'
 interface ColorToken {
   label: string
   color: string

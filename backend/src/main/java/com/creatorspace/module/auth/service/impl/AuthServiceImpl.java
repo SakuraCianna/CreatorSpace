@@ -5,9 +5,11 @@ import com.creatorspace.common.constant.ContentConstants;
 import com.creatorspace.common.exception.BusinessException;
 import com.creatorspace.module.auth.dto.LoginRequest;
 import com.creatorspace.module.auth.dto.RegisterRequest;
+import com.creatorspace.module.auth.dto.ResetPasswordRequest;
 import com.creatorspace.module.auth.service.AuthService;
 import com.creatorspace.module.auth.vo.AuthTokenVO;
 import com.creatorspace.module.auth.vo.UserSummaryVO;
+import com.creatorspace.module.email.service.EmailVerificationService;
 import com.creatorspace.module.user.entity.RoleEntity;
 import com.creatorspace.module.user.entity.UserEntity;
 import com.creatorspace.module.user.mapper.RoleMapper;
@@ -43,6 +45,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final JdbcTemplate jdbcTemplate;
+    private final EmailVerificationService emailVerificationService;
     private final SecureRandom secureRandom;
     private final long accessTokenExpireMinutes;
     private final long refreshTokenExpireDays;
@@ -55,6 +58,7 @@ public class AuthServiceImpl implements AuthService {
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
             JdbcTemplate jdbcTemplate,
+            EmailVerificationService emailVerificationService,
             HCaptchaService hCaptchaService,
             @Value("${app.security.jwt-access-token-expire-minutes}") long accessTokenExpireMinutes,
             @Value("${app.security.jwt-refresh-token-expire-days}") long refreshTokenExpireDays
@@ -65,27 +69,31 @@ public class AuthServiceImpl implements AuthService {
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.jdbcTemplate = jdbcTemplate;
+        this.emailVerificationService = emailVerificationService;
         this.hCaptchaService = hCaptchaService;
         this.secureRandom = new SecureRandom();
         this.accessTokenExpireMinutes = accessTokenExpireMinutes;
         this.refreshTokenExpireDays = refreshTokenExpireDays;
     }
 
-    // 注册普通用户并返回安全用户信息。
     @Override
     @Transactional(rollbackFor = Exception.class)
     public UserSummaryVO register(RegisterRequest request) {
-        if (!hCaptchaService.verify(request.hcaptchaToken())) {
-            throw BusinessException.badRequest("人机验证失败，请重试");
+        String email = request.email().trim();
+        if (!email.endsWith("@qq.com")) {
+            throw BusinessException.badRequest("仅支持 QQ 邮箱注册");
         }
+        emailVerificationService.verifyCode(email, request.verificationCode(), "REGISTER");
 
         String username = request.username().trim();
         ensureUsernameAvailable(username);
+        ensureEmailAvailable(email);
 
         RoleEntity role = requiredRole(ContentConstants.ROLE_USER);
         UserEntity user = new UserEntity();
         user.setUsername(username);
         user.setNickname(username);
+        user.setEmail(email);
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setStatus(ContentConstants.USER_ACTIVE);
         userMapper.insert(user);
@@ -156,10 +164,13 @@ public class AuthServiceImpl implements AuthService {
             throw BusinessException.badRequest("人机验证失败，请重试");
         }
 
+        String account = request.username().trim();
         UserEntity user = userMapper.selectOne(new LambdaQueryWrapper<UserEntity>()
-                .eq(UserEntity::getUsername, request.username().trim()));
+                .eq(UserEntity::getUsername, account)
+                .or()
+                .eq(UserEntity::getEmail, account));
         if (user == null) {
-            throw new BusinessException(HttpStatus.UNAUTHORIZED, "用户名不存在");
+            throw new BusinessException(HttpStatus.UNAUTHORIZED, "账号不存在");
         }
         checkAccountLocked(user);
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
@@ -246,11 +257,41 @@ public class AuthServiceImpl implements AuthService {
         }
     }
 
+    @Override
+    public void sendVerificationCode(String email, String hcaptchaToken, String purpose) {
+        if (!hCaptchaService.verify(hcaptchaToken)) {
+            throw BusinessException.badRequest("人机验证失败，请重试");
+        }
+        emailVerificationService.sendCode(email, purpose);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void resetPassword(ResetPasswordRequest request) {
+        String email = request.email().trim();
+        emailVerificationService.verifyCode(email, request.verificationCode(), "RESET_PASSWORD");
+        int updated = jdbcTemplate.update(
+                "update users set password_hash = ? where email = ?",
+                passwordEncoder.encode(request.newPassword()),
+                email);
+        if (updated == 0) {
+            throw BusinessException.badRequest("该邮箱未注册");
+        }
+    }
+
     // 确认用户名未被占用。
     private void ensureUsernameAvailable(String username) {
         Long count = userMapper.selectCount(new LambdaQueryWrapper<UserEntity>().eq(UserEntity::getUsername, username));
         if (count > 0) {
             throw BusinessException.conflict("用户名已存在");
+        }
+    }
+
+    // 确认邮箱未被占用。
+    private void ensureEmailAvailable(String email) {
+        Long count = userMapper.selectCount(new LambdaQueryWrapper<UserEntity>().eq(UserEntity::getEmail, email));
+        if (count > 0) {
+            throw BusinessException.conflict("该邮箱已被注册");
         }
     }
 

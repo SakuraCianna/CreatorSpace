@@ -66,10 +66,11 @@
         <RouterLink
           v-if="session.isAuthenticated"
           class="mobile-auth-action mobile-auth-action--tonal"
-          :to="accountActionRoute"
+          :to="profileRoute"
           @click="navOpen = false"
         >
-          {{ accountActionLabel }}
+          <UserRound :size="16" />
+          {{ session.currentUser?.username || '个人主页' }}
         </RouterLink>
         <button
           v-if="session.isAuthenticated"
@@ -82,9 +83,23 @@
       </nav>
       <div class="public-actions">
         <template v-if="session.isAuthenticated">
-          <RouterLink class="button button-tonal button-compact" :to="accountActionRoute">
-            <ShieldCheck v-if="session.isAdmin" :size="16" />
-            {{ accountActionLabel }}
+          <RouterLink v-if="unreadCount > 0" class="notification-bell" to="/my-notifications" :title="`${unreadCount} 条未读通知`">
+            <Bell :size="17" />
+            <span class="notification-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+          </RouterLink>
+          <RouterLink v-else class="notification-bell" to="/my-notifications" title="通知">
+            <Bell :size="17" />
+          </RouterLink>
+          <RouterLink class="profile-trigger" :to="profileRoute">
+            <span class="profile-trigger__avatar">
+              <img v-if="profileAvatar" :src="profileAvatar" alt="" />
+              <UserRound v-else :size="16" />
+            </span>
+            <span class="profile-trigger__name">{{ session.currentUser?.username }}</span>
+          </RouterLink>
+          <RouterLink v-if="session.isAdmin" class="button button-tonal button-compact" to="/admin">
+            <ShieldCheck :size="16" />
+            后台
           </RouterLink>
           <button class="button button-filled button-compact" type="button" @click="handleLogout">退出</button>
         </template>
@@ -103,12 +118,14 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type Component } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { BookOpen, Home, Images, Info, Lightbulb, Menu, Palette, PenLine, Search, ShieldCheck, X } from '@lucide/vue'
-import ThemeHUD from '@/shared/components/ThemeHUD.vue'
-import { fetchSiteConfig } from '@/services/content'
-import { prefersReducedMotion } from '@/shared/composables/useReducedMotion'
-import { useSessionStore } from '@/shared/sessionStore'
-import { syncSiteIdentityFromConfig, useSiteIdentity } from '@/shared/siteIdentity'
+import { BookOpen, Bell, Home, Images, Info, Lightbulb, Menu, MessageCircle, Palette, PenLine, Search, ShieldCheck, UserRound, X } from '@lucide/vue'
+
+import ThemeHUD from '../../shared/components/ThemeHUD.vue'
+
+import { fetchMyProfile, fetchSiteConfig, fetchUnreadNotificationCount } from '../../services/content'
+import { prefersReducedMotion } from '../../shared/composables/useReducedMotion'
+import { useSessionStore } from '../../shared/sessionStore'
+import { syncSiteIdentityFromConfig, useSiteIdentity } from '../../shared/siteIdentity'
 // 声明前台公共布局的状态变量
 const navOpen = ref(false)
 const sceneHost = ref<HTMLElement | null>(null)
@@ -116,9 +133,9 @@ const scrollProgress = ref(0)
 const route = useRoute()
 const router = useRouter()
 const session = useSessionStore()
-const currentUsername = computed(() => session.currentUser?.username ?? '创作中心')
-const accountActionRoute = computed(() => (session.isAdmin ? '/admin' : '/creator'))
-const accountActionLabel = computed(() => (session.isAdmin ? '返回后台' : currentUsername.value))
+const profileAvatar = ref('')
+const unreadCount = ref(0)
+const profileRoute = computed(() => `/users/${session.currentUser?.id ?? ''}`)
 let disposeScene: (() => void) | null = null
 let setScenePaused: ((paused: boolean) => void) | null = null
 let setScenePointer: ((nx: number, ny: number) => void) | null = null
@@ -160,6 +177,20 @@ onMounted(async () => {
     }
   } catch {
     navItems.value = withRequiredPublicEntries([])
+  }
+  if (session.isAuthenticated) {
+    try {
+      const myProfile = await fetchMyProfile()
+      profileAvatar.value = myProfile.avatarUrl ?? ''
+    } catch {
+      // 静默忽略
+    }
+    try {
+      const result = await fetchUnreadNotificationCount()
+      unreadCount.value = result.count
+    } catch {
+      // 静默忽略
+    }
   }
 })
 onBeforeUnmount(() => {
@@ -203,7 +234,7 @@ async function mountFrontstageScene() {
     return
   }
   try {
-    const { createFrontstageScene } = await import('@/shared/frontstageScene')
+    const { createFrontstageScene } = await import('../../shared/frontstageScene')
     if (!sceneHost.value) {
       return
     }
@@ -267,12 +298,15 @@ function withRequiredPublicEntries(items: PublicNavItem[]): PublicNavItem[] {
     { to: '/projects', label: '作品', icon: Images, external: false },
     { to: '/inspirations', label: '灵感', icon: Lightbulb, external: false },
     { to: '/search', label: '搜索', icon: Search, external: false },
-    { to: '/about', label: '关于', icon: Info, external: false },
+    { to: '/guestbook', label: '留言', icon: MessageCircle, external: false },
   ]
   if (!nextItems.some((item) => item.to === '/themes')) {
-    const aboutIndex = nextItems.findIndex((item) => item.to === '/about')
-    const insertAt = aboutIndex >= 0 ? aboutIndex : nextItems.length
-    nextItems.splice(insertAt, 0, { to: '/themes', label: '主题', icon: Palette, external: false })
+    nextItems.push({ to: '/themes', label: '主题', icon: Palette, external: false })
+  }
+  if (!nextItems.some((item) => item.to === '/guestbook')) {
+    const searchIndex = nextItems.findIndex((item) => item.to === '/search')
+    const insertAt = searchIndex >= 0 ? searchIndex + 1 : nextItems.length
+    nextItems.splice(insertAt, 0, { to: '/guestbook', label: '留言', icon: MessageCircle, external: false })
   }
   if (!nextItems.some((item) => item.to === '/creator' || item.to.startsWith('/creator/'))) {
     const searchIndex = nextItems.findIndex((item) => item.to === '/search')
@@ -377,17 +411,25 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 .public-nav {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 .public-nav {
   justify-content: center;
 }
+
+.public-nav::-webkit-scrollbar {
+  display: none;
+}
+
 .public-nav a {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  min-height: 40px;
-  padding: 9px 12px;
+  gap: 6px;
+  min-height: 38px;
+  padding: 7px 10px;
+  white-space: nowrap;
   border-radius: 999px;
   color: #3d4658;
   font-size: 14px;
@@ -408,6 +450,42 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   align-items: center;
   gap: 8px;
 }
+
+.notification-bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: var(--tone-muted);
+  transition: color 180ms ease, background 180ms ease;
+  text-decoration: none;
+}
+
+.notification-bell:hover {
+  color: var(--tone-primary);
+  background: color-mix(in srgb, var(--tone-primary) 10%, transparent);
+}
+
+.notification-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  border-radius: 999px;
+  background: #e0455a;
+  color: #fff;
+  pointer-events: none;
+}
+
 .mobile-auth-action {
   display: none !important;
 }
@@ -415,6 +493,52 @@ button.mobile-auth-action {
   font: inherit;
   cursor: pointer;
 }
+
+.profile-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px 4px 4px;
+  border-radius: 999px;
+  border: 1px solid var(--tone-line);
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--tone-ink);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 730;
+  transition: border-color 180ms ease, background 180ms ease;
+  cursor: pointer;
+}
+
+.profile-trigger:hover {
+  border-color: color-mix(in srgb, var(--tone-primary) 30%, var(--tone-line));
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.profile-trigger__avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: var(--tone-night);
+  color: rgba(255, 255, 255, 0.6);
+  flex-shrink: 0;
+}
+
+.profile-trigger__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mobile-auth-action--outline {
+  border: 1px solid var(--tone-line);
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--tone-ink);
+}
+
 .nav-toggle {
   display: none;
   justify-self: end;

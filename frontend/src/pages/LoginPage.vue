@@ -1,74 +1,86 @@
 <template>
-  <section ref="root" class="auth-page auth-page--material">
-    <form class="auth-card auth-card--material" data-reveal @submit.prevent="submitLogin">
-      <div class="auth-card__visual auth-card__visual--material">
-        <span class="material-icon-badge">
-          <ShieldCheck :size="24" />
-        </span>
-        <p class="page-kicker">{{ accountKicker }}</p>
-        <h1>{{ loginMode === 'ADMIN' ? '进入内容工作台' : '进入创作社区' }}</h1>
-        <p>{{ loginMode === 'ADMIN' ? '使用管理员身份管理文章、作品、灵感墙、评论审核与主题配置。' : '登录后参与评论、回复、收藏，并为后续好友可见内容保留身份。' }}</p>
-        <div class="material-benefits" aria-label="登录能力">
-          <span>CMS</span>
-          <span>Gallery</span>
-          <span>Comments</span>
+  <div class="auth-page-wrapper">
+    <div class="auth-card">
+      <div class="auth-card-left">
+        <div class="brand-logo">
+          <ShieldCheck :size="24" :stroke-width="1.5" />
+          <span>CreatorSpace</span>
+        </div>
+        <div class="left-content">
+          <h2 v-if="loginMode === 'ADMIN'">"管理内容，<br/>赋能创作者。"</h2>
+          <h2 v-else>"连接灵感与作品，<br/>开启创作之旅。"</h2>
+          <p>Join thousands of creators building the future.</p>
         </div>
       </div>
-      <div class="auth-card__form">
-        <div>
-          <p class="page-kicker">Sign in</p>
-          <h2>{{ loginMode === 'ADMIN' ? '管理员登录' : '普通用户登录' }}</h2>
+      
+      <div class="auth-card-right">
+        <div class="form-wrapper">
+          <div class="form-header">
+            <h1>{{ loginMode === 'ADMIN' ? '管理员登录' : '欢迎回来' }}</h1>
+            <p>{{ loginMode === 'ADMIN' ? '使用管理员身份管理各项服务' : '登录您的账号以继续探索' }}</p>
+          </div>
+          
+          <form class="auth-form" @submit.prevent="submitLogin">
+            <div class="mode-toggle">
+              <button type="button" :class="{ 'active': loginMode === 'USER' }" @click="loginMode = 'USER'">普通用户</button>
+              <button type="button" :class="{ 'active': loginMode === 'ADMIN' }" @click="loginMode = 'ADMIN'">管理员</button>
+            </div>
+
+            <div class="input-group">
+              <label>用户名 / 邮箱</label>
+              <div class="input-inner">
+                <input v-model="form.username" autocomplete="username" placeholder="请输入用户名或邮箱" />
+              </div>
+            </div>
+
+            <div class="input-group">
+              <div class="label-row">
+                <label>密码</label>
+                <RouterLink class="link-muted" :to="{ name: 'forgot-password' }">忘记密码？</RouterLink>
+              </div>
+              <div class="input-inner">
+                <input v-model="form.password" type="password" autocomplete="current-password" placeholder="请输入密码" />
+              </div>
+            </div>
+
+            <div class="hcaptcha-wrapper">
+              <VueHcaptcha ref="hcaptchaRef" :sitekey="hcaptchaSiteKey" @verify="onVerify" @expired="onExpired" @error="onError" />
+            </div>
+
+            <button class="submit-btn" :disabled="isSubmitting || !hcaptchaToken" type="submit">
+              <LoaderCircle v-if="isSubmitting" class="spin" :size="18" />
+              <span v-else>{{ loginMode === 'ADMIN' ? '登录后台' : '登录账号' }}</span>
+            </button>
+
+            <div class="form-footer">
+              <span class="text-muted">还没有账号？</span>
+              <RouterLink class="link-primary" :to="registerRoute">立即注册</RouterLink>
+            </div>
+
+            <div v-if="message" class="error-msg">
+              {{ message }}
+            </div>
+          </form>
         </div>
-        <div class="auth-mode-switch">
-          <button type="button" :class="{ 'is-active': loginMode === 'USER' }"
-            @click="loginMode = 'USER'">普通用户登录</button>
-          <button type="button" :class="{ 'is-active': loginMode === 'ADMIN' }"
-            @click="loginMode = 'ADMIN'">管理员登录</button>
-        </div>
-        <label class="md-field">
-          <span>用户名</span>
-          <input v-model="form.username" autocomplete="username" name="username" />
-        </label>
-        <label class="md-field">
-          <span>密码</span>
-          <input v-model="form.password" autocomplete="current-password" name="password" type="password" />
-        </label>
-        <VueHcaptcha
-          ref="hcaptchaRef"
-          :sitekey="hcaptchaSiteKey"
-          @verify="onVerify"
-          @expired="onExpired"
-          @error="onError"
-          style="margin-top: 8px;"
-        />
-        <button class="button button-filled" :disabled="isSubmitting || !hcaptchaToken" type="submit">
-          <LoaderCircle v-if="isSubmitting" class="spin" :size="16" />
-          {{ isSubmitting ? '登录中...' : loginMode === 'ADMIN' ? '登录后台' : '登录账号' }}
-        </button>
-        <RouterLink class="auth-switch" :to="registerRoute">没有账号，先注册普通用户</RouterLink>
-        <p v-if="message" class="form-message">{{ message }}</p>
       </div>
-    </form>
-  </section>
+    </div>
+  </div>
 </template>
+
 <script setup lang="ts">
-// 导入所需的组件和 Vue 钩子
 import { computed, reactive, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { LoaderCircle, ShieldCheck } from '@lucide/vue'
 import VueHcaptcha from '@hcaptcha/vue3-hcaptcha'
-import { loginAdmin, loginUser } from '@/services/content'
-import { HttpError, toUserMessage } from '@/services/http'
-import { isAdminRedirect, normalizeAuthRedirect } from '@/shared/authRedirect'
-import { usePageReveal } from '@/shared/composables/usePageReveal'
-import { useSessionStore } from '@/shared/sessionStore'
-import { siteAccountLabel, useSiteIdentity } from '@/shared/siteIdentity'
-// 声明登录页面的状态数据与控制器
-const root = ref<HTMLElement | null>(null)
+import { loginAdmin, loginUser } from '../services/content'
+import { HttpError, toUserMessage } from '../services/http'
+import { isAdminRedirect, normalizeAuthRedirect } from '../shared/authRedirect'
+import { useSessionStore } from '../shared/sessionStore'
+
 const router = useRouter()
 const route = useRoute()
 const session = useSessionStore()
-const { identity } = useSiteIdentity({ load: false })
+
 const form = reactive({
   username: '',
   password: '',
@@ -77,17 +89,18 @@ const message = ref('')
 const isSubmitting = ref(false)
 const loginMode = ref<'ADMIN' | 'USER'>(route.query.mode === 'admin' || isAdminRedirect(route.query.redirect) ? 'ADMIN' : 'USER')
 const loginAttemptId = ref(0)
-const accountKicker = computed(() => siteAccountLabel(identity.value))
+
 const registerRoute = computed(() => ({
   name: 'register',
   query: {
     redirect: readPublicRedirectPath(),
   },
 }))
-usePageReveal(root)
+
 const hcaptchaToken = ref('')
 const hcaptchaRef = ref<any>(null)
 const hcaptchaSiteKey = import.meta.env.VITE_HCAPTCHA_SITE_KEY
+
 function onVerify(token: string) {
   hcaptchaToken.value = token
 }
@@ -97,14 +110,15 @@ function onExpired() {
 function onError() {
   hcaptchaToken.value = ''
 }
+
 watch([loginMode, () => form.username, () => form.password], () => {
   loginAttemptId.value += 1
   message.value = ''
 })
-// 提交用户登录表单, 支持普通用户和管理员身份切换, 登录成功后写入 Token 到本地并跳转回原路由
+
 async function submitLogin() {
   if (!form.username.trim() || !form.password) {
-    message.value = '请输入用户名和密码'
+    message.value = '请输入账号和密码'
     return
   }
   if (!hcaptchaToken.value) {
@@ -130,291 +144,330 @@ async function submitLogin() {
     if (hcaptchaRef.value) hcaptchaRef.value.reset()
     hcaptchaToken.value = ''
     if (attemptId === loginAttemptId.value && modeSnapshot === loginMode.value && usernameSnapshot === form.username.trim()) {
-      message.value = loginErrorMessage(error, modeSnapshot)
+      message.value = loginErrorMessage(error)
     }
   } finally {
     isSubmitting.value = false
   }
 }
-// 根据后端返回的 Http 状态码及错误信息生成友好的用户提示文案
-function loginErrorMessage(error: unknown, _mode: 'ADMIN' | 'USER') {
+
+function loginErrorMessage(error: unknown) {
   if (!(error instanceof HttpError)) {
     return '登录失败，请稍后重试'
   }
   if (error.status === 0) {
-    return '登录请求没有连上后端，请确认后端服务是否启动'
+    return '无法连接到服务器，请检查网络'
   }
   return error.backendMessage || toUserMessage(error, '登录失败')
 }
-// 读取前台路径重定向地址, 避免管理员重定向去前台时被拦截
+
 function readPublicRedirectPath() {
   const redirect = normalizeAuthRedirect(route.query.redirect, '/articles')
   return redirect.startsWith('/admin') ? '/articles' : redirect
 }
+
 function readRedirectPath() {
   return normalizeAuthRedirect(route.query.redirect, '/admin')
 }
 </script>
+
 <style scoped>
-.auth-page {
-  position: relative;
-  display: grid;
-  min-height: calc(100vh - 72px);
-  place-items: center;
-  padding: clamp(28px, 5vw, 72px) 0;
+.auth-page-wrapper {
+  display: flex;
+  height: calc(100vh - 64px);
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  padding: 12px 24px;
+  box-sizing: border-box;
 }
-.auth-page::before {
-  content: "";
+
+.auth-card {
+  display: flex;
+  width: 100%;
+  max-width: 1000px;
+  height: auto;
+  min-height: 600px;
+  max-height: 100%;
+  background: #ffffff;
+  border-radius: 24px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.auth-card-left {
+  flex: 1;
+  position: relative;
+  background-image: url('../assets/images/auth_illustration.jpg');
+  background-size: cover;
+  background-position: center;
+  color: white;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.auth-card-left::before {
+  content: '';
   position: absolute;
   inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 18% 24%, rgba(49, 91, 255, 0.14), transparent 28vw),
-    radial-gradient(circle at 82% 18%, rgba(0, 106, 96, 0.12), transparent 26vw),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(247, 249, 255, 0.72));
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.8) 0%, rgba(124, 58, 237, 0.8) 100%);
+  mix-blend-mode: multiply;
 }
-.auth-card {
-  position: relative;
-  z-index: 1;
-  width: min(960px, 100%);
-  border: 1px solid rgba(116, 119, 127, 0.24);
-  border-radius: 24px;
-  background: var(--md-sys-color-surface-container-lowest);
-  box-shadow: 0 28px 80px rgba(30, 38, 64, 0.18), 0 1px 0 rgba(255, 255, 255, 0.9) inset;
-}
-.auth-card--wide {
-  display: grid;
-  grid-template-columns: 1fr 0.9fr;
-  overflow: hidden;
-}
-.auth-card--material {
-  display: grid;
-  grid-template-columns: minmax(0, 1.02fr) minmax(360px, 0.82fr);
-  gap: 0;
-  min-height: 540px;
-  overflow: hidden;
-}
-.auth-card__visual,
-.auth-card__form {
-  display: grid;
-  gap: 18px;
-  padding: 32px;
-}
-.auth-card__form {
-  align-content: center;
-  gap: 20px;
-  padding: clamp(30px, 4vw, 52px);
-  background: rgba(255, 255, 255, 0.96);
-}
-.auth-mode-switch {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px;
-  min-height: 48px;
-  padding: 4px;
-  border: 1px solid rgba(68, 71, 79, 0.22);
-  border-radius: 999px;
-  background: #eef2ff;
-}
-.auth-mode-switch button {
-  min-height: 40px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: #35415c;
-  font: inherit;
-  font-weight: 760;
-  cursor: pointer;
-  transition: background 180ms ease, color 180ms ease, box-shadow 180ms ease;
-}
-.auth-mode-switch button:hover {
-  background: rgba(255, 255, 255, 0.78);
-  color: #111827;
-}
-.auth-mode-switch button.is-active {
-  background: #101827;
-  color: #ffffff;
-  box-shadow: 0 8px 24px rgba(16, 24, 39, 0.18);
-}
-.auth-mode-switch button:focus-visible {
-  outline: 2px solid var(--md-sys-color-primary);
-  outline-offset: 2px;
-}
-.auth-card__visual {
-  align-content: end;
-  min-height: 420px;
-  background:
-    linear-gradient(145deg, rgba(16, 19, 31, 0.88), rgba(49, 91, 255, 0.66)),
-    var(--tone-night);
-  color: #fff;
-}
-.auth-card__visual--material {
-  position: relative;
-  align-content: end;
-  min-height: 100%;
-  padding: clamp(32px, 5vw, 56px);
-  overflow: hidden;
-  background:
-    radial-gradient(circle at 84% 82%, rgba(84, 230, 200, 0.26), transparent 34%),
-    linear-gradient(150deg, #101827 0%, #173b87 52%, #087568 100%);
-  color: #f8fbff;
-}
-.auth-card__visual--material::before {
-  content: "";
+
+.auth-card-left::after {
+  content: '';
   position: absolute;
-  right: -90px;
-  bottom: -120px;
-  width: 320px;
-  height: 320px;
-  border-radius: 50%;
-  background: rgba(147, 197, 253, 0.24);
-  box-shadow: -80px -60px 120px rgba(84, 230, 200, 0.16);
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 60%);
 }
-.auth-card__visual--warm {
-  background:
-    linear-gradient(160deg, rgba(255, 221, 176, 0.96), rgba(216, 226, 255, 0.72)),
-    var(--md-sys-color-tertiary-container);
-}
-.auth-card__visual--material>* {
+
+.brand-logo {
   position: relative;
-  z-index: 1;
-}
-.auth-card__visual--material h1,
-.auth-card__visual--material p,
-.auth-card__visual--material .page-kicker,
-.auth-card__visual--material svg {
-  color: inherit;
-}
-.auth-card h1 {
-  margin: 0;
-  font-size: clamp(34px, 4vw, 52px);
-  line-height: 1.08;
-}
-.auth-card h2 {
-  margin: 6px 0 0;
-  color: #151922;
-  font-size: 26px;
-  line-height: 1.16;
-}
-.auth-card label {
-  display: grid;
-  gap: 8px;
-  color: #353d4f;
-  font-size: 13px;
-  font-weight: 750;
-}
-.auth-card input {
-  width: 100%;
-  min-height: 56px;
-  border: 1px solid rgba(116, 119, 127, 0.24);
-  border-bottom-color: rgba(68, 71, 79, 0.38);
-  border-radius: 14px;
-  padding: 0 14px;
-  background: #f8fafc;
-  color: #111827;
-  caret-color: var(--md-sys-color-primary);
-  outline: 0;
-  transition: background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
-}
-.auth-card input:focus {
-  border-color: color-mix(in srgb, var(--md-sys-color-primary) 56%, #ffffff);
-  background: #ffffff;
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--md-sys-color-primary) 12%, transparent);
-}
-.auth-card button {
-  width: 100%;
-}
-.auth-card .button-filled {
-  min-height: 52px;
-  color: #ffffff;
-  background: linear-gradient(135deg, #315bff, #174ea6);
-  box-shadow: 0 16px 32px rgba(49, 91, 255, 0.24);
-}
-.auth-card .button-filled:hover {
-  color: #ffffff;
-  background: linear-gradient(135deg, #254be8, #123f92);
-}
-.auth-switch {
-  display: inline-flex;
-  justify-content: center;
-  color: #174ea6;
-  font-size: 14px;
-  font-weight: 760;
-}
-.auth-switch:hover {
-  color: #0b57d0;
-  text-decoration: underline;
-  text-underline-offset: 4px;
-}
-.material-icon-badge {
-  display: inline-grid;
-  width: 56px;
-  height: 56px;
-  place-items: center;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.14);
-  color: #bff7ec;
-  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-}
-.auth-card__visual--material .page-kicker {
-  color: #9ff5e5;
-}
-.auth-card__visual--material p:not(.page-kicker) {
-  max-width: 34ch;
-  color: rgba(248, 251, 255, 0.82);
-  line-height: 1.72;
-}
-.material-benefits {
+  z-index: 10;
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
+  align-items: center;
+  gap: 10px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
 }
-.material-benefits span {
-  min-height: 32px;
-  padding: 7px 12px;
-  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.13);
-  color: #eff6ff;
-  font-size: 12px;
-  font-weight: 780;
+
+.left-content {
+  position: relative;
+  z-index: 10;
 }
-.form-message {
+
+.left-content h2 {
+  font-size: 36px;
+  line-height: 1.25;
+  font-weight: 700;
+  margin: 0 0 16px 0;
+  letter-spacing: -1px;
+  color: #ffffff !important;
+}
+
+.left-content p {
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.9) !important;
   margin: 0;
-  color: var(--tone-coral);
+}
+
+.auth-card-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  background: #ffffff;
+}
+
+.form-wrapper {
+  width: 100%;
+  max-width: 360px;
+}
+
+.form-header {
+  margin-bottom: 28px;
+}
+
+.form-header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 8px 0;
+  letter-spacing: -0.5px;
+}
+
+.form-header p {
   font-size: 14px;
-  line-height: 1.55;
+  color: #6b7280;
+  margin: 0;
 }
-@media (max-width: 1020px) {
-  .auth-card--wide,
-  .auth-card--material {
-    grid-template-columns: 1fr;
-  }
-  .auth-card--material {
-    min-height: auto;
-  }
-  .auth-card__visual--material {
-    min-height: 280px;
-  }
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
-@media (max-width: 760px) {
-  .auth-page {
-    padding-top: 28px;
-  }
+
+.mode-toggle {
+  display: flex;
+  background: #f3f4f6;
+  border-radius: 8px;
+  padding: 4px;
+  margin-bottom: 4px;
+}
+
+.mode-toggle button {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 8px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b7280;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mode-toggle button.active {
+  background: white;
+  color: #111827;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.input-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.input-inner {
+  position: relative;
+}
+
+.input-group input {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #111827;
+  background: #f9fafb;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+
+.input-group input:focus {
+  outline: none;
+  border-color: #6366f1;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+}
+
+.hcaptcha-wrapper {
+  display: flex;
+  justify-content: center;
+  transform: scale(0.92);
+  transform-origin: center center;
+}
+
+.submit-btn {
+  height: 44px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: opacity 0.2s, transform 0.1s;
+  margin-top: 4px;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+}
+
+.submit-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.submit-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.form-footer {
+  text-align: center;
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.text-muted {
+  color: #6b7280;
+  margin-right: 6px;
+}
+
+.link-primary {
+  color: #4f46e5;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.link-primary:hover {
+  text-decoration: underline;
+}
+
+.link-muted {
+  color: #6b7280;
+  font-size: 13px;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.link-muted:hover {
+  color: #4f46e5;
+}
+
+.error-msg {
+  font-size: 13px;
+  color: #b91c1c;
+  background: #fef2f2;
+  padding: 10px;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 500;
+  border: 1px solid #fecaca;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 860px) {
   .auth-card {
-    border-radius: 24px;
+    height: auto;
+    max-width: 420px;
+    flex-direction: column;
   }
-  .auth-card__visual--material,
-  .auth-card__form {
-    padding: 24px;
+  .auth-card-left {
+    padding: 32px 24px;
+    min-height: 200px;
   }
-  .auth-card__visual--material {
-    min-height: 240px;
+  .left-content h2 {
+    font-size: 28px;
   }
-  .auth-card h1 {
-    font-size: 34px;
+  .auth-card-right {
+    padding: 32px 24px;
   }
 }
 </style>

@@ -85,6 +85,9 @@ export interface ArticleSummary {
   tags: TagSummary[]
   publishTime?: string | null
   authorId?: number | null
+  authorName?: string | null
+  authorAvatar?: string | null
+  authorBio?: string | null
   submittedAt?: string | null
   reviewedAt?: string | null
   reviewNote?: string | null
@@ -249,6 +252,30 @@ export interface CommentSummary {
   replyToUsername?: string | null
 }
 
+export interface CommentTree extends CommentSummary {
+  replies: CommentTree[]
+}
+
+export function buildCommentTree(comments: CommentSummary[]): CommentTree[] {
+  const map = new Map<number, CommentTree>()
+  const roots: CommentTree[] = []
+
+  for (const c of comments) {
+    map.set(c.id, { ...c, replies: [] })
+  }
+
+  for (const c of comments) {
+    const node = map.get(c.id)!
+    if (c.parentId && map.has(c.parentId)) {
+      map.get(c.parentId)!.replies.push(node)
+    } else {
+      roots.push(node)
+    }
+  }
+
+  return roots
+}
+
 export interface FileResource {
   id: number
   fileName: string
@@ -266,6 +293,32 @@ export interface InteractionRecord {
   id: number
   targetType: 'ARTICLE' | 'PROJECT' | 'COMMENT' | 'INSPIRATION'
   targetId: number
+  createdAt?: string | null
+  title?: string | null
+  slug?: string | null
+  coverUrl?: string | null
+}
+
+export interface FavoriteRecord {
+  id: number
+  targetType: 'ARTICLE' | 'PROJECT' | 'INSPIRATION'
+  targetId: number
+  createdAt?: string | null
+  title?: string | null
+  slug?: string | null
+  coverUrl?: string | null
+}
+
+export interface NotificationRecord {
+  id: number
+  type: string
+  title: string
+  content?: string | null
+  targetType?: string | null
+  targetId?: number | null
+  actorId?: number | null
+  actorName?: string | null
+  isRead: boolean
   createdAt?: string | null
 }
 
@@ -558,4 +611,31 @@ export interface AdminMetric {
   label: string
   value: string
   trend: string
+}
+
+// ====== 用户社交相关类型（关注、粉丝、好友） ======
+
+export interface UserProfile {
+  id: number
+  username: string
+  nickname: string | null
+  avatarUrl: string | null
+  bio: string | null
+  articleCount: number
+  followerCount: number
+  followingCount: number
+  friendCount: number
+}
+
+export interface FollowUser {
+  id: number
+  username: string
+  nickname: string | null
+  avatarUrl: string | null
+  bio: string | null
+}
+
+export interface FollowStatus {
+  following: boolean
+  friend: boolean
 }

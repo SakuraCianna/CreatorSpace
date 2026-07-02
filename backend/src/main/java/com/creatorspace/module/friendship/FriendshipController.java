@@ -3,6 +3,7 @@ package com.creatorspace.module.friendship;
 import com.creatorspace.common.exception.BusinessException;
 import com.creatorspace.common.result.ApiResponse;
 import com.creatorspace.common.result.PageResponse;
+import com.creatorspace.module.user.controller.PublicUserController;
 import com.creatorspace.security.LoginUser;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -235,6 +236,114 @@ public class FriendshipController {
                 .orElseThrow(() -> BusinessException.notFound("好友关系不存在"));
     }
 
+    // ====== 单向关注（Follow）接口 ======
+
+    @Transactional(rollbackFor = Exception.class)
+    @PostMapping("/api/me/follow/{userId}")
+    public ApiResponse<Void> follow(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable Long userId
+    ) {
+        if (loginUser.userId().equals(userId)) {
+            throw BusinessException.badRequest("不能关注自己");
+        }
+        Long exists = jdbcTemplate.queryForObject("select count(*) from users where id = ?", Long.class, userId);
+        if (exists == null || exists == 0) {
+            throw BusinessException.notFound("用户不存在");
+        }
+        try {
+            jdbcTemplate.update(
+                    "insert into user_follows (follower_id, followee_id) values (?, ?)",
+                    loginUser.userId(), userId);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            throw BusinessException.badRequest("已关注该用户");
+        }
+        return ApiResponse.ok(null);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    @DeleteMapping("/api/me/follow/{userId}")
+    public ApiResponse<Void> unfollow(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable Long userId
+    ) {
+        int affected = jdbcTemplate.update(
+                "delete from user_follows where follower_id = ? and followee_id = ?",
+                loginUser.userId(), userId);
+        if (affected == 0) {
+            throw BusinessException.notFound("未关注该用户");
+        }
+        return ApiResponse.ok(null);
+    }
+
+    @GetMapping("/api/me/follow/status/{userId}")
+    public ApiResponse<FollowStatusVO> checkFollowStatus(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable Long userId
+    ) {
+        Long count = jdbcTemplate.queryForObject(
+                "select count(*) from user_follows where follower_id = ? and followee_id = ?",
+                Long.class, loginUser.userId(), userId);
+        boolean isFollowing = count != null && count > 0;
+
+        Long mutualCount = jdbcTemplate.queryForObject("""
+                        select count(*) from user_follows f1
+                        join user_follows f2 on f1.follower_id = f2.followee_id and f1.followee_id = f2.follower_id
+                        where f1.follower_id = ? and f1.followee_id = ?
+                        """,
+                Long.class, loginUser.userId(), userId);
+        boolean isFriend = mutualCount != null && mutualCount > 0;
+
+        return ApiResponse.ok(new FollowStatusVO(isFollowing, isFriend));
+    }
+
+    @GetMapping("/api/me/follow/followers")
+    public ApiResponse<PageResponse<PublicUserController.FollowUserVO>> listMyFollowers(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestParam(defaultValue = "1") @Min(1) long page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) long pageSize
+    ) {
+        return listFollowUsers(loginUser.userId(), "followee", page, pageSize);
+    }
+
+    @GetMapping("/api/me/follow/following")
+    public ApiResponse<PageResponse<PublicUserController.FollowUserVO>> listMyFollowing(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @RequestParam(defaultValue = "1") @Min(1) long page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) long pageSize
+    ) {
+        return listFollowUsers(loginUser.userId(), "follower", page, pageSize);
+    }
+
+    private ApiResponse<PageResponse<PublicUserController.FollowUserVO>> listFollowUsers(Long userId, String role, long page, long pageSize) {
+        long offset = (page - 1) * pageSize;
+        String where = "followee".equals(role)
+                ? "f.followee_id = ?"
+                : "f.follower_id = ?";
+        String joinColumn = "followee".equals(role) ? "f.follower_id" : "f.followee_id";
+
+        Long total = jdbcTemplate.queryForObject(
+                "select count(*) from user_follows f where " + where,
+                Long.class, userId);
+        List<PublicUserController.FollowUserVO> records = jdbcTemplate.query("""
+                        select u.id, u.username, u.nickname, u.avatar_url, u.bio
+                        from user_follows f
+                        join users u on u.id = %s
+                        where %s
+                        order by f.created_at desc
+                        limit ? offset ?
+                        """.formatted(joinColumn, where),
+                (rs, rowNum) -> new PublicUserController.FollowUserVO(
+                        rs.getObject("id", Long.class),
+                        rs.getString("username"),
+                        rs.getString("nickname"),
+                        rs.getString("avatar_url"),
+                        rs.getString("bio")
+                ),
+                userId, pageSize, offset);
+        return ApiResponse.ok(new PageResponse<>(records, page, pageSize, total == null ? 0 : total));
+    }
+
     private FriendVO toFriend(java.sql.ResultSet rs) throws java.sql.SQLException {
         return new FriendVO(
                 rs.getLong("id"),
@@ -263,6 +372,12 @@ public class FriendshipController {
 
     public record FriendshipStatusVO(
             String status
+    ) {
+    }
+
+    public record FollowStatusVO(
+            boolean following,
+            boolean friend
     ) {
     }
 }

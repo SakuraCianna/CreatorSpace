@@ -32,11 +32,23 @@ spring:
       password: ${REDIS_PASSWORD:}
       timeout: ${REDIS_TIMEOUT:1s}
       connect-timeout: ${REDIS_CONNECT_TIMEOUT:1s}
+  mail:
+    host: ${MAIL_HOST:smtp.qq.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
   servlet:
     multipart:
       enabled: true
-      max-file-size: ${UPLOAD_MAX_FILE_SIZE:${UPLOAD_MAX_FILE_SIZE_MB:20}MB}
-      max-request-size: ${UPLOAD_MAX_REQUEST_SIZE:${UPLOAD_MAX_REQUEST_SIZE_MB:50}MB}
+      max-file-size: ${UPLOAD_MAX_FILE_SIZE:100MB}
+      max-request-size: ${UPLOAD_MAX_REQUEST_SIZE:120MB}
 
 server:
   port: ${SERVER_PORT:8080}

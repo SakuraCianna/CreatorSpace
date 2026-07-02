@@ -25,6 +25,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
+import com.creatorspace.module.notification.NotificationHelper;
+
 /**
  * 登录用户点赞和收藏接口，负责把普通用户互动能力从后台 CMS 中独立出来。
  */
@@ -61,6 +63,17 @@ public class InteractionController {
                 loginUser.userId());
         if (inserted > 0) {
             adjustCounters(targetType, request.targetId(), "like_count", 1);
+            if ("ARTICLE".equals(targetType)) {
+                Long authorId = jdbcTemplate.queryForObject(
+                        "select created_by from articles where id = ?",
+                        Long.class, request.targetId());
+                if (authorId != null && authorId != loginUser.userId()) {
+                    NotificationHelper.insert(jdbcTemplate, authorId, "LIKE_ARTICLE",
+                            loginUser.username() + " 赞了你的文章",
+                            null, targetType, request.targetId(),
+                            loginUser.userId(), loginUser.username());
+                }
+            }
         }
         return ApiResponse.ok(getInteraction("like_records", targetType, request.targetId(), loginUser.userId()));
     }
@@ -136,6 +149,17 @@ public class InteractionController {
                 loginUser.userId());
         if (inserted > 0) {
             adjustCounters(targetType, request.targetId(), "favorite_count", 1);
+            if ("ARTICLE".equals(targetType)) {
+                Long authorId = jdbcTemplate.queryForObject(
+                        "select created_by from articles where id = ?",
+                        Long.class, request.targetId());
+                if (authorId != null && authorId != loginUser.userId()) {
+                    NotificationHelper.insert(jdbcTemplate, authorId, "FAVORITE_ARTICLE",
+                            loginUser.username() + " 收藏了你的文章",
+                            null, targetType, request.targetId(),
+                            loginUser.userId(), loginUser.username());
+                }
+            }
         }
         return ApiResponse.ok(getInteraction("favorite_records", targetType, request.targetId(), loginUser.userId()));
     }
@@ -164,15 +188,49 @@ public class InteractionController {
         return ApiResponse.ok(null);
     }
 
-    // 登录用户查看自己的收藏记录。
+    // 登录用户查看自己的收藏记录（含标题、slug、封面等详情）。
     @GetMapping("/api/me/favorites")
-    public ApiResponse<PageResponse<InteractionVO>> listFavorites(
+    public ApiResponse<PageResponse<FavoriteVO>> listFavorites(
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestParam(required = false) String targetType,
             @RequestParam(defaultValue = "1") @Min(1) long page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) long pageSize
     ) {
-        return ApiResponse.ok(listInteractions("favorite_records", loginUser.userId(), targetType, FAVORITE_TARGETS, page, pageSize));
+        String normalizedType = targetType == null || targetType.isBlank() ? "" : normalizeTargetType(targetType, FAVORITE_TARGETS);
+        String where = normalizedType.isEmpty() ? "where fr.user_id = ?" : "where fr.user_id = ? and fr.target_type = ?";
+        Object[] countParams = normalizedType.isEmpty() ? new Object[]{loginUser.userId()} : new Object[]{loginUser.userId(), normalizedType};
+        Long total = jdbcTemplate.queryForObject("select count(*) from favorite_records fr " + where, Long.class, countParams);
+
+        List<Object> params = new java.util.ArrayList<>();
+        params.add(loginUser.userId());
+        if (!normalizedType.isEmpty()) {
+            params.add(normalizedType);
+        }
+        params.add(pageSize);
+        params.add((page - 1) * pageSize);
+        List<FavoriteVO> records = jdbcTemplate.query("""
+                        select fr.id, fr.target_type, fr.target_id, fr.created_at,
+                               coalesce(a.title, p.title) as title,
+                               coalesce(a.slug, p.slug) as slug,
+                               coalesce(a.cover_url, p.cover_url) as cover_url
+                        from favorite_records fr
+                        left join articles a on a.id = fr.target_id and fr.target_type = 'ARTICLE'
+                        left join portfolio_projects p on p.id = fr.target_id and fr.target_type = 'PROJECT'
+                        %s
+                        order by fr.created_at desc, fr.id desc
+                        limit ? offset ?
+                        """.formatted(where),
+                (rs, rowNum) -> new FavoriteVO(
+                        rs.getLong("id"),
+                        rs.getString("target_type"),
+                        rs.getLong("target_id"),
+                        rs.getObject("created_at", OffsetDateTime.class),
+                        rs.getString("title"),
+                        rs.getString("slug"),
+                        rs.getString("cover_url")
+                ),
+                params.toArray());
+        return ApiResponse.ok(new PageResponse<>(records, page, pageSize, total == null ? 0 : total));
     }
 
     // 登录用户查询是否已收藏。
@@ -231,6 +289,15 @@ public class InteractionController {
                             """,
                     request.commentId(),
                     request.commentId());
+            Long commentUserId = jdbcTemplate.queryForObject(
+                    "select user_id from comments where id = ?",
+                    Long.class, request.commentId());
+            if (commentUserId != null && commentUserId != loginUser.userId()) {
+                NotificationHelper.insert(jdbcTemplate, commentUserId, "LIKE_COMMENT",
+                        loginUser.username() + " 赞了你的评论",
+                        null, null, null,
+                        loginUser.userId(), loginUser.username());
+            }
         }
         return ApiResponse.ok(getCommentReaction(id));
     }
@@ -316,6 +383,7 @@ public class InteractionController {
         Object[] countParams = normalizedType.isEmpty() ? new Object[]{userId} : new Object[]{userId, normalizedType};
         Long total = jdbcTemplate.queryForObject("select count(*) from " + tableName + " " + where, Long.class, countParams);
 
+        String whereAliased = where.replace("user_id", "r.user_id").replace("target_type", "r.target_type");
         List<Object> params = new java.util.ArrayList<>();
         params.add(userId);
         if (!normalizedType.isEmpty()) {
@@ -324,17 +392,22 @@ public class InteractionController {
         params.add(pageSize);
         params.add((page - 1) * pageSize);
         List<InteractionVO> records = jdbcTemplate.query("""
-                        select id, target_type, target_id, created_at
-                        from %s
+                        select r.id, r.target_type, r.target_id, r.created_at,
+                               a.title as title, a.slug as slug, a.cover_url as cover_url
+                        from %s r
+                        left join articles a on r.target_type = 'ARTICLE' and r.target_id = a.id
                         %s
-                        order by created_at desc, id desc
+                        order by r.created_at desc, r.id desc
                         limit ? offset ?
-                        """.formatted(tableName, where),
+                        """.formatted(tableName, whereAliased),
                 (rs, rowNum) -> new InteractionVO(
                         rs.getLong("id"),
                         rs.getString("target_type"),
                         rs.getLong("target_id"),
-                        rs.getObject("created_at", OffsetDateTime.class)
+                        rs.getObject("created_at", OffsetDateTime.class),
+                        rs.getString("title"),
+                        rs.getString("slug"),
+                        rs.getString("cover_url")
                 ),
                 params.toArray());
         return new PageResponse<>(records, page, pageSize, total == null ? 0 : total);
@@ -342,17 +415,22 @@ public class InteractionController {
 
     private InteractionVO getInteraction(String tableName, String targetType, Long targetId, Long userId) {
         return jdbcTemplate.query("""
-                        select id, target_type, target_id, created_at
-                        from %s
-                        where target_type = ?
-                          and target_id = ?
-                          and user_id = ?
+                        select r.id, r.target_type, r.target_id, r.created_at,
+                               a.title as title, a.slug as slug, a.cover_url as cover_url
+                        from %s r
+                        left join articles a on r.target_type = 'ARTICLE' and r.target_id = a.id
+                        where r.target_type = ?
+                          and r.target_id = ?
+                          and r.user_id = ?
                         """.formatted(tableName),
                 (rs, rowNum) -> new InteractionVO(
                         rs.getLong("id"),
                         rs.getString("target_type"),
                         rs.getLong("target_id"),
-                        rs.getObject("created_at", OffsetDateTime.class)
+                        rs.getObject("created_at", OffsetDateTime.class),
+                        rs.getString("title"),
+                        rs.getString("slug"),
+                        rs.getString("cover_url")
                 ),
                 targetType,
                 targetId,
@@ -486,7 +564,21 @@ public class InteractionController {
             Long id,
             String targetType,
             Long targetId,
-            OffsetDateTime createdAt
+            OffsetDateTime createdAt,
+            String title,
+            String slug,
+            String coverUrl
+    ) {
+    }
+
+    public record FavoriteVO(
+            Long id,
+            String targetType,
+            Long targetId,
+            OffsetDateTime createdAt,
+            String title,
+            String slug,
+            String coverUrl
     ) {
     }
 

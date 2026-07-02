@@ -13,9 +13,9 @@
 <script setup lang="ts">
 // 导入需要的 Vue 钩子和 Lucide 图标
 import { ref } from 'vue'
-import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
+import AdminPageHeader from '../components/admin/AdminPageHeader.vue'
 import { FileLock2, MessageSquare, ShieldCheck, UploadCloud, UserPlus } from '@lucide/vue'
-import { usePageReveal } from '@/shared/composables/usePageReveal'
+import { usePageReveal } from '../shared/composables/usePageReveal'
 // 声明根节点引用以执行入场动效
 const root = ref<HTMLElement | null>(null)
 // 触发电影式页面入场显影动效

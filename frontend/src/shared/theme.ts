@@ -1,4 +1,4 @@
-import type { ThemeConfig } from '@/shared/domain'
+import type { ThemeConfig } from './domain'
 
 // 预设色彩的 CSS 变量名数组
 const COLOR_KEYS = [

@@ -50,9 +50,6 @@ public class SearchController {
             @AuthenticationPrincipal LoginUser loginUser
     ) {
         String normalizedKeyword = keyword.trim();
-        if (normalizedKeyword.isEmpty()) {
-            return ApiResponse.ok(new PageResponse<>(List.of(), page, pageSize, 0));
-        }
         String normalizedType = normalizeType(type);
         String normalizedSort = normalizeSort(sort);
         String pattern = "%" + normalizedKeyword + "%";
@@ -82,7 +79,9 @@ public class SearchController {
                 normalizedType, normalizedType, normalizedSort, normalizedSort,
                 pageSize, offset);
         long total = countSearchResults(pattern, normalizedType);
-        searchLogService.record(normalizedKeyword, (int) total, servletRequest, loginUser);
+        if (!normalizedKeyword.isEmpty()) {
+            searchLogService.record(normalizedKeyword, (int) total, servletRequest, loginUser);
+        }
         return ApiResponse.ok(new PageResponse<>(records, page, pageSize, total));
     }
 

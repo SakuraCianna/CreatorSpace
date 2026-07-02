@@ -74,8 +74,8 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { Code, Copy, Palette, RotateCcw, X } from '@lucide/vue'
 
-import { fetchCurrentTheme } from '@/services/content'
-import { applyThemeConfig } from '@/shared/theme'
+import { fetchCurrentTheme } from '../../services/content'
+import { applyThemeConfig } from '../theme'
 
 // 预览中的主题变量
 const previewTheme = ref<any | null>(null)
