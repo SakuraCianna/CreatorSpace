@@ -107,7 +107,7 @@ public class ArticleVisibilityController {
 
     private void ensureOwner(Long articleId, Long userId) {
         Long ownerId = jdbcTemplate.queryForObject(
-                "select author_id from articles where id = ?",
+                "select created_by from articles where id = ?",
                 Long.class, articleId);
         if (ownerId == null) {
             throw BusinessException.notFound("文章不存在");

@@ -64,6 +64,7 @@ public class SecurityConfig {
                                 "/api/users/**"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/comments").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/guestbook").permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/api/site/config",
                                 "/api/site/statistics/summary",
