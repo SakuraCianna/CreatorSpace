@@ -87,6 +87,7 @@ const navItems = [
   { to: '/admin', label: '概览', icon: BarChart3 },
   { to: '/admin/articles', label: '文章', icon: FileText, badgeCount: computed(() => pendingCounts.value.pendingArticles) },
   { to: '/admin/projects', label: '作品', icon: Images, badgeCount: computed(() => pendingCounts.value.pendingProjects) },
+  { to: '/admin/pages', label: '页面', icon: FileText },
   { to: '/admin/categories', label: '分类', icon: Tags },
   { to: '/admin/tags', label: '标签', icon: Tags },
   { to: '/admin/inspirations', label: '灵感', icon: Lightbulb },
