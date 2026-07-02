@@ -1,4 +1,5 @@
-import { requestJson } from '@/services/http'
+import { appConfig } from '@/app/config'
+import { ACCESS_TOKEN_KEY, requestJson } from '@/services/http'
 import type {
   AdminThemeConfig,
   ArticleNeighbors,
@@ -15,6 +16,11 @@ import type {
   InspirationCard,
   InspirationPayload,
   InspirationType,
+  AiSuggestionStatus,
+  AiSuggestionSummary,
+  AiTaskPayload,
+  AiTaskSummary,
+  AiWorkflowPayload,
   PageResponse,
   ProjectFilterRecommendations,
   ProjectPayload,
@@ -994,6 +1000,101 @@ export async function fetchAdminOperationLogs(options: OperationLogQuery = {}): 
   return response.data
 }
 // 创建后台 AI 助手任务
+interface AiStreamHandlers {
+  onDelta?: (delta: string) => void
+  onDone?: (task: AiTaskSummary) => void
+  onError?: (message: string) => void
+}
+
+async function requestAiStream(path: string, body: unknown, handlers: AiStreamHandlers = {}): Promise<AiTaskSummary> {
+  const token = window.localStorage.getItem(ACCESS_TOKEN_KEY)
+  const response = await fetch(`${appConfig.apiBaseUrl}${path}`, {
+    method: 'POST',
+    headers: {
+      Accept: 'text/event-stream',
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  })
+  if (!response.ok || !response.body) {
+    const message = await response.text().catch(() => '')
+    throw new Error(message || `AI 流式请求失败：HTTP ${response.status}`)
+  }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder('utf-8')
+  let buffer = ''
+  let doneTask: AiTaskSummary | null = null
+
+  while (true) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const events = buffer.split(/\r?\n\r?\n/)
+    buffer = events.pop() ?? ''
+    for (const eventText of events) {
+      const event = parseSseEvent(eventText)
+      if (!event.data) continue
+      if (event.event === 'delta') {
+        handlers.onDelta?.(event.data)
+      } else if (event.event === 'done') {
+        doneTask = JSON.parse(event.data) as AiTaskSummary
+        handlers.onDone?.(doneTask)
+      } else if (event.event === 'error') {
+        handlers.onError?.(event.data)
+        throw new Error(event.data)
+      }
+    }
+  }
+
+  if (!doneTask) {
+    throw new Error('AI 流式生成未返回完整任务')
+  }
+  return doneTask
+}
+
+function parseSseEvent(value: string): { event: string; data: string } {
+  let event = 'message'
+  const data: string[] = []
+  for (const line of value.split(/\r?\n/)) {
+    if (line.startsWith('event:')) event = line.slice(6).trim()
+    if (line.startsWith('data:')) {
+      const raw = line.slice(5)
+      data.push(raw.startsWith(' ') ? raw.slice(1) : raw)
+    }
+  }
+  return { event, data: data.join('\n') }
+}
+
+export function streamAiTask(payload: AiTaskPayload, handlers?: AiStreamHandlers): Promise<AiTaskSummary> {
+  return requestAiStream('/api/admin/ai/tasks/stream', payload, handlers)
+}
+
+export function streamAiFollowUp(id: number, prompt: string, handlers?: AiStreamHandlers): Promise<AiTaskSummary> {
+  return requestAiStream(`/api/admin/ai/tasks/${id}/messages/stream`, { prompt }, handlers)
+}
+
+export function streamAiWorkflow(payload: AiWorkflowPayload, handlers?: AiStreamHandlers): Promise<AiTaskSummary> {
+  return requestAiStream('/api/admin/ai/workflows/stream', payload, handlers)
+}
+// 查询后台 AI 助手最近任务
+export async function fetchAiTasks(options: { page?: number; pageSize?: number } = {}): Promise<PageResponse<AiTaskSummary>> {
+  const params = new URLSearchParams()
+  if (options.page) params.set('page', String(options.page))
+  if (options.pageSize) params.set('pageSize', String(options.pageSize))
+  const query = params.toString()
+  const response = await requestJson<ApiEnvelope<PageResponse<AiTaskSummary>>>(
+    query ? `/api/admin/ai/tasks?${query}` : '/api/admin/ai/tasks',
+  )
+  return response.data
+}
+
+// 读取后台 AI 助手任务详情
+export async function fetchAiTask(id: number): Promise<AiTaskSummary> {
+  const response = await requestJson<ApiEnvelope<AiTaskSummary>>(`/api/admin/ai/tasks/${id}`)
+  return response.data
+}
 export async function createAiTask(payload: AiTaskPayload): Promise<AiTaskSummary> {
   const response = await requestJson<ApiEnvelope<AiTaskSummary>>('/api/admin/ai/tasks', {
     method: 'POST',

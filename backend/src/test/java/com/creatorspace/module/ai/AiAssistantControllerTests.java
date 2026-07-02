@@ -81,6 +81,30 @@ class AiAssistantControllerTests extends PostgresIntegrationTestSupport {
     }
 
     @Test
+    void adminCanListRecentAiTasksForConversationHistory() throws Exception {
+        String token = loginAsAdmin();
+
+        mockMvc.perform(post("/api/admin/ai/tasks")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "taskType", "SUMMARY",
+                                "targetType", "ARTICLE",
+                                "prompt", "请生成一段可恢复的 AI 对话"
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)));
+
+        mockMvc.perform(get("/api/admin/ai/tasks")
+                        .header("Authorization", bearer(token))
+                        .param("pageSize", "5"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.records[0].taskType", is("SUMMARY")))
+                .andExpect(jsonPath("$.data.records[0].messages[0].role", is("USER")))
+                .andExpect(jsonPath("$.data.records[0].messages[1].role", is("ASSISTANT")));
+    }
+    @Test
     void disabledAiCreatesWorkflowTaskWithClearNotice() throws Exception {
         String token = loginAsAdmin();
 

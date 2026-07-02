@@ -1,7 +1,7 @@
 <template>
   <section class="ai-page">
     <AdminPageHeader title="AI 创作助手" description="生成摘要、标签、审核意见和运营建议。所有结果只作为建议，最终动作由管理员确认。" theme="purple">
-      <button class="icon-button" type="button" title="刷新建议" aria-label="刷新建议" @click="loadSuggestions">
+      <button class="icon-button" type="button" title="刷新建议" aria-label="刷新建议" @click="refreshSuggestions">
         <RefreshCw :size="18" />
       </button>
     </AdminPageHeader>
@@ -55,11 +55,46 @@
             <BaseSelect v-model="form.targetType" :options="targetTypeOptions" />
           </label>
           <label>
-            目标 ID
-            <input v-model.number="form.targetId" min="1" type="number" placeholder="可选" />
+            搜索目标
+            <div class="target-search-row">
+              <input
+                v-model="targetSearch"
+                type="search"
+                :disabled="!canPickTarget"
+                :placeholder="targetSearchPlaceholder"
+                @input="scheduleTargetSearch"
+                @keydown.enter.prevent="searchTargets"
+              />
+              <button class="button button-tonal" type="button" :disabled="!canPickTarget || loadingTargets" @click="searchTargets">
+                搜索
+              </button>
+            </div>
           </label>
         </div>
 
+        <div v-if="canPickTarget" class="target-picker">
+          <div v-if="selectedTarget" class="target-picker__summary">
+            <span>已选择：{{ selectedTarget.title }}</span>
+            <button type="button" @click="clearTargetSelection">清除</button>
+          </div>
+          <div v-else class="target-picker__summary muted">
+            <span>{{ loadingTargets ? '正在加载目标内容' : '未选择目标内容' }}</span>
+          </div>
+          <div v-if="targetOptions.length" class="target-options">
+            <button
+              v-for="item in targetOptions"
+              :key="`${item.type}-${item.id}`"
+              type="button"
+              :class="{ active: selectedTarget?.type === item.type && selectedTarget?.id === item.id }"
+              @click="selectTarget(item)"
+            >
+              <strong>{{ item.title }}</strong>
+              <span>{{ item.meta }}</span>
+              <small>{{ item.detail }}</small>
+            </button>
+          </div>
+          <p v-else-if="!loadingTargets" class="target-picker__empty">没有找到匹配内容</p>
+        </div>
         <label class="prompt-box">
           提示词
           <textarea v-model="form.prompt" maxlength="4000" rows="9" placeholder="例如：请根据这篇草稿生成摘要，并给出 3 个标签建议。" />
@@ -68,7 +103,7 @@
         <div class="form-actions">
           <button class="button button-filled" type="submit" :disabled="submitting">
             <Sparkles :size="16" />
-            {{ submitting ? '生成中' : '生成建议' }}
+            {{ streamingReply ? '生成中' : '生成建议' }}
           </button>
           <button class="button button-tonal" type="button" @click="resetForm">
             <RotateCcw :size="16" />
@@ -80,26 +115,46 @@
       <aside class="ai-panel ai-result">
         <div class="panel-title">
           <div>
-            <h3>最近任务</h3>
-            <span>{{ latestTask ? statusLabel(latestTask.status) : '等待创建' }}</span>
+            <h3>最近对话</h3>
+            <span>{{ latestTask ? statusLabel(latestTask.status) : (loadingTasks ? '正在读取历史' : '等待选择') }}</span>
           </div>
-          <span v-if="latestTask" class="status-chip" :class="statusTone(latestTask.status)">{{ latestTask.status }}</span>
+          <button class="icon-button icon-button--small" type="button" title="刷新对话" aria-label="刷新对话" :disabled="loadingTasks" @click="loadTaskHistory">
+            <RefreshCw :size="16" />
+          </button>
         </div>
+
+        <div v-if="taskHistory.length" class="task-history" aria-label="最近 AI 对话">
+          <button
+            v-for="task in taskHistory"
+            :key="task.id"
+            type="button"
+            :class="{ active: latestTask?.id === task.id }"
+            @click="selectTask(task.id)"
+          >
+            <strong>{{ taskLabel(task.taskType) }} · {{ targetText(task.targetType, task.targetId) }}</strong>
+            <span>{{ taskPromptPreview(task) }}</span>
+            <small>{{ statusLabel(task.status) }} · {{ formatDateTime(task.updatedAt || task.createdAt) }}</small>
+          </button>
+        </div>
+        <p v-else-if="!loadingTasks" class="task-history-empty">暂无历史对话</p>
 
         <div v-if="latestTask" class="task-card">
           <div class="task-meta">
             <span>{{ taskLabel(latestTask.taskType) }}</span>
             <span>{{ targetText(latestTask.targetType, latestTask.targetId) }}</span>
             <span>{{ latestTask.provider }} / {{ latestTask.modelName || '-' }}</span>
+            <span class="status-chip" :class="statusTone(latestTask.status)">{{ latestTask.status }}</span>
           </div>
           <p v-if="latestTask.notice" class="notice-card">{{ latestTask.notice }}</p>
-          <article v-for="message in latestTask.messages" :key="message.id" class="message-card" :class="message.role.toLowerCase()">
-            <strong>{{ roleLabel(message.role) }}</strong>
-            <p>{{ message.content }}</p>
-          </article>
+          <div ref="messageWindow" class="message-window" aria-label="当前 AI 对话">
+            <article v-for="message in latestTask.messages" :key="message.id" class="message-card" :class="message.role.toLowerCase()">
+              <strong>{{ roleLabel(message.role) }}</strong>
+              <p>{{ message.content }}</p>
+            </article>
+          </div>
           <form class="follow-up" @submit.prevent="submitFollowUp">
-            <input v-model="followUpPrompt" maxlength="4000" type="text" placeholder="继续追问：例如，把建议拆成今天可执行的三步" />
-            <button class="button button-filled" type="submit" :disabled="submitting || !followUpPrompt.trim()">
+            <input v-model="followUpPrompt" maxlength="4000" type="text" placeholder="继续这个对话：例如，把建议拆成今天可执行的三步" />
+            <button class="button button-filled" type="submit" :disabled="submitting || streamingReply || !followUpPrompt.trim()">
               <Send :size="16" />
               追问
             </button>
@@ -108,8 +163,8 @@
 
         <div v-else class="empty-state">
           <Bot :size="30" />
-          <strong>还没有 AI 任务</strong>
-          <span>先从左侧创建一个摘要、标签或审核建议任务。</span>
+          <strong>还没有选中对话</strong>
+          <span>创建新任务，或从上方最近对话中选择一条继续。</span>
         </div>
       </aside>
     </section>
@@ -171,7 +226,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
 import {
   Bot,
@@ -193,9 +248,19 @@ import {
 } from '@lucide/vue'
 import BaseSelect from '@/shared/components/BaseSelect.vue'
 
-import { continueAiTask, createAiTask, createAiWorkflow, fetchAiSuggestions, updateAiSuggestionStatus } from '@/services/content'
+import { fetchAdminArticles, fetchAdminComments, fetchAdminProjects, fetchAiTask, fetchAiTasks, fetchAiSuggestions, streamAiFollowUp, streamAiTask, streamAiWorkflow, updateAiSuggestionStatus } from '@/services/content'
 import { toUserMessage } from '@/services/http'
-import type { AiSuggestionStatus, AiSuggestionSummary, AiTaskPayload, AiTaskSummary, AiTaskType, AiWorkflowPayload, PageResponse } from '@/shared/domain'
+import type { AiSuggestionStatus, AiSuggestionSummary, AiTargetType, AiTaskPayload, AiTaskSummary, AiTaskType, AiWorkflowPayload, ArticleSummary, CommentSummary, PageResponse, ProjectSummary } from '@/shared/domain'
+
+type PickableTargetType = Extract<AiTargetType, 'ARTICLE' | 'PROJECT' | 'COMMENT'>
+
+interface SelectableTarget {
+  type: PickableTargetType
+  id: number
+  title: string
+  meta: string
+  detail: string
+}
 
 const taskOptions: Array<{ value: AiTaskType; label: string; icon: unknown }> = [
   { value: 'SUMMARY', label: '摘要', icon: FileText },
@@ -212,13 +277,22 @@ const form = reactive<AiTaskPayload>({
 })
 
 const latestTask = ref<AiTaskSummary | null>(null)
+const messageWindow = ref<HTMLElement | null>(null)
 const suggestions = ref<PageResponse<AiSuggestionSummary>>({ records: [], page: 1, pageSize: 10, total: 0 })
 const suggestionStatus = ref<AiSuggestionStatus | 'ALL'>('PENDING')
 const submitting = ref(false)
 const loadingSuggestions = ref(false)
+const loadingTasks = ref(false)
+const streamingReply = ref(false)
+const taskHistory = ref<AiTaskSummary[]>([])
 const notice = ref('')
 const followUpPrompt = ref('')
 const workflowDays = ref(7)
+const targetSearch = ref('')
+const targetOptions = ref<SelectableTarget[]>([])
+const selectedTarget = ref<SelectableTarget | null>(null)
+const loadingTargets = ref(false)
+let targetSearchTimer: ReturnType<typeof setTimeout> | undefined
 
 const targetTypeOptions = [
   { label: '不绑定', value: '' },
@@ -241,17 +315,248 @@ const suggestionRange = computed(() => {
   const end = Math.min(suggestions.value.page * suggestions.value.pageSize, suggestions.value.total)
   return `${start} - ${end} / ${suggestions.value.total}`
 })
+const canPickTarget = computed(() => isPickableTargetType(form.targetType))
+const targetSearchPlaceholder = computed(() => {
+  switch (form.targetType) {
+    case 'ARTICLE': return '搜索文章标题、摘要'
+    case 'PROJECT': return '搜索作品标题、描述'
+    case 'COMMENT': return '搜索评论内容、用户或 ID'
+    default: return '选择目标类型后搜索'
+  }
+})
 
-onMounted(() => loadSuggestions())
+watch(() => form.targetType, () => {
+  clearTargetSelection()
+  targetSearch.value = ''
+  targetOptions.value = []
+  if (canPickTarget.value) {
+    void searchTargets()
+  }
+})
 
+onMounted(() => {
+  void loadSuggestions()
+  void loadTaskHistory()
+})
+
+function isPickableTargetType(value: AiTaskPayload['targetType']): value is PickableTargetType {
+  return value === 'ARTICLE' || value === 'PROJECT' || value === 'COMMENT'
+}
+
+function scheduleTargetSearch() {
+  if (targetSearchTimer) clearTimeout(targetSearchTimer)
+  targetSearchTimer = setTimeout(() => {
+    void searchTargets()
+  }, 260)
+}
+
+async function searchTargets() {
+  if (!isPickableTargetType(form.targetType)) return
+  const targetType = form.targetType
+  const keyword = targetSearch.value.trim()
+  loadingTargets.value = true
+  try {
+    if (targetType === 'ARTICLE') {
+      const page = await fetchAdminArticles({ keyword, status: 'ALL', page: 1, pageSize: 8 })
+      targetOptions.value = page.records.map(toArticleTarget)
+    } else if (targetType === 'PROJECT') {
+      const page = await fetchAdminProjects({ keyword, status: 'ALL', page: 1, pageSize: 8 })
+      targetOptions.value = page.records.map(toProjectTarget)
+    } else {
+      const page = await fetchAdminComments({ status: 'ALL', targetType: 'ALL', page: 1, pageSize: keyword ? 50 : 8 })
+      targetOptions.value = page.records
+        .filter((item) => matchesCommentTarget(item, keyword))
+        .slice(0, 8)
+        .map(toCommentTarget)
+    }
+  } catch (error) {
+    notice.value = toUserMessage(error, '目标内容加载失败')
+  } finally {
+    loadingTargets.value = false
+  }
+}
+
+function selectTarget(target: SelectableTarget) {
+  selectedTarget.value = target
+  form.targetType = target.type
+  form.targetId = target.id
+}
+
+function clearTargetSelection() {
+  selectedTarget.value = null
+  form.targetId = null
+}
+
+function toArticleTarget(article: ArticleSummary): SelectableTarget {
+  return {
+    type: 'ARTICLE',
+    id: article.id,
+    title: article.title || `文章 #${article.id}`,
+    meta: compactMeta(['文章', `#${article.id}`, article.status, article.category?.name]),
+    detail: excerpt(article.summary || article.contentMarkdown || article.slug),
+  }
+}
+
+function toProjectTarget(project: ProjectSummary): SelectableTarget {
+  return {
+    type: 'PROJECT',
+    id: project.id,
+    title: project.title || `作品 #${project.id}`,
+    meta: compactMeta(['作品', `#${project.id}`, project.status, project.projectType]),
+    detail: excerpt(project.description || project.contentMarkdown || project.slug),
+  }
+}
+
+function toCommentTarget(comment: CommentSummary): SelectableTarget {
+  return {
+    type: 'COMMENT',
+    id: comment.id,
+    title: `${comment.username} 的评论`,
+    meta: compactMeta(['评论', `#${comment.id}`, comment.status, targetText(comment.targetType, comment.targetId)]),
+    detail: excerpt(comment.content),
+  }
+}
+
+function matchesCommentTarget(comment: CommentSummary, keyword: string) {
+  if (!keyword) return true
+  const haystack = `${comment.id} ${comment.username} ${comment.content} ${comment.status}`.toLowerCase()
+  return haystack.includes(keyword.toLowerCase())
+}
+
+function compactMeta(values: Array<string | number | null | undefined>) {
+  return values.filter((value) => value !== null && value !== undefined && String(value).trim()).join(' · ')
+}
+
+function excerpt(value: string | null | undefined) {
+  const normalized = (value || '').replace(/\s+/g, ' ').trim()
+  return normalized ? (normalized.length > 90 ? `${normalized.slice(0, 90)}...` : normalized) : '暂无摘要'
+}
+function beginStreamTask(payload: AiTaskPayload, prompt: string) {
+  const now = new Date().toISOString()
+  latestTask.value = {
+    id: 0,
+    taskType: payload.taskType,
+    targetType: payload.targetType || null,
+    targetId: payload.targetId ?? null,
+    prompt,
+    status: 'RUNNING',
+    provider: 'AI',
+    modelName: null,
+    createdBy: null,
+    createdAt: now,
+    updatedAt: now,
+    suggestions: [],
+    messages: [
+      { id: -Date.now(), taskId: 0, role: 'USER', content: prompt, createdAt: now },
+      { id: -Date.now() - 1, taskId: 0, role: 'ASSISTANT', content: '', createdAt: now },
+    ],
+  }
+  streamingReply.value = true
+  scrollMessagesToBottom()
+}
+
+function appendFollowUpPrompt(prompt: string) {
+  if (!latestTask.value) return
+  const now = new Date().toISOString()
+  latestTask.value = {
+    ...latestTask.value,
+    status: 'RUNNING',
+    updatedAt: now,
+    messages: [
+      ...latestTask.value.messages,
+      { id: -Date.now(), taskId: latestTask.value.id, role: 'USER', content: prompt, createdAt: now },
+      { id: -Date.now() - 1, taskId: latestTask.value.id, role: 'ASSISTANT', content: '', createdAt: now },
+    ],
+  }
+  streamingReply.value = true
+  scrollMessagesToBottom()
+}
+
+function appendStreamDelta(delta: string) {
+  if (!latestTask.value || !delta) return
+  const messages = [...latestTask.value.messages]
+  let assistantIndex = -1
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    if (messages[index].role === 'ASSISTANT') {
+      assistantIndex = index
+      break
+    }
+  }
+  if (assistantIndex === -1) {
+    const now = new Date().toISOString()
+    messages.push({ id: -Date.now(), taskId: latestTask.value.id, role: 'ASSISTANT', content: delta, createdAt: now })
+  } else {
+    const current = messages[assistantIndex]
+    messages[assistantIndex] = { ...current, content: `${current.content}${delta}` }
+  }
+  latestTask.value = { ...latestTask.value, messages }
+  scrollMessagesToBottom()
+}
+
+function finishStreamTask(task: AiTaskSummary) {
+  latestTask.value = task
+  streamingReply.value = false
+  if (task.notice) notice.value = task.notice
+  scrollMessagesToBottom()
+}
+
+function scrollMessagesToBottom() {
+  requestAnimationFrame(() => {
+    const element = messageWindow.value
+    if (element) element.scrollTop = element.scrollHeight
+  })
+}
+async function loadTaskHistory() {
+  loadingTasks.value = true
+  try {
+    const page = await fetchAiTasks({ page: 1, pageSize: 8 })
+    taskHistory.value = page.records
+    if (!latestTask.value && page.records.length > 0) {
+      latestTask.value = page.records[0]
+    } else if (latestTask.value) {
+      const current = page.records.find((task) => task.id === latestTask.value?.id)
+      if (current) latestTask.value = current
+    }
+  } catch (error) {
+    notice.value = toUserMessage(error, 'AI 对话历史加载失败')
+  } finally {
+    loadingTasks.value = false
+  }
+}
+
+async function selectTask(id: number) {
+  notice.value = ''
+  loadingTasks.value = true
+  try {
+    latestTask.value = await fetchAiTask(id)
+    followUpPrompt.value = ''
+  } catch (error) {
+    notice.value = toUserMessage(error, 'AI 对话加载失败')
+  } finally {
+    loadingTasks.value = false
+  }
+}
+
+function taskPromptPreview(task: AiTaskSummary) {
+  return excerpt(task.prompt || task.messages.find((message) => message.role === 'USER')?.content || '')
+}
 async function runWorkflow(workflowType: AiWorkflowPayload['workflowType']) {
   notice.value = ''
   submitting.value = true
+  const prompt = `生成 ${workflowDays.value} 天周期的数据工作流建议`
+  beginStreamTask({ taskType: workflowType, targetType: 'SITE', targetId: null, prompt }, prompt)
   try {
-    latestTask.value = await createAiWorkflow({ workflowType, days: workflowDays.value })
-    if (latestTask.value.notice) notice.value = latestTask.value.notice
+    await streamAiWorkflow(
+      { workflowType, days: workflowDays.value },
+      {
+        onDelta: appendStreamDelta,
+        onDone: finishStreamTask,
+      },
+    )
     await loadSuggestions(1)
+    await loadTaskHistory()
   } catch (error) {
+    streamingReply.value = false
     notice.value = toUserMessage(error, 'AI 工作流创建失败')
   } finally {
     submitting.value = false
@@ -265,19 +570,23 @@ async function submitTask() {
     notice.value = '请先填写提示词'
     return
   }
+  const payload: AiTaskPayload = {
+    taskType: form.taskType,
+    targetType: form.targetType || undefined,
+    targetId: Number.isFinite(Number(form.targetId)) && Number(form.targetId) > 0 ? Number(form.targetId) : null,
+    prompt,
+  }
   submitting.value = true
+  beginStreamTask(payload, prompt)
   try {
-    latestTask.value = await createAiTask({
-      taskType: form.taskType,
-      targetType: form.targetType || undefined,
-      targetId: Number.isFinite(Number(form.targetId)) && Number(form.targetId) > 0 ? Number(form.targetId) : null,
-      prompt,
+    await streamAiTask(payload, {
+      onDelta: appendStreamDelta,
+      onDone: finishStreamTask,
     })
-    if (latestTask.value.notice) {
-      notice.value = latestTask.value.notice
-    }
     await loadSuggestions(1)
+    await loadTaskHistory()
   } catch (error) {
+    streamingReply.value = false
     notice.value = toUserMessage(error, 'AI 任务创建失败')
   } finally {
     submitting.value = false
@@ -287,13 +596,20 @@ async function submitTask() {
 async function submitFollowUp() {
   if (!latestTask.value || !followUpPrompt.value.trim()) return
   notice.value = ''
+  const taskId = latestTask.value.id
+  const prompt = followUpPrompt.value.trim()
+  followUpPrompt.value = ''
   submitting.value = true
+  appendFollowUpPrompt(prompt)
   try {
-    latestTask.value = await continueAiTask(latestTask.value.id, followUpPrompt.value.trim())
-    followUpPrompt.value = ''
-    if (latestTask.value.notice) notice.value = latestTask.value.notice
+    await streamAiFollowUp(taskId, prompt, {
+      onDelta: appendStreamDelta,
+      onDone: finishStreamTask,
+    })
     await loadSuggestions(1)
+    await loadTaskHistory()
   } catch (error) {
+    streamingReply.value = false
     notice.value = toUserMessage(error, 'AI 追问失败')
   } finally {
     submitting.value = false
@@ -303,14 +619,23 @@ async function submitFollowUp() {
 function resetForm() {
   form.taskType = 'SUMMARY'
   form.targetType = ''
-  form.targetId = null
+  clearTargetSelection()
+  targetSearch.value = ''
+  targetOptions.value = []
   form.prompt = ''
 }
 
-async function loadSuggestions(page = suggestions.value.page) {
+function refreshSuggestions() {
+  void loadSuggestions(suggestions.value.page)
+}
+
+async function loadSuggestions(page: unknown = suggestions.value.page) {
+  const pageNumber = typeof page === 'number' && Number.isFinite(page)
+    ? Math.max(1, Math.trunc(page))
+    : suggestions.value.page
   loadingSuggestions.value = true
   try {
-    suggestions.value = await fetchAiSuggestions({ status: suggestionStatus.value, page, pageSize: 10 })
+    suggestions.value = await fetchAiSuggestions({ status: suggestionStatus.value, page: pageNumber, pageSize: 10 })
   } catch (error) {
     notice.value = toUserMessage(error, 'AI 建议加载失败')
   } finally {
@@ -588,10 +913,146 @@ function formatDateTime(value: string) {
   line-height: 1.65;
 }
 
+.target-search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.target-search-row input:disabled {
+  background: #f8fafc;
+  color: var(--admin-muted);
+}
+
+.target-picker {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(49, 91, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(248, 250, 255, 0.72);
+}
+
+.target-picker__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--admin-primary-strong);
+  font-weight: 820;
+}
+
+.target-picker__summary.muted {
+  color: var(--admin-muted);
+}
+
+.target-picker__summary button {
+  border: 0;
+  background: transparent;
+  color: var(--admin-primary-strong);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 820;
+  cursor: pointer;
+}
+
+.target-options {
+  display: grid;
+  gap: 8px;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.target-options button {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--admin-ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.target-options button:hover,
+.target-options button.active {
+  border-color: rgba(49, 91, 255, 0.34);
+  background: var(--admin-primary-soft);
+}
+
+.target-options strong {
+  font-size: 14px;
+}
+
+.target-options span,
+.target-options small,
+.target-picker__empty {
+  margin: 0;
+  color: var(--admin-muted);
+  line-height: 1.45;
+}
+
+.task-history {
+  display: grid;
+  gap: 8px;
+  max-height: 260px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.task-history button {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--admin-ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.task-history button:hover,
+.task-history button.active {
+  border-color: rgba(49, 91, 255, 0.34);
+  background: var(--admin-primary-soft);
+}
+
+.task-history strong {
+  min-width: 0;
+  font-size: 13px;
+}
+
+.task-history span,
+.task-history small,
+.task-history-empty {
+  margin: 0;
+  color: var(--admin-muted);
+  line-height: 1.45;
+}
+
+.icon-button--small {
+  width: 34px;
+  height: 34px;
+}
+
 .task-card,
 .suggestion-list {
   display: grid;
   gap: 10px;
+}
+
+.message-window {
+  display: grid;
+  gap: 10px;
+  max-height: min(58vh, 620px);
+  min-height: 220px;
+  overflow: auto;
+  padding-right: 4px;
+  overscroll-behavior: contain;
 }
 
 .task-meta {
@@ -661,6 +1122,11 @@ function formatDateTime(value: string) {
   color: #243044;
   line-height: 1.65;
   white-space: pre-wrap;
+}
+
+.message-card.assistant p:empty::after {
+  content: '正在生成...';
+  color: var(--admin-muted);
 }
 
 .suggestion-card {
@@ -777,6 +1243,7 @@ function formatDateTime(value: string) {
 
   .task-options,
   .form-line,
+  .target-search-row,
   .follow-up {
     grid-template-columns: 1fr;
   }

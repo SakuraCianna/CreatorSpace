@@ -16,6 +16,7 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Consumer;
 
 @Service
 public class AiAssistantService {
@@ -84,8 +85,51 @@ public class AiAssistantService {
         return runTask(taskId, workflowType, "SITE", null, workflow.prompt(), List.of(new AiModelClient.ChatMessage("SYSTEM", workflow.context())), workflow.context());
     }
 
+    @Transactional
+    public AiTaskVO createTaskStreaming(AiTaskRequest request, Consumer<String> onDelta) {
+        String taskType = normalize(request.taskType(), "任务类型不能为空");
+        String targetType = normalizeNullable(request.targetType());
+        String prompt = normalize(request.prompt(), "提示词不能为空");
+        Long taskId = createTaskRow(taskType, targetType, request.targetId(), prompt);
+        insertMessage(taskId, "USER", prompt);
+        return runTaskStreaming(taskId, taskType, targetType, request.targetId(), prompt, List.of(), null, onDelta);
+    }
+
+    @Transactional
+    public AiTaskVO continueTaskStreaming(Long id, AiContinueRequest request, Consumer<String> onDelta) {
+        String prompt = normalize(request.prompt(), "追问内容不能为空");
+        AiTaskHeader task = taskHeader(id);
+        insertMessage(id, "USER", prompt);
+        return runTaskStreaming(id, task.taskType(), task.targetType(), task.targetId(), prompt, conversationByTask(id), null, onDelta);
+    }
+
+    @Transactional
+    public AiTaskVO createWorkflowStreaming(AiWorkflowRequest request, Consumer<String> onDelta) {
+        String workflowType = normalize(request.workflowType(), "工作流类型不能为空");
+        int days = Math.min(90, Math.max(1, request.days() == null ? 7 : request.days()));
+        WorkflowPrompt workflow = buildWorkflowPrompt(workflowType, days);
+        Long taskId = createTaskRow(workflowType, "SITE", null, workflow.prompt());
+        insertMessage(taskId, "SYSTEM", workflow.context());
+        insertMessage(taskId, "USER", workflow.prompt());
+        return runTaskStreaming(taskId, workflowType, "SITE", null, workflow.prompt(), List.of(new AiModelClient.ChatMessage("SYSTEM", workflow.context())), workflow.context(), onDelta);
+    }
+
     public AiTaskVO taskById(Long id) {
         return taskById(id, null);
+    }
+
+    public PageResponse<AiTaskVO> tasks(long page, long pageSize) {
+        Long total = jdbcTemplate.queryForObject("select count(*) from ai_agent_tasks", Long.class);
+        List<AiTaskVO> records = jdbcTemplate.query("""
+                        select id, task_type, target_type, target_id, prompt, status, provider, model_name, created_by, created_at, updated_at
+                        from ai_agent_tasks
+                        order by updated_at desc, id desc
+                        limit ? offset ?
+                        """,
+                (rs, rowNum) -> toTask(rs, null),
+                pageSize,
+                (page - 1) * pageSize);
+        return new PageResponse<>(records, page, pageSize, total == null ? 0 : total);
     }
 
     public PageResponse<AiSuggestionVO> suggestions(String status, long page, long pageSize) {
@@ -179,10 +223,62 @@ public class AiAssistantService {
         }
     }
 
+    private AiTaskVO runTaskStreaming(Long taskId,
+                                      String taskType,
+                                      String targetType,
+                                      Long targetId,
+                                      String prompt,
+                                      List<AiModelClient.ChatMessage> history,
+                                      String providedContext,
+                                      Consumer<String> onDelta) {
+        if (!enabled) {
+            insertMessage(taskId, "ASSISTANT", DISABLED_NOTICE);
+            onDelta.accept(DISABLED_NOTICE);
+            jdbcTemplate.update("update ai_agent_tasks set status = 'FAILED', updated_at = now() where id = ?", taskId);
+            return taskById(taskId, DISABLED_NOTICE);
+        }
+        try {
+            String context = providedContext == null ? buildTargetContext(targetType, targetId) : providedContext;
+            String assistantMessage = generateAssistantMessageStreaming(taskType, prompt, context, history, onDelta);
+            insertMessage(taskId, "ASSISTANT", assistantMessage);
+            for (SuggestionDraft draft : extractSuggestions(taskType, assistantMessage)) {
+                jdbcTemplate.update("""
+                                insert into ai_suggestions (task_id, target_type, target_id, suggestion_type, content, status)
+                                values (?, ?, ?, ?, ?, 'PENDING')
+                                """,
+                        taskId,
+                        targetType,
+                        targetId,
+                        draft.type(),
+                        draft.content());
+            }
+            jdbcTemplate.update("update ai_agent_tasks set status = 'SUCCEEDED', updated_at = now() where id = ?", taskId);
+            return taskById(taskId, null);
+        } catch (BusinessException exception) {
+            insertMessage(taskId, "ASSISTANT", exception.getMessage());
+            onDelta.accept(exception.getMessage());
+            jdbcTemplate.update("update ai_agent_tasks set status = 'FAILED', updated_at = now() where id = ?", taskId);
+            return taskById(taskId, exception.getMessage());
+        }
+    }
     private String generateAssistantMessage(String taskType, String prompt, String context, List<AiModelClient.ChatMessage> history) {
         if ("local".equalsIgnoreCase(provider) || !aiModelClient.supportsRemoteCall()) {
             return localAssistantMessage(generateLocalSuggestions(taskType, context, prompt));
         }
+        return aiModelClient.complete(buildModelMessages(prompt, context, history));
+    }
+
+    private String generateAssistantMessageStreaming(String taskType, String prompt, String context, List<AiModelClient.ChatMessage> history, Consumer<String> onDelta) {
+        if ("local".equalsIgnoreCase(provider) || !aiModelClient.supportsRemoteCall()) {
+            String message = localAssistantMessage(generateLocalSuggestions(taskType, context, prompt));
+            onDelta.accept(message);
+            return message;
+        }
+        List<AiModelClient.ChatMessage> messages = buildModelMessages(prompt, context, history);
+        return aiModelClient.completeStreaming(messages, onDelta);
+    }
+
+    private List<AiModelClient.ChatMessage> buildModelMessages(String prompt, String context, List<AiModelClient.ChatMessage> history) {
         List<AiModelClient.ChatMessage> messages = new ArrayList<>();
         messages.add(new AiModelClient.ChatMessage("SYSTEM", SYSTEM_PROMPT));
         if (context != null && !context.isBlank()) {
@@ -196,7 +292,7 @@ public class AiAssistantService {
         if (conversationHistory.isEmpty()) {
             messages.add(new AiModelClient.ChatMessage("USER", prompt));
         }
-        return aiModelClient.complete(messages);
+        return messages;
     }
 
     private List<SuggestionDraft> generateLocalSuggestions(String taskType, String context, String prompt) {
