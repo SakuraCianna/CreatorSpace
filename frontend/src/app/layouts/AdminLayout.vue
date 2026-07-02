@@ -63,7 +63,6 @@ import {
   Palette,
   ScrollText,
   Settings,
-  ShieldCheck,
   Sparkles,
   Tags,
 } from '@lucide/vue'
@@ -91,7 +90,6 @@ const navItems = [
   { to: '/admin/guestbook', label: '留言', icon: MessageSquare, badgeCount: computed(() => pendingCounts.value.pendingGuestbook) },
   { to: '/admin/files', label: '文件', icon: FileImage },
   { to: '/admin/themes', label: '主题', icon: Palette },
-  { to: '/admin/content-rules', label: '规则', icon: ShieldCheck },
   { to: '/admin/sensitive-words', label: '敏感词', icon: Ban },
   { to: '/admin/operation-logs', label: '日志', icon: ScrollText },
   { to: '/admin/ai-assistant', label: 'AI 助手', icon: Sparkles },
