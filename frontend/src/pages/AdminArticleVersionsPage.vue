@@ -174,7 +174,7 @@ async function restoreSelectedVersion() {
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding: 22px 24px;
+  padding: 0;
 }
 
 .cms-header p {
@@ -196,7 +196,8 @@ async function restoreSelectedVersion() {
 }
 
 .version-layout {
-  grid-template-columns: minmax(260px, 0.72fr) minmax(0, 1.28fr);
+  grid-template-columns: 380px minmax(0, 1fr);
+  gap: 24px;
 }
 
 .version-row {

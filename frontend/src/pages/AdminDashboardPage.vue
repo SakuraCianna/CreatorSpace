@@ -273,6 +273,7 @@ onBeforeUnmount(() => {
 .dashboard-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: start;
   gap: 14px;
 }
 @media (min-width: 1200px) {
@@ -295,8 +296,9 @@ onBeforeUnmount(() => {
 }
 .workspace-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
-  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 24px;
   margin-top: 16px;
 }
 .workspace-grid--even {

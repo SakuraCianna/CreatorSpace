@@ -1,6 +1,12 @@
 <template>
-  <section class="cms-page">
+  <section class="cms-page category-admin-page">
     <AdminPageHeader title="分类管理" description="维护文章、作品和灵感模块的内容分类。" theme="orange">
+      <button class="button button-filled" type="button" @click="startCreate">
+        新建分类
+      </button>
+    </AdminPageHeader>
+
+    <section class="category-toolbar" aria-label="分类模块">
       <div class="module-tabs" role="tablist" aria-label="分类模块">
         <button
           v-for="item in moduleOptions"
@@ -12,67 +18,69 @@
           {{ item.label }}
         </button>
       </div>
-    </AdminPageHeader>
+      <button class="button button-tonal button-compact" type="button" @click="loadCategories">刷新</button>
+    </section>
 
-    <section class="cms-grid">
-      <form class="cms-panel form-panel" @submit.prevent="saveCategory">
+    <form v-if="mode === 'form'" class="cms-panel form-panel category-form" @submit.prevent="saveCategory">
+      <div class="editor-heading">
         <div class="panel-title">
           <h3>{{ editingId ? '编辑分类' : '新建分类' }}</h3>
           <span>{{ moduleLabel(form.module) }}</span>
         </div>
-        <label>
-          名称
-          <input v-model="form.name" maxlength="80" />
-        </label>
-        <label>
-          URL 标识
-          <input v-model="form.slug" maxlength="120" placeholder="design-notes" />
-        </label>
-        <label>
-          描述
-          <textarea v-model="form.description" rows="4" maxlength="500" />
-        </label>
-        <div class="form-line">
-          <label>
-            排序
-            <input v-model.number="form.sortOrder" type="number" />
-          </label>
-          <label class="check-line">
-            <input v-model="form.enabled" type="checkbox" />
-            启用
-          </label>
-        </div>
-        <div class="form-actions">
-          <button class="button button-filled" type="submit">{{ editingId ? '保存分类' : '创建分类' }}</button>
-          <button class="button button-tonal" type="button" @click="resetForm">重置</button>
-        </div>
-      </form>
-
-      <div class="cms-panel">
-        <div class="panel-title">
-          <h3>{{ moduleLabel(activeModule) }}分类</h3>
-          <span>共 {{ categories.length }} 个</span>
-        </div>
-        <div class="list-stack">
-          <article v-for="category in categories" :key="category.id" class="table-row">
-            <div>
-              <strong>{{ category.name }}</strong>
-              <span>{{ category.slug }} · 排序 {{ category.sortOrder }}</span>
-            </div>
-            <div class="row-actions">
-              <span class="status-chip" :class="{ muted: !category.enabled }">
-                {{ category.enabled ? '启用' : '停用' }}
-              </span>
-              <button class="text-button" type="button" @click="editCategory(category)">编辑</button>
-              <button class="text-button" type="button" @click="toggleEnabled(category)">
-                {{ category.enabled ? '停用' : '启用' }}
-              </button>
-            </div>
-          </article>
-          <p v-if="categories.length === 0" class="empty-hint">当前模块还没有分类。</p>
-        </div>
+        <button class="button button-tonal button-compact" type="button" @click="showList">返回列表</button>
       </div>
-    </section>
+      <label>
+        名称
+        <input v-model="form.name" maxlength="80" />
+      </label>
+      <label>
+        URL 标识
+        <input v-model="form.slug" maxlength="120" placeholder="design-notes" />
+      </label>
+      <label>
+        描述
+        <textarea v-model="form.description" rows="4" maxlength="500" />
+      </label>
+      <div class="form-line">
+        <label>
+          排序
+          <input v-model.number="form.sortOrder" type="number" />
+        </label>
+        <label class="check-line">
+          <input v-model="form.enabled" type="checkbox" />
+          启用
+        </label>
+      </div>
+      <div class="form-actions">
+        <button class="button button-filled" type="submit">{{ editingId ? '保存分类' : '创建分类' }}</button>
+        <button class="button button-tonal" type="button" @click="resetForm">重置</button>
+      </div>
+    </form>
+
+    <div v-else class="cms-panel">
+      <div class="panel-title">
+        <h3>{{ moduleLabel(activeModule) }}分类</h3>
+        <span>共 {{ categories.length }} 个</span>
+      </div>
+      <div class="list-stack">
+        <article v-for="category in categories" :key="category.id" class="table-row">
+          <div>
+            <strong>{{ category.name }}</strong>
+            <span>{{ category.slug }} - 排序 {{ category.sortOrder }}</span>
+          </div>
+          <div class="row-actions">
+            <span class="status-chip" :class="{ muted: !category.enabled }">
+              {{ category.enabled ? '启用' : '停用' }}
+            </span>
+            <button class="text-button" type="button" @click="editCategory(category)">编辑</button>
+            <button class="text-button" type="button" @click="toggleEnabled(category)">
+              {{ category.enabled ? '停用' : '启用' }}
+            </button>
+          </div>
+        </article>
+        <p v-if="categories.length === 0" class="empty-hint">当前模块还没有分类。</p>
+      </div>
+    </div>
 
     <p v-if="notice" class="inline-notice">{{ notice }}</p>
   </section>
@@ -91,6 +99,8 @@ import {
 import { toUserMessage } from '../services/http'
 import type { CategoryPayload, CategorySummary } from '../shared/domain'
 
+type ViewMode = 'list' | 'form'
+
 const moduleOptions: Array<{ value: CategorySummary['module']; label: string }> = [
   { value: 'ARTICLE', label: '文章' },
   { value: 'PROJECT', label: '作品' },
@@ -100,6 +110,7 @@ const moduleOptions: Array<{ value: CategorySummary['module']; label: string }> 
 const activeModule = ref<CategorySummary['module']>('ARTICLE')
 const categories = ref<CategorySummary[]>([])
 const editingId = ref<number | null>(null)
+const mode = ref<ViewMode>('list')
 const notice = ref('')
 const form = reactive<CategoryPayload>({
   module: 'ARTICLE',
@@ -136,6 +147,7 @@ async function saveCategory() {
       notice.value = '分类已创建'
     }
     resetForm()
+    mode.value = 'list'
     await loadCategories()
   } catch (error) {
     notice.value = toUserMessage(error, '分类保存失败')
@@ -155,7 +167,17 @@ async function toggleEnabled(category: CategorySummary) {
 function switchModule(module: CategorySummary['module']) {
   activeModule.value = module
   resetForm()
+  mode.value = 'list'
   loadCategories()
+}
+
+function startCreate() {
+  resetForm()
+  mode.value = 'form'
+}
+
+function showList() {
+  mode.value = 'list'
 }
 
 function editCategory(category: CategorySummary) {
@@ -166,6 +188,7 @@ function editCategory(category: CategorySummary) {
   form.description = category.description ?? ''
   form.sortOrder = category.sortOrder
   form.enabled = category.enabled ?? true
+  mode.value = 'form'
 }
 
 function resetForm() {
@@ -201,19 +224,31 @@ function moduleLabel(module: CategorySummary['module']) {
 </script>
 
 <style scoped>
-.cms-page {
+.category-admin-page {
   display: grid;
   gap: 18px;
 }
 
+.category-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.module-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
 
 .module-tabs button {
   min-height: 36px;
   padding: 0 14px;
-  border: 1px solid var(--admin-line);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.72);
-  color: #344154;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--admin-muted);
   font: inherit;
   font-weight: 760;
   cursor: pointer;
@@ -221,16 +256,30 @@ function moduleLabel(module: CategorySummary['module']) {
 
 .module-tabs button.active,
 .module-tabs button:hover {
-  border-color: rgba(49, 91, 255, 0.36);
   background: var(--admin-primary-soft);
   color: var(--admin-primary-strong);
 }
 
-.cms-grid {
+.category-form {
   display: grid;
-  grid-template-columns: minmax(300px, 0.7fr) minmax(0, 1fr);
-  align-items: start;
-  gap: 14px;
+  gap: 12px;
+}
+
+.editor-heading,
+.row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.editor-heading .panel-title {
+  margin-bottom: 0;
+}
+
+.row-actions {
+  flex-wrap: nowrap;
+  justify-content: flex-end;
 }
 
 .check-line {
@@ -244,15 +293,15 @@ function moduleLabel(module: CategorySummary['module']) {
   min-height: 18px;
 }
 
-@media (max-width: 1020px) {
-  .cms-grid {
-    grid-template-columns: 1fr;
+@media (max-width: 760px) {
+  .category-toolbar,
+  .editor-heading {
+    align-items: flex-start;
+    flex-direction: column;
   }
-}
 
-@media (max-width: 640px) {
-  .cms-grid {
-    gap: 12px;
+  .row-actions {
+    justify-content: flex-start;
   }
 }
 </style>

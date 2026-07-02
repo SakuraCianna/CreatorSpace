@@ -8,6 +8,7 @@ import markdownLanguage from 'highlight.js/lib/languages/markdown'
 import typescript from 'highlight.js/lib/languages/typescript'
 import xml from 'highlight.js/lib/languages/xml'
 import markdownit from 'markdown-it'
+import type MarkdownIt from 'markdown-it'
 
 hljs.registerLanguage('bash', bash)
 hljs.registerLanguage('css', css)
@@ -36,6 +37,43 @@ const markdown = markdownit({
     return `<pre class="hljs"><code>${markdown.utils.escapeHtml(source)}</code></pre>`
   },
 })
+
+const underlineRule: MarkdownIt.ParserInline.RuleInline = (state, silent) => {
+  const start = state.pos
+  const marker = '++'
+
+  if (!state.src.startsWith(marker, start)) {
+    return false
+  }
+
+  const end = state.src.indexOf(marker, start + marker.length)
+  if (end < 0 || end === start + marker.length) {
+    return false
+  }
+
+  if (!silent) {
+    const originalPos = state.pos
+    const originalMax = state.posMax
+
+    const openToken = state.push('u_open', 'u', 1)
+    openToken.markup = marker
+
+    state.pos = start + marker.length
+    state.posMax = end
+    state.md.inline.tokenize(state)
+
+    const closeToken = state.push('u_close', 'u', -1)
+    closeToken.markup = marker
+
+    state.pos = originalPos
+    state.posMax = originalMax
+  }
+
+  state.pos = end + marker.length
+  return true
+}
+
+markdown.inline.ruler.before('emphasis', 'underline', underlineRule)
 
 export function normalizeMarkdownSource(value?: string | null): string {
   const source = value?.trim()
@@ -66,7 +104,7 @@ function shouldUnescapeMarkdownNewlines(source: string): boolean {
 }
 
 // 将 Markdown 转成经过清洗的 HTML, 避免详情页直接插入不可信内容
-// 基于 marked 解析并利用 DOMPurify 净化 Markdown 富文本以抵御前端 XSS 攻击
+// 基于 markdown-it 解析并利用 DOMPurify 净化 Markdown 富文本以抵御前端 XSS 攻击
 export function renderSafeMarkdown(value?: string | null): string {
   const rawHtml = markdown.render(normalizeMarkdownSource(value))
   return DOMPurify.sanitize(rawHtml, {

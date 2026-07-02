@@ -37,12 +37,12 @@
           <textarea v-model="articleForm.summary" rows="3" maxlength="1200" />
         </label>
         <label>
-          封面地址
-          <input v-model="articleForm.coverUrl" placeholder="/uploads/article/cover.png" />
+          封面图片
+          <FileUpload v-model="articleForm.coverUrl" module="COVER" accept="image/*" hint="最大 10MB" @error="handleUploadError" />
         </label>
         <label>
           Markdown 正文
-          <textarea v-model="articleForm.contentMarkdown" rows="8" />
+          <MarkdownEditor v-model="articleForm.contentMarkdown" :rows="10" />
         </label>
         <div class="tag-picker">
           <label v-for="tag in tags" :key="tag.id" class="check-line">
@@ -136,8 +136,8 @@
           <textarea v-model="projectForm.description" rows="3" maxlength="2000" />
         </label>
         <label>
-          封面地址
-          <input v-model="projectForm.coverUrl" placeholder="/uploads/project/cover.png" />
+          封面图片
+          <FileUpload v-model="projectForm.coverUrl" module="COVER" accept="image/*" hint="最大 10MB" @error="handleUploadError" />
         </label>
         <div class="form-line">
           <label>
@@ -151,7 +151,7 @@
         </div>
         <label>
           Markdown 详情
-          <textarea v-model="projectForm.contentMarkdown" rows="8" />
+          <MarkdownEditor v-model="projectForm.contentMarkdown" :rows="10" />
         </label>
         <div class="tag-picker">
           <label v-for="tag in tags" :key="tag.id" class="check-line">
@@ -728,6 +728,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Plus } from '@lucide/vue'
 import AdminPageHeader from '../components/admin/AdminPageHeader.vue'
+import FileUpload from '../components/common/FileUpload.vue'
 import {
   approveArticle,
   approveProject,
@@ -809,6 +810,7 @@ type SocialLinkForm = Omit<SocialLink, 'icon'> & {
   icon: string
 }
 import BaseSelect from '../shared/components/BaseSelect.vue'
+import MarkdownEditor from '../shared/components/MarkdownEditor.vue'
 type PageConfigForm = Omit<PageConfig, 'contentJson' | 'layoutJson' | 'seoTitle' | 'seoDescription'> & {
   seoTitle: string
   seoDescription: string
@@ -1484,6 +1486,11 @@ async function uploadFile() {
     notice.value = readError(error, '文件上传失败')
   }
 }
+
+function handleUploadError(message: string) {
+  notice.value = message
+}
+
 async function loadThemes() {
   try {
     themes.value = await fetchAdminThemes()
@@ -2031,13 +2038,13 @@ const configs: Record<string, ModuleConfig> = {
 }
 .workspace-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
-  gap: 12px;
+  gap: 14px;
   margin-top: 12px;
 }
 .workspace-grid--even {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
 }
 .form-line > * {
   flex: 1;
@@ -2181,12 +2188,17 @@ const configs: Record<string, ModuleConfig> = {
     flex-direction: column;
   }
   .table-row,
-  .row-actions,
   .filter-bar {
     align-items: flex-start;
     flex-direction: column;
   }
-  .row-actions,
+
+  .row-actions {
+    max-width: 100%;
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
+
   .filter-bar > * {
     width: 100%;
   }
