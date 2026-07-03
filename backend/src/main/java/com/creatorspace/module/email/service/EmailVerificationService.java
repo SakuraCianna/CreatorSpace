@@ -9,8 +9,6 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 public class EmailVerificationService {
-
-    private static final int CODE_LENGTH = 6;
     private static final long CODE_EXPIRE_MINUTES = 10;
     private static final long RESEND_SECONDS = 60;
 
