@@ -1,6 +1,9 @@
 package com.creatorspace.module.statistics;
 
 import com.creatorspace.common.result.ApiResponse;
+import com.creatorspace.common.result.PageResponse;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.validation.annotation.Validated;
@@ -12,7 +15,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
-import java.util.List;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
@@ -36,14 +38,16 @@ public class DailyMetricsController {
     }
 
     @GetMapping
-    public ApiResponse<List<DailyMetricsAggregationService.DailyMetricVO>> list(
+    public ApiResponse<PageResponse<DailyMetricsAggregationService.DailyMetricVO>> list(
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(required = false) String metricKey
+            @RequestParam(required = false) String metricKey,
+            @RequestParam(defaultValue = "1") @Min(1) long page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) long pageSize
     ) {
         if (startDate.isAfter(endDate)) {
             throw new ResponseStatusException(BAD_REQUEST, "startDate must be before or equal to endDate");
         }
-        return ApiResponse.ok(aggregationService.list(startDate, endDate, metricKey));
+        return ApiResponse.ok(aggregationService.list(startDate, endDate, metricKey, page, pageSize));
     }
 }

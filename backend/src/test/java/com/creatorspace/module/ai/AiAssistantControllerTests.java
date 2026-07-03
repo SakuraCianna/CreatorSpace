@@ -44,11 +44,13 @@ class AiAssistantControllerTests {
     void suggestionsAdoptIgnoreAndTaskByIdReturnWrappedData() {
         PageResponse<AiAssistantService.AiSuggestionVO> page = new PageResponse<>(List.of(suggestion(1L, "PENDING")), 1, 20, 1);
         when(aiAssistantService.taskById(9L)).thenReturn(task(9L, "TAGS"));
+        when(aiAssistantService.tasks("ALL", 1, 10)).thenReturn(new PageResponse<>(List.of(task(8L, "SUMMARY")), 1, 10, 1));
         when(aiAssistantService.suggestions("PENDING", 1, 20)).thenReturn(page);
         when(aiAssistantService.adopt(1L)).thenReturn(suggestion(1L, "ADOPTED"));
         when(aiAssistantService.ignore(2L)).thenReturn(suggestion(2L, "REJECTED"));
 
         assertEquals(9L, controller.task(9L).data().id());
+        assertEquals(8L, controller.tasks("ALL", 1, 10).data().records().getFirst().id());
         assertEquals(1, controller.suggestions("PENDING", 1, 20).data().records().size());
         assertEquals("ADOPTED", controller.adopt(1L).data().status());
         assertEquals("REJECTED", controller.ignore(2L).data().status());

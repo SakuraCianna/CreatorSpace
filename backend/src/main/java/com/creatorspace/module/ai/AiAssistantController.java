@@ -36,6 +36,15 @@ public class AiAssistantController {
         )));
     }
 
+    @GetMapping("/api/admin/ai/tasks")
+    public ApiResponse<PageResponse<AiAssistantService.AiTaskVO>> tasks(
+            @RequestParam(defaultValue = "ALL") String status,
+            @RequestParam(defaultValue = "1") @Min(1) long page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) long pageSize
+    ) {
+        return ApiResponse.ok(aiAssistantService.tasks(status, page, pageSize));
+    }
+
     @GetMapping("/api/admin/ai/tasks/{id}")
     public ApiResponse<AiAssistantService.AiTaskVO> task(@PathVariable Long id) {
         return ApiResponse.ok(aiAssistantService.taskById(id));

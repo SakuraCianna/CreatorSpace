@@ -88,6 +88,30 @@ public class AiAssistantService {
         return taskById(id, null);
     }
 
+    public PageResponse<AiTaskVO> tasks(String status, long page, long pageSize) {
+        String normalizedStatus = normalizeNullable(status);
+        List<Object> params = new ArrayList<>();
+        StringBuilder where = new StringBuilder("where 1 = 1");
+        if (normalizedStatus != null && !"ALL".equals(normalizedStatus)) {
+            where.append(" and status = ?");
+            params.add(normalizedStatus);
+        }
+        Long total = jdbcTemplate.queryForObject("select count(*) from ai_agent_tasks " + where, Long.class, params.toArray());
+        List<Object> listParams = new ArrayList<>(params);
+        listParams.add(pageSize);
+        listParams.add((page - 1) * pageSize);
+        List<AiTaskVO> records = jdbcTemplate.query("""
+                        select id, task_type, target_type, target_id, prompt, status, provider, model_name, created_by, created_at, updated_at
+                        from ai_agent_tasks
+                        %s
+                        order by created_at desc, id desc
+                        limit ? offset ?
+                        """.formatted(where),
+                (rs, rowNum) -> toTask(rs, null),
+                listParams.toArray());
+        return new PageResponse<>(records, page, pageSize, total == null ? 0 : total);
+    }
+
     public PageResponse<AiSuggestionVO> suggestions(String status, long page, long pageSize) {
         String normalizedStatus = normalizeNullable(status);
         List<Object> params = new ArrayList<>();
@@ -180,7 +204,7 @@ public class AiAssistantService {
     }
 
     private String generateAssistantMessage(String taskType, String prompt, String context, List<AiModelClient.ChatMessage> history) {
-        if ("local".equalsIgnoreCase(provider) || !aiModelClient.supportsRemoteCall()) {
+        if (!usesRemoteModel()) {
             return localAssistantMessage(generateLocalSuggestions(taskType, context, prompt));
         }
         List<AiModelClient.ChatMessage> messages = new ArrayList<>();
@@ -197,6 +221,10 @@ public class AiAssistantService {
             messages.add(new AiModelClient.ChatMessage("USER", prompt));
         }
         return aiModelClient.complete(messages);
+    }
+
+    private boolean usesRemoteModel() {
+        return !"local".equalsIgnoreCase(provider) && aiModelClient.supportsRemoteCall();
     }
 
     private List<SuggestionDraft> generateLocalSuggestions(String taskType, String context, String prompt) {
@@ -466,10 +494,14 @@ public class AiAssistantService {
                     if (!rs.next()) {
                         throw BusinessException.notFound("文章不存在");
                     }
+                    String status = rs.getString("status");
                     if (!"PUBLIC".equals(rs.getString("privacy_type"))) {
                         throw BusinessException.forbidden("AI 不读取非公开文章内容");
                     }
-                    return "标题：" + rs.getString("title") + "\n状态：" + rs.getString("status") + "\n摘要：" + rs.getString("summary") + "\n正文：" + rs.getString("content_markdown");
+                    if (usesRemoteModel() && !"PUBLISHED".equals(status)) {
+                        throw BusinessException.forbidden("远程 AI 不读取未发布文章内容，请切换 AI_PROVIDER=local 后再辅助草稿或待审核内容。");
+                    }
+                    return "标题：" + rs.getString("title") + "\n状态：" + status + "\n摘要：" + rs.getString("summary") + "\n正文：" + rs.getString("content_markdown");
                 },
                 id);
     }
@@ -484,10 +516,14 @@ public class AiAssistantService {
                     if (!rs.next()) {
                         throw BusinessException.notFound("作品不存在");
                     }
-                    if ("HIDDEN".equals(rs.getString("status"))) {
+                    String status = rs.getString("status");
+                    if ("HIDDEN".equals(status)) {
                         throw BusinessException.forbidden("AI 不读取隐藏作品内容");
                     }
-                    return "标题：" + rs.getString("title") + "\n状态：" + rs.getString("status") + "\n描述：" + rs.getString("description") + "\n正文：" + rs.getString("content_markdown");
+                    if (usesRemoteModel() && !"VISIBLE".equals(status)) {
+                        throw BusinessException.forbidden("远程 AI 不读取非可见作品内容，请切换 AI_PROVIDER=local 后再辅助草稿或待审核内容。");
+                    }
+                    return "标题：" + rs.getString("title") + "\n状态：" + status + "\n描述：" + rs.getString("description") + "\n正文：" + rs.getString("content_markdown");
                 },
                 id);
     }

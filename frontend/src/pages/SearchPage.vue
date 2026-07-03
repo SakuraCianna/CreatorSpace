@@ -2,7 +2,7 @@
   <section ref="root" class="search-page">
     <PublicPageHeader title="站内搜索" kicker="GLOBAL SEARCH" theme="blue">
       <div class="search-interface">
-        <form class="main-search-form" @submit.prevent="runSearch">
+        <form class="main-search-form" @submit.prevent="runSearch(1)">
           <Search class="search-icon" :size="20" />
           <input
             v-model="keyword"
@@ -73,6 +73,11 @@
           <p>{{ result.description || fallbackDescription(result) }}</p>
         </article>
       </div>
+      <footer v-if="searched && !isLoading && results.length > 0" class="search-pager">
+        <button type="button" :disabled="searchPage <= 1" @click="runSearch(searchPage - 1)">上一页</button>
+        <span>{{ resultRange }}</span>
+        <button type="button" :disabled="searchPage >= totalPages" @click="runSearch(searchPage + 1)">下一页</button>
+      </footer>
     </section>
     <p v-if="notice" class="inline-notice">{{ notice }}</p>
   </section>
@@ -80,7 +85,6 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
 import type { RouteLocationRaw } from 'vue-router'
 import PublicPageHeader from '../components/common/PublicPageHeader.vue'
 import BaseSelect from '../shared/components/BaseSelect.vue'
@@ -100,6 +104,9 @@ const latestArticles = ref<ArticleSummary[]>([])
 const isLoading = ref(false)
 const searched = ref(false)
 const notice = ref('')
+const searchPage = ref(1)
+const searchPageSize = 24
+const searchTotal = ref(0)
 
 usePageReveal(root)
 
@@ -128,6 +135,14 @@ const sortOptions = [
   { label: '热度最高', value: 'popular' },
 ]
 
+const totalPages = computed(() => Math.max(1, Math.ceil(searchTotal.value / searchPageSize)))
+const resultRange = computed(() => {
+  if (searchTotal.value === 0) return '0 - 0 / 0'
+  const start = (searchPage.value - 1) * searchPageSize + 1
+  const end = Math.min(searchPage.value * searchPageSize, searchTotal.value)
+  return `${start} - ${end} / ${searchTotal.value}`
+})
+
 onMounted(() => {
   loadLatestArticles()
 })
@@ -141,7 +156,7 @@ async function loadLatestArticles() {
   }
 }
 
-async function runSearch() {
+async function runSearch(targetPage = 1) {
   const value = keyword.value.trim()
   isLoading.value = true
   searched.value = true
@@ -151,11 +166,15 @@ async function runSearch() {
       keyword: value,
       type: activeType.value,
       sort: activeSort.value,
-      pageSize: 24,
+      page: targetPage,
+      pageSize: searchPageSize,
     })
     results.value = page.records
+    searchPage.value = page.page
+    searchTotal.value = page.total
   } catch (error) {
     results.value = []
+    searchTotal.value = 0
     notice.value = toUserMessage(error, '搜索接口暂不可用，请稍后再试')
   } finally {
     isLoading.value = false
@@ -163,7 +182,7 @@ async function runSearch() {
 }
 
 function rerunIfSearched() {
-  runSearch()
+  runSearch(1)
 }
 
 function resultTarget(result: SearchResult): RouteLocationRaw {
@@ -171,7 +190,7 @@ function resultTarget(result: SearchResult): RouteLocationRaw {
   if (result.type === 'PROJECT') return { name: 'project-detail', params: { slug: result.slug } }
   if (result.type === 'TAG') return { name: 'articles', query: { keyword: result.title } }
   if (result.type === 'CATEGORY') return { name: 'articles', query: { keyword: result.title } }
-  if (result.type === 'PAGE' && result.slug === 'about') return { name: 'about' }
+  if (result.type === 'PAGE') return { name: 'home' }
   return { name: 'inspirations' }
 }
 
@@ -464,6 +483,39 @@ function formatDate(value?: string | null): string {
   font-size: 15px;
 }
 
+.search-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 26px;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.search-pager button {
+  min-width: 88px;
+  min-height: 38px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 760;
+}
+
+.search-pager button:hover:not(:disabled) {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.search-pager button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 @media (max-width: 760px) {
   .search-interface {
     min-width: auto;
@@ -483,6 +535,11 @@ function formatDate(value?: string | null): string {
     flex-direction: column;
     align-items: stretch;
     gap: 12px;
+  }
+
+  .search-pager {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
 </style>

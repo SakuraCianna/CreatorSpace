@@ -2,6 +2,7 @@ package com.creatorspace.module.statistics;
 
 import com.creatorspace.common.cache.CacheKeys;
 import com.creatorspace.common.cache.RedisJsonCacheService;
+import com.creatorspace.common.result.PageResponse;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -68,7 +69,7 @@ public class DailyMetricsAggregationService {
         return new AggregationResult(metricDate, metrics);
     }
 
-    public List<DailyMetricVO> list(LocalDate startDate, LocalDate endDate, String metricKey) {
+    public PageResponse<DailyMetricVO> list(LocalDate startDate, LocalDate endDate, String metricKey, long page, long pageSize) {
         List<Object> params = new ArrayList<>();
         StringBuilder where = new StringBuilder("where metric_date between ? and ?");
         params.add(startDate);
@@ -77,15 +78,20 @@ public class DailyMetricsAggregationService {
             where.append(" and metric_key = ?");
             params.add(metricKey.trim());
         }
-        return jdbcTemplate.query("""
+        Long total = jdbcTemplate.queryForObject("select count(*) from daily_metrics " + where, Long.class, params.toArray());
+        List<Object> listParams = new ArrayList<>(params);
+        listParams.add(pageSize);
+        listParams.add((page - 1) * pageSize);
+        List<DailyMetricVO> records = jdbcTemplate.query("""
                         select metric_date, metric_key, metric_value, detail_json::text as detail_json, updated_at
                         from daily_metrics
                         %s
                         order by metric_date desc, metric_key asc
-                        limit 500
+                        limit ? offset ?
                         """.formatted(where),
                 (rs, rowNum) -> toMetric(rs),
-                params.toArray());
+                listParams.toArray());
+        return new PageResponse<>(records, page, pageSize, total == null ? 0 : total);
     }
 
     private DailyMetricVO upsertCount(LocalDate metricDate, String metricKey, String source, String label, String sql) {

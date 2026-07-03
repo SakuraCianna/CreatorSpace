@@ -1,6 +1,7 @@
 package com.creatorspace.module.statistics;
 
 import com.creatorspace.common.cache.RedisJsonCacheService;
+import com.creatorspace.common.result.PageResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -87,6 +88,8 @@ class DailyMetricsAggregationServiceTests {
     void listFiltersByMetricKeyAndMapsRows() throws Exception {
         LocalDate start = LocalDate.of(2026, 6, 1);
         LocalDate end = LocalDate.of(2026, 6, 30);
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class)))
+                .thenReturn(1L);
         when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
                 .thenAnswer(invocation -> {
                     RowMapper<?> mapper = invocation.getArgument(1);
@@ -99,11 +102,12 @@ class DailyMetricsAggregationServiceTests {
                     return List.of(mapper.mapRow(rs, 0));
                 });
 
-        List<DailyMetricsAggregationService.DailyMetricVO> metrics = service.list(start, end, " site.pv ");
+        PageResponse<DailyMetricsAggregationService.DailyMetricVO> page = service.list(start, end, " site.pv ", 1, 20);
 
-        assertThat(metrics).hasSize(1);
-        assertThat(metrics.getFirst().metricKey()).isEqualTo(DailyMetricKeys.SITE_PV);
-        assertThat(metrics.getFirst().metricValue()).isEqualTo(42L);
+        assertThat(page.total()).isEqualTo(1L);
+        assertThat(page.records()).hasSize(1);
+        assertThat(page.records().getFirst().metricKey()).isEqualTo(DailyMetricKeys.SITE_PV);
+        assertThat(page.records().getFirst().metricValue()).isEqualTo(42L);
     }
 
     @Test

@@ -1,6 +1,12 @@
 import { requestJson } from './http'
 import type {
   AdminThemeConfig,
+  AiSuggestionStatus,
+  AiSuggestionSummary,
+  AiTaskPayload,
+  AiTaskStatus,
+  AiTaskSummary,
+  AiWorkflowPayload,
   ArticleNeighbors,
   ArticleSummary,
   ArticleVersionSummary,
@@ -18,6 +24,9 @@ import type {
   InspirationCard,
   InspirationPayload,
   InspirationType,
+  NotificationRecord,
+  OperationLogQuery,
+  OperationLogSummary,
   PageResponse,
   ProjectFilterRecommendations,
   ProjectPayload,
@@ -1036,6 +1045,23 @@ export async function fetchAdminOperationLogs(options: OperationLogQuery = {}): 
   )
   return response.data
 }
+// 查询后台 AI 助手任务历史
+export async function fetchAiTasks(options: {
+  status?: AiTaskStatus | 'ALL'
+  page?: number
+  pageSize?: number
+} = {}): Promise<PageResponse<AiTaskSummary>> {
+  const params = new URLSearchParams()
+  if (options.status && options.status !== 'ALL') params.set('status', options.status)
+  if (options.page) params.set('page', String(options.page))
+  if (options.pageSize) params.set('pageSize', String(options.pageSize))
+  const query = params.toString()
+  const response = await requestJson<ApiEnvelope<PageResponse<AiTaskSummary>>>(
+    query ? `/api/admin/ai/tasks?${query}` : '/api/admin/ai/tasks',
+  )
+  return response.data
+}
+
 // 创建后台 AI 助手任务
 export async function createAiTask(payload: AiTaskPayload): Promise<AiTaskSummary> {
   const response = await requestJson<ApiEnvelope<AiTaskSummary>>('/api/admin/ai/tasks', {

@@ -1,7 +1,7 @@
 <template>
   <section ref="root" class="archive-page">
     <PublicPageHeader title="文章归档" description="浏览全部公开文章，或者通过关键词检索感兴趣的内容。" kicker="ARTICLE ARCHIVE" theme="blue">
-      <form class="archive-search" @submit.prevent="loadArticles">
+      <form class="archive-search" @submit.prevent="submitSearch">
         <Search :size="18" />
         <input v-model="keyword" placeholder="搜索文章、摘要或正文" aria-label="搜索文章" />
         <button class="button button-filled button-compact" type="submit">检索</button>
@@ -225,6 +225,15 @@ async function loadTags() {
     tagCatalog.value = []
   }
 }
+function submitSearch() {
+  const normalizedKeyword = keyword.value.trim()
+  if (readQueryText(route.query.keyword) === normalizedKeyword) {
+    loadArticles()
+    return
+  }
+  syncKeywordQuery(normalizedKeyword)
+  loadArticles()
+}
 function syncTagQuery(tagId: number | null) {
   const query = { ...route.query }
   if (tagId === null) {
@@ -233,6 +242,19 @@ function syncTagQuery(tagId: number | null) {
     query.tagId = String(tagId)
   }
   void router.replace({ name: 'articles', query })
+}
+function syncKeywordQuery(value: string) {
+  const query = { ...route.query }
+  if (value) {
+    query.keyword = value
+  } else {
+    delete query.keyword
+  }
+  void router.replace({ name: 'articles', query })
+}
+function readQueryText(value: unknown): string {
+  const raw = Array.isArray(value) ? value[0] : value
+  return typeof raw === 'string' ? raw.trim() : ''
 }
 function readQueryTagId(value: unknown): number | null {
   const raw = Array.isArray(value) ? value[0] : value
@@ -377,6 +399,7 @@ function markArticleCoverBroken(articleId: number) {
 onMounted(async () => {
   topicInterest.value = readTopicInterest()
   activeTagId.value = readQueryTagId(route.query.tagId)
+  keyword.value = readQueryText(route.query.keyword)
   observeTopicStrip()
   await Promise.all([loadArticles(), loadTags()])
 })
@@ -388,6 +411,17 @@ watch(
       return
     }
     activeTagId.value = tagId
+    loadArticles()
+  },
+)
+watch(
+  () => route.query.keyword,
+  (value) => {
+    const queryKeyword = readQueryText(value)
+    if (queryKeyword === keyword.value.trim()) {
+      return
+    }
+    keyword.value = queryKeyword
     loadArticles()
   },
 )

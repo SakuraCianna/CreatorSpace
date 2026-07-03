@@ -1,7 +1,7 @@
 <template>
   <section class="ai-page">
     <AdminPageHeader title="AI 创作助手" description="生成摘要、标签、审核意见和运营建议。所有结果只作为建议，最终动作由管理员确认。" theme="purple">
-      <button class="icon-button" type="button" title="刷新建议" aria-label="刷新建议" @click="loadSuggestions">
+      <button class="icon-button" type="button" title="刷新 AI 数据" aria-label="刷新 AI 数据" @click="refreshAiData">
         <RefreshCw :size="18" />
       </button>
     </AdminPageHeader>
@@ -111,6 +111,30 @@
           <strong>还没有 AI 任务</strong>
           <span>先从左侧创建一个摘要、标签或审核建议任务。</span>
         </div>
+
+        <div class="task-history">
+          <div class="history-title">
+            <strong>任务历史</strong>
+            <span>{{ loadingTasks ? '同步中' : `${tasks.total} 条` }}</span>
+          </div>
+          <button
+            v-for="task in tasks.records"
+            :key="task.id"
+            class="task-history-item"
+            :class="{ active: latestTask?.id === task.id }"
+            type="button"
+            @click="selectTask(task)"
+          >
+            <span class="status-chip" :class="statusTone(task.status)">{{ statusLabel(task.status) }}</span>
+            <strong>{{ taskLabel(task.taskType) }} · {{ targetText(task.targetType, task.targetId) }}</strong>
+            <small>{{ formatDateTime(task.createdAt) }}</small>
+          </button>
+          <footer v-if="tasks.total > taskPageSize" class="mini-pager">
+            <button type="button" :disabled="tasks.page <= 1 || loadingTasks" @click="loadTasks(tasks.page - 1)">上一页</button>
+            <span>{{ tasks.page }} / {{ taskTotalPages }}</span>
+            <button type="button" :disabled="tasks.page >= taskTotalPages || loadingTasks" @click="loadTasks(tasks.page + 1)">下一页</button>
+          </footer>
+        </div>
       </aside>
     </section>
 
@@ -193,7 +217,7 @@ import {
 } from '@lucide/vue'
 import BaseSelect from '../shared/components/BaseSelect.vue'
 
-import { continueAiTask, createAiTask, createAiWorkflow, fetchAiSuggestions, updateAiSuggestionStatus } from '../services/content'
+import { continueAiTask, createAiTask, createAiWorkflow, fetchAiSuggestions, fetchAiTasks, updateAiSuggestionStatus } from '../services/content'
 import { toUserMessage } from '../services/http'
 import type { AiSuggestionStatus, AiSuggestionSummary, AiTaskPayload, AiTaskSummary, AiTaskType, AiWorkflowPayload, PageResponse } from '../shared/domain'
 
@@ -212,13 +236,16 @@ const form = reactive<AiTaskPayload>({
 })
 
 const latestTask = ref<AiTaskSummary | null>(null)
+const tasks = ref<PageResponse<AiTaskSummary>>({ records: [], page: 1, pageSize: 6, total: 0 })
 const suggestions = ref<PageResponse<AiSuggestionSummary>>({ records: [], page: 1, pageSize: 10, total: 0 })
 const suggestionStatus = ref<AiSuggestionStatus | 'ALL'>('PENDING')
 const submitting = ref(false)
 const loadingSuggestions = ref(false)
+const loadingTasks = ref(false)
 const notice = ref('')
 const followUpPrompt = ref('')
 const workflowDays = ref(7)
+const taskPageSize = 6
 
 const targetTypeOptions = [
   { label: '不绑定', value: '' },
@@ -235,6 +262,7 @@ const suggestionStatusOptions = [
 ]
 
 const totalPages = computed(() => Math.max(1, Math.ceil(suggestions.value.total / suggestions.value.pageSize)))
+const taskTotalPages = computed(() => Math.max(1, Math.ceil(tasks.value.total / tasks.value.pageSize)))
 const suggestionRange = computed(() => {
   if (suggestions.value.total === 0) return '0 - 0 / 0'
   const start = (suggestions.value.page - 1) * suggestions.value.pageSize + 1
@@ -242,7 +270,10 @@ const suggestionRange = computed(() => {
   return `${start} - ${end} / ${suggestions.value.total}`
 })
 
-onMounted(() => loadSuggestions())
+onMounted(() => {
+  loadTasks()
+  loadSuggestions()
+})
 
 async function runWorkflow(workflowType: AiWorkflowPayload['workflowType']) {
   notice.value = ''
@@ -250,6 +281,7 @@ async function runWorkflow(workflowType: AiWorkflowPayload['workflowType']) {
   try {
     latestTask.value = await createAiWorkflow({ workflowType, days: workflowDays.value })
     if (latestTask.value.notice) notice.value = latestTask.value.notice
+    await loadTasks(1)
     await loadSuggestions(1)
   } catch (error) {
     notice.value = toUserMessage(error, 'AI 工作流创建失败')
@@ -276,6 +308,7 @@ async function submitTask() {
     if (latestTask.value.notice) {
       notice.value = latestTask.value.notice
     }
+    await loadTasks(1)
     await loadSuggestions(1)
   } catch (error) {
     notice.value = toUserMessage(error, 'AI 任务创建失败')
@@ -292,6 +325,7 @@ async function submitFollowUp() {
     latestTask.value = await continueAiTask(latestTask.value.id, followUpPrompt.value.trim())
     followUpPrompt.value = ''
     if (latestTask.value.notice) notice.value = latestTask.value.notice
+    await loadTasks(1)
     await loadSuggestions(1)
   } catch (error) {
     notice.value = toUserMessage(error, 'AI 追问失败')
@@ -305,6 +339,30 @@ function resetForm() {
   form.targetType = ''
   form.targetId = null
   form.prompt = ''
+}
+
+async function refreshAiData() {
+  await Promise.all([loadTasks(1), loadSuggestions(1)])
+}
+
+async function loadTasks(page = tasks.value.page) {
+  loadingTasks.value = true
+  try {
+    tasks.value = await fetchAiTasks({ status: 'ALL', page, pageSize: taskPageSize })
+    if (!latestTask.value && tasks.value.records.length > 0) {
+      latestTask.value = tasks.value.records[0]
+    }
+  } catch (error) {
+    notice.value = toUserMessage(error, 'AI 任务历史加载失败')
+  } finally {
+    loadingTasks.value = false
+  }
+}
+
+function selectTask(task: AiTaskSummary) {
+  latestTask.value = task
+  followUpPrompt.value = ''
+  notice.value = task.notice ?? ''
 }
 
 async function loadSuggestions(page = suggestions.value.page) {
@@ -359,7 +417,7 @@ function suggestionTypeLabel(type: string) {
 }
 
 function targetText(targetType?: string | null, targetId?: number | null) {
-  const labels: Record<string, string> = { ARTICLE: '文章', PROJECT: '作品', COMMENT: '评论' }
+  const labels: Record<string, string> = { ARTICLE: '文章', PROJECT: '作品', COMMENT: '评论', SITE: '站点' }
   const label = targetType ? labels[targetType] ?? targetType : '未绑定对象'
   return targetId ? `${label} ID ${targetId}` : label
 }
@@ -634,6 +692,78 @@ function formatDateTime(value: string) {
 .message-card.assistant {
   border-color: rgba(49, 91, 255, 0.18);
   background: linear-gradient(145deg, #f7fbff, #ffffff);
+}
+
+.task-history {
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--admin-line);
+}
+
+.history-title,
+.mini-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.history-title span,
+.mini-pager span {
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.task-history-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 8px;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--admin-ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.task-history-item strong,
+.task-history-item small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-history-item small {
+  grid-column: 2;
+  color: var(--admin-muted);
+  font-size: 12px;
+}
+
+.task-history-item.active,
+.task-history-item:hover {
+  border-color: rgba(49, 91, 255, 0.26);
+  background: var(--admin-primary-soft);
+}
+
+.mini-pager button {
+  min-height: 30px;
+  border: 1px solid var(--admin-line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--admin-primary-strong);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.mini-pager button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .message-card strong {
