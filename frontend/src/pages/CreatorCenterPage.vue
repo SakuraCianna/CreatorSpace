@@ -17,6 +17,15 @@
             <div class="dropdown-item" @click.stop="setPostType('idea')">发布灵感</div>
           </div>
         </div>
+        <div
+          v-if="currentPostType === 'article'"
+          class="header-theme-chip"
+          :style="blogThemeStyle"
+          :title="`当前样式：${currentBlogTheme.displayName}（${blogThemeMeta}）`"
+        >
+          <span class="header-theme-dot" :style="{ background: currentBlogTheme.accentColor }"></span>
+          <span class="header-theme-label">{{ currentBlogTheme.displayName }}</span>
+        </div>
         <span class="header-status" v-if="editingArticleId">编辑草稿</span>
       </div>
 
@@ -110,7 +119,6 @@
             :data-blog-block="currentBlogTheme.blockStyle"
           >
             <div class="preview-title-wrapper">
-              <p class="preview-theme-kicker">{{ currentBlogTheme.displayName }}</p>
               <h1 class="preview-title" v-if="articleForm.title">{{ articleForm.title }}</h1>
               <p class="preview-summary" v-if="articleForm.summary">{{ articleForm.summary }}</p>
             </div>
@@ -255,13 +263,13 @@
               </div>
             </div>
 
-            <div class="ai-result-panel" v-if="aiResult.text || isGeneratingAiText">
+            <div class="ai-result-panel" v-if="aiResult.text || aiResult.notice || isGeneratingAiText">
               <div class="ai-result-head">
                 <span>{{ aiResultTitle }}</span>
                 <span class="ai-result-state" v-if="isGeneratingAiText">生成中</span>
               </div>
               <div class="ai-result-notice" v-if="aiResult.notice">{{ aiResult.notice }}</div>
-              <pre class="ai-result-text">{{ aiResult.text || '正在整理你的草稿...' }}</pre>
+              <pre class="ai-result-text" v-if="aiResult.text || isGeneratingAiText">{{ aiResult.text || '正在整理你的草稿...' }}</pre>
               <div class="ai-result-actions" v-if="aiResult.text">
                 <button type="button" @click="insertAiResult"><Check :size="13" />插入正文</button>
                 <button type="button" @click="replaceSelectionWithAiResult" :disabled="!canReplaceSelection"><WandSparkles :size="13" />替换选区</button>
@@ -276,8 +284,8 @@
 
               <div class="ai-input-box">
                 <Sparkles :size="16" color="#71717a" class="ai-input-icon" />
-                <input type="text" placeholder="输入创作要求，AI 帮你写" v-model="aiPrompt" @keydown.enter="generateAiText()" />
-                <button class="btn-send" @click="generateAiText()" :disabled="isGeneratingAiText || !aiPrompt.trim()">
+                <input type="text" placeholder="输入创作要求，AI 帮你写" v-model="aiPrompt" @keydown.enter.prevent="generateAiText('CUSTOM')" />
+                <button class="btn-send" @click="generateAiText('CUSTOM')" :disabled="isGeneratingAiText || !aiPrompt.trim()">
                   <RefreshCw :size="14" color="#fff" class="spin" v-if="isGeneratingAiText" />
                   <Send :size="14" color="#fff" v-else />
                 </button>
@@ -397,7 +405,7 @@ import {
   ChevronLeft, ChevronDown, ChevronsLeftRight, Undo, Redo, Bold, Italic, Strikethrough,
   List, ListOrdered, Code, Quote, Image, Link, Sparkles, X, RefreshCw,
   ListTree, Send, Table, Minus, Copy, Check, FileText, WandSparkles,
-  Heading1, Heading2, Columns2, PencilLine, Eye
+  Heading1, Heading2, Columns2, PencilLine, Eye, Tags, BookOpenCheck
 } from '@lucide/vue'
 import MarkdownIt from 'markdown-it'
 import FileUpload from '../components/common/FileUpload.vue'
@@ -601,6 +609,7 @@ function insertTable() {
 }
 
 type AiMode = 'OUTLINE' | 'CONTINUE' | 'POLISH' | 'SUMMARY' | 'TITLE' | 'TAGS' | 'CODE' | 'RESEARCH' | 'CUSTOM'
+const AI_MODES = new Set<AiMode>(['OUTLINE', 'CONTINUE', 'POLISH', 'SUMMARY', 'TITLE', 'TAGS', 'CODE', 'RESEARCH', 'CUSTOM'])
 
 interface ApiEnvelope<T> {
   success: boolean
@@ -627,6 +636,10 @@ const aiQuickActions = [
   { mode: 'CONTINUE' as const, label: '续写', icon: Sparkles },
   { mode: 'POLISH' as const, label: '润色', icon: WandSparkles },
   { mode: 'SUMMARY' as const, label: '摘要', icon: FileText },
+  { mode: 'TITLE' as const, label: '标题', icon: Heading1 },
+  { mode: 'TAGS' as const, label: '标签', icon: Tags },
+  { mode: 'CODE' as const, label: '代码', icon: Code },
+  { mode: 'RESEARCH' as const, label: '资料', icon: BookOpenCheck },
 ]
 
 const aiResultTitle = computed(() => {
@@ -653,10 +666,10 @@ async function fetchHotTopics() {
     const topics = await requestJson<string[]>('/api/ai/hot-topics')
     hotTopics.value = (topics || []).slice(0, 3)
   } catch (error) {
-    console.error('Failed to fetch hot topics', error)
     if (hotTopics.value.length === 0) {
       hotTopics.value = ['如何写出爆款文章', '技术进阶路线分享', '独立开发者的经验谈']
     }
+    showNotice(readError(error, '灵感话题加载失败，已使用备用话题'))
   } finally {
     isLoadingTopics.value = false
   }
@@ -672,10 +685,15 @@ function runQuickAction(mode: AiMode) {
   generateAiText(mode, prompt)
 }
 
+function normalizeAiMode(value: unknown): AiMode {
+  return typeof value === 'string' && AI_MODES.has(value as AiMode) ? value as AiMode : 'CUSTOM'
+}
+
 async function generateAiText(mode: AiMode = 'CUSTOM', promptOverride?: string) {
+  const selectedMode = normalizeAiMode(mode)
   const prompt = (promptOverride ?? aiPrompt.value).trim()
   if (isGeneratingAiText.value) return
-  if (mode === 'CUSTOM' && !prompt) {
+  if (selectedMode === 'CUSTOM' && !prompt) {
     showNotice('请输入 AI 创作要求')
     return
   }
@@ -684,8 +702,8 @@ async function generateAiText(mode: AiMode = 'CUSTOM', promptOverride?: string) 
   aiSelectionRange.start = selection.start
   aiSelectionRange.end = selection.end
   isGeneratingAiText.value = true
-  activeAiMode.value = mode
-  aiResult.mode = mode
+  activeAiMode.value = selectedMode
+  aiResult.mode = selectedMode
   aiResult.text = ''
   aiResult.notice = ''
 
@@ -693,7 +711,7 @@ async function generateAiText(mode: AiMode = 'CUSTOM', promptOverride?: string) 
     const response = await requestJson<ApiEnvelope<CreatorAiResponse>>('/api/ai/write', {
       method: 'POST',
       body: JSON.stringify({
-        mode,
+        mode: selectedMode,
         title: articleForm.title,
         prompt,
         context: articleForm.contentMarkdown,
@@ -703,11 +721,12 @@ async function generateAiText(mode: AiMode = 'CUSTOM', promptOverride?: string) 
     aiResult.mode = response.data.mode
     aiResult.text = response.data.text
     aiResult.notice = response.data.notice ?? ''
-    if (mode === 'CUSTOM') {
+    if (selectedMode === 'CUSTOM') {
       aiPrompt.value = ''
     }
   } catch (error) {
-    showNotice(readError(error, 'AI 生成失败'))
+    aiResult.notice = readError(error, 'AI 生成失败')
+    showNotice(aiResult.notice)
   } finally {
     isGeneratingAiText.value = false
     activeAiMode.value = null
@@ -1289,14 +1308,17 @@ function readError(error: unknown, fallback: string) {
 .header-left {
   display: flex;
   align-items: center;
-  gap: 16px;
-  min-width: 240px;
+  gap: 14px;
+  flex: 0 1 360px;
+  min-width: 0;
+  min-height: 0;
 }
 
 .back-link {
   display: flex;
   align-items: center;
   gap: 4px;
+  flex: 0 0 auto;
   color: #71717a;
   text-decoration: none;
   font-size: 13px;
@@ -1311,6 +1333,7 @@ function readError(error: unknown, fallback: string) {
   width: 1px;
   height: 16px;
   background: rgba(0,0,0,0.08);
+  flex: 0 0 auto;
 }
 
 .header-title {
@@ -1318,6 +1341,44 @@ function readError(error: unknown, fallback: string) {
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.02em;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.header-theme-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 1 auto;
+  max-width: 168px;
+  min-height: 28px;
+  padding: 5px 10px;
+  border: 1px solid color-mix(in srgb, var(--blog-accent, #2563eb) 22%, transparent);
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--blog-paper, #ffffff) 92%, transparent), color-mix(in srgb, var(--blog-canvas, #f8fafc) 94%, transparent));
+  color: var(--blog-title, #111827);
+  font-family: var(--blog-font, inherit);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(24, 24, 27, 0.04);
+}
+
+.header-theme-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--blog-accent, #2563eb) 12%, transparent);
+}
+
+.header-theme-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .dropdown-trigger {
@@ -1371,7 +1432,8 @@ function readError(error: unknown, fallback: string) {
   display: flex;
   align-items: center;
   gap: 2px;
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
   justify-content: center;
 }
 
@@ -1748,12 +1810,6 @@ function readError(error: unknown, fallback: string) {
   background-size: cover;
   background-position: center;
 }
-.preview-theme-kicker {
-  margin: 0 0 10px;
-  color: var(--blog-accent, #2563eb);
-  font-size: 12px;
-  font-weight: 760;
-}
 .article-preview-surface .preview-title {
   color: var(--blog-title, #111827);
   font-family: var(--blog-font, inherit);
@@ -2033,60 +2089,6 @@ function readError(error: unknown, fallback: string) {
   font-size: 11px;
   color: #71717a;
   line-height: 1.5;
-}
-
-.ai-result-card {
-  border: 1px solid rgba(99, 102, 241, 0.18);
-  border-radius: 10px;
-  background: #f8f8ff;
-  overflow: hidden;
-}
-
-.ai-result-header,
-.ai-result-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.ai-result-header {
-  padding: 10px 12px;
-  color: #4f46e5;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.ai-result-header button,
-.ai-result-actions button {
-  border: none;
-  background: transparent;
-  color: #6366f1;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.ai-result-content {
-  max-height: 240px;
-  overflow: auto;
-  padding: 0 12px 12px;
-  color: #3f3f46;
-  font-size: 13px;
-  line-height: 1.7;
-}
-
-.ai-result-content pre {
-  margin: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-family: inherit;
-}
-
-.ai-result-actions {
-  padding: 10px 12px;
-  border-top: 1px solid rgba(99, 102, 241, 0.14);
-  background: rgba(255, 255, 255, 0.58);
 }
 
 .ai-input-box {
