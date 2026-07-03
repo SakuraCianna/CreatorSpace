@@ -53,7 +53,7 @@
 
     <main class="editor-main">
       <!-- 左侧大纲 -->
-      <aside class="editor-sidebar-left">
+      <aside class="editor-sidebar-left" v-if="currentPostType === 'article'">
         <div class="sidebar-header">
           <span>目录</span>
           <ChevronsLeftRight :size="16" class="collapse-icon" />
@@ -106,43 +106,100 @@
 
       <!-- 发布作品表单 -->
       <section class="editor-content form-layout" v-else-if="currentPostType === 'project'">
-        <div class="project-form">
+        <div class="project-form scroll-container">
           <h2 class="form-page-title">发布您的作品</h2>
-          <div class="form-group-large">
-            <label>作品名称</label>
-            <input type="text" class="form-input-large" v-model="articleForm.title" placeholder="如：CreatorSpace - 下一代创作平台" />
+          
+          <div class="form-grid">
+            <div class="form-group-large">
+              <label>作品名称 <span class="required">*</span></label>
+              <input type="text" class="form-input-large" v-model="projectForm.title" placeholder="如：CreatorSpace - 下一代创作平台" />
+            </div>
+            <div class="form-group-large">
+              <label>作品类型 <span class="required">*</span></label>
+              <BaseSelect v-model="projectForm.projectType" :options="projectTypeOptions" placeholder="请选择类型" />
+            </div>
           </div>
-          <div class="form-group-large">
-            <label>开源代码仓库 URL (可选)</label>
-            <input type="text" class="form-input-large" placeholder="https://github.com/..." />
+          
+          <div class="form-group-large" style="margin-top: 24px;">
+            <label>技术栈 (用逗号分隔)</label>
+            <input type="text" class="form-input-large" v-model="projectForm.techStack" placeholder="Vue3, Spring Boot, PostgreSQL" />
           </div>
-          <div class="form-group-large">
-            <label>在线预览 URL (可选)</label>
-            <input type="text" class="form-input-large" placeholder="https://..." />
+          
+          <div class="form-grid" style="margin-top: 24px;">
+            <div class="form-group-large">
+              <label>作品封面图</label>
+              <FileUpload v-model="projectForm.coverUrl" module="OTHER" accept="image/*" hint="建议尺寸 16:9，不超过 5MB" />
+            </div>
+            <div class="form-group-large">
+              <label>截图或Demo上传 (限 50MB)</label>
+              <FileUpload v-model="projectForm.demoUrl" module="OTHER" accept=".zip,.rar,.png,.jpg,.jpeg,.pdf" hint="支持压缩包等，超过限制请填写云盘链接" />
+            </div>
           </div>
-          <div class="form-group-large">
-            <label>作品描述</label>
-            <textarea class="form-textarea-large" v-model="articleForm.contentMarkdown" rows="12" placeholder="详细介绍这个作品的背景、技术栈、核心功能..."></textarea>
+          
+          <div class="form-grid" style="margin-top: 24px;">
+            <div class="form-group-large">
+              <label>开源代码仓库 URL</label>
+              <input type="text" class="form-input-large" v-model="projectForm.githubUrl" placeholder="https://github.com/..." />
+            </div>
+            <div class="form-group-large">
+              <label>视频 URL (可选)</label>
+              <input type="text" class="form-input-large" v-model="projectForm.videoUrl" placeholder="https://..." />
+            </div>
+          </div>
+          
+          <div class="form-group-large" style="margin-top: 24px;">
+            <label>作品描述详情</label>
+            <textarea class="form-textarea-large" v-model="projectForm.contentMarkdown" rows="12" placeholder="详细介绍这个作品的背景、技术栈、核心功能...支持 Markdown 语法"></textarea>
           </div>
         </div>
       </section>
 
       <!-- 发布灵感表单 -->
       <section class="editor-content idea-layout" v-else-if="currentPostType === 'idea'">
-        <div class="idea-form">
+        <div class="idea-form scroll-container">
           <h2 class="form-page-title">分享您的灵感</h2>
-          <div class="idea-input-box">
-            <textarea class="idea-textarea" v-model="articleForm.contentMarkdown" rows="8" placeholder="今天有什么新的奇思妙想？可以直接在这里记录，支持插入图片。"></textarea>
-            <div class="idea-actions">
-              <button class="tool-btn"><Image :size="16" /><span>图片</span></button>
-              <button class="tool-btn"><Link :size="16" /><span>链接</span></button>
+          
+          <div class="idea-tabs">
+            <button class="idea-tab" :class="{'active': ideaForm.cardType === 'TEXT'}" @click="ideaForm.cardType = 'TEXT'">纯文字</button>
+            <button class="idea-tab" :class="{'active': ideaForm.cardType === 'IMAGE'}" @click="ideaForm.cardType = 'IMAGE'">带配图</button>
+            <button class="idea-tab" :class="{'active': ideaForm.cardType === 'LINK'}" @click="ideaForm.cardType = 'LINK'">外链接</button>
+            <button class="idea-tab" :class="{'active': ideaForm.cardType === 'PROMPT'}" @click="ideaForm.cardType = 'PROMPT'">提示词</button>
+            <button class="idea-tab" :class="{'active': ideaForm.cardType === 'CODE'}" @click="ideaForm.cardType = 'CODE'">代码段</button>
+          </div>
+          
+          <div class="form-group-large" style="margin-top: 24px;">
+            <label>灵感标题 <span class="required">*</span></label>
+            <input type="text" class="form-input-large" v-model="ideaForm.title" placeholder="一句话概括你的灵感" />
+          </div>
+          
+          <div class="form-group-large" style="margin-top: 24px;">
+            <label>详细内容</label>
+            <textarea class="idea-textarea form-textarea-large" v-model="ideaForm.content" rows="6" placeholder="今天有什么新的奇思妙想？可以直接在这里记录..."></textarea>
+          </div>
+          
+          <div class="form-group-large" v-if="ideaForm.cardType === 'IMAGE'" style="margin-top: 24px;">
+            <label>配图上传</label>
+            <FileUpload v-model="ideaForm.imageUrl" module="OTHER" accept="image/*" hint="上传一张代表灵感的配图" />
+          </div>
+          
+          <div class="form-group-large" v-if="ideaForm.cardType === 'LINK'" style="margin-top: 24px;">
+            <label>来源链接</label>
+            <input type="text" class="form-input-large" v-model="ideaForm.sourceUrl" placeholder="https://..." />
+          </div>
+          
+          <div class="form-group-large" style="margin-top: 24px;">
+            <label>高光色配置 (可选)</label>
+            <div class="color-picker-wrap">
+              <input type="color" v-model="ideaForm.color" class="color-input" />
+              <span class="color-value">{{ ideaForm.color || '未设置' }}</span>
+              <button class="btn-clear-color" v-if="ideaForm.color" @click="ideaForm.color = ''">清除</button>
             </div>
           </div>
         </div>
       </section>
 
       <!-- 右侧 AI 助手 -->
-      <aside class="editor-sidebar-right" v-if="showAIAssistant">
+      <aside class="editor-sidebar-right" v-if="showAIAssistant && currentPostType === 'article'">
         <div class="ai-assistant">
           <div class="ai-header">
             <div>
@@ -227,12 +284,7 @@
         <div class="modal-body">
           <div class="form-group">
             <label>文章分类</label>
-            <select v-model="articleForm.categoryId" class="form-select">
-              <option :value="null">请选择分类</option>
-              <option :value="1">前端开发</option>
-              <option :value="2">后端开发</option>
-              <option :value="3">人工智能</option>
-            </select>
+            <BaseSelect v-model="articleForm.categoryId" :options="categoryOptions" placeholder="请选择分类" />
           </div>
           <div class="form-group">
             <label>文章标签 (可多选)</label>
@@ -306,6 +358,8 @@ import {
   ListTree, CodeXml, BookOpenCheck, Send, Table, Minus, Copy, Check, FileText, Tags, WandSparkles
 } from '@lucide/vue'
 import MarkdownIt from 'markdown-it'
+import FileUpload from '../components/common/FileUpload.vue'
+import BaseSelect from '../shared/components/BaseSelect.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -360,6 +414,40 @@ const articleForm = reactive({
   tagIds: [] as number[],
   privacyType: 'PUBLIC',
 })
+
+const projectForm = reactive({
+  title: '',
+  projectType: '',
+  techStack: '',
+  coverUrl: '',
+  demoUrl: '',
+  githubUrl: '',
+  videoUrl: '',
+  contentMarkdown: ''
+})
+
+const ideaForm = reactive({
+  title: '',
+  content: '',
+  imageUrl: '',
+  cardType: 'TEXT',
+  sourceUrl: '',
+  color: ''
+})
+
+const projectTypeOptions = [
+  { label: 'Web 应用', value: 'WEB' },
+  { label: '移动端 App', value: 'MOBILE' },
+  { label: 'AI 模型 / Agent', value: 'AI' },
+  { label: '设计作品', value: 'DESIGN' },
+  { label: '其他', value: 'OTHER' }
+]
+
+const categoryOptions = [
+  { label: '前端开发', value: 1 },
+  { label: '后端开发', value: 2 },
+  { label: '人工智能', value: 3 }
+]
 
 const showTableModal = ref(false)
 const tableConfig = reactive({
@@ -1707,5 +1795,118 @@ function readError(error: unknown, fallback: string) {
   padding: 8px 16px;
   border-top: 1px solid rgba(0,0,0,0.06);
   background: #fafafa;
+}/* Additional styles for Project and Idea layouts */
+.scroll-container {
+  overflow-y: auto;
+  height: calc(100vh - 64px);
+  padding: 40px;
+  width: 100%;
 }
+
+.form-layout, .idea-layout {
+  display: flex;
+  justify-content: center;
+  background-color: #fafafa;
+}
+
+.project-form, .idea-form {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.form-page-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 32px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.form-group-large label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 8px;
+}
+.form-group-large .required {
+  color: #ef4444;
+}
+
+.form-select-large,
+.form-input-large,
+.form-textarea-large {
+  width: 100%;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 14px;
+  transition: border-color 0.2s;
+  background-color: #fff;
+}
+
+.form-select-large:focus,
+.form-input-large:focus,
+.form-textarea-large:focus {
+  outline: none;
+  border-color: #6366f1;
+}
+
+.idea-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.idea-tab {
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px solid #e5e7eb;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  color: #4b5563;
+  transition: all 0.2s;
+}
+
+.idea-tab.active, .idea-tab:hover {
+  background: #6366f1;
+  color: #fff;
+  border-color: #6366f1;
+}
+
+.color-picker-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.color-input {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.color-value {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.btn-clear-color {
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  font-size: 14px;
+}
+
 </style>
