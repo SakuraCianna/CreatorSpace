@@ -44,7 +44,7 @@
       <div class="header-right">
         <span class="word-count">共 {{ wordCount }} 字</span>
         <button class="btn-draft" @click="saveArticle">保存草稿</button>
-        <button class="btn-publish" @click="openPublishModal">发布{{ currentPostType === 'article' ? '博客' : (currentPostType === 'project' ? '作品' : '灵感') }}</button>
+        <button class="btn-publish" @click="openPublishModal">发布{{ currentPostType === 'article' ? '文章' : (currentPostType === 'project' ? '作品' : '灵感') }}</button>
         <div class="avatar-wrap">
           <img :src="session.currentUser?.avatarUrl || 'https://api.dicebear.com/7.x/notionists/svg?seed=creator'" alt="avatar" class="avatar" />
         </div>
@@ -80,10 +80,9 @@
                 type="text"
                 class="title-input"
                 v-model="articleForm.title"
-                placeholder="请输入文章标题（5～100个字）"
+                placeholder="请输入文章标题"
                 maxlength="100"
               />
-              <span class="title-counter" style="white-space: nowrap;">还需输入 {{ Math.max(0, 5 - articleForm.title.length) }} 个字</span>
             </div>
             <textarea
               ref="textareaRef"
@@ -206,7 +205,6 @@
               <div class="ai-title">
                 <Sparkles :size="18" color="#315bff" /> AI 创作助手
               </div>
-              <div class="ai-subtitle">草稿协作 · Markdown 输出</div>
             </div>
             <X :size="16" class="close-icon" @click="showAIAssistant = false" style="cursor: pointer;" />
           </div>
@@ -345,6 +343,7 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useSessionStore } from '../shared/sessionStore'
+import type { ArticlePrivacy } from '../shared/domain'
 import {
   createCreatorArticle,
   updateCreatorArticle,
@@ -412,7 +411,7 @@ const articleForm = reactive({
   coverUrl: '',
   categoryId: null as number | null,
   tagIds: [] as number[],
-  privacyType: 'PUBLIC',
+  privacyType: 'PUBLIC' as ArticlePrivacy,
 })
 
 const projectForm = reactive({
@@ -513,10 +512,6 @@ const aiQuickActions = [
   { mode: 'CONTINUE' as const, label: '续写', icon: Sparkles },
   { mode: 'POLISH' as const, label: '润色', icon: WandSparkles },
   { mode: 'SUMMARY' as const, label: '摘要', icon: FileText },
-  { mode: 'TITLE' as const, label: '标题', icon: FileText },
-  { mode: 'TAGS' as const, label: '标签', icon: Tags },
-  { mode: 'CODE' as const, label: '代码', icon: CodeXml },
-  { mode: 'RESEARCH' as const, label: '资料', icon: BookOpenCheck },
 ]
 
 const aiResultTitle = computed(() => {
@@ -541,7 +536,7 @@ async function fetchHotTopics() {
   isLoadingTopics.value = true
   try {
     const topics = await requestJson<string[]>('/api/ai/hot-topics')
-    hotTopics.value = topics
+    hotTopics.value = (topics || []).slice(0, 3)
   } catch (error) {
     console.error('Failed to fetch hot topics', error)
     if (hotTopics.value.length === 0) {
@@ -676,18 +671,25 @@ async function copyAiResult() {
 function insertMarkdown(markdown: string) {
   const value = formatAiInsertion(markdown)
   const textarea = textareaRef.value
+  const content = articleForm.contentMarkdown || ''
   if (!textarea) {
-    articleForm.contentMarkdown = `${articleForm.contentMarkdown.trim()}${value}`.trimStart()
+    articleForm.contentMarkdown = `${content.trim()}${value}`.trimStart()
     return
   }
-  const position = textarea.selectionStart
+  
+  let position = textarea.selectionStart
+  if (position === 0 && content.length > 0) {
+    // If cursor is at the very beginning but there is text, likely lost focus or never focused. Append to end.
+    position = content.length
+  }
   replaceMarkdownRange(position, position, value)
 }
 
 function replaceMarkdownRange(start: number, end: number, value: string) {
-  const safeStart = Math.max(0, Math.min(start, articleForm.contentMarkdown.length))
-  const safeEnd = Math.max(safeStart, Math.min(end, articleForm.contentMarkdown.length))
-  articleForm.contentMarkdown = articleForm.contentMarkdown.slice(0, safeStart) + value + articleForm.contentMarkdown.slice(safeEnd)
+  const content = articleForm.contentMarkdown || ''
+  const safeStart = Math.max(0, Math.min(start, content.length))
+  const safeEnd = Math.max(safeStart, Math.min(end, content.length))
+  articleForm.contentMarkdown = content.slice(0, safeStart) + value + content.slice(safeEnd)
   setTimeout(() => {
     const textarea = textareaRef.value
     if (!textarea) return
@@ -700,7 +702,8 @@ function replaceMarkdownRange(start: number, end: number, value: string) {
 function formatAiInsertion(markdown: string) {
   const text = markdown.trim()
   if (!text) return ''
-  return articleForm.contentMarkdown.trim() ? `\n\n${text}\n` : text
+  const content = articleForm.contentMarkdown || ''
+  return content.trim() ? `\n\n${text}\n` : text
 }
 
 function normalizePlainText(markdown: string) {
@@ -750,7 +753,7 @@ function extractTOC(markdown: string) {
   let idCounter = 0
   for (const line of lines) {
     const match = line.match(/^(#{1,6})\s+(.+)/)
-    if (match) {
+    if (match && match[1] && match[2]) {
       const level = match[1].length
       const text = match[2].trim()
       newToc.push({
