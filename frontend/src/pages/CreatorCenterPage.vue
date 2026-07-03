@@ -1308,7 +1308,7 @@ function readError(error: unknown, fallback: string) {
 /* 右侧 AI 助手 */
 .editor-sidebar-right {
   width: 360px;
-  background: #f8f8f5;
+  background: #ffffff;
   border-left: 1px solid rgba(24, 24, 27, 0.08);
   display: flex;
   flex-direction: column;

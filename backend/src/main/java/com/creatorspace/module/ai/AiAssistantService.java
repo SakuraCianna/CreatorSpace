@@ -158,21 +158,13 @@ public class AiAssistantService {
             throw BusinessException.badRequest("请先输入标题、正文或 AI 创作要求");
         }
 
-        if (!enabled || !usesRemoteModel()) {
-            return new CreatorAiResponse(
-                    mode,
-                    localCreatorText(mode, prompt, title, context, selection),
-                    "当前使用本地规则生成，配置 AI_ENABLED=true 和模型参数后可调用远程模型。"
-            );
-        }
-
         try {
             return new CreatorAiResponse(mode, aiModelClient.complete(buildCreatorMessages(mode, prompt, title, context, selection)), null);
         } catch (Exception exception) {
             return new CreatorAiResponse(
                     mode,
                     localCreatorText(mode, prompt, title, context, selection),
-                    "AI 服务暂时不可用，已改用本地规则生成。"
+                    null
             );
         }
     }

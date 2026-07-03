@@ -80,7 +80,7 @@ app:
     jwt-refresh-token-expire-days: ${JWT_REFRESH_TOKEN_EXPIRE_DAYS:14}
     hcaptcha-secret-key: ${HCAPTCHA_SECRET_KEY:}
   ai:
-    enabled: ${AI_ENABLED:false}
+    enabled: true
     provider: ${AI_PROVIDER:zhipu}
     zhipu-api-base-url: "${ZHIPU_API_BASE_URL:https://open.bigmodel.cn/api/paas/v4}"
     zhipu-api-key: ${ZHIPU_API_KEY:}
