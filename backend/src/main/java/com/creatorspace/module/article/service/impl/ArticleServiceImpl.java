@@ -18,12 +18,12 @@ import com.creatorspace.module.category.vo.CategoryVO;
 import com.creatorspace.module.statistics.VisitLogService;
 import com.creatorspace.module.tag.service.TagService;
 import com.creatorspace.module.tag.vo.TagVO;
+import com.creatorspace.module.user.vo.BlogThemeVO;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.net.URI;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
@@ -87,7 +87,7 @@ public class ArticleServiceImpl implements ArticleService {
         articleMapper.insert(article);
         replaceTags(article.getId(), request.tagIds());
         insertVersionSnapshot(article, operatorId);
-        return toVO(article, true);
+        return toVO(article, true, true);
     }
 
     // 查询当前创作者自己的文章队列。
@@ -121,7 +121,7 @@ public class ArticleServiceImpl implements ArticleService {
     @Override
     public ArticleVO getMineById(Long id, Long userId) {
         ArticleEntity article = requiredOwnedArticle(id, userId);
-        return toVO(article, true);
+        return toVO(article, true, true);
     }
 
     // 当前创作者更新自己的草稿或驳回文章。
@@ -147,7 +147,7 @@ public class ArticleServiceImpl implements ArticleService {
         articleMapper.updateEditableArticle(article);
         replaceTags(article.getId(), request.tagIds());
         insertVersionSnapshot(article, userId);
-        return toVO(article, true);
+        return toVO(article, true, true);
     }
 
     // 当前创作者提交文章进入管理员审核队列。
@@ -173,7 +173,7 @@ public class ArticleServiceImpl implements ArticleService {
         article.setReviewedAt(null);
         article.setReviewNote(null);
         article.setPublishTime(null);
-        return toVO(article, true);
+        return toVO(article, true, true);
     }
 
     // 当前创作者只能删除未公开内容，避免误删已经进入公开传播的内容。
@@ -208,7 +208,7 @@ public class ArticleServiceImpl implements ArticleService {
         articleMapper.updateEditableArticle(article);
         replaceTags(article.getId(), request.tagIds());
         insertVersionSnapshot(article, operatorId);
-        return toVO(article, true);
+        return toVO(article, true, true);
     }
 
     // 发布文章时根据可见性计算最终状态，私密内容不会进入公开列表。
@@ -230,7 +230,7 @@ public class ArticleServiceImpl implements ArticleService {
         article.setReviewedAt(null);
         article.setReviewNote(null);
         article.setPublishTime(null);
-        return toVO(article, true);
+        return toVO(article, true, true);
     }
 
     // 管理员审核通过文章，根据隐私可见性决定是否进入公开列表。
@@ -249,7 +249,7 @@ public class ArticleServiceImpl implements ArticleService {
         article.setReviewedAt(reviewedAt);
         article.setReviewNote(null);
         article.setPublishTime(publishTime);
-        return toVO(article, true);
+        return toVO(article, true, true);
     }
 
     // 管理员驳回文章，保留审核意见供创作者修改后重新提交。
@@ -275,7 +275,7 @@ public class ArticleServiceImpl implements ArticleService {
         article.setReviewedAt(reviewedAt);
         article.setReviewNote(note == null ? "内容暂未通过审核，请修改后重新提交。" : note);
         article.setPublishTime(null);
-        return toVO(article, true);
+        return toVO(article, true, true);
     }
 
     // 删除文章及其标签绑定。
@@ -295,7 +295,7 @@ public class ArticleServiceImpl implements ArticleService {
         article.setTop(enabled);
         article.setUpdatedBy(operatorId);
         articleMapper.updateById(article);
-        return toVO(article, true);
+        return toVO(article, true, true);
     }
 
     // 切换推荐状态。
@@ -306,7 +306,7 @@ public class ArticleServiceImpl implements ArticleService {
         article.setRecommend(enabled);
         article.setUpdatedBy(operatorId);
         articleMapper.updateById(article);
-        return toVO(article, true);
+        return toVO(article, true, true);
     }
 
     // 管理员查询全部文章，支持关键字和状态筛选。
@@ -341,7 +341,7 @@ public class ArticleServiceImpl implements ArticleService {
     // 管理员按主键读取文章，包含正文。
     @Override
     public ArticleVO getAdminById(Long id) {
-        return toVO(requiredArticle(id), true);
+        return toVO(requiredArticle(id), true, true);
     }
 
     // 管理员读取文章历史版本，按版本号倒序返回。
@@ -384,7 +384,7 @@ public class ArticleServiceImpl implements ArticleService {
         article.setUpdatedBy(operatorId);
         articleMapper.updateEditableArticle(article);
         insertVersionSnapshot(article, operatorId);
-        return toVO(article, true);
+        return toVO(article, true, true);
     }
 
     // 查询公开文章列表，支持关键字和标签筛选。
@@ -459,7 +459,7 @@ public class ArticleServiceImpl implements ArticleService {
             incrementViewCount(article.getId());
             article.setViewCount(article.getViewCount() + 1);
         }
-        return toVO(article, true);
+        return toVO(article, true, true);
     }
 
     // 按公开列表排序计算当前文章的上一篇和下一篇，不依赖前端分页窗口。
@@ -716,6 +716,10 @@ public class ArticleServiceImpl implements ArticleService {
 
     // 转换为前端可用的视图对象。
     private ArticleVO toVO(ArticleEntity entity, boolean includeContent) {
+        return toVO(entity, includeContent, false);
+    }
+
+    private ArticleVO toVO(ArticleEntity entity, boolean includeContent, boolean includeTheme) {
         CategoryVO category = entity.getCategoryId() == null ? null : categoryService.findById(entity.getCategoryId());
         List<Long> tagIds = articleTagMapper.selectTagIdsByArticleId(entity.getId());
         List<TagVO> tags = tagIds.isEmpty() ? Collections.emptyList() : tagService.listByIds(tagIds);
@@ -752,9 +756,62 @@ public class ArticleServiceImpl implements ArticleService {
                 authorName,
                 authorAvatar,
                 authorBio,
+                includeTheme ? blogTheme(entity.getCreatedBy()) : null,
                 entity.getSubmittedAt(),
                 entity.getReviewedAt(),
                 entity.getReviewNote());
+    }
+
+    private BlogThemeVO blogTheme(Long userId) {
+        if (userId == null) {
+            return defaultBlogTheme();
+        }
+        var themes = jdbcTemplate.query("""
+                        select display_name,
+                               font_preset,
+                               accent_color,
+                               title_color,
+                               body_color,
+                               canvas_type,
+                               canvas_color,
+                               canvas_image,
+                               paper_color,
+                               layout_style,
+                               block_style
+                        from user_blog_themes
+                        where user_id = ?
+                        """,
+                (rs, rowNum) -> new BlogThemeVO(
+                        rs.getString("display_name"),
+                        rs.getString("font_preset"),
+                        rs.getString("accent_color"),
+                        rs.getString("title_color"),
+                        rs.getString("body_color"),
+                        rs.getString("canvas_type"),
+                        rs.getString("canvas_color"),
+                        rs.getString("canvas_image"),
+                        rs.getString("paper_color"),
+                        rs.getString("layout_style"),
+                        rs.getString("block_style")
+                ),
+                userId);
+        return themes.isEmpty() ? defaultBlogTheme() : themes.getFirst();
+    }
+
+    private BlogThemeVO defaultBlogTheme() {
+        return new BlogThemeVO(
+                "我的主题",
+                "literary-serif",
+                "#2563eb",
+                "#111827",
+                "#374151",
+                "soft-paper",
+                "#f8fafc",
+                null,
+                "#ffffff",
+                "editorial",
+                "quiet"
+        );
     }
 
     // 查询必须属于当前创作者的文章。

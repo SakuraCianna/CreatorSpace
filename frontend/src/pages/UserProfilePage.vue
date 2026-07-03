@@ -1,5 +1,12 @@
 <template>
-  <section ref="root" class="profile-page">
+  <section
+    ref="root"
+    class="profile-page"
+    :style="profileThemeStyle"
+    :data-blog-canvas="activeBlogTheme.canvasType"
+    :data-blog-layout="activeBlogTheme.layoutStyle"
+    :data-blog-block="activeBlogTheme.blockStyle"
+  >
     <div v-if="isLoading" class="empty-state profile-state" data-reveal>
       <LoaderCircle class="spin" :size="24" />
       <h2>正在加载用户信息</h2>
@@ -97,6 +104,7 @@
             <template v-if="isOwnProfile">
               <button :class="{ 'is-active': activeTab === 'favorites' }" @click="activeTab = 'favorites'">收藏 <span>{{ favoriteRecords.length }}</span></button>
               <button :class="{ 'is-active': activeTab === 'likes' }" @click="activeTab = 'likes'">喜欢 <span>{{ likeRecords.length }}</span></button>
+              <button :class="{ 'is-active': activeTab === 'appearance' }" @click="activeTab = 'appearance'">外观</button>
             </template>
           </nav>
 
@@ -135,6 +143,100 @@
                   </div>
                 </RouterLink>
               </div>
+            </div>
+
+            <div v-if="activeTab === 'appearance' && isOwnProfile" class="content-fade-in appearance-studio">
+              <section class="appearance-controls">
+                <div class="appearance-presets">
+                  <button
+                    v-for="preset in BLOG_THEME_PRESETS"
+                    :key="preset.displayName"
+                    type="button"
+                    class="theme-preset"
+                    :style="blogThemeToStyle(preset)"
+                    @click="applyThemePreset(preset)"
+                  >
+                    <span class="theme-preset__swatch" />
+                    <strong>{{ preset.displayName }}</strong>
+                  </button>
+                </div>
+
+                <div class="theme-form-grid">
+                  <label>
+                    主题名称
+                    <input v-model="blogThemeForm.displayName" class="edit-input" maxlength="80" />
+                  </label>
+                  <label>
+                    字体
+                    <BaseSelect v-model="blogThemeForm.fontPreset" :options="BLOG_FONT_OPTIONS" />
+                  </label>
+                  <label>
+                    画布
+                    <BaseSelect v-model="blogThemeForm.canvasType" :options="BLOG_CANVAS_OPTIONS" />
+                  </label>
+                  <label>
+                    版式
+                    <BaseSelect v-model="blogThemeForm.layoutStyle" :options="BLOG_LAYOUT_OPTIONS" />
+                  </label>
+                  <label>
+                    文章块
+                    <BaseSelect v-model="blogThemeForm.blockStyle" :options="BLOG_BLOCK_OPTIONS" />
+                  </label>
+                  <label class="color-field">
+                    强调色
+                    <input v-model="blogThemeForm.accentColor" type="color" />
+                  </label>
+                  <label class="color-field">
+                    标题色
+                    <input v-model="blogThemeForm.titleColor" type="color" />
+                  </label>
+                  <label class="color-field">
+                    正文色
+                    <input v-model="blogThemeForm.bodyColor" type="color" />
+                  </label>
+                  <label class="color-field">
+                    画布色
+                    <input v-model="blogThemeForm.canvasColor" type="color" />
+                  </label>
+                  <label class="color-field">
+                    纸张色
+                    <input v-model="blogThemeForm.paperColor" type="color" />
+                  </label>
+                </div>
+
+                <label v-if="blogThemeForm.canvasType === 'image'" class="canvas-upload">
+                  画布图片
+                  <FileUpload v-model="blogThemeForm.canvasImage" module="OTHER" accept="image/*" hint="最大 10MB" @error="handleThemeUploadError" />
+                </label>
+
+                <div class="edit-actions appearance-actions">
+                  <button class="btn-solid" type="button" :disabled="themeSaving" @click="saveBlogTheme">
+                    {{ themeSaving ? '保存中...' : '保存外观' }}
+                  </button>
+                  <button class="btn-outline" type="button" :disabled="themeSaving" @click="resetBlogThemeForm">还原</button>
+                </div>
+                <p v-if="themeNotice" class="inline-notice">{{ themeNotice }}</p>
+              </section>
+
+              <section
+                class="appearance-preview"
+                :style="previewThemeStyle"
+                :data-blog-canvas="blogThemeForm.canvasType"
+                :data-blog-layout="blogThemeForm.layoutStyle"
+                :data-blog-block="blogThemeForm.blockStyle"
+              >
+                <p class="preview-kicker">{{ blogThemeForm.displayName }}</p>
+                <h2>{{ profile.nickname || profile.username }} 的主题博客</h2>
+                <p>
+                  今天把一段想法整理成文章。第一行写给风, 第二行留给夜里的灯。
+                </p>
+                <blockquote>这里有自己的呼吸, 也有慢慢成形的秩序。</blockquote>
+                <div class="preview-tags">
+                  <span>字体</span>
+                  <span>画布</span>
+                  <span>文章块</span>
+                </div>
+              </section>
             </div>
 
             <!-- 收藏列表（仅自己可见） -->
@@ -247,6 +349,8 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { LoaderCircle, UserRound, Camera } from '@lucide/vue'
 import { uploadFile } from '../services/file'
+import FileUpload from '../components/common/FileUpload.vue'
+import BaseSelect from '../shared/components/BaseSelect.vue'
 import {
   fetchUserProfile,
   fetchUserArticles,
@@ -257,13 +361,25 @@ import {
   fetchMyLikes,
   updateMyProfile,
   updateMyPassword,
+  fetchMyBlogTheme,
+  updateMyBlogTheme,
 } from '../services/content'
 import { toUserMessage } from '../services/http'
+import {
+  BLOG_BLOCK_OPTIONS,
+  BLOG_CANVAS_OPTIONS,
+  BLOG_FONT_OPTIONS,
+  BLOG_LAYOUT_OPTIONS,
+  BLOG_THEME_PRESETS,
+  DEFAULT_BLOG_THEME,
+  blogThemeToStyle,
+  normalizeBlogTheme,
+} from '../shared/blogTheme'
 import { useFollow } from '../shared/composables/useFollow'
 import { usePageReveal } from '../shared/composables/usePageReveal'
 import { formatDateToDay } from '../shared/datetime'
 import { useSessionStore } from '../shared/sessionStore'
-import type { ArticleSummary, FavoriteRecord, FollowUser, InteractionRecord, UserProfile } from '../shared/domain'
+import type { ArticleSummary, BlogThemeConfig, BlogThemePayload, FavoriteRecord, FollowUser, InteractionRecord, UserProfile } from '../shared/domain'
 
 const route = useRoute()
 const root = ref<HTMLElement | null>(null)
@@ -280,7 +396,10 @@ const likesLoading = ref(false)
 const favoriteRecords = ref<FavoriteRecord[]>([])
 const likeRecords = ref<InteractionRecord[]>([])
 const notice = ref('')
-const activeTab = ref('articles')
+type ProfileTab = 'articles' | 'friends' | 'following' | 'followers' | 'favorites' | 'likes' | 'appearance'
+const profileTabs: ProfileTab[] = ['articles', 'friends', 'following', 'followers', 'favorites', 'likes', 'appearance']
+const ownerOnlyTabs: ProfileTab[] = ['favorites', 'likes', 'appearance']
+const activeTab = ref<ProfileTab>('articles')
 
 const { following, isFriend, loadStatus: loadFollowStatus, toggleFollow } = useFollow()
 const userId = computed(() => Number(route.params.userId))
@@ -294,12 +413,29 @@ const isOwnProfile = computed(() => {
   return Boolean(session.currentUser && profile.value && session.currentUser.id === profile.value.id)
 })
 
+function routeTab(): ProfileTab {
+  const tab = route.query.tab
+  return typeof tab === 'string' && profileTabs.includes(tab as ProfileTab) ? (tab as ProfileTab) : 'articles'
+}
+
+function syncTabFromRoute(ownProfile = isOwnProfile.value) {
+  const nextTab = routeTab()
+  activeTab.value = !ownProfile && ownerOnlyTabs.includes(nextTab) ? 'articles' : nextTab
+}
+
 const editing = ref(false)
 const saving = ref(false)
 const avatarUploading = ref(false)
 const avatarInput = ref<HTMLInputElement | null>(null)
 const editForm = ref({ nickname: '', avatarUrl: '', bio: '' })
 const passwordForm = ref({ oldPassword: '', newPassword: '' })
+const themeSaving = ref(false)
+const themeNotice = ref('')
+const blogThemeForm = ref<BlogThemePayload>({ ...DEFAULT_BLOG_THEME })
+
+const activeBlogTheme = computed(() => normalizeBlogTheme(profile.value?.blogTheme))
+const profileThemeStyle = computed(() => blogThemeToStyle(activeBlogTheme.value))
+const previewThemeStyle = computed(() => blogThemeToStyle(blogThemeForm.value))
 
 function startEditing() {
   if (!profile.value) return
@@ -365,6 +501,49 @@ async function saveProfile() {
     notice.value = toUserMessage(e, '保存失败，请稍后重试')
   } finally {
     saving.value = false
+  }
+}
+
+function setBlogThemeForm(theme?: BlogThemeConfig | null) {
+  const normalized = normalizeBlogTheme(theme)
+  blogThemeForm.value = { ...normalized }
+}
+
+function resetBlogThemeForm() {
+  setBlogThemeForm(profile.value?.blogTheme)
+  themeNotice.value = ''
+}
+
+function applyThemePreset(preset: BlogThemeConfig) {
+  setBlogThemeForm({
+    ...preset,
+    displayName: preset.displayName,
+  })
+}
+
+function handleThemeUploadError(message: string) {
+  themeNotice.value = message
+}
+
+async function saveBlogTheme() {
+  if (!profile.value) return
+  themeSaving.value = true
+  themeNotice.value = ''
+  try {
+    const updated = await updateMyBlogTheme({
+      ...blogThemeForm.value,
+      canvasImage: blogThemeForm.value.canvasType === 'image' ? blogThemeForm.value.canvasImage : null,
+    })
+    profile.value = {
+      ...profile.value,
+      blogTheme: updated,
+    }
+    setBlogThemeForm(updated)
+    themeNotice.value = '外观已保存'
+  } catch (error) {
+    themeNotice.value = toUserMessage(error, '外观保存失败')
+  } finally {
+    themeSaving.value = false
   }
 }
 
@@ -441,7 +620,21 @@ async function loadProfile() {
       fetchUserProfile(userId.value),
       loadFollowStatus(userId.value),
     ])
-    profile.value = data
+    const ownProfile = session.currentUser?.id === data.id
+    let blogTheme = data.blogTheme
+    if (ownProfile) {
+      try {
+        blogTheme = await fetchMyBlogTheme()
+      } catch {
+        blogTheme = data.blogTheme
+      }
+    }
+    profile.value = {
+      ...data,
+      blogTheme,
+    }
+    syncTabFromRoute(ownProfile)
+    setBlogThemeForm(blogTheme)
     await Promise.all([loadArticles(), loadFavorites(), loadLikes()])
   } catch (error) {
     profile.value = null
@@ -525,6 +718,8 @@ watch(activeTab, (tab) => {
     loadFavorites()
   } else if (tab === 'likes') {
     loadLikes()
+  } else if (tab === 'appearance') {
+    resetBlogThemeForm()
   } else {
     loadRelations()
   }
@@ -533,6 +728,12 @@ watch(activeTab, (tab) => {
 watch(userId, () => {
   activeTab.value = 'articles'
   loadProfile()
+})
+
+watch(() => route.query.tab, () => {
+  if (profile.value) {
+    syncTabFromRoute()
+  }
 })
 
 function formatDate(value?: string | null): string {
@@ -546,9 +747,34 @@ onMounted(loadProfile)
 /* --- Core Layout --- */
 .profile-page {
   min-height: 100dvh;
-  background: var(--tone-background, #fafafa);
-  color: var(--tone-ink, #09090b);
+  background:
+    radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--blog-accent, #2563eb) 12%, transparent), transparent 28%),
+    var(--blog-canvas, #fafafa);
+  color: var(--blog-body, #09090b);
+  font-family: var(--blog-font, inherit);
   padding: 40px 24px 120px;
+}
+
+.profile-page[data-blog-canvas='linen'] {
+  background:
+    repeating-linear-gradient(90deg, rgba(17, 24, 39, 0.035) 0 1px, transparent 1px 18px),
+    repeating-linear-gradient(0deg, rgba(17, 24, 39, 0.03) 0 1px, transparent 1px 18px),
+    var(--blog-canvas, #fafafa);
+}
+
+.profile-page[data-blog-canvas='gradient'] {
+  background:
+    radial-gradient(circle at 84% 10%, color-mix(in srgb, var(--blog-accent, #2563eb) 26%, transparent), transparent 30%),
+    linear-gradient(135deg, var(--blog-canvas, #fafafa), color-mix(in srgb, var(--blog-accent, #2563eb) 14%, #ffffff));
+}
+
+.profile-page[data-blog-canvas='image'] {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--blog-canvas, #fafafa) 86%, transparent), var(--blog-canvas, #fafafa)),
+    var(--blog-canvas-image),
+    var(--blog-canvas, #fafafa);
+  background-size: cover;
+  background-attachment: fixed;
 }
 
 .profile-layout {
@@ -564,6 +790,18 @@ onMounted(loadProfile)
   .profile-layout {
     grid-template-columns: 320px 1fr;
     gap: 80px;
+  }
+
+  .profile-page[data-blog-layout='notebook'] .profile-layout {
+    max-width: 1120px;
+    grid-template-columns: 280px minmax(0, 760px);
+    gap: 56px;
+  }
+
+  .profile-page[data-blog-layout='gallery'] .profile-layout {
+    max-width: 1500px;
+    grid-template-columns: 260px 1fr;
+    gap: 52px;
   }
 }
 
@@ -611,7 +849,7 @@ onMounted(loadProfile)
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.1;
-  color: #09090b;
+  color: var(--blog-title, #09090b);
   margin: 0;
 }
 
@@ -625,7 +863,7 @@ onMounted(loadProfile)
 .profile-bio {
   font-size: 15px;
   line-height: 1.6;
-  color: #52525b;
+  color: var(--blog-body, #52525b);
   margin: 0;
   max-width: 90%;
 }
@@ -646,7 +884,7 @@ onMounted(loadProfile)
 .stat-item strong {
   font-size: 20px;
   font-weight: 700;
-  color: #09090b;
+  color: var(--blog-title, #09090b);
   letter-spacing: -0.02em;
 }
 
@@ -769,9 +1007,9 @@ onMounted(loadProfile)
 
 /* --- Buttons --- */
 .btn-solid {
-  background: #09090b;
+  background: var(--blog-title, #09090b);
   color: #fff;
-  border: 1px solid #09090b;
+  border: 1px solid var(--blog-title, #09090b);
   padding: 12px 24px;
   border-radius: 8px;
   font-size: 14px;
@@ -792,7 +1030,7 @@ onMounted(loadProfile)
 
 .btn-outline {
   background: transparent;
-  color: #09090b;
+  color: var(--blog-title, #09090b);
   border: 1px solid #d4d4d8;
   padding: 12px 24px;
   border-radius: 8px;
@@ -852,11 +1090,11 @@ onMounted(loadProfile)
 }
 
 .profile-nav button:hover {
-  color: #09090b;
+  color: var(--blog-title, #09090b);
 }
 
 .profile-nav button.is-active {
-  color: #09090b;
+  color: var(--blog-title, #09090b);
 }
 
 .profile-nav button.is-active::after {
@@ -866,7 +1104,7 @@ onMounted(loadProfile)
   left: 0;
   width: 100%;
   height: 2px;
-  background: #09090b;
+  background: var(--blog-accent, #09090b);
   border-radius: 2px;
 }
 
@@ -905,17 +1143,38 @@ onMounted(loadProfile)
   gap: 24px;
 }
 
+.profile-page[data-blog-layout='notebook'] .journal-grid {
+  grid-template-columns: 1fr;
+  gap: 18px;
+}
+
+.profile-page[data-blog-layout='gallery'] .journal-grid {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 18px;
+}
+
 /* Redesigned Journal Card */
 .journal-card {
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: var(--blog-paper, #fff);
   border: 1px solid #e4e4e7;
   border-radius: 12px;
   overflow: hidden;
   text-decoration: none;
   color: inherit;
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.profile-page[data-blog-layout='notebook'] .journal-card {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.34fr) 1fr;
+  min-height: 188px;
+  border-radius: 6px;
+}
+
+.profile-page[data-blog-layout='gallery'] .journal-card {
+  border-radius: 6px;
 }
 
 .journal-card:hover {
@@ -937,6 +1196,15 @@ onMounted(loadProfile)
   overflow: hidden;
 }
 
+.profile-page[data-blog-layout='notebook'] .journal-card__visual {
+  height: 100%;
+  min-height: 188px;
+}
+
+.profile-page[data-blog-layout='gallery'] .journal-card__visual {
+  height: 220px;
+}
+
 .journal-card__visual img {
   width: 100%;
   height: 100%;
@@ -953,6 +1221,22 @@ onMounted(loadProfile)
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.profile-page[data-blog-layout='gallery'] .journal-card__content {
+  padding: 16px;
+}
+
+@media (max-width: 699px) {
+  .profile-page[data-blog-layout='notebook'] .journal-card {
+    display: flex;
+    min-height: 0;
+  }
+
+  .profile-page[data-blog-layout='notebook'] .journal-card__visual {
+    height: 160px;
+    min-height: 0;
+  }
 }
 
 .article-meta-row {
@@ -980,12 +1264,12 @@ onMounted(loadProfile)
   font-weight: 700;
   line-height: 1.3;
   margin: 0;
-  color: #09090b;
+  color: var(--blog-title, #09090b);
 }
 
 .article-summary {
   font-size: 14px;
-  color: #52525b;
+  color: var(--blog-body, #52525b);
   line-height: 1.5;
   margin: 0;
   display: -webkit-box;
@@ -1074,5 +1358,225 @@ onMounted(loadProfile)
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.appearance-studio {
+  display: grid;
+  gap: 24px;
+}
+
+@media (min-width: 1120px) {
+  .appearance-studio {
+    grid-template-columns: minmax(0, 0.95fr) minmax(360px, 0.72fr);
+    align-items: start;
+  }
+}
+
+.appearance-controls,
+.appearance-preview {
+  border: 1px solid color-mix(in srgb, var(--blog-accent, #2563eb) 18%, #e4e4e7);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--blog-paper, #ffffff) 92%, transparent);
+  box-shadow: 0 18px 48px rgba(17, 24, 39, 0.06);
+}
+
+.appearance-controls {
+  display: grid;
+  gap: 18px;
+  padding: 18px;
+}
+
+.appearance-presets {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.theme-preset {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  min-height: 86px;
+  padding: 12px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  border-radius: 10px;
+  background: var(--blog-paper, #ffffff);
+  color: var(--blog-title, #111827);
+  font-family: var(--blog-font, inherit);
+  text-align: left;
+  cursor: pointer;
+}
+
+.theme-preset__swatch {
+  width: 100%;
+  height: 24px;
+  border-radius: 7px;
+  background:
+    linear-gradient(90deg, var(--blog-accent, #2563eb) 0 35%, var(--blog-canvas, #f8fafc) 35% 70%, var(--blog-title, #111827) 70%);
+}
+
+.theme-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.theme-form-grid label,
+.canvas-upload {
+  display: grid;
+  gap: 8px;
+  color: var(--blog-title, #111827);
+  font-size: 13px;
+  font-weight: 720;
+}
+
+.theme-form-grid label:first-child {
+  grid-column: 1 / -1;
+}
+
+.color-field input[type='color'] {
+  width: 100%;
+  min-height: 42px;
+  padding: 4px;
+  border: 1px solid #d4d4d8;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.appearance-actions {
+  margin-top: 0;
+}
+
+.appearance-preview {
+  position: sticky;
+  top: 36px;
+  display: grid;
+  gap: 16px;
+  padding: clamp(22px, 4vw, 34px);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--blog-paper, #ffffff) 96%, transparent), var(--blog-paper, #ffffff)),
+    var(--blog-canvas-image);
+  color: var(--blog-body, #374151);
+  font-family: var(--blog-font, inherit);
+}
+
+.appearance-preview[data-blog-canvas='linen'] {
+  background:
+    repeating-linear-gradient(90deg, rgba(17, 24, 39, 0.035) 0 1px, transparent 1px 16px),
+    repeating-linear-gradient(0deg, rgba(17, 24, 39, 0.03) 0 1px, transparent 1px 16px),
+    var(--blog-paper, #ffffff);
+}
+
+.appearance-preview[data-blog-canvas='gradient'] {
+  background:
+    radial-gradient(circle at 82% 8%, color-mix(in srgb, var(--blog-accent, #2563eb) 22%, transparent), transparent 34%),
+    linear-gradient(135deg, var(--blog-paper, #ffffff), color-mix(in srgb, var(--blog-accent, #2563eb) 14%, var(--blog-canvas, #f8fafc)));
+}
+
+.appearance-preview[data-blog-canvas='image'] {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--blog-paper, #ffffff) 82%, transparent), var(--blog-paper, #ffffff)),
+    var(--blog-canvas-image),
+    var(--blog-canvas, #f8fafc);
+  background-size: cover;
+  background-position: center;
+}
+
+.appearance-preview h2 {
+  margin: 0;
+  color: var(--blog-title, #111827);
+  font-size: clamp(28px, 4vw, 42px);
+  line-height: 1.12;
+}
+
+.appearance-preview p {
+  margin: 0;
+  color: var(--blog-body, #374151);
+  font-size: 16px;
+  line-height: 1.78;
+}
+
+.appearance-preview[data-blog-layout='notebook'] {
+  border-radius: 6px;
+  gap: 14px;
+  max-width: 520px;
+  justify-self: center;
+}
+
+.appearance-preview[data-blog-layout='gallery'] {
+  grid-template-columns: 1fr 1fr;
+  align-items: end;
+  min-height: 420px;
+}
+
+.appearance-preview[data-blog-layout='gallery'] h2 {
+  grid-column: 1 / -1;
+}
+
+.appearance-preview[data-blog-layout='gallery'] blockquote {
+  align-self: stretch;
+}
+
+.preview-kicker {
+  color: var(--blog-accent, #2563eb) !important;
+  font-size: 12px !important;
+  font-weight: 820;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.appearance-preview blockquote {
+  margin: 0;
+  padding: 14px 16px;
+  border-left: 4px solid var(--blog-accent, #2563eb);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--blog-accent, #2563eb) 8%, transparent);
+  color: var(--blog-title, #111827);
+}
+
+.appearance-preview[data-blog-block='ink'] blockquote {
+  border: 1px solid color-mix(in srgb, var(--blog-title, #111827) 34%, transparent);
+  border-left-width: 6px;
+  background: transparent;
+}
+
+.appearance-preview[data-blog-block='carded'] blockquote {
+  border: 1px solid color-mix(in srgb, var(--blog-accent, #2563eb) 22%, transparent);
+  border-left-width: 1px;
+  box-shadow: 0 14px 34px rgba(17, 24, 39, 0.08);
+}
+
+.preview-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.preview-tags span {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--blog-accent, #2563eb) 10%, transparent);
+  color: var(--blog-accent, #2563eb);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.inline-notice {
+  margin: 0;
+  color: var(--blog-accent, #2563eb);
+  font-size: 13px;
+  font-weight: 720;
+}
+
+@media (max-width: 760px) {
+  .appearance-presets,
+  .theme-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .appearance-preview[data-blog-layout='gallery'] {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
 }
 </style>

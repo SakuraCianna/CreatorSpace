@@ -8,6 +8,7 @@ import com.creatorspace.module.category.service.CategoryService;
 import com.creatorspace.module.category.vo.CategoryVO;
 import com.creatorspace.module.tag.service.TagService;
 import com.creatorspace.module.tag.vo.TagVO;
+import com.creatorspace.module.user.vo.BlogThemeVO;
 import com.creatorspace.module.user.vo.UserPublicVO;
 import com.creatorspace.security.LoginUser;
 import jakarta.validation.constraints.Max;
@@ -22,6 +23,7 @@ import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 @Validated
@@ -229,6 +231,7 @@ public class PublicUserController {
                 rs.getString("nickname"),
                 rs.getString("avatar_url"),
                 rs.getString("bio"),
+                blogTheme(id),
                 rs.getLong("article_count"),
                 rs.getLong("follower_count"),
                 rs.getLong("following_count"),
@@ -291,9 +294,62 @@ public class PublicUserController {
                 authorName,
                 authorAvatar,
                 authorBio,
+                null,
                 rs.getObject("submitted_at", OffsetDateTime.class),
                 rs.getObject("reviewed_at", OffsetDateTime.class),
                 rs.getString("review_note")
+        );
+    }
+
+    private BlogThemeVO blogTheme(Long userId) {
+        if (userId == null) {
+            return defaultBlogTheme();
+        }
+        var themes = jdbcTemplate.query("""
+                        select display_name,
+                               font_preset,
+                               accent_color,
+                               title_color,
+                               body_color,
+                               canvas_type,
+                               canvas_color,
+                               canvas_image,
+                               paper_color,
+                               layout_style,
+                               block_style
+                        from user_blog_themes
+                        where user_id = ?
+                        """,
+                (rs, rowNum) -> new BlogThemeVO(
+                        rs.getString("display_name"),
+                        rs.getString("font_preset"),
+                        rs.getString("accent_color"),
+                        rs.getString("title_color"),
+                        rs.getString("body_color"),
+                        rs.getString("canvas_type"),
+                        rs.getString("canvas_color"),
+                        rs.getString("canvas_image"),
+                        rs.getString("paper_color"),
+                        rs.getString("layout_style"),
+                        rs.getString("block_style")
+                ),
+                userId);
+        return themes.isEmpty() ? defaultBlogTheme() : themes.getFirst();
+    }
+
+    private BlogThemeVO defaultBlogTheme() {
+        return new BlogThemeVO(
+                "我的主题",
+                "literary-serif",
+                "#2563eb",
+                "#111827",
+                "#374151",
+                "soft-paper",
+                "#f8fafc",
+                null,
+                "#ffffff",
+                "editorial",
+                "quiet"
         );
     }
 

@@ -6,6 +6,8 @@ import type {
   ArticleVersionSummary,
   ArticlePayload,
   AuthToken,
+  BlogThemeConfig,
+  BlogThemePayload,
   CategorySummary,
   CategoryPayload,
   CommentSummary,
@@ -1361,6 +1363,21 @@ export async function batchReviewGuestbook(ids: number[], action: 'approve' | 'r
 // 获取用户公开主页信息
 export async function fetchUserProfile(userId: number): Promise<UserProfile> {
   const response = await requestJson<ApiEnvelope<UserProfile>>(`/api/users/${userId}`)
+  return response.data
+}
+
+// 获取当前登录用户的博客外观配置
+export async function fetchMyBlogTheme(): Promise<BlogThemeConfig> {
+  const response = await requestJson<ApiEnvelope<BlogThemeConfig>>('/api/me/blog-theme')
+  return response.data
+}
+
+// 更新当前登录用户的博客外观配置
+export async function updateMyBlogTheme(payload: BlogThemePayload): Promise<BlogThemeConfig> {
+  const response = await requestJson<ApiEnvelope<BlogThemeConfig>>('/api/me/blog-theme', {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
   return response.data
 }
 
