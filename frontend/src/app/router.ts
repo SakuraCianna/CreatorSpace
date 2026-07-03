@@ -138,9 +138,9 @@ const router = createRouter({
       meta: { layout: "admin", requiresAdmin: true },
     },
     {
-      path: "/admin/content-rules",
-      name: "admin-content-rules",
-      component: () => import("../pages/ContentRulesPage.vue"),
+      path: "/admin/pages",
+      name: "admin-pages",
+      component: () => import("../pages/AdminPagesPage.vue"),
       meta: { layout: "admin", requiresAdmin: true },
     },
     {

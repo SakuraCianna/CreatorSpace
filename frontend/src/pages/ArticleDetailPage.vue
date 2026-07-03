@@ -1,5 +1,12 @@
 <template>
-  <section ref="root" class="detail-page">
+  <section
+    ref="root"
+    class="detail-page"
+    :style="articleThemeStyle"
+    :data-blog-canvas="articleBlogTheme.canvasType"
+    :data-blog-layout="articleBlogTheme.layoutStyle"
+    :data-blog-block="articleBlogTheme.blockStyle"
+  >
     <RouterLink class="detail-back text-link" :to="{ name: 'articles' }" data-reveal>
       <ArrowLeft :size="16" />
       返回文章档案
@@ -186,6 +193,7 @@ import { formatDateToDay } from '../shared/datetime'
 import type { ArticleSummary, CommentSummary, CommentTree } from '../shared/domain'
 import { buildCommentTree } from '../shared/domain'
 import CommentThread from '../shared/components/CommentThread.vue'
+import { blogThemeToStyle, normalizeBlogTheme } from '../shared/blogTheme'
 import { normalizeMarkdownSource, renderSafeMarkdown } from '../shared/markdown'
 import { useSessionStore } from '../shared/sessionStore'
 // 初始化文章数据与交互控制状态
@@ -217,6 +225,8 @@ const canFollowAuthor = computed(() => {
 const articleMarkdown = computed(() => normalizeMarkdownSource(article.value?.contentMarkdown ?? article.value?.summary))
 const htmlContent = computed(() => renderSafeMarkdown(articleMarkdown.value))
 const readingMinutes = computed(() => Math.max(1, Math.ceil(articleMarkdown.value.length / 420)))
+const articleBlogTheme = computed(() => normalizeBlogTheme(article.value?.authorTheme))
+const articleThemeStyle = computed(() => blogThemeToStyle(articleBlogTheme.value))
 const articleCoverStyle = computed(() => ({
   '--detail-accent': article.value?.tags[0]?.color ?? '#6ea8ff',
   '--detail-cover': toCssImageUrl(article.value?.coverUrl),
@@ -372,6 +382,30 @@ watch(slug, loadArticle)
   display: grid;
   gap: var(--theme-density-spacing, 16px);
   padding: 46px 0 84px;
+  background:
+    radial-gradient(circle at 14% 0%, color-mix(in srgb, var(--blog-accent, #2563eb) 12%, transparent), transparent 28%),
+    var(--blog-canvas, transparent);
+  color: var(--blog-body, var(--tone-ink));
+  font-family: var(--blog-font, inherit);
+}
+.detail-page[data-blog-canvas='linen'] {
+  background:
+    repeating-linear-gradient(90deg, rgba(17, 24, 39, 0.035) 0 1px, transparent 1px 18px),
+    repeating-linear-gradient(0deg, rgba(17, 24, 39, 0.03) 0 1px, transparent 1px 18px),
+    var(--blog-canvas, transparent);
+}
+.detail-page[data-blog-canvas='gradient'] {
+  background:
+    radial-gradient(circle at 82% 8%, color-mix(in srgb, var(--blog-accent, #2563eb) 24%, transparent), transparent 30%),
+    linear-gradient(135deg, var(--blog-canvas, transparent), color-mix(in srgb, var(--blog-accent, #2563eb) 12%, #ffffff));
+}
+.detail-page[data-blog-canvas='image'] {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--blog-canvas, #ffffff) 82%, transparent), var(--blog-canvas, #ffffff)),
+    var(--blog-canvas-image),
+    var(--blog-canvas, transparent);
+  background-size: cover;
+  background-attachment: fixed;
 }
 .detail-back {
   justify-self: start;
@@ -382,16 +416,38 @@ watch(slug, loadArticle)
   gap: var(--theme-density-spacing, 16px);
   align-items: start;
 }
+
+.detail-page[data-blog-layout='notebook'] .reading-layout {
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.detail-page[data-blog-layout='gallery'] .reading-layout {
+  max-width: 1180px;
+  width: 100%;
+  margin: 0 auto;
+}
+
 .detail-panel {
   position: relative;
   overflow: hidden;
   border: 1px solid var(--tone-line);
   border-radius: var(--app-radius-sm);
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--tone-panel-solid) 92%, transparent), color-mix(in srgb, var(--tone-panel-solid) 78%, transparent)),
-    color-mix(in srgb, var(--tone-panel-solid) 88%, transparent);
+    linear-gradient(180deg, color-mix(in srgb, var(--blog-paper, var(--tone-panel-solid)) 96%, transparent), color-mix(in srgb, var(--blog-paper, var(--tone-panel-solid)) 84%, transparent)),
+    color-mix(in srgb, var(--blog-paper, var(--tone-panel-solid)) 88%, transparent);
   box-shadow: var(--tone-shadow);
   backdrop-filter: blur(22px);
+}
+
+.detail-page[data-blog-layout='notebook'] .detail-panel {
+  border-radius: 6px;
+  box-shadow: 0 18px 46px rgba(17, 24, 39, 0.07);
+}
+
+.detail-page[data-blog-layout='gallery'] .detail-panel {
+  border-radius: 6px;
 }
 .detail-panel::before {
   content: "";
@@ -399,7 +455,7 @@ watch(slug, loadArticle)
   inset: 0;
   pointer-events: none;
   background:
-    linear-gradient(120deg, color-mix(in srgb, var(--detail-accent, var(--tone-primary)) 28%, transparent), transparent 34%),
+    linear-gradient(120deg, color-mix(in srgb, var(--blog-accent, var(--detail-accent, var(--tone-primary))) 24%, transparent), transparent 34%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent 22%);
   opacity: 0.72;
 }
@@ -415,11 +471,24 @@ watch(slug, loadArticle)
   background:
     linear-gradient(135deg, rgba(6, 8, 18, 0.96), rgba(6, 8, 18, 0.84) 48%, rgba(6, 8, 18, 0.7)),
     var(--detail-cover),
-    linear-gradient(135deg, var(--detail-accent), #10131f);
+    linear-gradient(135deg, var(--blog-accent, var(--detail-accent)), #10131f);
   background-size: cover;
   background-position: center;
   color: #f8fafc;
   overflow: hidden;
+}
+
+.detail-page[data-blog-layout='notebook'] .detail-hero {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--blog-paper, #ffffff) 94%, transparent), color-mix(in srgb, var(--blog-accent, var(--detail-accent)) 8%, var(--blog-paper, #ffffff))),
+    var(--detail-cover);
+  color: var(--blog-title, #111827);
+  border-bottom: 1px solid color-mix(in srgb, var(--blog-accent, #2563eb) 18%, transparent);
+}
+
+.detail-page[data-blog-layout='gallery'] .detail-hero {
+  min-height: min(58vh, 560px);
+  align-content: end;
 }
 .detail-hero::before {
   content: "";
@@ -455,6 +524,30 @@ watch(slug, loadArticle)
   line-height: 1.12;
   letter-spacing: 0;
   text-shadow: 0 16px 34px rgba(0, 0, 0, 0.42);
+}
+
+.detail-page[data-blog-layout='notebook'] .detail-hero h1,
+.detail-page[data-blog-layout='notebook'] .detail-summary,
+.detail-page[data-blog-layout='notebook'] .detail-hero .page-kicker,
+.detail-page[data-blog-layout='notebook'] .detail-hero .detail-meta,
+.detail-page[data-blog-layout='notebook'] .detail-hero .tag-row {
+  text-shadow: none;
+}
+
+.detail-page[data-blog-layout='notebook'] .detail-summary {
+  color: var(--blog-body, #374151);
+}
+
+.detail-page[data-blog-layout='notebook'] .detail-hero .detail-meta span {
+  border-color: color-mix(in srgb, var(--blog-accent, #2563eb) 18%, transparent);
+  background: color-mix(in srgb, var(--blog-accent, #2563eb) 8%, transparent);
+  color: var(--blog-body, #374151);
+}
+
+.detail-page[data-blog-layout='notebook'] .detail-hero .tag-row span {
+  border-color: color-mix(in srgb, var(--blog-accent, #2563eb) 18%, transparent);
+  background: color-mix(in srgb, var(--blog-accent, #2563eb) 10%, transparent);
+  color: var(--blog-accent, #2563eb);
 }
 .detail-summary {
   max-width: 760px;
@@ -501,14 +594,24 @@ watch(slug, loadArticle)
 .markdown-body {
   display: block;
   padding: clamp(32px, 4vw, 54px);
-  color: var(--tone-ink);
-  background: color-mix(in srgb, var(--tone-panel-solid) 72%, transparent);
+  color: var(--blog-body, var(--tone-ink));
+  background: color-mix(in srgb, var(--blog-paper, var(--tone-panel-solid)) 86%, transparent);
+}
+
+.detail-page[data-blog-layout='notebook'] .markdown-body {
+  padding-inline: clamp(24px, 7vw, 72px);
+}
+
+.detail-page[data-blog-layout='gallery'] .markdown-body {
+  max-width: 820px;
+  margin-left: auto;
+  padding-inline: clamp(28px, 5vw, 64px);
 }
 .markdown-body :deep(h1),
 .markdown-body :deep(h2),
 .markdown-body :deep(h3) {
   margin: 32px 0 12px;
-  color: var(--tone-ink);
+  color: var(--blog-title, var(--tone-ink));
   line-height: 1.24;
 }
 .markdown-body :deep(h1:first-child),
@@ -523,19 +626,28 @@ watch(slug, loadArticle)
 .markdown-body :deep(li),
 .markdown-body :deep(blockquote) {
   margin: 0 0 16px;
-  color: var(--tone-muted);
+  color: var(--blog-body, var(--tone-muted));
   font-size: 17px;
   line-height: 1.86;
 }
 .markdown-body :deep(blockquote) {
   padding: 16px 18px;
-  border: 1px solid color-mix(in srgb, var(--tone-teal) 20%, transparent);
-  border-left: 4px solid var(--tone-teal);
+  border: 1px solid color-mix(in srgb, var(--blog-accent, var(--tone-teal)) 20%, transparent);
+  border-left: 4px solid var(--blog-accent, var(--tone-teal));
   border-radius: 8px;
-  background: rgba(0, 124, 114, 0.07);
+  background: color-mix(in srgb, var(--blog-accent, var(--tone-teal)) 8%, transparent);
+}
+.detail-page[data-blog-block='ink'] .markdown-body :deep(blockquote) {
+  border: 1px solid color-mix(in srgb, var(--blog-title, #111827) 34%, transparent);
+  border-left-width: 6px;
+  background: transparent;
+}
+.detail-page[data-blog-block='carded'] .markdown-body :deep(blockquote) {
+  border-left-width: 1px;
+  box-shadow: 0 14px 34px rgba(17, 24, 39, 0.08);
 }
 .markdown-body :deep(a) {
-  color: var(--tone-primary);
+  color: var(--blog-accent, var(--tone-primary));
   font-weight: 720;
 }
 .markdown-body :deep(code:not(pre code)) {

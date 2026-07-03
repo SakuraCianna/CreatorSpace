@@ -80,6 +80,11 @@ onBeforeUnmount(() => {
   display: inline-block;
   min-width: 120px;
   width: 100%;
+  z-index: 0;
+}
+
+.base-select.is-open {
+  z-index: var(--app-z-dropdown, 4000);
 }
 
 .select-trigger {
@@ -122,7 +127,7 @@ onBeforeUnmount(() => {
   width: 100%;
   max-height: 240px;
   overflow-y: auto;
-  z-index: 100;
+  z-index: 1;
   background: var(--tone-panel-solid);
   border: 1px solid var(--tone-line-strong);
   border-radius: var(--app-radius-sm, 8px);

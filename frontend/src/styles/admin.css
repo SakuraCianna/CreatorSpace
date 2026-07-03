@@ -1,19 +1,53 @@
 .admin-shell .workspace-panel,
 .admin-shell .metric-card,
-.admin-shell .cms-header,
 .admin-shell .cms-panel {
-  border: 1px solid var(--admin-line);
-  border-radius: var(--app-radius-sm);
+  border: 1px solid rgba(17, 24, 39, 0.04);
+  border-radius: 16px;
   background:
     linear-gradient(180deg, var(--admin-panel), var(--admin-panel-soft));
   color: var(--admin-ink);
-  box-shadow: var(--admin-shadow);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
   backdrop-filter: blur(18px);
+}
+
+.admin-shell .cms-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 0;
+  color: var(--admin-ink);
+}
+
+.admin-shell .cms-header h2 {
+  margin: 0;
+  color: var(--admin-primary-strong);
+  font-size: 24px;
+  font-weight: 780;
+}
+
+.admin-shell .cms-header p {
+  margin: 6px 0 0;
+  color: var(--admin-muted);
+  font-size: 14px;
 }
 
 .admin-shell .workspace-panel,
 .admin-shell .cms-panel {
   padding: 16px;
+}
+
+.admin-shell .workspace-panel:has(.base-select.is-open),
+.admin-shell .cms-panel:has(.base-select.is-open),
+.admin-shell .form-panel:has(.base-select.is-open) {
+  position: relative;
+  z-index: var(--app-z-dropdown-surface, 3000);
+}
+
+.admin-shell .button,
+.admin-shell .icon-text-button,
+.admin-shell .text-button {
+  white-space: nowrap;
 }
 
 .admin-shell .panel-title {
@@ -210,20 +244,44 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px;
-  border-radius: 8px;
-  background: var(--admin-panel-soft);
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid rgba(17, 24, 39, 0.06);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
   color: var(--admin-ink);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.admin-shell .table-row:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  transform: translateY(-1px);
 }
 
 .admin-shell .table-row + .table-row {
-  margin-top: 10px;
+  margin-top: 12px;
 }
 
-.admin-shell .table-row div {
+.admin-shell .table-row > div:not(.row-actions) {
   display: grid;
   gap: 4px;
   min-width: 0;
+}
+
+.admin-shell .table-row > .row-actions,
+.admin-shell .resource-row > .row-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: 8px;
+  min-width: max-content;
+}
+
+.admin-shell .table-row strong,
+.admin-shell .table-row span {
+  overflow-wrap: anywhere;
 }
 
 .admin-shell .status-chip {

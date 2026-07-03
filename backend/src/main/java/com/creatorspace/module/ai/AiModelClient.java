@@ -14,6 +14,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.List;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 @Component
 public class AiModelClient {
@@ -97,6 +99,77 @@ public class AiModelClient {
         }
     }
 
+    public String completeStreaming(List<ChatMessage> messages, Consumer<String> onDelta) {
+        if (!supportsRemoteCall()) {
+            throw BusinessException.badRequest("当前 AI_PROVIDER=local，不调用远程模型");
+        }
+        if (apiKey.isBlank()) {
+            throw BusinessException.badRequest("AI 已启用，但未配置 ZHIPU_API_KEY。");
+        }
+        try {
+            ObjectNode payload = objectMapper.createObjectNode();
+            payload.put("model", modelName);
+            payload.put("stream", true);
+            payload.put("temperature", 0.35);
+            payload.put("max_tokens", maxOutputTokens);
+            ArrayNode messageNodes = payload.putArray("messages");
+            for (ChatMessage message : messages) {
+                ObjectNode messageNode = messageNodes.addObject();
+                messageNode.put("role", message.role().toLowerCase());
+                messageNode.put("content", message.content());
+            }
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(apiBaseUrl + "/chat/completions"))
+                    .timeout(Duration.ofSeconds(requestTimeoutSeconds))
+                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
+                    .build();
+
+            HttpResponse<Stream<String>> response = httpClient.send(request, HttpResponse.BodyHandlers.ofLines());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw BusinessException.badRequest("AI 模型调用失败：HTTP " + response.statusCode());
+            }
+
+            StringBuilder content = new StringBuilder();
+            try (Stream<String> lines = response.body()) {
+                lines.forEach(line -> readStreamDelta(line, content, onDelta));
+            }
+            if (content.isEmpty()) {
+                throw BusinessException.badRequest("AI 模型返回为空");
+            }
+            return content.toString().trim();
+        } catch (BusinessException exception) {
+            throw exception;
+        } catch (Exception exception) {
+            throw BusinessException.badRequest("AI 模型调用失败：" + exception.getMessage());
+        }
+    }
+
+    private void readStreamDelta(String line, StringBuilder content, Consumer<String> onDelta) {
+        String trimmed = line == null ? "" : line.trim();
+        if (!trimmed.startsWith("data:")) {
+            return;
+        }
+        String data = trimmed.substring(5).trim();
+        if (data.isBlank() || "[DONE]".equals(data)) {
+            return;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(data);
+            String delta = root.path("choices").path(0).path("delta").path("content").asText("");
+            if (delta.isBlank()) {
+                delta = root.path("choices").path(0).path("message").path("content").asText("");
+            }
+            if (!delta.isBlank()) {
+                content.append(delta);
+                onDelta.accept(delta);
+            }
+        } catch (Exception ignored) {
+            // Ignore malformed heartbeat lines from streaming providers.
+        }
+    }
     private String blankToDefault(String value, String defaultValue) {
         return value == null || value.isBlank() ? defaultValue : value.trim();
     }

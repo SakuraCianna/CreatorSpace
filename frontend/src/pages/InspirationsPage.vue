@@ -384,7 +384,7 @@ async function loadInspirations() {
     const loadCards = session.isAdmin ? fetchAdminInspirations : fetchInspirations
     const [pageResult, countResult] = await Promise.allSettled([
       loadCards({ keyword: keyword.value, type: activeType.value, pageSize: 30 }),
-      loadCards({ keyword: keyword.value, type: 'ALL', pageSize: 200 }),
+      loadCards({ keyword: keyword.value, type: 'ALL', pageSize: 100 }),
     ])
     if (pageResult.status === 'rejected') {
       throw pageResult.reason

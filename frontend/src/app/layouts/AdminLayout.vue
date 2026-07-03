@@ -23,10 +23,6 @@
           <span v-if="item.badgeCount && item.badgeCount.value > 0" class="nav-badge">{{ item.badgeCount.value }}</span>
         </RouterLink>
       </nav>
-      <div class="admin-rail__note">
-        <Sparkles :size="18" />
-        <p>主题、内容、灵感和互动都在同一个工作台维护。</p>
-      </div>
     </aside>
     <section class="admin-workspace">
       <header class="admin-topbar">
@@ -67,7 +63,6 @@ import {
   Palette,
   ScrollText,
   Settings,
-  ShieldCheck,
   Sparkles,
   Tags,
 } from '@lucide/vue'
@@ -87,6 +82,7 @@ const navItems = [
   { to: '/admin', label: '概览', icon: BarChart3 },
   { to: '/admin/articles', label: '文章', icon: FileText, badgeCount: computed(() => pendingCounts.value.pendingArticles) },
   { to: '/admin/projects', label: '作品', icon: Images, badgeCount: computed(() => pendingCounts.value.pendingProjects) },
+  { to: '/admin/pages', label: '页面', icon: FileText },
   { to: '/admin/categories', label: '分类', icon: Tags },
   { to: '/admin/tags', label: '标签', icon: Tags },
   { to: '/admin/inspirations', label: '灵感', icon: Lightbulb },
@@ -94,7 +90,6 @@ const navItems = [
   { to: '/admin/guestbook', label: '留言', icon: MessageSquare, badgeCount: computed(() => pendingCounts.value.pendingGuestbook) },
   { to: '/admin/files', label: '文件', icon: FileImage },
   { to: '/admin/themes', label: '主题', icon: Palette },
-  { to: '/admin/content-rules', label: '规则', icon: ShieldCheck },
   { to: '/admin/sensitive-words', label: '敏感词', icon: Ban },
   { to: '/admin/operation-logs', label: '日志', icon: ScrollText },
   { to: '/admin/ai-assistant', label: 'AI 助手', icon: Sparkles },
@@ -229,7 +224,6 @@ onMounted(async () => {
 .admin-nav a:hover {
   background: var(--admin-primary-soft);
   color: var(--admin-primary-strong);
-  box-shadow: inset 0 0 0 1px var(--admin-line);
 }
 
 .admin-nav a.has-badge {
@@ -257,19 +251,19 @@ onMounted(async () => {
   gap: 8px;
 }
 .admin-shell {
-  --admin-bg: #f7f8fc;
-  --admin-rail: rgba(255, 255, 255, 0.94);
+  --admin-bg: #f8f9fa;
+  --admin-rail: #ffffff;
   --admin-panel: #ffffff;
-  --admin-panel-soft: #f7f9ff;
-  --admin-ink: #111827;
-  --admin-muted: #526079;
-  --admin-line: rgba(49, 91, 255, 0.12);
-  --admin-primary: #315bff;
-  --admin-primary-strong: #174ea6;
-  --admin-primary-soft: #e8efff;
-  --admin-danger: #b91c1c;
-  --admin-danger-soft: #fee2e2;
-  --admin-shadow: 0 18px 44px rgba(31, 41, 55, 0.1);
+  --admin-panel-soft: #f8f9fa;
+  --admin-ink: #202124;
+  --admin-muted: #5f6368;
+  --admin-line: rgba(0, 0, 0, 0.08);
+  --admin-primary: #1a73e8;
+  --admin-primary-strong: #1558d6;
+  --admin-primary-soft: #e8f0fe;
+  --admin-danger: #d93025;
+  --admin-danger-soft: #fce8e6;
+  --admin-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
   display: grid;
   grid-template-columns: 250px minmax(0, 1fr);
   min-height: 100vh;
@@ -297,30 +291,6 @@ onMounted(async () => {
     padding 280ms cubic-bezier(0.2, 0, 0, 1),
     background 180ms ease;
 }
-.admin-rail__note {
-  display: grid;
-  gap: 10px;
-  margin-top: auto;
-  max-height: 160px;
-  padding: 16px;
-  border-radius: 8px;
-  background: var(--tone-night);
-  color: #fff;
-  overflow: hidden;
-  opacity: 1;
-  transform: translateY(0) scale(1);
-  transition:
-    max-height 240ms cubic-bezier(0.2, 0, 0, 1),
-    padding 240ms cubic-bezier(0.2, 0, 0, 1),
-    opacity 160ms ease,
-    transform 220ms cubic-bezier(0.2, 0, 0, 1);
-}
-.admin-rail__note p {
-  margin: 0;
-  color: rgba(255, 255, 255, 0.78);
-  font-size: 13px;
-  line-height: 1.6;
-}
 .admin-workspace {
   min-width: 0;
 }
@@ -345,15 +315,6 @@ onMounted(async () => {
 
 .admin-shell--collapsed .admin-nav a .nav-badge {
   display: none;
-}
-
-.admin-shell--collapsed .admin-rail__note {
-  max-height: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(8px) scale(0.98);
 }
 .admin-shell--collapsed .admin-nav {
   width: 100%;
@@ -380,9 +341,9 @@ onMounted(async () => {
 }
 .admin-topbar h1 {
   margin: 0;
-  color: var(--admin-ink);
-  font-size: 26px;
-  font-weight: 860;
+  color: var(--admin-primary-strong);
+  font-size: 24px;
+  font-weight: 700;
   line-height: 1.2;
 }
 .admin-main {
@@ -420,14 +381,6 @@ onMounted(async () => {
   .admin-shell--collapsed .admin-nav a .nav-badge {
     display: inline;
   }
-
-  .admin-shell--collapsed .admin-rail__note {
-    max-height: 160px;
-    padding: 16px;
-    opacity: 1;
-    pointer-events: auto;
-    transform: none;
-  }
   .admin-nav {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -456,8 +409,7 @@ onMounted(async () => {
   .brand-mark,
   .admin-nav a,
   .admin-nav a span,
-  .admin-nav a svg,
-  .admin-rail__note {
+  .admin-nav a svg {
     transition: none;
   }
 }

@@ -5,101 +5,105 @@
         <h2>文件资源库</h2>
         <p>管理后台上传的封面、插图、附件和站点资源。</p>
       </div>
-      <button class="button button-tonal" type="button" :disabled="loading" @click="loadFiles">
-        <RefreshCw :size="16" />
-        刷新
-      </button>
+      <div class="header-actions">
+        <button class="button button-tonal" type="button" :disabled="loading" @click="loadFiles">
+          <RefreshCw :size="16" />
+          刷新
+        </button>
+        <button class="button button-filled" type="button" @click="mode = 'upload'">
+          <Upload :size="16" />
+          上传资源
+        </button>
+      </div>
     </header>
 
-    <section class="files-grid">
-      <form class="files-panel upload-panel" @submit.prevent="submitUpload">
+    <section class="file-mode-tabs" aria-label="文件管理模式">
+      <button class="file-mode-tab" :class="{ 'is-active': mode === 'library' }" type="button" @click="mode = 'library'">
+        资源列表
+      </button>
+      <button class="file-mode-tab" :class="{ 'is-active': mode === 'upload' }" type="button" @click="mode = 'upload'">
+        上传资源
+      </button>
+    </section>
+
+    <form v-if="mode === 'upload'" class="files-panel upload-panel" @submit.prevent="submitUpload">
+      <div class="editor-heading">
         <div class="panel-title">
           <h3>上传资源</h3>
           <span>{{ uploadModuleLabel }}</span>
         </div>
+        <button class="button button-tonal button-compact" type="button" @click="mode = 'library'">返回列表</button>
+      </div>
 
-        <label>
-          归属模块
-          <select v-model="uploadModule">
-            <option v-for="module in uploadModules" :key="module.value" :value="module.value">
-              {{ module.label }}
-            </option>
-          </select>
-        </label>
+      <label>
+        归属模块
+        <BaseSelect v-model="uploadModule" :options="uploadModules" />
+      </label>
 
-        <label class="file-drop">
-          <input ref="fileInput" type="file" :accept="acceptedTypes" @change="selectFile" />
-          <UploadCloud :size="24" />
-          <strong>{{ selectedFile?.name ?? '选择文件' }}</strong>
-          <span>{{ selectedFile ? formatSize(selectedFile.size) : `最大 ${appConfig.uploadMaxFileSizeMb} MB` }}</span>
-        </label>
+      <label class="file-drop">
+        <input ref="fileInput" type="file" :accept="acceptedTypes" @change="selectFile" />
+        <UploadCloud :size="24" />
+        <strong>{{ selectedFile?.name ?? '选择文件' }}</strong>
+        <span>{{ selectedFile ? formatSize(selectedFile.size) : `最大 ${appConfig.uploadMaxFileSizeMb} MB` }}</span>
+      </label>
 
-        <button class="button button-filled" type="submit" :disabled="uploading">
-          <Upload :size="16" />
-          {{ uploading ? '上传中' : '上传文件' }}
-        </button>
-      </form>
+      <button class="button button-filled" type="submit" :disabled="uploading">
+        <Upload :size="16" />
+        {{ uploading ? '上传中' : '上传文件' }}
+      </button>
+    </form>
 
-      <section class="files-panel library-panel">
-        <div class="panel-title">
-          <h3>资源列表</h3>
-          <span>共 {{ total }} 个</span>
-        </div>
+    <section v-else class="files-panel library-panel">
+      <div class="panel-title">
+        <h3>资源列表</h3>
+        <span>共 {{ total }} 个</span>
+      </div>
 
-        <div class="filter-bar">
-          <select v-model="filterModule" @change="changeFilter">
-            <option v-for="module in filterModules" :key="module.value" :value="module.value">
-              {{ module.label }}
-            </option>
-          </select>
-          <select v-model.number="pageSize" @change="changePageSize">
-            <option :value="12">12 / 页</option>
-            <option :value="24">24 / 页</option>
-            <option :value="48">48 / 页</option>
-          </select>
-        </div>
+      <div class="filter-bar">
+        <BaseSelect v-model="filterModule" :options="filterModules" @change="changeFilter" />
+        <BaseSelect v-model="pageSize" :options="pageSizeOptions" @change="changePageSize" />
+      </div>
 
-        <div v-if="loading" class="empty-state">加载中...</div>
-        <div v-else-if="files.length === 0" class="empty-state">当前筛选下还没有文件。</div>
-        <div v-else class="resource-list">
-          <article v-for="file in files" :key="file.id" class="resource-row">
-            <a class="resource-preview" :href="file.publicUrl" target="_blank" rel="noreferrer">
-              <img v-if="isImage(file)" :src="file.publicUrl" :alt="file.originalName" loading="lazy" />
-              <FileText v-else :size="24" />
+      <div v-if="loading" class="empty-state">加载中...</div>
+      <div v-else-if="files.length === 0" class="empty-state">当前筛选下还没有文件。</div>
+      <div v-else class="resource-list">
+        <article v-for="file in files" :key="file.id" class="resource-row">
+          <a class="resource-preview" :href="file.publicUrl" target="_blank" rel="noreferrer">
+            <img v-if="isImage(file)" :src="file.publicUrl" :alt="file.originalName" loading="lazy" />
+            <FileText v-else :size="24" />
+          </a>
+
+          <div class="resource-main">
+            <strong :title="file.originalName">{{ file.originalName }}</strong>
+            <span>{{ moduleLabel(file.module) }} - {{ formatSize(file.fileSize) }} - {{ file.fileType }}</span>
+            <code>{{ file.publicUrl }}</code>
+          </div>
+
+          <div class="row-actions">
+            <button class="icon-button" type="button" title="复制 URL" @click="copyUrl(file.publicUrl)">
+              <Copy :size="16" />
+            </button>
+            <a class="icon-button" :href="file.publicUrl" target="_blank" rel="noreferrer" title="打开文件">
+              <ExternalLink :size="16" />
             </a>
+            <button class="icon-button danger" type="button" title="删除文件" @click="removeFile(file)">
+              <Trash2 :size="16" />
+            </button>
+          </div>
+        </article>
+      </div>
 
-            <div class="resource-main">
-              <strong :title="file.originalName">{{ file.originalName }}</strong>
-              <span>{{ moduleLabel(file.module) }} · {{ formatSize(file.fileSize) }} · {{ file.fileType }}</span>
-              <code>{{ file.publicUrl }}</code>
-            </div>
-
-            <div class="row-actions">
-              <button class="icon-button" type="button" title="复制 URL" @click="copyUrl(file.publicUrl)">
-                <Copy :size="16" />
-              </button>
-              <a class="icon-button" :href="file.publicUrl" target="_blank" rel="noreferrer" title="打开文件">
-                <ExternalLink :size="16" />
-              </a>
-              <button class="icon-button danger" type="button" title="删除文件" @click="removeFile(file)">
-                <Trash2 :size="16" />
-              </button>
-            </div>
-          </article>
-        </div>
-
-        <footer class="pager">
-          <button class="button button-tonal" type="button" :disabled="page <= 1 || loading" @click="goPage(page - 1)">
-            <ChevronLeft :size="16" />
-            上一页
-          </button>
-          <span>第 {{ page }} / {{ totalPages }} 页</span>
-          <button class="button button-tonal" type="button" :disabled="page >= totalPages || loading" @click="goPage(page + 1)">
-            下一页
-            <ChevronRight :size="16" />
-          </button>
-        </footer>
-      </section>
+      <footer class="pager">
+        <button class="button button-tonal" type="button" :disabled="page <= 1 || loading" @click="goPage(page - 1)">
+          <ChevronLeft :size="16" />
+          上一页
+        </button>
+        <span>第 {{ page }} / {{ totalPages }} 页</span>
+        <button class="button button-tonal" type="button" :disabled="page >= totalPages || loading" @click="goPage(page + 1)">
+          下一页
+          <ChevronRight :size="16" />
+        </button>
+      </footer>
     </section>
 
     <p v-if="notice" class="inline-notice">{{ notice }}</p>
@@ -113,9 +117,11 @@ import { ChevronLeft, ChevronRight, Copy, ExternalLink, FileText, RefreshCw, Tra
 import { appConfig } from '../app/config'
 import { deleteAdminFile, fetchAdminFiles, uploadAdminFile } from '../services/content'
 import { toUserMessage } from '../services/http'
+import BaseSelect from '../shared/components/BaseSelect.vue'
 import type { FileResource } from '../shared/domain'
 
 type FileModule = 'AVATAR' | 'COVER' | 'ARTICLE' | 'PROJECT' | 'INSPIRATION' | 'OTHER'
+type ViewMode = 'library' | 'upload'
 
 const moduleOptions: Array<{ value: FileModule; label: string }> = [
   { value: 'AVATAR', label: '头像' },
@@ -128,6 +134,11 @@ const moduleOptions: Array<{ value: FileModule; label: string }> = [
 
 const filterModules = [{ value: 'ALL', label: '全部模块' }, ...moduleOptions] as const
 const uploadModules = moduleOptions
+const pageSizeOptions = [
+  { label: '12 / 页', value: 12 },
+  { label: '24 / 页', value: 24 },
+  { label: '48 / 页', value: 48 },
+]
 const acceptedTypes = '.webp,.png,.jpg,.jpeg,.gif,.pdf,.txt,.md,.markdown'
 
 const files = ref<FileResource[]>([])
@@ -136,6 +147,7 @@ const page = ref(1)
 const pageSize = ref(12)
 const filterModule = ref<(typeof filterModules)[number]['value']>('ALL')
 const uploadModule = ref<FileModule>('OTHER')
+const mode = ref<ViewMode>('library')
 const selectedFile = ref<File | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
 const loading = ref(false)
@@ -185,6 +197,7 @@ async function submitUpload() {
       fileInput.value.value = ''
     }
     page.value = 1
+    mode.value = 'library'
     notice.value = '文件已上传'
     await loadFiles()
   } catch (error) {
@@ -279,20 +292,11 @@ function formatSize(value: number) {
   gap: 18px;
 }
 
-.files-header,
-.files-panel {
-  border: 1px solid var(--tone-line);
-  border-radius: var(--app-radius-sm);
-  background: var(--tone-panel);
-  box-shadow: var(--tone-shadow);
-}
-
 .files-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding: 22px 24px;
 }
 
 .files-header h2,
@@ -300,20 +304,61 @@ function formatSize(value: number) {
   margin: 0;
 }
 
+.files-header h2 {
+  color: var(--admin-primary-strong);
+  font-size: 24px;
+  font-weight: 780;
+}
+
 .files-header p {
   margin: 8px 0 0;
-  color: var(--tone-muted);
+  color: var(--admin-muted);
   font-size: 14px;
 }
 
-.files-grid {
-  display: grid;
-  grid-template-columns: minmax(280px, 0.42fr) minmax(0, 1fr);
-  gap: 14px;
+.header-actions {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 10px;
+}
+
+.file-mode-tabs {
+  display: inline-grid;
+  justify-self: start;
+  grid-template-columns: repeat(2, minmax(104px, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--admin-line);
+  border-radius: 999px;
+  background: var(--admin-panel);
+  box-shadow: var(--md-sys-elevation-1);
+}
+
+.file-mode-tab {
+  min-height: 38px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--admin-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 760;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.file-mode-tab.is-active {
+  background: var(--admin-primary-soft);
+  color: var(--admin-primary-strong);
 }
 
 .files-panel {
   padding: 16px;
+  border: 1px solid rgba(17, 24, 39, 0.04);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
 .upload-panel,
@@ -323,17 +368,30 @@ function formatSize(value: number) {
   gap: 12px;
 }
 
+.editor-heading,
 .panel-title,
 .filter-bar,
-.pager,
-.row-actions {
+.pager {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
+.editor-heading,
 .panel-title {
   justify-content: space-between;
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.panel-title {
   margin-bottom: 8px;
 }
 
@@ -341,42 +399,26 @@ function formatSize(value: number) {
 .resource-main span,
 .file-drop span,
 .pager {
-  color: var(--tone-muted);
+  color: var(--admin-muted);
   font-size: 13px;
 }
 
-.upload-panel select,
-.filter-bar select {
-  min-height: 42px;
-  border: 1px solid rgba(17, 24, 39, 0.12);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.86);
-  color: var(--tone-strong);
-  font: inherit;
-}
-
-.upload-panel select {
-  width: 100%;
-  padding: 0 12px;
-}
-
 .filter-bar {
-  flex-wrap: wrap;
   justify-content: flex-end;
 }
 
-.filter-bar select {
-  padding: 0 10px;
+.filter-bar > * {
+  width: min(220px, 100%);
 }
 
 .file-drop {
   min-height: 148px;
   place-items: center;
   padding: 18px;
-  border: 1px dashed color-mix(in srgb, var(--md-sys-color-primary) 42%, var(--tone-line));
-  border-radius: 8px;
+  border: 1px dashed color-mix(in srgb, var(--md-sys-color-primary) 42%, var(--admin-line));
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.62);
-  color: var(--tone-strong);
+  color: var(--admin-ink);
   text-align: center;
   cursor: pointer;
 }
@@ -399,9 +441,11 @@ function formatSize(value: number) {
   grid-template-columns: 74px minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
-  padding: 10px;
-  border-radius: 8px;
-  background: rgba(20, 21, 29, 0.04);
+  padding: 12px;
+  border: 1px solid rgba(17, 24, 39, 0.06);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 .resource-preview {
@@ -409,9 +453,9 @@ function formatSize(value: number) {
   width: 74px;
   height: 58px;
   place-items: center;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.74);
-  color: var(--tone-muted);
+  border-radius: 10px;
+  background: var(--admin-primary-soft);
+  color: var(--admin-muted);
   overflow: hidden;
 }
 
@@ -435,7 +479,7 @@ function formatSize(value: number) {
 }
 
 .resource-main code {
-  color: #315bff;
+  color: var(--admin-primary-strong);
   font-size: 12px;
 }
 
@@ -444,22 +488,22 @@ function formatSize(value: number) {
   width: 34px;
   height: 34px;
   place-items: center;
-  border: 1px solid var(--tone-line);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.7);
-  color: #315bff;
+  border: 1px solid var(--admin-line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--admin-primary-strong);
   cursor: pointer;
 }
 
 .icon-button.danger {
-  color: #b91c1c;
+  color: var(--admin-danger);
 }
 
 .empty-state {
   display: grid;
   min-height: 180px;
   place-items: center;
-  color: var(--tone-muted);
+  color: var(--admin-muted);
   font-size: 14px;
 }
 
@@ -475,19 +519,21 @@ function formatSize(value: number) {
   font-weight: 760;
 }
 
-@media (max-width: 1020px) {
-  .files-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
 @media (max-width: 760px) {
   .files-header,
+  .header-actions,
+  .editor-heading,
   .panel-title,
   .filter-bar,
   .pager {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .file-mode-tabs {
+    justify-self: stretch;
+    grid-template-columns: 1fr;
+    border-radius: 20px;
   }
 
   .resource-row {

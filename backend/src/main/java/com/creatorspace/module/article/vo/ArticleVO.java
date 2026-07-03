@@ -2,6 +2,7 @@ package com.creatorspace.module.article.vo;
 
 import com.creatorspace.module.category.vo.CategoryVO;
 import com.creatorspace.module.tag.vo.TagVO;
+import com.creatorspace.module.user.vo.BlogThemeVO;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -30,6 +31,7 @@ public record ArticleVO(
         String authorName,
         String authorAvatar,
         String authorBio,
+        BlogThemeVO authorTheme,
         OffsetDateTime submittedAt,
         OffsetDateTime reviewedAt,
         String reviewNote

@@ -88,6 +88,7 @@ export interface ArticleSummary {
   authorName?: string | null
   authorAvatar?: string | null
   authorBio?: string | null
+  authorTheme?: BlogThemeConfig | null
   submittedAt?: string | null
   reviewedAt?: string | null
   reviewNote?: string | null
@@ -621,11 +622,33 @@ export interface UserProfile {
   nickname: string | null
   avatarUrl: string | null
   bio: string | null
+  blogTheme: BlogThemeConfig
   articleCount: number
   followerCount: number
   followingCount: number
   friendCount: number
 }
+
+export type BlogFontPreset = 'literary-serif' | 'neo-grotesk' | 'rounded-sans' | 'mono-editor'
+export type BlogCanvasType = 'soft-paper' | 'linen' | 'gradient' | 'image'
+export type BlogLayoutStyle = 'editorial' | 'notebook' | 'gallery'
+export type BlogBlockStyle = 'quiet' | 'ink' | 'carded'
+
+export interface BlogThemeConfig {
+  displayName: string
+  fontPreset: BlogFontPreset
+  accentColor: string
+  titleColor: string
+  bodyColor: string
+  canvasType: BlogCanvasType
+  canvasColor: string
+  canvasImage?: string | null
+  paperColor: string
+  layoutStyle: BlogLayoutStyle
+  blockStyle: BlogBlockStyle
+}
+
+export interface BlogThemePayload extends BlogThemeConfig {}
 
 export interface FollowUser {
   id: number

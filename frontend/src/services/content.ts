@@ -12,6 +12,8 @@ import type {
   ArticleVersionSummary,
   ArticlePayload,
   AuthToken,
+  BlogThemeConfig,
+  BlogThemePayload,
   CategorySummary,
   CategoryPayload,
   CommentSummary,
@@ -1045,7 +1047,86 @@ export async function fetchAdminOperationLogs(options: OperationLogQuery = {}): 
   )
   return response.data
 }
-// 查询后台 AI 助手任务历史
+// 创建后台 AI 助手任务
+interface AiStreamHandlers {
+  onDelta?: (delta: string) => void
+  onDone?: (task: AiTaskSummary) => void
+  onError?: (message: string) => void
+}
+
+async function requestAiStream(path: string, body: unknown, handlers: AiStreamHandlers = {}): Promise<AiTaskSummary> {
+  const token = window.localStorage.getItem(ACCESS_TOKEN_KEY)
+  const response = await fetch(`${appConfig.apiBaseUrl}${path}`, {
+    method: 'POST',
+    headers: {
+      Accept: 'text/event-stream',
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  })
+  if (!response.ok || !response.body) {
+    const message = await response.text().catch(() => '')
+    throw new Error(message || `AI 流式请求失败：HTTP ${response.status}`)
+  }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder('utf-8')
+  let buffer = ''
+  let doneTask: AiTaskSummary | null = null
+
+  while (true) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const events = buffer.split(/\r?\n\r?\n/)
+    buffer = events.pop() ?? ''
+    for (const eventText of events) {
+      const event = parseSseEvent(eventText)
+      if (!event.data) continue
+      if (event.event === 'delta') {
+        handlers.onDelta?.(event.data)
+      } else if (event.event === 'done') {
+        doneTask = JSON.parse(event.data) as AiTaskSummary
+        handlers.onDone?.(doneTask)
+      } else if (event.event === 'error') {
+        handlers.onError?.(event.data)
+        throw new Error(event.data)
+      }
+    }
+  }
+
+  if (!doneTask) {
+    throw new Error('AI 流式生成未返回完整任务')
+  }
+  return doneTask
+}
+
+function parseSseEvent(value: string): { event: string; data: string } {
+  let event = 'message'
+  const data: string[] = []
+  for (const line of value.split(/\r?\n/)) {
+    if (line.startsWith('event:')) event = line.slice(6).trim()
+    if (line.startsWith('data:')) {
+      const raw = line.slice(5)
+      data.push(raw.startsWith(' ') ? raw.slice(1) : raw)
+    }
+  }
+  return { event, data: data.join('\n') }
+}
+
+export function streamAiTask(payload: AiTaskPayload, handlers?: AiStreamHandlers): Promise<AiTaskSummary> {
+  return requestAiStream('/api/admin/ai/tasks/stream', payload, handlers)
+}
+
+export function streamAiFollowUp(id: number, prompt: string, handlers?: AiStreamHandlers): Promise<AiTaskSummary> {
+  return requestAiStream(`/api/admin/ai/tasks/${id}/messages/stream`, { prompt }, handlers)
+}
+
+export function streamAiWorkflow(payload: AiWorkflowPayload, handlers?: AiStreamHandlers): Promise<AiTaskSummary> {
+  return requestAiStream('/api/admin/ai/workflows/stream', payload, handlers)
+}
+// 查询后台 AI 助手最近任务
 export async function fetchAiTasks(options: {
   status?: AiTaskStatus | 'ALL'
   page?: number
@@ -1062,7 +1143,11 @@ export async function fetchAiTasks(options: {
   return response.data
 }
 
-// 创建后台 AI 助手任务
+// 读取后台 AI 助手任务详情
+export async function fetchAiTask(id: number): Promise<AiTaskSummary> {
+  const response = await requestJson<ApiEnvelope<AiTaskSummary>>(`/api/admin/ai/tasks/${id}`)
+  return response.data
+}
 export async function createAiTask(payload: AiTaskPayload): Promise<AiTaskSummary> {
   const response = await requestJson<ApiEnvelope<AiTaskSummary>>('/api/admin/ai/tasks', {
     method: 'POST',
@@ -1287,6 +1372,21 @@ export async function batchReviewGuestbook(ids: number[], action: 'approve' | 'r
 // 获取用户公开主页信息
 export async function fetchUserProfile(userId: number): Promise<UserProfile> {
   const response = await requestJson<ApiEnvelope<UserProfile>>(`/api/users/${userId}`)
+  return response.data
+}
+
+// 获取当前登录用户的博客外观配置
+export async function fetchMyBlogTheme(): Promise<BlogThemeConfig> {
+  const response = await requestJson<ApiEnvelope<BlogThemeConfig>>('/api/me/blog-theme')
+  return response.data
+}
+
+// 更新当前登录用户的博客外观配置
+export async function updateMyBlogTheme(payload: BlogThemePayload): Promise<BlogThemeConfig> {
+  const response = await requestJson<ApiEnvelope<BlogThemeConfig>>('/api/me/blog-theme', {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
   return response.data
 }
 

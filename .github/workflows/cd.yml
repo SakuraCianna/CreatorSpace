@@ -20,6 +20,38 @@ jobs:
     name: Backend artifact
     runs-on: ubuntu-24.04
     timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: creatorspace
+          POSTGRES_USER: creatorspace
+          POSTGRES_PASSWORD: creatorspace
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U creatorspace -d creatorspace"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: creatorspace
+      POSTGRES_USERNAME: creatorspace
+      POSTGRES_PASSWORD: creatorspace
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+      ADMIN_PASSWORD_HASH: '$2a$10$7EqJtq98hPqEX7fNZaFWoOhi4jGJGv7D8Y6nQvJ8b0lH0oM2oV8eK'
 
     steps:
       - name: Checkout repository

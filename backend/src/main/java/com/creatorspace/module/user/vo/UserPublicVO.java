@@ -9,6 +9,7 @@ public record UserPublicVO(
         String nickname,
         String avatarUrl,
         String bio,
+        BlogThemeVO blogTheme,
         long articleCount,
         long followerCount,
         long followingCount,

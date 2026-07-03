@@ -3,135 +3,142 @@
     <header class="cms-header">
       <div>
         <h2>文章管理</h2>
-        <p>草稿、发布、置顶、推荐、分类、标签、封面和 Markdown 正文都在这里处理。</p>
+        <p>先筛选和处理文章列表，需要写作或修改时再进入编辑工作区。</p>
       </div>
       <div class="header-actions">
         <button class="button button-tonal" type="button" :disabled="loading" @click="refreshAll">
           <RefreshCw :size="16" />
           刷新
         </button>
-        <button class="button button-filled" type="button" @click="resetArticleForm">
+        <button class="button button-filled" type="button" @click="openNewArticle">
           <Plus :size="16" />
           新建文章
         </button>
       </div>
     </header>
 
-    <section class="cms-grid article-grid">
-      <form class="cms-panel form-panel" @submit.prevent="saveArticle">
+    <section class="article-mode-tabs" aria-label="文章管理模式">
+      <button
+        class="article-mode-tab"
+        :class="{ 'is-active': articleMode === 'list' }"
+        type="button"
+        @click="showArticleList"
+      >
+        列表与筛选
+      </button>
+      <button
+        class="article-mode-tab"
+        :class="{ 'is-active': articleMode === 'editor' }"
+        type="button"
+        @click="openEditor"
+      >
+        {{ editingArticleId ? '编辑文章' : '写作工作区' }}
+      </button>
+    </section>
+
+    <form v-if="articleMode === 'editor'" class="cms-panel form-panel article-editor-panel" @submit.prevent="saveArticle">
+      <div class="editor-heading">
         <div class="panel-title">
           <h3>{{ editingArticleId ? '编辑文章' : '新建草稿' }}</h3>
           <span>{{ privacyLabel(articleForm.privacyType) }}</span>
         </div>
+        <button class="button button-tonal button-compact" type="button" @click="showArticleList">
+          返回列表
+        </button>
+      </div>
 
-        <div class="form-line">
-          <label>
-            标题
-            <input v-model="articleForm.title" maxlength="200" />
-          </label>
-          <label>
-            URL 标识
-            <input v-model="articleForm.slug" maxlength="220" />
-          </label>
-        </div>
-
-        <div class="form-line">
-          <label>
-            分类
-            <select v-model="articleForm.categoryId">
-              <option :value="null">不绑定分类</option>
-              <option v-for="category in articleCategories" :key="category.id" :value="category.id">
-                {{ category.name }}
-              </option>
-            </select>
-          </label>
-          <label>
-            可见性
-            <select v-model="articleForm.privacyType">
-              <option v-for="privacy in articlePrivacies" :key="privacy" :value="privacy">
-                {{ privacyLabel(privacy) }}
-              </option>
-            </select>
-          </label>
-        </div>
-
+      <div class="form-line">
         <label>
-          摘要
-          <textarea v-model="articleForm.summary" rows="3" maxlength="1200" />
+          标题
+          <input v-model="articleForm.title" maxlength="200" />
         </label>
-
         <label>
-          封面地址
-          <input v-model="articleForm.coverUrl" placeholder="/uploads/article/cover.png" />
+          URL 标识
+          <input v-model="articleForm.slug" maxlength="220" />
         </label>
+      </div>
 
+      <div class="form-line">
         <label>
-          Markdown 正文
-          <textarea v-model="articleForm.contentMarkdown" rows="12" />
+          分类
+          <BaseSelect v-model="articleForm.categoryId" :options="categoryOptions" />
         </label>
+        <label>
+          可见性
+          <BaseSelect v-model="articleForm.privacyType" :options="privacyOptions" />
+        </label>
+      </div>
 
-        <div class="tag-picker">
-          <label v-for="tag in tags" :key="tag.id" class="check-line">
-            <input v-model="articleForm.tagIds" type="checkbox" :value="tag.id" />
-            {{ tag.name }}
-          </label>
+      <label>
+        摘要
+        <textarea v-model="articleForm.summary" rows="3" maxlength="1200" />
+      </label>
+
+      <label>
+        封面图片
+        <FileUpload v-model="articleForm.coverUrl" module="COVER" accept="image/*" hint="最大 10MB" @error="handleUploadError" />
+      </label>
+
+      <label>
+        Markdown 正文
+        <MarkdownEditor v-model="articleForm.contentMarkdown" :rows="16" />
+      </label>
+
+      <div class="tag-picker">
+        <label v-for="tag in tags" :key="tag.id" class="check-line">
+          <input v-model="articleForm.tagIds" type="checkbox" :value="tag.id" />
+          {{ tag.name }}
+        </label>
+      </div>
+
+      <div class="form-actions">
+        <button class="button button-filled" type="submit">{{ editingArticleId ? '保存文章' : '保存草稿' }}</button>
+        <button v-if="editingArticleId" class="button button-tonal" type="button" @click="cancelEditing">取消编辑</button>
+      </div>
+    </form>
+
+    <section v-else class="article-list-workspace">
+      <div class="cms-panel article-filter-panel">
+        <div class="panel-title">
+          <h3>筛选文章</h3>
+          <span>共 {{ total }} 篇</span>
         </div>
-
-        <div class="form-actions">
-          <button class="button button-filled" type="submit">{{ editingArticleId ? '保存文章' : '保存草稿' }}</button>
-          <button v-if="editingArticleId" class="button button-tonal" type="button" @click="cancelEditing">取消编辑</button>
+        <div class="filter-bar article-filter-bar">
+          <input v-model="keyword" placeholder="搜索标题 / 摘要 / 正文" @keyup.enter="loadArticles" />
+          <BaseSelect v-model="statusFilter" :options="statusOptions" @change="loadArticles" />
         </div>
-      </form>
+      </div>
 
-      <div class="article-stack">
-        <div class="cms-panel">
-          <div class="panel-title">
-            <h3>筛选文章</h3>
-            <span>共 {{ total }} 篇</span>
-          </div>
-          <div class="filter-bar">
-            <input v-model="keyword" placeholder="搜索标题 / 摘要 / 正文" @keyup.enter="loadArticles" />
-            <select v-model="statusFilter" @change="loadArticles">
-              <option value="ALL">全部状态</option>
-              <option value="DRAFT">草稿</option>
-              <option value="PENDING_REVIEW">待审核</option>
-              <option value="PUBLISHED">已发布</option>
-              <option value="PRIVATE">私密</option>
-              <option value="REJECTED">已驳回</option>
-              <option value="ARCHIVED">已归档</option>
-            </select>
-          </div>
+      <div class="cms-panel">
+        <div class="panel-title">
+          <h3>文章列表</h3>
+          <span>第 {{ page }} / {{ totalPages }} 页</span>
         </div>
-
-        <div class="cms-panel">
-          <div class="panel-title">
-            <h3>文章列表</h3>
-            <span>第 {{ page }} / {{ totalPages }} 页</span>
-          </div>
-          <div class="list-stack">
-            <article v-for="article in articles" :key="article.id" class="table-row table-row--rich">
-              <div>
-                <strong>{{ article.title }}</strong>
-                <span>
-                  {{ article.category?.name ?? '未分类' }} - {{ privacyLabel(article.privacyType) }} - {{ article.slug }}
-                </span>
-              </div>
-              <div class="row-actions">
-                <span class="status-chip">{{ contentStatusLabel(article.status) }}</span>
-                <button class="text-button" type="button" @click="loadArticle(article.id)">编辑</button>
-                <RouterLink class="text-button" :to="{ name: 'admin-article-versions', params: { id: article.id } }">版本</RouterLink>
-                <button class="text-button" type="button" @click="togglePublish(article)">{{ articlePublishActionLabel(article) }}</button>
-                <button class="text-button" type="button" @click="toggleTop(article)">{{ article.top ? '取消置顶' : '置顶' }}</button>
-                <button class="text-button" type="button" @click="toggleRecommend(article)">{{ article.recommended ? '取消推荐' : '推荐' }}</button>
-                <button class="text-button danger" type="button" @click="removeArticle(article.id)">删除</button>
-              </div>
-            </article>
-            <p v-if="articles.length === 0 && !loading" class="empty-hint">暂无文章。</p>
-          </div>
-          <div class="pager">
-            <button class="button button-tonal" type="button" :disabled="page <= 1 || loading" @click="changePage(page - 1)">上一页</button>
-            <button class="button button-tonal" type="button" :disabled="page >= totalPages || loading" @click="changePage(page + 1)">下一页</button>
-          </div>
+        <div class="list-stack article-list">
+          <article v-for="article in articles" :key="article.id" class="table-row table-row--rich article-row">
+            <div class="article-row__content">
+              <strong>{{ article.title }}</strong>
+              <span>
+                {{ article.category?.name ?? '未分类' }} - {{ privacyLabel(article.privacyType) }} - {{ article.slug }}
+              </span>
+            </div>
+            <div class="article-row__meta">
+              <span class="status-chip">{{ contentStatusLabel(article.status) }}</span>
+            </div>
+            <div class="row-actions">
+              <button class="text-button" type="button" @click="loadArticle(article.id)">编辑</button>
+              <RouterLink class="text-button" :to="{ name: 'admin-article-versions', params: { id: article.id } }">版本</RouterLink>
+              <button class="text-button" type="button" @click="togglePublish(article)">{{ articlePublishActionLabel(article) }}</button>
+              <button class="text-button" type="button" @click="toggleTop(article)">{{ article.top ? '取消置顶' : '置顶' }}</button>
+              <button class="text-button" type="button" @click="toggleRecommend(article)">{{ article.recommended ? '取消推荐' : '推荐' }}</button>
+              <button class="text-button danger" type="button" @click="removeArticle(article.id)">删除</button>
+            </div>
+          </article>
+          <p v-if="articles.length === 0 && !loading" class="empty-hint">暂无文章。</p>
+        </div>
+        <div class="pager">
+          <button class="button button-tonal" type="button" :disabled="page <= 1 || loading" @click="changePage(page - 1)">上一页</button>
+          <button class="button button-tonal" type="button" :disabled="page >= totalPages || loading" @click="changePage(page + 1)">下一页</button>
         </div>
       </div>
     </section>
@@ -145,6 +152,9 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { Plus, RefreshCw } from '@lucide/vue'
 
+import FileUpload from '../components/common/FileUpload.vue'
+import BaseSelect from '../shared/components/BaseSelect.vue'
+import MarkdownEditor from '../shared/components/MarkdownEditor.vue'
 import {
   changeArticlePublishState,
   createArticle,
@@ -160,6 +170,9 @@ import {
 import { toUserMessage } from '../services/http'
 import type { ArticlePayload, ArticlePrivacy, ArticleSummary, CategorySummary, TagSummary } from '../shared/domain'
 
+type ArticleStatusFilter = 'ALL' | ArticleSummary['status']
+type ArticleMode = 'list' | 'editor'
+
 const articlePrivacies: ArticlePrivacy[] = ['PUBLIC', 'SELF', 'FRIENDS', 'SELECTED_FRIENDS', 'EXCLUDED_FRIENDS']
 
 const articles = ref<ArticleSummary[]>([])
@@ -167,7 +180,8 @@ const articleCategories = ref<CategorySummary[]>([])
 const tags = ref<TagSummary[]>([])
 const editingArticleId = ref<number | null>(null)
 const keyword = ref('')
-const statusFilter = ref<'ALL' | ArticleSummary['status']>('ALL')
+const statusFilter = ref<ArticleStatusFilter>('ALL')
+const articleMode = ref<ArticleMode>('list')
 const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
@@ -186,6 +200,20 @@ const articleForm = reactive<ArticlePayload>({
 })
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
+const categoryOptions = computed(() => [
+  { label: '不绑定分类', value: null },
+  ...articleCategories.value.map((category) => ({ label: category.name, value: category.id })),
+])
+const privacyOptions = computed(() => articlePrivacies.map((privacy) => ({ label: privacyLabel(privacy), value: privacy })))
+const statusOptions = [
+  { label: '全部状态', value: 'ALL' },
+  { label: '草稿', value: 'DRAFT' },
+  { label: '待审核', value: 'PENDING_REVIEW' },
+  { label: '已发布', value: 'PUBLISHED' },
+  { label: '私密', value: 'PRIVATE' },
+  { label: '已驳回', value: 'REJECTED' },
+  { label: '已归档', value: 'ARCHIVED' },
+] as const
 
 onMounted(async () => {
   await Promise.all([ensureTaxonomies(), loadArticles()])
@@ -239,6 +267,7 @@ async function loadArticle(id: number) {
     articleForm.categoryId = article.category?.id ?? null
     articleForm.tagIds = article.tags.map((tag) => tag.id)
     articleForm.privacyType = article.privacyType
+    articleMode.value = 'editor'
   } catch (error) {
     notice.value = toUserMessage(error, '文章读取失败')
   }
@@ -275,7 +304,9 @@ async function togglePublish(article: ArticleSummary) {
     await changeArticlePublishState(article.id, action)
     notice.value = action === 'publish' ? '文章已发布' : '文章已撤回'
     await loadArticles()
-    await loadArticle(article.id)
+    if (editingArticleId.value === article.id) {
+      await loadArticle(article.id)
+    }
   } catch (error) {
     notice.value = toUserMessage(error, '文章状态更新失败')
   }
@@ -287,7 +318,9 @@ async function toggleTop(article: ArticleSummary) {
     await setArticleTop(article.id, !article.top)
     notice.value = article.top ? '已取消置顶' : '文章已置顶'
     await loadArticles()
-    await loadArticle(article.id)
+    if (editingArticleId.value === article.id) {
+      await loadArticle(article.id)
+    }
   } catch (error) {
     notice.value = toUserMessage(error, '置顶状态更新失败')
   }
@@ -299,7 +332,9 @@ async function toggleRecommend(article: ArticleSummary) {
     await setArticleRecommend(article.id, !article.recommended)
     notice.value = article.recommended ? '已取消推荐' : '文章已推荐'
     await loadArticles()
-    await loadArticle(article.id)
+    if (editingArticleId.value === article.id) {
+      await loadArticle(article.id)
+    }
   } catch (error) {
     notice.value = toUserMessage(error, '推荐状态更新失败')
   }
@@ -315,11 +350,29 @@ async function removeArticle(id: number) {
     notice.value = '文章已删除'
     if (editingArticleId.value === id) {
       resetArticleForm()
+      articleMode.value = 'list'
     }
     await loadArticles()
   } catch (error) {
     notice.value = toUserMessage(error, '文章删除失败')
   }
+}
+
+function openNewArticle() {
+  resetArticleForm()
+  articleMode.value = 'editor'
+}
+
+function openEditor() {
+  articleMode.value = 'editor'
+}
+
+function showArticleList() {
+  articleMode.value = 'list'
+}
+
+function handleUploadError(message: string) {
+  notice.value = message
 }
 
 function resetArticleForm() {
@@ -336,6 +389,7 @@ function resetArticleForm() {
 
 function cancelEditing() {
   resetArticleForm()
+  articleMode.value = 'list'
 }
 
 function changePage(nextPage: number) {
@@ -381,7 +435,7 @@ function contentStatusLabel(value: string) {
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding: 22px 24px;
+  padding: 0;
 }
 
 .cms-header p {
@@ -392,23 +446,90 @@ function contentStatusLabel(value: string) {
 
 .header-actions {
   display: inline-flex;
+  flex-wrap: nowrap;
   gap: 10px;
-  flex-wrap: wrap;
 }
 
-.cms-grid {
+.article-mode-tabs {
+  display: inline-grid;
+  justify-self: start;
+  grid-template-columns: repeat(2, minmax(116px, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--admin-line);
+  border-radius: 999px;
+  background: var(--admin-panel);
+  box-shadow: var(--md-sys-elevation-1);
+}
+
+.article-mode-tab {
+  min-height: 38px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--admin-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 760;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.article-mode-tab.is-active {
+  background: var(--admin-primary-soft);
+  color: var(--admin-primary-strong);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--admin-primary) 10%, transparent);
+}
+
+.article-list-workspace,
+.article-editor-panel {
   display: grid;
-  align-items: start;
   gap: 14px;
 }
 
-.article-grid {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+.article-filter-panel {
+  padding-bottom: 14px;
 }
 
-.article-stack {
+.article-filter-bar {
   display: grid;
-  gap: 14px;
+  grid-template-columns: minmax(260px, 1fr) minmax(180px, 240px);
+}
+
+.editor-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.editor-heading .panel-title {
+  margin-bottom: 0;
+}
+
+.article-list {
+  gap: 10px;
+}
+
+.article-row {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(92px, auto) minmax(420px, auto);
+  align-items: center;
+  gap: 16px;
+}
+
+.article-row__content {
+  min-width: 0;
+}
+
+.article-row__meta {
+  display: flex;
+  justify-content: flex-start;
 }
 
 .tag-picker {
@@ -447,10 +568,6 @@ function contentStatusLabel(value: string) {
   gap: 10px;
 }
 
-.filter-bar {
-  flex-wrap: wrap;
-}
-
 .pager {
   justify-content: flex-end;
   padding-top: 12px;
@@ -458,22 +575,23 @@ function contentStatusLabel(value: string) {
 
 .article-admin-page .table-row > .row-actions {
   display: grid;
-  justify-items: center;
-  align-content: start;
-  gap: 10px;
-  min-width: 96px;
+  grid-template-columns: repeat(6, minmax(64px, auto));
+  justify-content: end;
+  gap: 6px;
+  min-width: 0;
 }
 
 .article-admin-page .row-actions .text-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 72px;
+  min-width: 64px;
   min-height: 30px;
   box-sizing: border-box;
   line-height: 1;
   text-align: center;
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .empty-hint {
@@ -488,15 +606,49 @@ function contentStatusLabel(value: string) {
   font-weight: 760;
 }
 
-@media (max-width: 1020px) {
-  .cms-header,
-  .article-grid {
-    grid-template-columns: 1fr;
+@media (max-width: 1280px) {
+  .article-row {
+    grid-template-columns: minmax(0, 1fr);
   }
 
+  .article-row__meta,
+  .article-admin-page .table-row > .row-actions {
+    justify-content: start;
+  }
+}
+
+@media (max-width: 1020px) {
   .cms-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+}
+
+@media (max-width: 760px) {
+  .header-actions,
+  .editor-heading,
+  .article-admin-page .table-row > .row-actions {
+    width: 100%;
+  }
+
+  .header-actions,
+  .editor-heading {
+    flex-direction: column;
+  }
+
+  .article-mode-tabs,
+  .article-filter-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .article-admin-page .table-row > .row-actions {
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
+
+  .article-mode-tabs {
+    justify-self: stretch;
+    border-radius: 20px;
   }
 }
 </style>

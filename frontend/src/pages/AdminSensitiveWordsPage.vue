@@ -7,52 +7,34 @@
       </button>
     </AdminPageHeader>
 
-    <form v-if="editingId !== null" class="workspace-grid" data-reveal @submit.prevent="saveWord">
-      <div class="workspace-panel admin-form">
-        <div class="panel-title">
-          <h2>{{ editingId === -1 ? '新增敏感词' : '编辑敏感词' }}</h2>
-          <span>{{ form.word || '新词' }}</span>
-        </div>
-        <label>
-          敏感词
-          <input v-model="form.word" maxlength="120" placeholder="输入敏感词内容" />
-        </label>
-        <div class="form-line">
-          <label>
-            匹配方式
-            <BaseSelect v-model="form.matchType" :options="matchTypeOptions" />
-          </label>
-          <label>
-            处理级别
-            <BaseSelect v-model="form.severity" :options="severityOptions" />
-          </label>
-        </div>
-        <label class="check-line">
-          <input v-model="form.enabled" type="checkbox" />
-          启用
-        </label>
-        <div class="form-actions">
-          <button class="button button-filled" type="submit">
-            {{ editingId === -1 ? '创建' : '保存' }}
-          </button>
-          <button class="button button-tonal" type="button" @click="cancelEdit">取消</button>
-        </div>
+    <form v-if="editingId !== null" class="workspace-panel admin-form" data-reveal @submit.prevent="saveWord">
+      <div class="panel-title">
+        <h2>{{ editingId === -1 ? '新增敏感词' : '编辑敏感词' }}</h2>
+        <span>{{ form.word || '新词' }}</span>
       </div>
-      <div class="workspace-panel">
-        <div class="panel-title">
-          <h2>匹配说明</h2>
-          <span>规则参考</span>
-        </div>
-        <ul class="rule-list">
-          <li><strong>精确匹配</strong> — 内容与敏感词完全相同才触发</li>
-          <li><strong>包含匹配</strong> — 内容包含敏感词即触发（默认）</li>
-          <li><strong>正则匹配</strong> — 用正则表达式匹配内容</li>
-        </ul>
-        <ul class="rule-list" style="margin-top: 16px;">
-          <li><strong>人工审核</strong> — 标记为待审核</li>
-          <li><strong>直接拒绝</strong> — 提交时拒绝请求</li>
-          <li><strong>替换屏蔽</strong> — 用 * 替换敏感词（预留）</li>
-        </ul>
+      <label>
+        敏感词
+        <input v-model="form.word" maxlength="120" placeholder="输入敏感词内容" />
+      </label>
+      <div class="form-line">
+        <label>
+          匹配方式
+          <BaseSelect v-model="form.matchType" :options="matchTypeOptions" />
+        </label>
+        <label>
+          处理级别
+          <BaseSelect v-model="form.severity" :options="severityOptions" />
+        </label>
+      </div>
+      <label class="check-line">
+        <input v-model="form.enabled" type="checkbox" />
+        启用
+      </label>
+      <div class="form-actions">
+        <button class="button button-filled" type="submit">
+          {{ editingId === -1 ? '创建' : '保存' }}
+        </button>
+        <button class="button button-tonal" type="button" @click="cancelEdit">取消</button>
       </div>
     </form>
 
@@ -247,13 +229,6 @@ async function removeWord(id: number) {
   padding: 16px;
 }
 
-.workspace-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
-  gap: 12px;
-  margin-top: 12px;
-}
-
 .admin-form {
   display: grid;
   gap: 12px;
@@ -416,29 +391,6 @@ async function removeWord(id: number) {
   line-height: 1.55;
 }
 
-.rule-list {
-  display: grid;
-  gap: 10px;
-  margin: 0;
-  padding-left: 18px;
-}
-
-.rule-list li {
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--tone-muted);
-}
-
-.rule-list li strong {
-  color: var(--tone-strong);
-}
-
-@media (max-width: 1020px) {
-  .workspace-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
 @media (max-width: 760px) {
 
   .panel-title {
@@ -446,10 +398,15 @@ async function removeWord(id: number) {
     flex-direction: column;
   }
 
-  .table-row,
-  .row-actions {
+  .table-row {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .row-actions {
+    max-width: 100%;
+    overflow-x: auto;
+    justify-content: flex-start;
   }
 }
 </style>

@@ -1,0 +1,21 @@
+create table user_blog_themes (
+    user_id bigint primary key references users(id) on delete cascade,
+    display_name varchar(80) not null default '我的主题',
+    font_preset varchar(40) not null default 'literary-serif',
+    accent_color varchar(32) not null default '#2563eb',
+    title_color varchar(32) not null default '#111827',
+    body_color varchar(32) not null default '#374151',
+    canvas_type varchar(40) not null default 'soft-paper',
+    canvas_color varchar(32) not null default '#f8fafc',
+    canvas_image text,
+    paper_color varchar(32) not null default '#ffffff',
+    layout_style varchar(40) not null default 'editorial',
+    block_style varchar(40) not null default 'quiet',
+    config_json jsonb not null default '{}'::jsonb,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    constraint ck_user_blog_theme_font check (font_preset in ('literary-serif', 'neo-grotesk', 'rounded-sans', 'mono-editor')),
+    constraint ck_user_blog_theme_canvas check (canvas_type in ('soft-paper', 'linen', 'gradient', 'image')),
+    constraint ck_user_blog_theme_layout check (layout_style in ('editorial', 'notebook', 'gallery')),
+    constraint ck_user_blog_theme_block check (block_style in ('quiet', 'ink', 'carded'))
+);

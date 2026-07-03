@@ -49,7 +49,7 @@
         </label>
         <label>
           Markdown 正文
-          <textarea v-model="articleForm.contentMarkdown" rows="9" />
+          <MarkdownEditor v-model="articleForm.contentMarkdown" :rows="10" />
         </label>
         <div class="tag-picker-wrap">
           <label class="tag-picker-label">标签</label>
@@ -152,7 +152,7 @@
         </label>
         <label>
           Markdown 详情
-          <textarea v-model="projectForm.contentMarkdown" rows="8" />
+          <MarkdownEditor v-model="projectForm.contentMarkdown" :rows="10" />
         </label>
         <div class="tag-picker-wrap">
           <label class="tag-picker-label">标签</label>
@@ -233,7 +233,7 @@
         </article>
       </div>
     </section>
-    <section v-else class="creator-panel creator-favorites" data-reveal>
+    <section v-else-if="activeSection === 'favorites'" class="creator-panel creator-favorites" data-reveal>
       <div class="panel-title">
         <h2>我的收藏</h2>
         <div class="panel-title-actions">
@@ -254,6 +254,14 @@
       </RouterLink>
       <p v-if="favorites.length === 0" class="muted-line">还没有收藏内容。</p>
     </section>
+    <section v-else class="creator-panel appearance-entry" data-reveal>
+      <div>
+        <p class="entry-kicker">BLOG ATELIER</p>
+        <h2>博客外观</h2>
+        <p>把你的主页调成更像自己的房间, 文章也会带着同一种语气打开。</p>
+      </div>
+      <RouterLink v-if="profileRoute" class="button button-filled" :to="profileRoute">打开外观工作室</RouterLink>
+    </section>
     <p v-if="notice" class="inline-notice">{{ notice }}</p>
   </section>
 </template>
@@ -263,9 +271,11 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import PublicPageHeader from '../components/common/PublicPageHeader.vue'
 import FileUpload from '../components/common/FileUpload.vue'
-import { BookOpen, ExternalLink, FileImage, Images, Star } from '@lucide/vue'
+import { BookOpen, ExternalLink, FileImage, Images, Palette, Star } from '@lucide/vue'
 
 import BaseSelect from '../shared/components/BaseSelect.vue'
+import MarkdownEditor from '../shared/components/MarkdownEditor.vue'
+import { useSessionStore } from '../shared/sessionStore'
 import {
   createCreatorArticle,
   createCreatorProject,
@@ -302,6 +312,7 @@ import type {
 // 初始化创作者工作台的响应式状态数据
 const root = ref<HTMLElement | null>(null)
 const route = useRoute()
+const session = useSessionStore()
 const notice = ref('')
 const articles = ref<ArticleSummary[]>([])
 const projects = ref<ProjectSummary[]>([])
@@ -361,10 +372,15 @@ const tabs = [
   { to: '/creator/projects', label: '作品', icon: Images },
   { to: '/creator/files', label: '素材', icon: FileImage },
   { to: '/creator/favorites', label: '收藏', icon: Star },
+  { to: '/creator/appearance', label: '外观', icon: Palette },
 ]
 const activeSection = computed(() => {
   const section = typeof route.params.section === 'string' ? route.params.section : 'articles'
-  return ['articles', 'projects', 'files', 'favorites'].includes(section) ? section : 'articles'
+  return ['articles', 'projects', 'files', 'favorites', 'appearance'].includes(section) ? section : 'articles'
+})
+const profileRoute = computed(() => {
+  const userId = session.currentUser?.id
+  return userId ? { name: 'user-profile', params: { userId }, query: { tab: 'appearance' } } : null
 })
 usePageReveal(root)
 onMounted(async () => {
@@ -917,6 +933,33 @@ a.desk-row--linked:hover {
 .icon-text-button.danger {
   color: #b91c1c;
 }
+.appearance-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 220px;
+  background:
+    radial-gradient(circle at 88% 18%, rgba(49, 91, 255, 0.14), transparent 28%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(245, 249, 255, 0.82));
+}
+.appearance-entry h2 {
+  margin: 4px 0 8px;
+  color: var(--tone-ink);
+  font-size: clamp(28px, 4vw, 42px);
+}
+.appearance-entry p {
+  max-width: 620px;
+  margin: 0;
+  color: var(--tone-muted);
+  line-height: 1.7;
+}
+.entry-kicker {
+  color: #315bff !important;
+  font-size: 12px;
+  font-weight: 860;
+  letter-spacing: 0.08em;
+}
 @media (max-width: 1020px) {
   .creator-grid {
     grid-template-columns: 1fr;
@@ -930,7 +973,8 @@ a.desk-row--linked:hover {
     padding-top: 26px;
   }
   .desk-row,
-  .panel-title {
+  .panel-title,
+  .appearance-entry {
     align-items: flex-start;
     flex-direction: column;
   }

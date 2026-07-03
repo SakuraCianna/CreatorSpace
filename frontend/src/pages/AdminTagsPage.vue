@@ -1,62 +1,66 @@
 <template>
-  <section class="cms-page">
+  <section class="cms-page tag-admin-page">
     <AdminPageHeader title="标签管理" description="维护文章、作品和灵感共用的内容标签。" theme="cyan">
-      <button class="button button-tonal" type="button" @click="loadTags">刷新</button>
+      <div class="header-actions">
+        <button class="button button-tonal" type="button" @click="loadTags">刷新</button>
+        <button class="button button-filled" type="button" @click="startCreate">新建标签</button>
+      </div>
     </AdminPageHeader>
 
-    <section class="cms-grid">
-      <form class="cms-panel form-panel" @submit.prevent="saveTag">
+    <form v-if="mode === 'form'" class="cms-panel form-panel tag-form" @submit.prevent="saveTag">
+      <div class="editor-heading">
         <div class="panel-title">
           <h3>{{ editingId ? '编辑标签' : '新建标签' }}</h3>
           <span>{{ form.color || '无颜色' }}</span>
         </div>
-        <label>
-          名称
-          <input v-model="form.name" maxlength="80" />
-        </label>
-        <label>
-          URL 标识
-          <input v-model="form.slug" maxlength="120" placeholder="vue" />
-        </label>
-        <div class="form-line">
-          <label>
-            颜色
-            <input v-model="form.color" maxlength="32" placeholder="#315bff" />
-          </label>
-          <label>
-            权重
-            <input v-model.number="form.weight" type="number" />
-          </label>
-        </div>
-        <div class="form-actions">
-          <button class="button button-filled" type="submit">{{ editingId ? '保存标签' : '创建标签' }}</button>
-          <button class="button button-tonal" type="button" @click="resetForm">重置</button>
-        </div>
-      </form>
-
-      <div class="cms-panel">
-        <div class="panel-title">
-          <h3>标签列表</h3>
-          <span>共 {{ tags.length }} 个</span>
-        </div>
-        <div class="list-stack">
-          <article v-for="tag in tags" :key="tag.id" class="table-row">
-            <div>
-              <strong>
-                <span class="tag-dot" :style="{ backgroundColor: tag.color || '#94a3b8' }" />
-                {{ tag.name }}
-              </strong>
-              <span>{{ tag.slug }} · 权重 {{ tag.weight }}</span>
-            </div>
-            <div class="row-actions">
-              <button class="text-button" type="button" @click="editTag(tag)">编辑</button>
-              <button class="text-button danger" type="button" @click="removeTag(tag)">删除</button>
-            </div>
-          </article>
-          <p v-if="tags.length === 0" class="empty-hint">还没有标签。</p>
-        </div>
+        <button class="button button-tonal button-compact" type="button" @click="showList">返回列表</button>
       </div>
-    </section>
+      <label>
+        名称
+        <input v-model="form.name" maxlength="80" />
+      </label>
+      <label>
+        URL 标识
+        <input v-model="form.slug" maxlength="120" placeholder="vue" />
+      </label>
+      <div class="form-line">
+        <label>
+          颜色
+          <input v-model="form.color" maxlength="32" placeholder="#315bff" />
+        </label>
+        <label>
+          权重
+          <input v-model.number="form.weight" type="number" />
+        </label>
+      </div>
+      <div class="form-actions">
+        <button class="button button-filled" type="submit">{{ editingId ? '保存标签' : '创建标签' }}</button>
+        <button class="button button-tonal" type="button" @click="resetForm">重置</button>
+      </div>
+    </form>
+
+    <div v-else class="cms-panel">
+      <div class="panel-title">
+        <h3>标签列表</h3>
+        <span>共 {{ tags.length }} 个</span>
+      </div>
+      <div class="list-stack">
+        <article v-for="tag in tags" :key="tag.id" class="table-row">
+          <div>
+            <strong>
+              <span class="tag-dot" :style="{ backgroundColor: tag.color || '#94a3b8' }" />
+              {{ tag.name }}
+            </strong>
+            <span>{{ tag.slug }} - 权重 {{ tag.weight }}</span>
+          </div>
+          <div class="row-actions">
+            <button class="text-button" type="button" @click="editTag(tag)">编辑</button>
+            <button class="text-button danger" type="button" @click="removeTag(tag)">删除</button>
+          </div>
+        </article>
+        <p v-if="tags.length === 0" class="empty-hint">还没有标签。</p>
+      </div>
+    </div>
 
     <p v-if="notice" class="inline-notice">{{ notice }}</p>
   </section>
@@ -70,8 +74,11 @@ import { createTag, deleteTag, fetchTags, updateTag } from '../services/content'
 import { toUserMessage } from '../services/http'
 import type { TagPayload, TagSummary } from '../shared/domain'
 
+type ViewMode = 'list' | 'form'
+
 const tags = ref<TagSummary[]>([])
 const editingId = ref<number | null>(null)
+const mode = ref<ViewMode>('list')
 const notice = ref('')
 const form = reactive<TagPayload>({
   name: '',
@@ -106,6 +113,7 @@ async function saveTag() {
       notice.value = '标签已创建'
     }
     resetForm()
+    mode.value = 'list'
     await loadTags()
   } catch (error) {
     notice.value = toUserMessage(error, '标签保存失败')
@@ -118,6 +126,7 @@ async function removeTag(tag: TagSummary) {
     await deleteTag(tag.id)
     if (editingId.value === tag.id) {
       resetForm()
+      mode.value = 'list'
     }
     await loadTags()
     notice.value = '标签已删除'
@@ -126,12 +135,22 @@ async function removeTag(tag: TagSummary) {
   }
 }
 
+function startCreate() {
+  resetForm()
+  mode.value = 'form'
+}
+
+function showList() {
+  mode.value = 'list'
+}
+
 function editTag(tag: TagSummary) {
   editingId.value = tag.id
   form.name = tag.name
   form.slug = tag.slug
   form.color = tag.color ?? ''
   form.weight = tag.weight
+  mode.value = 'form'
 }
 
 function resetForm() {
@@ -160,17 +179,35 @@ function normalizePayload(): TagPayload | null {
 </script>
 
 <style scoped>
-.cms-page {
+.tag-admin-page {
   display: grid;
   gap: 18px;
 }
 
+.header-actions,
+.editor-heading,
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 
-.cms-grid {
+.header-actions,
+.row-actions {
+  flex-wrap: nowrap;
+}
+
+.editor-heading {
+  justify-content: space-between;
+}
+
+.editor-heading .panel-title {
+  margin-bottom: 0;
+}
+
+.tag-form {
   display: grid;
-  grid-template-columns: minmax(300px, 0.7fr) minmax(0, 1fr);
-  align-items: start;
-  gap: 14px;
+  gap: 12px;
 }
 
 .tag-dot {
@@ -183,15 +220,15 @@ function normalizePayload(): TagPayload | null {
   vertical-align: -1px;
 }
 
-@media (max-width: 1020px) {
-  .cms-grid {
-    grid-template-columns: 1fr;
+@media (max-width: 760px) {
+  .header-actions,
+  .editor-heading {
+    align-items: flex-start;
+    flex-direction: column;
   }
-}
 
-@media (max-width: 640px) {
-  .cms-grid {
-    gap: 12px;
+  .row-actions {
+    justify-content: flex-start;
   }
 }
 </style>
