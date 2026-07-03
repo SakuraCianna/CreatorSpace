@@ -1,468 +1,503 @@
 <template>
-  <section ref="root" class="creator-page">
-    <PublicPageHeader title="创作中心" description="管理创作素材与发布状态，普通用户亦可使用此面板查看自己的作品。" kicker="CREATOR DESK" theme="emerald">
-      <div class="creator-hero__stats">
-        <span>{{ articles.length }} 篇文章</span>
-        <span>{{ projects.length }} 个作品</span>
-        <span>{{ files.length }} 张素材</span>
+  <div class="csdn-editor-page">
+    <!-- 顶部工具栏 -->
+    <header class="editor-header">
+      <div class="header-left">
+        <RouterLink :to="`/users/${session.currentUser?.id || ''}`" class="back-link">
+          <ChevronLeft :size="18" />
+          <span>个人中心</span>
+        </RouterLink>
+        <span class="divider"></span>
+        <div class="header-title dropdown-trigger" @click="showTypeDropdown = !showTypeDropdown">
+          {{ currentPostTypeLabel }}
+          <ChevronDown :size="14" class="dropdown-icon" :class="{ 'rotated': showTypeDropdown }" />
+          <div class="dropdown-menu" v-if="showTypeDropdown">
+            <div class="dropdown-item" @click.stop="setPostType('article')">发布文章</div>
+            <div class="dropdown-item" @click.stop="setPostType('project')">发布作品</div>
+            <div class="dropdown-item" @click.stop="setPostType('idea')">发布灵感</div>
+          </div>
+        </div>
+        <span class="header-status" v-if="editingArticleId">编辑草稿</span>
       </div>
-    </PublicPageHeader>
-    <div class="creator-tabs" data-reveal>
-      <RouterLink v-for="tab in tabs" :key="tab.to" :to="tab.to">
-        <component :is="tab.icon" :size="16" />
-        {{ tab.label }}
-      </RouterLink>
-    </div>
-    <section v-if="activeSection === 'articles'" class="creator-grid">
-      <form class="creator-panel creator-form" data-reveal @submit.prevent="saveArticle">
-        <div class="panel-title">
-          <h2>{{ editingArticleId ? '编辑文章' : '写一篇博客' }}</h2>
-          <span>{{ articleForm.privacyType }}</span>
-        </div>
-        <div class="form-line">
-          <label>
-            标题
-            <input v-model="articleForm.title" maxlength="200" />
-          </label>
-          <label>
-            URL 标识
-            <input v-model="articleForm.slug" maxlength="220" placeholder="my-first-post" />
-          </label>
-        </div>
-        <div class="form-line">
-          <label>
-            分类
-            <BaseSelect v-model="articleForm.categoryId" :options="categoryOptions" />
-          </label>
-          <label>
-            可见性
-            <BaseSelect v-model="articleForm.privacyType" :options="privacyOptions" />
-          </label>
-        </div>
-        <label>
-          摘要
-          <textarea v-model="articleForm.summary" rows="3" maxlength="1200" />
-        </label>
-        <label>
-          封面图片 (建议比例 16:9)
-          <FileUpload v-model="articleForm.coverUrl" module="COVER" accept="image/*" hint="最大 10MB" />
-        </label>
-        <label>
-          Markdown 正文
-          <MarkdownEditor v-model="articleForm.contentMarkdown" :rows="10" />
-        </label>
-        <div class="tag-picker-wrap">
-          <label class="tag-picker-label">标签</label>
-          <div class="tag-picker">
-            <label v-for="tag in tags" :key="tag.id" class="check-line">
-              <input v-model="articleForm.tagIds" type="checkbox" :value="tag.id" />
-              {{ tag.name }}
-            </label>
-          </div>
-          <div class="tag-creator">
-            <input v-model="newTagName" placeholder="输入新标签" maxlength="50" @keydown.enter.prevent="createNewTag('article')" />
-            <button type="button" class="button button-tonal button-compact" :disabled="!newTagName.trim()" @click="createNewTag('article')">添加</button>
-          </div>
-        </div>
-        <div class="form-actions">
-          <button class="button button-filled" type="submit">{{ editingArticleId ? '保存草稿' : '创建草稿' }}</button>
-          <button v-if="editingArticleId" class="button button-tonal" type="button" @click="resetArticleForm">取消</button>
-        </div>
-      </form>
-      <div class="creator-panel" data-reveal>
-        <div class="panel-title">
-          <h2>我的博客</h2>
-          <button class="icon-text-button" type="button" @click="loadArticles">刷新</button>
-        </div>
-        <article v-for="article in articles" :key="article.id" class="desk-row">
-          <div>
-            <strong>{{ article.title }}</strong>
-            <span>{{ statusLabel(article.status) }} · {{ article.slug }}</span>
-            <small v-if="article.reviewNote">{{ article.reviewNote }}</small>
-          </div>
-          <div class="row-actions">
-            <button class="icon-text-button" type="button" @click="editArticle(article)">编辑</button>
-            <button
-              v-if="canSubmitContent(article.status)"
-              class="icon-text-button"
-              type="button"
-              @click="submitArticle(article.id)"
-            >
-              提交审核
-            </button>
-            <button
-              v-if="canDeleteContent(article.status)"
-              class="icon-text-button danger"
-              type="button"
-              @click="removeArticle(article.id)"
-            >
-              删除
-            </button>
-          </div>
-        </article>
+      
+      <div class="header-toolbar">
+        <button class="tool-btn" title="撤销"><Undo :size="16" /><span>撤销</span></button>
+        <button class="tool-btn" title="重做"><Redo :size="16" /><span>重做</span></button>
+        <span class="tool-divider"></span>
+        <button class="tool-btn" title="加粗" @click="insertText('**', '**', '粗体')"><Bold :size="16" /><span>加粗</span></button>
+        <button class="tool-btn" title="斜体" @click="insertText('*', '*', '斜体')"><Italic :size="16" /><span>斜体</span></button>
+        <button class="tool-btn" title="删除线" @click="insertText('~~', '~~', '删除线')"><Strikethrough :size="16" /><span>删除线</span></button>
+        <span class="tool-divider"></span>
+        <button class="tool-btn" title="无序列表" @click="insertText('- ', '', '列表项')"><List :size="16" /><span>列表</span></button>
+        <button class="tool-btn" title="有序列表" @click="insertText('1. ', '', '列表项')"><ListOrdered :size="16" /><span>有序</span></button>
+        <button class="tool-btn" title="表格" @click="showTableModal = true"><Table :size="16" /><span>表格</span></button>
+        <span class="tool-divider"></span>
+        <button class="tool-btn" title="代码块" @click="insertText('```\n', '\n```', 'code')"><Code :size="16" /><span>代码</span></button>
+        <button class="tool-btn" title="引用" @click="insertText('> ', '', '引用内容')"><Quote :size="16" /><span>引用</span></button>
+        <button class="tool-btn" title="分割线" @click="insertText('\n---\n', '', '')"><Minus :size="16" /><span>分割线</span></button>
+        <span class="tool-divider"></span>
+        <button class="tool-btn" title="图片" @click="insertText('![', '](url)', '图片描述')"><Image :size="16" /><span>图片</span></button>
+        <button class="tool-btn" title="链接" @click="insertText('[', '](url)', '链接描述')"><Link :size="16" /><span>链接</span></button>
+        <button class="tool-btn" title="AI助手" @click="showAIAssistant = !showAIAssistant" :class="{ 'active': showAIAssistant }"><Sparkles :size="16" /><span>AI助手</span></button>
       </div>
-    </section>
-    <section v-else-if="activeSection === 'projects'" class="creator-grid">
-      <form class="creator-panel creator-form" data-reveal @submit.prevent="saveProject">
-        <div class="panel-title">
-          <h2>{{ editingProjectId ? '编辑作品' : '上传创意作品' }}</h2>
-          <span>{{ projectForm.projectType || 'PROJECT' }}</span>
-        </div>
-        <div class="form-line">
-          <label>
-            标题
-            <input v-model="projectForm.title" maxlength="200" />
-          </label>
-          <label>
-            URL 标识
-            <input v-model="projectForm.slug" maxlength="220" placeholder="my-creative-work" />
-          </label>
-        </div>
-        <div class="form-line">
-          <label>
-            类型
-            <input v-model="projectForm.projectType" maxlength="60" placeholder="WEB_APP" />
-          </label>
-          <label>
-            技术栈
-            <input v-model="projectTechStack" placeholder="Vue 3, Spring Boot, Three.js" />
-          </label>
-        </div>
-        <label>
-          描述
-          <textarea v-model="projectForm.description" rows="3" maxlength="2000" />
-        </label>
-        <label>
-          封面图片 (建议比例 16:9)
-          <FileUpload v-model="projectForm.coverUrl" module="COVER" accept="image/*" hint="最大 10MB" />
-        </label>
-        <div class="form-line">
-          <label>
-            GitHub 地址
-            <input v-model="projectForm.githubUrl" placeholder="https://github.com/..." />
-          </label>
-          <label>
-            演示地址 (可选 URL)
-            <input v-model="projectForm.demoUrl" placeholder="https://demo.example.com" />
-          </label>
-        </div>
-        <label>
-          演示视频 (支持 MP4/WebM，最大 100MB)
-          <FileUpload v-model="projectForm.videoUrl" module="PROJECT" accept="video/mp4,video/webm,video/quicktime,video/x-matroska" hint="最大 100MB" />
-        </label>
-        <label>
-          Markdown 详情
-          <MarkdownEditor v-model="projectForm.contentMarkdown" :rows="10" />
-        </label>
-        <div class="tag-picker-wrap">
-          <label class="tag-picker-label">标签</label>
-          <div class="tag-picker">
-            <label v-for="tag in tags" :key="tag.id" class="check-line">
-              <input v-model="projectForm.tagIds" type="checkbox" :value="tag.id" />
-              {{ tag.name }}
-            </label>
-          </div>
-          <div class="tag-creator">
-            <input v-model="newTagName" placeholder="输入新标签" maxlength="50" @keydown.enter.prevent="createNewTag('project')" />
-            <button type="button" class="button button-tonal button-compact" :disabled="!newTagName.trim()" @click="createNewTag('project')">添加</button>
-          </div>
-        </div>
-        <div class="form-actions">
-          <button class="button button-filled" type="submit">{{ editingProjectId ? '保存作品' : '创建作品' }}</button>
-          <button v-if="editingProjectId" class="button button-tonal" type="button" @click="resetProjectForm">取消</button>
-        </div>
-      </form>
-      <div class="creator-panel" data-reveal>
-        <div class="panel-title">
-          <h2>我的作品</h2>
-          <button class="icon-text-button" type="button" @click="loadProjects">刷新</button>
-        </div>
-        <article v-for="project in projects" :key="project.id" class="desk-row">
-          <div>
-            <strong>{{ project.title }}</strong>
-            <span>{{ statusLabel(project.status) }} · {{ project.projectType }}</span>
-            <small v-if="project.reviewNote">{{ project.reviewNote }}</small>
-          </div>
-          <div class="row-actions">
-            <button class="icon-text-button" type="button" @click="editProject(project)">编辑</button>
-            <button
-              v-if="canSubmitContent(project.status)"
-              class="icon-text-button"
-              type="button"
-              @click="submitProject(project.id)"
-            >
-              提交审核
-            </button>
-            <button
-              v-if="canDeleteContent(project.status)"
-              class="icon-text-button danger"
-              type="button"
-              @click="removeProject(project.id)"
-            >
-              删除
-            </button>
-          </div>
-        </article>
-      </div>
-    </section>
-    <section v-else-if="activeSection === 'files'" class="creator-grid">
-      <form class="creator-panel creator-form" data-reveal @submit.prevent="uploadFile">
-        <div class="panel-title">
-          <h2>上传图片素材</h2>
-          <span>{{ fileModule }}</span>
-        </div>
-        <label>
-          模块
-          <BaseSelect v-model="fileModule" :options="fileModuleOptions" />
-        </label>
-        <input type="file" accept="image/*" @change="selectFile" />
-        <button class="button button-filled" type="submit">上传图片</button>
-      </form>
-      <div class="creator-panel" data-reveal>
-        <div class="panel-title">
-          <h2>我的素材</h2>
-          <button class="icon-text-button" type="button" @click="loadFiles">刷新</button>
-        </div>
-        <article v-for="file in files" :key="file.id" class="desk-row">
-          <div>
-            <strong>{{ file.originalName }}</strong>
-            <span>{{ file.module }} · {{ formatSize(file.fileSize) }}</span>
-            <small>{{ file.publicUrl }}</small>
-          </div>
-          <a class="icon-text-button" :href="file.publicUrl" target="_blank" rel="noreferrer">预览</a>
-        </article>
-      </div>
-    </section>
-    <section v-else-if="activeSection === 'favorites'" class="creator-panel creator-favorites" data-reveal>
-      <div class="panel-title">
-        <h2>我的收藏</h2>
-        <div class="panel-title-actions">
-          <RouterLink class="icon-text-button" to="/my-favorites">查看全部</RouterLink>
-          <button class="icon-text-button" type="button" @click="loadFavorites">刷新</button>
-        </div>
-      </div>
-      <RouterLink
-        v-for="favorite in favorites"
-        :key="favorite.id"
-        :to="favoriteRoute(favorite)"
-        class="desk-row desk-row--linked"
-      >
-        <div>
-          <strong>{{ favorite.title || `${favorite.targetType} #${favorite.targetId}` }}</strong>
-          <span>{{ favorite.targetType === 'ARTICLE' ? '文章' : '作品' }} · {{ formatDateTimeToSecond(favorite.createdAt, '刚刚') }}</span>
-        </div>
-      </RouterLink>
-      <p v-if="favorites.length === 0" class="muted-line">还没有收藏内容。</p>
-    </section>
-    <section v-else class="creator-panel appearance-entry" data-reveal>
-      <div>
-        <p class="entry-kicker">BLOG ATELIER</p>
-        <h2>博客外观</h2>
-        <p>把你的主页调成更像自己的房间, 文章也会带着同一种语气打开。</p>
-      </div>
-      <RouterLink v-if="profileRoute" class="button button-filled" :to="profileRoute">打开外观工作室</RouterLink>
-    </section>
-    <p v-if="notice" class="inline-notice">{{ notice }}</p>
-  </section>
-</template>
-<script setup lang="ts">
-// 导入 Composition API 与路由依赖
-import { computed, onMounted, reactive, ref } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
-import PublicPageHeader from '../components/common/PublicPageHeader.vue'
-import FileUpload from '../components/common/FileUpload.vue'
-import { BookOpen, ExternalLink, FileImage, Images, Palette, Star } from '@lucide/vue'
 
-import BaseSelect from '../shared/components/BaseSelect.vue'
-import MarkdownEditor from '../shared/components/MarkdownEditor.vue'
+      <div class="header-right">
+        <span class="word-count">共 {{ wordCount }} 字</span>
+        <button class="btn-draft" @click="saveArticle">保存草稿</button>
+        <button class="btn-publish" @click="openPublishModal">发布{{ currentPostType === 'article' ? '博客' : (currentPostType === 'project' ? '作品' : '灵感') }}</button>
+        <div class="avatar-wrap">
+          <img :src="session.currentUser?.avatarUrl || 'https://api.dicebear.com/7.x/notionists/svg?seed=creator'" alt="avatar" class="avatar" />
+        </div>
+      </div>
+    </header>
+    
+    <main class="editor-main">
+      <!-- 左侧大纲 -->
+      <aside class="editor-sidebar-left">
+        <div class="sidebar-header">
+          <span>目录</span>
+          <ChevronsLeftRight :size="16" class="collapse-icon" />
+        </div>
+        <div class="toc-container">
+          <ul class="toc-list" v-if="toc.length > 0">
+            <li v-for="item in toc" :key="item.id" :style="{ paddingLeft: `${(item.level - 1) * 12}px` }" :class="`toc-level-${item.level}`">
+              <a :href="`#${item.id}`" class="toc-link">{{ item.text }}</a>
+            </li>
+          </ul>
+          <div class="toc-empty" v-else>
+            添加标题即可在此生成目录
+          </div>
+        </div>
+      </aside>
+
+      <!-- 中间编辑器区域 -->
+      <section class="editor-content" v-if="currentPostType === 'article'">
+        <div class="markdown-workspace">
+          <!-- 左侧输入栏 -->
+          <div class="markdown-column">
+            <div class="title-input-wrapper">
+              <input 
+                type="text" 
+                class="title-input" 
+                v-model="articleForm.title" 
+                placeholder="请输入文章标题（5～100个字）"
+                maxlength="100"
+              />
+              <span class="title-counter" style="white-space: nowrap;">还需输入 {{ Math.max(0, 5 - articleForm.title.length) }} 个字</span>
+            </div>
+            <textarea 
+              ref="textareaRef"
+              class="markdown-input" 
+              v-model="articleForm.contentMarkdown"
+              placeholder="在这里开始您的专业创作...&#10;支持 Markdown 语法，左侧编写，右侧实时无缝预览。"
+              @input="updateWordCount"
+              @scroll="syncScroll"
+            ></textarea>
+          </div>
+          <!-- 右侧预览栏 -->
+          <div class="markdown-column preview-column">
+            <div class="preview-title-wrapper">
+              <h1 class="preview-title" v-if="articleForm.title">{{ articleForm.title }}</h1>
+            </div>
+            <div class="markdown-preview" ref="previewRef" v-html="renderedHtml"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 发布作品表单 -->
+      <section class="editor-content form-layout" v-else-if="currentPostType === 'project'">
+        <div class="project-form">
+          <h2 class="form-page-title">发布您的作品</h2>
+          <div class="form-group-large">
+            <label>作品名称</label>
+            <input type="text" class="form-input-large" v-model="articleForm.title" placeholder="如：CreatorSpace - 下一代创作平台" />
+          </div>
+          <div class="form-group-large">
+            <label>开源代码仓库 URL (可选)</label>
+            <input type="text" class="form-input-large" placeholder="https://github.com/..." />
+          </div>
+          <div class="form-group-large">
+            <label>在线预览 URL (可选)</label>
+            <input type="text" class="form-input-large" placeholder="https://..." />
+          </div>
+          <div class="form-group-large">
+            <label>作品描述</label>
+            <textarea class="form-textarea-large" v-model="articleForm.contentMarkdown" rows="12" placeholder="详细介绍这个作品的背景、技术栈、核心功能..."></textarea>
+          </div>
+        </div>
+      </section>
+
+      <!-- 发布灵感表单 -->
+      <section class="editor-content idea-layout" v-else-if="currentPostType === 'idea'">
+        <div class="idea-form">
+          <h2 class="form-page-title">分享您的灵感</h2>
+          <div class="idea-input-box">
+            <textarea class="idea-textarea" v-model="articleForm.contentMarkdown" rows="8" placeholder="今天有什么新的奇思妙想？可以直接在这里记录，支持插入图片。"></textarea>
+            <div class="idea-actions">
+              <button class="tool-btn"><Image :size="16" /><span>图片</span></button>
+              <button class="tool-btn"><Link :size="16" /><span>链接</span></button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 右侧 AI 助手 -->
+      <aside class="editor-sidebar-right" v-if="showAIAssistant">
+        <div class="ai-assistant">
+          <div class="ai-header">
+            <div class="ai-title">
+              <Sparkles :size="18" color="#6366f1" /> AI 助手
+            </div>
+            <X :size="16" class="close-icon" @click="showAIAssistant = false" style="cursor: pointer;" />
+          </div>
+          
+          <div class="ai-body">
+            <div class="ai-section">
+              <div class="ai-section-title">
+                <span>创作热点推荐</span>
+                <button class="btn-refresh" @click="fetchHotTopics"><RefreshCw :size="12" style="margin-right: 4px;" :class="{ 'spin': isLoadingTopics }" /> 换一换</button>
+              </div>
+              <div class="ai-tags">
+                <span class="ai-tag" v-for="(topic, index) in hotTopics" :key="index" @click="insertTopic(topic)">{{ topic }}</span>
+                <span v-if="hotTopics.length === 0 && isLoadingTopics" class="ai-loading">加载中...</span>
+              </div>
+            </div>
+            
+            <div class="ai-chat-area">
+              <div class="ai-disclaimer">内容由AI生成，仅供参考</div>
+              
+              <div class="ai-quick-actions">
+                <button class="ai-action-btn"><ListTree :size="14" /> 大纲生成</button>
+                <button class="ai-action-btn"><CodeXml :size="14" /> 代码生成</button>
+                <button class="ai-action-btn"><BookOpenCheck :size="14" /> 学术搜索</button>
+              </div>
+              
+              <div class="ai-input-box">
+                <Sparkles :size="16" color="#a1a1aa" class="ai-input-icon" />
+                <input type="text" placeholder="输入创作要求，AI帮你写" v-model="aiPrompt" @keydown.enter="generateAiText" />
+                <button class="btn-send" @click="generateAiText" :disabled="isGeneratingAiText">
+                  <RefreshCw :size="14" color="#fff" class="spin" v-if="isGeneratingAiText" />
+                  <Send :size="14" color="#fff" v-else />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- 发布设置弹窗 -->
+    <div class="modal-overlay" v-if="showPublishModal" @click.self="showPublishModal = false">
+      <div class="publish-modal">
+        <div class="modal-header">
+          <h3>发布设置</h3>
+          <X :size="20" class="close-icon" @click="showPublishModal = false" style="cursor: pointer;" />
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>文章分类</label>
+            <select v-model="articleForm.categoryId" class="form-select">
+              <option :value="null">请选择分类</option>
+              <option :value="1">前端开发</option>
+              <option :value="2">后端开发</option>
+              <option :value="3">人工智能</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>文章标签 (可多选)</label>
+            <div class="tags-selector">
+              <label class="tag-checkbox"><input type="checkbox" :value="1" v-model="articleForm.tagIds" /> Vue.js</label>
+              <label class="tag-checkbox"><input type="checkbox" :value="2" v-model="articleForm.tagIds" /> Java</label>
+              <label class="tag-checkbox"><input type="checkbox" :value="3" v-model="articleForm.tagIds" /> Spring Boot</label>
+              <label class="tag-checkbox"><input type="checkbox" :value="4" v-model="articleForm.tagIds" /> AI</label>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>封面图片 (可选)</label>
+            <input type="text" v-model="articleForm.coverUrl" placeholder="输入封面图片 URL" class="form-input" />
+            <img v-if="articleForm.coverUrl" :src="articleForm.coverUrl" class="cover-preview" />
+          </div>
+          <div class="form-group">
+            <label>文章摘要 (可选)</label>
+            <textarea v-model="articleForm.summary" placeholder="输入文章摘要..." class="form-textarea" rows="3"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-cancel" @click="showPublishModal = false">取消</button>
+          <button class="btn-publish-confirm" @click="confirmPublish">确认发布</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 表格生成弹窗 -->
+    <div class="modal-overlay" v-if="showTableModal" @click.self="showTableModal = false">
+      <div class="publish-modal" style="width: 320px;">
+        <div class="modal-header">
+          <h3>插入表格</h3>
+          <X :size="20" class="close-icon" @click="showTableModal = false" style="cursor: pointer;" />
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>行数 (包含表头)</label>
+            <input type="number" v-model.number="tableConfig.rows" class="form-input" min="2" max="20" />
+          </div>
+          <div class="form-group">
+            <label>列数</label>
+            <input type="number" v-model.number="tableConfig.cols" class="form-input" min="1" max="10" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-cancel" @click="showTableModal = false">取消</button>
+          <button class="btn-publish-confirm" @click="insertTable">插入</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 弹窗提示 -->
+    <div v-if="notice" class="global-toast">{{ notice }}</div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useSessionStore } from '../shared/sessionStore'
-import {
-  createCreatorArticle,
-  createCreatorProject,
-  deleteCreatorArticle,
-  deleteCreatorProject,
-  fetchCategories,
+import { 
+  createCreatorArticle, 
+  updateCreatorArticle, 
   fetchCreatorArticle,
-  fetchCreatorArticles,
-  fetchCreatorFiles,
-  fetchCreatorProject,
-  fetchCreatorProjects,
-  fetchMyFavorites,
-  fetchTags,
-  createTag,
-  submitCreatorArticle,
-  submitCreatorProject,
-  updateCreatorArticle,
-  updateCreatorProject,
-  uploadCreatorFile,
+  submitCreatorArticle 
 } from '../services/content'
-import { toUserMessage } from '../services/http'
-import { usePageReveal } from '../shared/composables/usePageReveal'
-import { formatDateTimeToSecond } from '../shared/datetime'
-import type {
-  ArticlePayload,
-  ArticleSummary,
-  CategorySummary,
-  FavoriteRecord,
-  FileResource,
-  ProjectPayload,
-  ProjectSummary,
-  TagSummary,
-} from '../shared/domain'
-// 初始化创作者工作台的响应式状态数据
-const root = ref<HTMLElement | null>(null)
+import { toUserMessage, requestJson } from '../services/http'
+import { 
+  ChevronLeft, ChevronDown, ChevronsLeftRight, Undo, Redo, Bold, Italic, Strikethrough, 
+  List, ListOrdered, Code, Quote, Image, Link, Sparkles, X, RefreshCw, 
+  ListTree, CodeXml, BookOpenCheck, Send, Table, Minus
+} from '@lucide/vue'
+import MarkdownIt from 'markdown-it'
+
 const route = useRoute()
+const router = useRouter()
 const session = useSessionStore()
+
 const notice = ref('')
-const articles = ref<ArticleSummary[]>([])
-const projects = ref<ProjectSummary[]>([])
-const files = ref<FileResource[]>([])
-const favorites = ref<FavoriteRecord[]>([])
-const tags = ref<TagSummary[]>([])
-const articleCategories = ref<CategorySummary[]>([])
 const editingArticleId = ref<number | null>(null)
-const editingProjectId = ref<number | null>(null)
-const projectTechStack = ref('')
-const selectedFile = ref<File | null>(null)
-const fileModule = ref('ARTICLE')
-const newTagName = ref('')
-const categoryOptions = computed(() => [
-  { label: '不绑定分类', value: null },
-  ...articleCategories.value.map(c => ({ label: c.name, value: c.id }))
-])
-const privacyOptions = [
-  { label: '公开', value: 'PUBLIC' },
-  { label: '仅自己', value: 'SELF' },
-  { label: '好友可见', value: 'FRIENDS' },
-]
-const fileModuleOptions = [
-  { label: 'ARTICLE', value: 'ARTICLE' },
-  { label: 'PROJECT', value: 'PROJECT' },
-  { label: 'COVER', value: 'COVER' },
-  { label: 'AVATAR', value: 'AVATAR' },
-  { label: 'INSPIRATION', value: 'INSPIRATION' },
-  { label: 'OTHER', value: 'OTHER' },
-]
-const articleForm = reactive<ArticlePayload>({
+const textareaRef = ref<HTMLTextAreaElement | null>(null)
+const wordCount = ref(0)
+const toc = ref<{id: string, text: string, level: number}[]>([])
+const showAIAssistant = ref(true)
+
+const md = new MarkdownIt({ html: true, breaks: true })
+const renderedHtml = ref('')
+const previewRef = ref<HTMLDivElement | null>(null)
+
+const showTypeDropdown = ref(false)
+const currentPostType = ref('article')
+const currentPostTypeLabel = computed(() => {
+  if (currentPostType.value === 'project') return '发布作品'
+  if (currentPostType.value === 'idea') return '发布灵感'
+  return '发布文章'
+})
+
+function setPostType(type: string) {
+  currentPostType.value = type
+  showTypeDropdown.value = false
+}
+
+const showPublishModal = ref(false)
+
+function openPublishModal() {
+  if (!articleForm.title.trim() || !articleForm.contentMarkdown.trim()) {
+    showNotice('请填写标题和正文')
+    return
+  }
+  showPublishModal.value = true
+}
+
+async function confirmPublish() {
+  showPublishModal.value = false
+  await publishArticle()
+}
+
+const articleForm = reactive({
   title: '',
   slug: '',
   summary: '',
   contentMarkdown: '',
   coverUrl: '',
-  categoryId: null,
-  tagIds: [],
+  categoryId: null as number | null,
+  tagIds: [] as number[],
   privacyType: 'PUBLIC',
 })
-const projectForm = reactive<ProjectPayload>({
-  title: '',
-  slug: '',
-  description: '',
-  coverUrl: '',
-  projectType: 'WEB_APP',
-  techStack: [],
-  githubUrl: '',
-  demoUrl: '',
-  videoUrl: '',
-  contentMarkdown: '',
-  tagIds: [],
-  recommended: false,
-})
-const tabs = [
-  { to: '/creator/articles', label: '文章', icon: BookOpen },
-  { to: '/creator/projects', label: '作品', icon: Images },
-  { to: '/creator/files', label: '素材', icon: FileImage },
-  { to: '/creator/favorites', label: '收藏', icon: Star },
-  { to: '/creator/appearance', label: '外观', icon: Palette },
-]
-const activeSection = computed(() => {
-  const section = typeof route.params.section === 'string' ? route.params.section : 'articles'
-  return ['articles', 'projects', 'files', 'favorites', 'appearance'].includes(section) ? section : 'articles'
-})
-const profileRoute = computed(() => {
-  const userId = session.currentUser?.id
-  return userId ? { name: 'user-profile', params: { userId }, query: { tab: 'appearance' } } : null
-})
-usePageReveal(root)
-onMounted(async () => {
-  await Promise.all([loadBaseData(), loadArticles(), loadProjects(), loadFiles(), loadFavorites()])
-})
-// 异步加载后台分类列表和全部标签数据, 并进行多字段映射绑定
-async function loadBaseData() {
-  try {
-    const [articleCategoryList, tagList] = await Promise.all([fetchCategories('ARTICLE'), fetchTags()])
-    articleCategories.value = articleCategoryList
-    tags.value = tagList
-  } catch (error) {
-    notice.value = readError(error, '基础数据加载失败')
-  }
-}
-// 异步加载当前登录创作者本人的文章列表队列, 每次最多拉取前 50 条数据
-async function loadArticles() {
-  try {
-    articles.value = (await fetchCreatorArticles({ pageSize: 50 })).records
-  } catch (error) {
-    notice.value = readError(error, '文章队列加载失败')
-  }
-}
-// 异步加载当前登录创作者本人的创意作品列表, 限制一次最多返回 50 条
-async function loadProjects() {
-  try {
-    projects.value = (await fetchCreatorProjects({ pageSize: 50 })).records
-  } catch (error) {
-    notice.value = readError(error, '作品队列加载失败')
-  }
-}
-// 异步加载当前创作者已上传的文件资源素材队列, 便于插入文章或作为封面
-async function loadFiles() {
-  try {
-    files.value = (await fetchCreatorFiles({ pageSize: 50 })).records
-  } catch (error) {
-    notice.value = readError(error, '素材列表加载失败')
-  }
-}
-// 异步拉取当前登录读者的收藏历史记录列表, 发生异常时静默降级为空数组
-async function loadFavorites() {
-  try {
-    favorites.value = (await fetchMyFavorites()).records
-  } catch {
-    favorites.value = []
-  }
-}
 
-function favoriteRoute(item: FavoriteRecord) {
-  if (item.targetType === 'ARTICLE') {
-    return { name: 'article-detail', params: { slug: item.slug } }
-  }
-  return { name: 'project-detail', params: { slug: item.slug } }
-}
+const showTableModal = ref(false)
+const tableConfig = reactive({
+  rows: 3,
+  cols: 3
+})
 
-// 保存当前正在编辑的文章草稿, 根据是否带有编辑 ID 决定是发起 PUT 还是 POST 请求
-
-async function saveArticle() {
-  if (!articleForm.title.trim() || !articleForm.slug.trim() || !articleForm.contentMarkdown.trim()) {
-    notice.value = '请填写文章标题、URL 标识和正文'
-    return
+function insertTable() {
+  let { rows, cols } = tableConfig
+  rows = Math.max(2, Math.min(20, rows))
+  cols = Math.max(1, Math.min(10, cols))
+  
+  let tableMd = '\n'
+  // Header row
+  tableMd += '|'
+  for (let c = 0; c < cols; c++) {
+    tableMd += ` 列${c + 1} |`
   }
-  try {
-    if (editingArticleId.value) {
-      // 执行 PUT 操作更新已有草稿
-      await updateCreatorArticle(editingArticleId.value, { ...articleForm })
-      notice.value = '文章草稿已保存'
-    } else {
-      // 执行 POST 操作创建全新草稿
-      await createCreatorArticle({ ...articleForm })
-      notice.value = '文章草稿已创建'
+  tableMd += '\n|'
+  // Divider row
+  for (let c = 0; c < cols; c++) {
+    tableMd += ` --- |`
+  }
+  tableMd += '\n'
+  // Data rows
+  for (let r = 0; r < rows - 1; r++) {
+    tableMd += '|'
+    for (let c = 0; c < cols; c++) {
+      tableMd += ` 内容 |`
     }
-    resetArticleForm()
-    await loadArticles()
+    tableMd += '\n'
+  }
+  tableMd += '\n'
+  
+  insertText(tableMd, '', '')
+  showTableModal.value = false
+}
+
+const hotTopics = ref<string[]>([])
+const isLoadingTopics = ref(false)
+
+async function fetchHotTopics() {
+  if (isLoadingTopics.value) return
+  isLoadingTopics.value = true
+  try {
+    const topics = await requestJson<string[]>('/api/ai/hot-topics')
+    hotTopics.value = topics
   } catch (error) {
-    notice.value = readError(error, '文章保存失败')
+    console.error('Failed to fetch hot topics', error)
+    if (hotTopics.value.length === 0) {
+      hotTopics.value = ['如何写出爆款文章', '技术进阶路线分享', '独立开发者的经验谈']
+    }
+  } finally {
+    isLoadingTopics.value = false
   }
 }
-// 获取创作者指定草稿的完整正文和配置参数, 并将反序列化后的字段绑定回输入表单
-async function editArticle(article: ArticleSummary) {
+
+function insertTopic(topic: string) {
+  insertText(topic + '\n', '', topic)
+}
+
+const aiPrompt = ref('')
+const isGeneratingAiText = ref(false)
+
+async function generateAiText() {
+  if (!aiPrompt.value.trim() || isGeneratingAiText.value) return
+  isGeneratingAiText.value = true
   try {
-    const detail = await fetchCreatorArticle(article.id)
+    const res = await fetch('/api/ai/write', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        prompt: aiPrompt.value,
+        context: articleForm.contentMarkdown
+      })
+    })
+    const text = await res.text()
+    if (res.ok) {
+      insertText('\n' + text + '\n', '', '')
+      aiPrompt.value = ''
+    } else {
+      showNotice('AI 请求失败，请检查网络或后端。')
+    }
+  } catch (err) {
+    showNotice('AI 异常，请稍后再试。')
+  } finally {
+    isGeneratingAiText.value = false
+  }
+}
+
+// 初始加载
+onMounted(async () => {
+  fetchHotTopics()
+  // 如果 URL 带有 id 参数，则加载已有草稿进行编辑
+  const id = Number(route.query.id)
+  if (id) {
+    await loadArticle(id)
+  }
+})
+
+// 监听 Markdown 内容变化，生成 TOC
+watch(() => articleForm.contentMarkdown, (newVal) => {
+  updateWordCount()
+  extractTOC(newVal)
+})
+
+let renderTimer: any
+function updateWordCount() {
+  wordCount.value = articleForm.contentMarkdown.trim().length
+  if (renderTimer) clearTimeout(renderTimer)
+  renderTimer = setTimeout(() => {
+    renderedHtml.value = md.render(articleForm.contentMarkdown)
+  }, 300)
+}
+
+function extractTOC(markdown: string) {
+  const lines = markdown.split('\n')
+  const newToc = []
+  let idCounter = 0
+  for (const line of lines) {
+    const match = line.match(/^(#{1,6})\s+(.+)/)
+    if (match) {
+      const level = match[1].length
+      const text = match[2].trim()
+      newToc.push({
+        id: `heading-${idCounter++}`,
+        text,
+        level
+      })
+    }
+  }
+  toc.value = newToc
+}
+
+function insertText(before: string, after: string, placeholder: string) {
+  const textarea = textareaRef.value
+  if (!textarea) return
+  
+  const start = textarea.selectionStart
+  const end = textarea.selectionEnd
+  const selected = articleForm.contentMarkdown.slice(start, end) || placeholder
+  
+  const newValue = 
+    articleForm.contentMarkdown.slice(0, start) + 
+    before + selected + after + 
+    articleForm.contentMarkdown.slice(end)
+    
+  articleForm.contentMarkdown = newValue
+  
+  // 恢复焦点并选中插入的文本
+  setTimeout(() => {
+    textarea.focus()
+    textarea.setSelectionRange(start + before.length, start + before.length + selected.length)
+  }, 0)
+}
+
+function syncScroll(e: Event) {
+  const target = e.target as HTMLTextAreaElement
+  const percentage = target.scrollTop / (target.scrollHeight - target.clientHeight)
+  if (previewRef.value && previewRef.value.scrollHeight > previewRef.value.clientHeight) {
+    previewRef.value.scrollTop = percentage * (previewRef.value.scrollHeight - previewRef.value.clientHeight)
+  }
+}
+
+async function loadArticle(id: number) {
+  try {
+    const detail = await fetchCreatorArticle(id)
     editingArticleId.value = detail.id
     articleForm.title = detail.title
     articleForm.slug = detail.slug
@@ -470,513 +505,896 @@ async function editArticle(article: ArticleSummary) {
     articleForm.contentMarkdown = detail.contentMarkdown ?? ''
     articleForm.coverUrl = detail.coverUrl ?? ''
     articleForm.categoryId = detail.category?.id ?? null
-    articleForm.tagIds = detail.tags.map((tag) => tag.id)
+    articleForm.tagIds = detail.tags.map((t) => t.id)
     articleForm.privacyType = detail.privacyType
-  } catch (error) {
-    notice.value = readError(error, '文章详情读取失败')
+    renderedHtml.value = md.render(articleForm.contentMarkdown)
+  } catch (err) {
+    showNotice(readError(err, '读取文章失败'))
   }
 }
-// 提交创作者草稿申请审核, 改变草稿状态为 PENDING_REVIEW 待管理员批复
-async function submitArticle(id: number) {
-  try {
-    await submitCreatorArticle(id)
-    notice.value = '文章已提交审核'
-    await loadArticles()
-  } catch (error) {
-    notice.value = readError(error, '文章提交失败')
-  }
-}
-// 创作者物理删除自己未公开的草稿或被驳回的记录, 并重置当前表单输入框
-async function removeArticle(id: number) {
-  try {
-    await deleteCreatorArticle(id)
-    notice.value = '文章已删除'
-    resetArticleForm()
-    await loadArticles()
-  } catch (error) {
-    notice.value = readError(error, '文章删除失败')
-  }
-}
-// 清理表单响应式状态字段, 重置表单为新建的默认参数
-function resetArticleForm() {
-  editingArticleId.value = null
-  articleForm.title = ''
-  articleForm.slug = ''
-  articleForm.summary = ''
-  articleForm.contentMarkdown = ''
-  articleForm.coverUrl = ''
-  articleForm.categoryId = null
-  articleForm.tagIds = []
-  articleForm.privacyType = 'PUBLIC'
-}
-async function saveProject() {
-  if (!projectForm.title.trim() || !projectForm.slug.trim() || !projectForm.projectType.trim()) {
-    notice.value = '请填写作品标题、URL 标识和类型'
+
+async function saveArticle() {
+  if (!articleForm.title.trim() || !articleForm.contentMarkdown.trim()) {
+    showNotice('请填写标题和正文')
     return
   }
+  if (!articleForm.slug) {
+    // 自动生成 slug
+    articleForm.slug = 'post-' + Date.now()
+  }
+  
   try {
-    projectForm.techStack = splitTechStack(projectTechStack.value)
-    projectForm.recommended = false
-    if (editingProjectId.value) {
-      await updateCreatorProject(editingProjectId.value, { ...projectForm })
-      notice.value = '作品草稿已保存'
+    if (editingArticleId.value) {
+      await updateCreatorArticle(editingArticleId.value, { ...articleForm })
+      showNotice('草稿已保存')
     } else {
-      await createCreatorProject({ ...projectForm })
-      notice.value = '作品草稿已创建'
+      const res = await createCreatorArticle({ ...articleForm })
+      editingArticleId.value = res.id // 保存后记录 ID
+      // 更新 URL
+      router.replace({ query: { id: res.id } })
+      showNotice('草稿创建成功')
     }
-    resetProjectForm()
-    await loadProjects()
   } catch (error) {
-    notice.value = readError(error, '作品保存失败')
+    showNotice(readError(error, '保存失败'))
   }
 }
-async function editProject(project: ProjectSummary) {
+
+async function publishArticle() {
+  await saveArticle()
+  if (!editingArticleId.value) return
+  
   try {
-    const detail = await fetchCreatorProject(project.id)
-    editingProjectId.value = detail.id
-    projectForm.title = detail.title
-    projectForm.slug = detail.slug
-    projectForm.description = detail.description ?? ''
-    projectForm.coverUrl = detail.coverUrl ?? ''
-    projectForm.projectType = detail.projectType
-    projectForm.techStack = detail.techStack
-    projectForm.githubUrl = detail.githubUrl ?? ''
-    projectForm.demoUrl = detail.demoUrl ?? ''
-    projectForm.videoUrl = detail.videoUrl ?? ''
-    projectForm.contentMarkdown = detail.contentMarkdown ?? ''
-    projectForm.tagIds = detail.tags.map((tag) => tag.id)
-    projectForm.recommended = false
-    projectTechStack.value = detail.techStack.join(', ')
+    await submitCreatorArticle(editingArticleId.value)
+    showNotice('文章已发布并提交审核！')
+    setTimeout(() => {
+      router.push('/user-profile')
+    }, 1500)
   } catch (error) {
-    notice.value = readError(error, '作品详情读取失败')
+    showNotice(readError(error, '发布失败'))
   }
 }
-async function submitProject(id: number) {
-  try {
-    await submitCreatorProject(id)
-    notice.value = '作品已提交审核'
-    await loadProjects()
-  } catch (error) {
-    notice.value = readError(error, '作品提交失败')
-  }
+
+let noticeTimer: any
+function showNotice(msg: string) {
+  notice.value = msg
+  if (noticeTimer) clearTimeout(noticeTimer)
+  noticeTimer = setTimeout(() => { notice.value = '' }, 3000)
 }
-async function removeProject(id: number) {
-  try {
-    await deleteCreatorProject(id)
-    notice.value = '作品已删除'
-    resetProjectForm()
-    await loadProjects()
-  } catch (error) {
-    notice.value = readError(error, '作品删除失败')
-  }
-}
-function resetProjectForm() {
-  editingProjectId.value = null
-  projectForm.title = ''
-  projectForm.slug = ''
-  projectForm.description = ''
-  projectForm.coverUrl = ''
-  projectForm.projectType = 'WEB_APP'
-  projectForm.techStack = []
-  projectForm.githubUrl = ''
-  projectForm.demoUrl = ''
-  projectForm.videoUrl = ''
-  projectForm.contentMarkdown = ''
-  projectForm.tagIds = []
-  projectForm.recommended = false
-  projectTechStack.value = ''
-}
-function selectFile(event: Event) {
-  selectedFile.value = (event.target as HTMLInputElement).files?.[0] ?? null
-}
-async function uploadFile() {
-  if (!selectedFile.value) {
-    notice.value = '请选择图片'
-    return
-  }
-  try {
-    const file = await uploadCreatorFile(selectedFile.value, fileModule.value)
-    selectedFile.value = null
-    notice.value = `图片已上传：${file.publicUrl}`
-    await loadFiles()
-  } catch (error) {
-    notice.value = readError(error, '图片上传失败')
-  }
-}
-async function createNewTag(target: 'article' | 'project') {
-  if (!newTagName.value.trim()) return
-  try {
-    const tag = await createTag({
-      name: newTagName.value.trim(),
-      slug: newTagName.value.trim().toLowerCase().replace(/\s+/g, '-'),
-      groupName: '用户创建'
-    })
-    tags.value.push(tag)
-    if (target === 'article') {
-      articleForm.tagIds.push(tag.id)
-    } else {
-      projectForm.tagIds.push(tag.id)
-    }
-    newTagName.value = ''
-    notice.value = '新标签已创建'
-  } catch (error) {
-    notice.value = readError(error, '标签创建失败')
-  }
-}
-function canSubmitContent(status: string) {
-  return status === 'DRAFT' || status === 'REJECTED'
-}
-function canDeleteContent(status: string) {
-  return status === 'DRAFT' || status === 'REJECTED' || status === 'PENDING_REVIEW'
-}
-function statusLabel(status: string) {
-  const labels: Record<string, string> = {
-    DRAFT: '草稿',
-    PENDING_REVIEW: '待审核',
-    PUBLISHED: '已公开',
-    PRIVATE: '私密',
-    VISIBLE: '已展示',
-    HIDDEN: '已隐藏',
-    REJECTED: '已驳回',
-    ARCHIVED: '已归档',
-  }
-  return labels[status] ?? status
-}
-function splitTechStack(value: string) {
-  return value
-    .split(/[,，\n]/)
-    .map((item) => item.trim())
-    .filter(Boolean)
-}
-function formatSize(value: number) {
-  if (value < 1024) {
-    return `${value} B`
-  }
-  if (value < 1024 * 1024) {
-    return `${(value / 1024).toFixed(1)} KB`
-  }
-  return `${(value / 1024 / 1024).toFixed(1)} MB`
-}
+
 function readError(error: unknown, fallback: string) {
   return `${fallback}: ${toUserMessage(error, '请稍后再试')}`
 }
 </script>
+
 <style scoped>
-.creator-page {
-  display: grid;
-  gap: 18px;
-  padding: 46px 0 84px;
-}
-.creator-hero__stats {
+/* Reset & Base */
+.csdn-editor-page {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100vw;
+  height: calc(100vh - 73px); /* fits exactly below public-header */
+  background-color: #fafafa;
   display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
+  flex-direction: column;
+  z-index: 10;
+  font-family: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  overflow: hidden;
 }
-.creator-hero__stats span,
-.creator-tabs a,
-.desk-row small,
-.muted-line {
-  color: var(--tone-muted);
-  font-size: 13px;
-}
-.creator-hero__stats span,
-.creator-tabs a {
-  min-height: 36px;
-  padding: 9px 12px;
-  border: 1px solid var(--tone-line);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.68);
-  font-weight: 760;
-}
-.creator-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-.creator-tabs a {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.creator-tabs a.router-link-active,
-.creator-tabs a:hover {
-  border-color: rgba(49, 91, 255, 0.34);
-  background: rgba(49, 91, 255, 0.1);
-  color: var(--tone-ink);
-}
-.creator-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  align-items: start;
-  gap: 16px;
-}
-.creator-panel {
-  border: 1px solid var(--tone-line);
-  border-radius: var(--app-radius-sm);
-  background: rgba(255, 255, 255, 0.78);
-  box-shadow: var(--tone-shadow);
-  backdrop-filter: blur(20px);
-}
-.creator-form,
-.creator-favorites,
-.creator-panel:not(.creator-form) {
-  padding: 20px;
-}
-.creator-form {
-  display: grid;
-  align-content: start;
-  gap: 14px;
-}
-.panel-title {
+
+/* 顶部工具栏 (Premium Clean Toolbar) */
+.editor-header {
+  height: 52px;
+  background: #ffffff;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 0 24px;
+  flex-shrink: 0;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
   gap: 16px;
-  margin-bottom: 12px;
-}
-.panel-title h2 {
-  margin: 0;
-  font-size: 20px;
+  min-width: 240px;
 }
 
-.panel-title-actions {
+.back-link {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-a.desk-row--linked {
-  text-decoration: none;
-  color: inherit;
-  cursor: pointer;
-}
-
-a.desk-row--linked:hover {
-  background: rgba(20, 21, 29, 0.07);
-}
-
-.panel-title span,
-.desk-row span {
-  color: var(--tone-muted);
-  font-size: 13px;
-}
-.creator-form label {
-  display: grid;
-  gap: 8px;
-  color: var(--tone-muted);
-  font-size: 13px;
-  font-weight: 760;
-}
-.creator-form input,
-.creator-form select,
-.creator-form textarea {
-  width: 100%;
-  border: 1px solid rgba(17, 24, 39, 0.12);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.9);
-  color: var(--tone-strong);
-  font: inherit;
-  transition:
-    border-color 0.18s ease,
-    box-shadow 0.18s ease,
-    background 0.18s ease;
-}
-.creator-form input,
-.creator-form select {
-  min-height: 42px;
-  padding: 0 12px;
-}
-.creator-form input:not([type="checkbox"]):not([type="radio"]):hover,
-.creator-form select:hover,
-.creator-form textarea:hover {
-  border-color: rgba(49, 91, 255, 0.28);
-  background: #fff;
-}
-.creator-form input:not([type="checkbox"]):not([type="radio"]):focus,
-.creator-form select:focus,
-.creator-form textarea:focus {
-  border-color: rgba(49, 91, 255, 0.48);
-  outline: none;
-  box-shadow: 0 0 0 4px rgba(49, 91, 255, 0.1);
-}
-.tag-picker-wrap {
-  display: grid;
-  gap: 8px;
-}
-.tag-creator {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  margin-top: 4px;
-}
-.tag-creator input {
-  flex: 1;
-}
-.creator-form select {
-  appearance: none;
-  padding-right: 38px;
-  background-image:
-    linear-gradient(45deg, transparent 50%, #315bff 50%),
-    linear-gradient(135deg, #315bff 50%, transparent 50%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(246, 248, 255, 0.96));
-  background-position:
-    calc(100% - 18px) 50%,
-    calc(100% - 13px) 50%,
-    0 0;
-  background-size:
-    5px 5px,
-    5px 5px,
-    100% 100%;
-  background-repeat: no-repeat;
-  cursor: pointer;
-}
-.creator-form select option {
-  background: #fff;
-  color: var(--tone-strong);
-  font-size: 14px;
-}
-.creator-form input[type="file"] {
-  min-height: 48px;
-  padding: 6px 10px;
-  border-style: dashed;
-  border-color: rgba(49, 91, 255, 0.24);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(246, 248, 255, 0.88));
-  color: var(--tone-muted);
-  cursor: pointer;
-}
-.creator-form input[type="file"]::file-selector-button {
-  min-height: 34px;
-  margin-right: 12px;
-  padding: 0 14px;
-  border: 0;
-  border-radius: 999px;
-  background: rgba(49, 91, 255, 0.12);
-  color: #2448d8;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 800;
-  cursor: pointer;
-  transition:
-    background 0.18s ease,
-    color 0.18s ease,
-    transform 0.18s ease;
-}
-.creator-form input[type="file"]:hover::file-selector-button {
-  background: #315bff;
-  color: #fff;
-  transform: translateY(-1px);
-}
-.creator-form textarea {
-  resize: vertical;
-  padding: 12px;
-}
-.form-line,
-.form-actions,
-.row-actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-.form-line > * {
-  flex: 1;
-  min-width: 180px;
-}
-.tag-picker {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.tag-picker .check-line {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 34px;
-  padding: 6px 10px;
-  border: 1px solid var(--tone-line);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.58);
-}
-.tag-picker input {
-  width: 16px;
-  min-height: 16px;
-}
-.desk-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 14px;
-  border-radius: 8px;
-  background: rgba(20, 21, 29, 0.04);
-}
-.desk-row + .desk-row {
-  margin-top: 10px;
-}
-.desk-row div {
-  display: grid;
   gap: 4px;
+  color: #71717a;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+.back-link:hover {
+  color: #18181b;
+}
+
+.divider {
+  width: 1px;
+  height: 16px;
+  background: rgba(0,0,0,0.08);
+}
+
+.header-title {
+  color: #18181b;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.dropdown-trigger {
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.dropdown-icon {
+  transition: transform 0.2s;
+}
+.dropdown-icon.rotated {
+  transform: rotate(180deg);
+}
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 8px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  border: 1px solid rgba(0,0,0,0.06);
+  min-width: 120px;
+  z-index: 100;
+  overflow: hidden;
+}
+.dropdown-item {
+  padding: 10px 16px;
+  font-size: 13px;
+  color: #3f3f46;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.dropdown-item:hover {
+  background: #f4f4f5;
+  color: #18181b;
+}
+
+.header-status {
+  font-size: 11px;
+  color: #71717a;
+  background: #f4f4f5;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.header-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  justify-content: center;
+}
+
+.tool-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: #52525b;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.tool-btn span {
+  display: none; /* Hide labels for a cleaner look */
+}
+.tool-btn:hover {
+  background: #f4f4f5;
+  color: #18181b;
+}
+.tool-btn.active {
+  color: #6366f1;
+  background: #eef2ff;
+}
+.tool-btn:active {
+  transform: scale(0.96);
+}
+
+.tool-divider {
+  width: 1px;
+  height: 16px;
+  background: rgba(0,0,0,0.08);
+  margin: 0 8px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 240px;
+  justify-content: flex-end;
+}
+
+.word-count {
+  font-size: 12px;
+  color: #a1a1aa;
+  font-variant-numeric: tabular-nums;
+}
+
+.btn-draft {
+  background: transparent;
+  border: 1px solid rgba(0,0,0,0.1);
+  color: #52525b;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-draft:hover {
+  background: #f4f4f5;
+  color: #18181b;
+}
+
+.btn-publish {
+  background: #18181b;
+  border: none;
+  color: #ffffff;
+  padding: 7px 18px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.btn-publish:hover {
+  background: #27272a;
+}
+.btn-publish:active {
+  transform: translateY(1px);
+}
+
+/* 主体区域 */
+.editor-main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* 左侧目录 (Clean & Airy) */
+.editor-sidebar-left {
+  width: 260px;
+  background: transparent;
+  border-right: 1px solid rgba(0,0,0,0.06);
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-header {
+  padding: 20px 24px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #a1a1aa;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.collapse-icon {
+  color: #d4d4d8;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.collapse-icon:hover {
+  color: #71717a;
+}
+
+.toc-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 16px 24px;
+}
+
+.toc-empty {
+  color: #a1a1aa;
+  font-size: 13px;
+  text-align: center;
+  margin-top: 60px;
+  padding: 0 20px;
+  line-height: 1.6;
+}
+
+.toc-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.toc-list li {
+  margin-bottom: 4px;
+}
+.toc-link {
+  color: #52525b;
+  text-decoration: none;
+  font-size: 13px;
+  display: block;
+  padding: 6px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: all 0.2s;
+}
+.toc-link:hover {
+  background: rgba(0,0,0,0.04);
+  color: #18181b;
+}
+.toc-level-1 .toc-link { font-size: 14px; font-weight: 600; }
+.toc-level-2 .toc-link { font-size: 13px; font-weight: 500; }
+.toc-level-3 .toc-link { font-size: 12px; }
+.toc-level-4 .toc-link, .toc-level-5 .toc-link, .toc-level-6 .toc-link { font-size: 12px; color: #71717a; }
+
+/* 中间编辑器 (Immersive) */
+.editor-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  position: relative;
+  min-height: 0;
+}
+
+.markdown-workspace {
+  flex: 1;
+  display: flex;
+  padding: 32px 48px 48px;
+  gap: 24px;
+  min-height: 0;
+}
+
+.markdown-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
 }
-.icon-text-button {
-  border: 0;
-  background: transparent;
-  color: #315bff;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 800;
-  text-decoration: none;
-  cursor: pointer;
+
+.preview-column {
+  border-left: 1px solid rgba(0,0,0,0.06);
+  padding-left: 24px;
 }
-.icon-text-button.danger {
-  color: #b91c1c;
+
+.title-input-wrapper {
+  display: flex;
+  align-items: center;
+  padding-bottom: 16px;
+  flex-shrink: 0;
 }
-.appearance-entry {
+
+.title-input {
+  flex: 1;
+  border: none;
+  font-size: 36px;
+  font-weight: 700;
+  color: #18181b;
+  outline: none;
+  letter-spacing: -0.02em;
+}
+.title-input::placeholder {
+  color: #d4d4d8;
+}
+
+.title-counter {
+  font-size: 12px;
+  color: #a1a1aa;
+  margin-left: 16px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.title-input-wrapper:focus-within .title-counter {
+  opacity: 1;
+}
+
+.markdown-input {
+  flex: 1;
+  border: none;
+  resize: none;
+  font-size: 15px;
+  line-height: 1.8;
+  color: #27272a;
+  outline: none;
+  font-family: "Geist Mono", Consolas, Monaco, monospace;
+  overflow-y: auto;
+}
+.markdown-input::placeholder {
+  color: #a1a1aa;
+}
+.markdown-input::-webkit-scrollbar {
+  width: 8px;
+}
+.markdown-input::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.1);
+  border-radius: 4px;
+}
+
+.preview-title-wrapper {
+  padding-bottom: 16px;
+  flex-shrink: 0;
+}
+
+.markdown-preview {
+  flex: 1;
+  overflow-y: auto;
+  font-size: 15px;
+  line-height: 1.8;
+  color: #27272a;
+}
+.preview-title {
+  font-size: 36px;
+  font-weight: 700;
+  color: #18181b;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+.markdown-preview::-webkit-scrollbar {
+  width: 8px;
+}
+.markdown-preview::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.1);
+  border-radius: 4px;
+}
+.markdown-preview :deep(h1), .markdown-preview :deep(h2), .markdown-preview :deep(h3) {
+  margin-top: 1.2em;
+  margin-bottom: 0.6em;
+  color: #18181b;
+}
+.markdown-preview :deep(> *:first-child) {
+  margin-top: 0;
+}
+.markdown-preview :deep(p) {
+  margin-bottom: 1em;
+}
+.markdown-preview :deep(pre) {
+  background: #f4f4f5;
+  padding: 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+.markdown-preview :deep(code) {
+  font-family: "Geist Mono", Consolas, monospace;
+  background: #f4f4f5;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+.markdown-preview :deep(blockquote) {
+  border-left: 4px solid #e4e4e7;
+  padding-left: 16px;
+  color: #71717a;
+  margin: 1em 0;
+}
+.markdown-preview :deep(table) {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+}
+.markdown-preview :deep(table th), .markdown-preview :deep(table td) {
+  border: 1px solid #e4e4e7;
+  padding: 8px 12px;
+  text-align: left;
+}
+.markdown-preview :deep(table th) {
+  background: #f4f4f5;
+  font-weight: 600;
+}
+.markdown-preview :deep(img) {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+/* 右侧 AI 助手 (Distinctive, polished) */
+.editor-sidebar-right {
+  width: 320px;
+  background: #fafafa;
+  border-left: 1px solid rgba(0,0,0,0.06);
+  display: flex;
+  flex-direction: column;
+}
+
+.ai-header {
+  padding: 20px 24px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
-  min-height: 220px;
-  background:
-    radial-gradient(circle at 88% 18%, rgba(49, 91, 255, 0.14), transparent 28%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(245, 249, 255, 0.82));
 }
-.appearance-entry h2 {
-  margin: 4px 0 8px;
-  color: var(--tone-ink);
-  font-size: clamp(28px, 4vw, 42px);
+
+.ai-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #18181b;
 }
-.appearance-entry p {
-  max-width: 620px;
-  margin: 0;
-  color: var(--tone-muted);
-  line-height: 1.7;
+
+.ai-model {
+  font-size: 11px;
+  color: #71717a;
+  background: #ffffff;
+  border: 1px solid rgba(0,0,0,0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
 }
-.entry-kicker {
-  color: #315bff !important;
+
+.ai-body {
+  flex: 1;
+  padding: 0 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.ai-section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   font-size: 12px;
-  font-weight: 860;
-  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: #a1a1aa;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 16px;
 }
-@media (max-width: 1020px) {
-  .creator-grid {
-    grid-template-columns: 1fr;
-  }
-  .creator-hero__stats {
-    justify-content: flex-start;
-  }
+.btn-refresh {
+  background: none;
+  border: none;
+  color: #71717a;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  text-transform: none;
+  letter-spacing: 0;
+  transition: color 0.2s;
 }
-@media (max-width: 760px) {
-  .creator-page {
-    padding-top: 26px;
-  }
-  .desk-row,
-  .panel-title,
-  .appearance-entry {
-    align-items: flex-start;
-    flex-direction: column;
-  }
+.btn-refresh:hover {
+  color: #18181b;
+}
+
+.ai-tags {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ai-tag {
+  background: #ffffff;
+  border: 1px solid rgba(0,0,0,0.06);
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #3f3f46;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+}
+.ai-tag:hover {
+  color: #000;
+  border-color: rgba(0,0,0,0.15);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  transform: translateY(-1px);
+}
+.ai-loading {
+  font-size: 12px;
+  color: #a1a1aa;
+  text-align: center;
+  padding: 12px;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+.ai-chat-area {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: #ffffff;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(0,0,0,0.06);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.02);
+}
+
+.ai-disclaimer {
+  font-size: 11px;
+  color: #a1a1aa;
+  text-align: center;
+}
+
+.ai-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.ai-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #fafafa;
+  border: 1px solid transparent;
+  color: #52525b;
+  padding: 10px 4px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.ai-action-btn:hover {
+  background: #ffffff;
+  color: #18181b;
+  border-color: rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.ai-input-box {
+  display: flex;
+  align-items: center;
+  background: #f4f4f5;
+  border-radius: 999px;
+  padding: 6px 6px 6px 14px;
+  border: 1px solid transparent;
+  transition: border-color 0.2s, background 0.2s;
+}
+.ai-input-box:focus-within {
+  background: #ffffff;
+  border-color: rgba(0,0,0,0.15);
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.04);
+}
+.ai-input-box input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 13px;
+  padding: 0 8px;
+  color: #18181b;
+}
+.ai-input-box input::placeholder {
+  color: #a1a1aa;
+}
+.btn-send {
+  background: #18181b;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+.btn-send:hover {
+  background: #27272a;
+}
+.btn-send:active {
+  transform: scale(0.95);
+}
+
+/* Modal styles */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.publish-modal {
+  background: white;
+  width: 500px;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+}
+.modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.modal-body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.form-group label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #52525b;
+}
+.form-select, .form-input, .form-textarea {
+  border: 1px solid rgba(0,0,0,0.1);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+  font-family: inherit;
+}
+.form-select:focus, .form-input:focus, .form-textarea:focus {
+  border-color: #18181b;
+}
+.tags-selector {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.tag-checkbox {
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.cover-preview {
+  margin-top: 8px;
+  max-width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+.modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid rgba(0,0,0,0.06);
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+.btn-cancel {
+  background: white;
+  border: 1px solid rgba(0,0,0,0.1);
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.btn-publish-confirm {
+  background: #18181b;
+  color: white;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* 全局提示 */
+.global-toast {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #18181b;
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 2000;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+  letter-spacing: 0.01em;
+}
+
+/* 额外表单样式 */
+.form-layout, .idea-layout {
+  padding: 48px;
+  align-items: center;
+  overflow-y: auto;
+}
+.project-form, .idea-form {
+  width: 100%;
+  max-width: 680px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.form-page-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #18181b;
+  margin-bottom: 16px;
+  text-align: center;
+}
+.form-group-large {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.form-group-large label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #18181b;
+}
+.form-input-large, .form-textarea-large {
+  border: 1px solid rgba(0,0,0,0.1);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 15px;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.2s;
+  background: #fafafa;
+}
+.form-input-large:focus, .form-textarea-large:focus {
+  border-color: #18181b;
+  background: #fff;
+}
+.form-textarea-large {
+  resize: vertical;
+}
+
+.idea-input-box {
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.1);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+}
+.idea-textarea {
+  width: 100%;
+  border: none;
+  padding: 20px;
+  font-size: 15px;
+  outline: none;
+  font-family: inherit;
+  resize: none;
+}
+.idea-actions {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  border-top: 1px solid rgba(0,0,0,0.06);
+  background: #fafafa;
 }
 </style>

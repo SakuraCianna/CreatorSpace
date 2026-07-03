@@ -118,6 +118,53 @@ public class AiAssistantService {
         return taskById(id, null);
     }
 
+    public List<String> generateHotTopics() {
+        if (!enabled) {
+            return List.of("开启AI获取推荐", "分享你的开发经验", "IT职场心得");
+        }
+        
+        String context = "当前热门文章：\n" + topArticles() + "\n近期热门搜索：\n" + topSearches("7 days");
+        String prompt = "你是CreatorSpace的AI创作助手。请根据上述近期平台热门文章和搜索词，为创作者随机推荐3到5个能够吸引流量的、具体的创作热点或灵感话题。每行一个话题，不需要序号，不需要任何前言或解释。只输出话题本身。";
+        
+        try {
+            String response;
+            if ("local".equalsIgnoreCase(provider) || !aiModelClient.supportsRemoteCall()) {
+                response = "如何使用大模型提升开发效率\nIT疑难杂症排查指南\n开源项目实战解析\n我的职业成长复盘";
+            } else {
+                List<AiModelClient.ChatMessage> messages = new ArrayList<>();
+                messages.add(new AiModelClient.ChatMessage("SYSTEM", prompt));
+                messages.add(new AiModelClient.ChatMessage("USER", context));
+                response = aiModelClient.complete(messages);
+            }
+            
+            return java.util.Arrays.stream(response.split("\\R"))
+                    .map(String::trim)
+                    .filter(s -> !s.isBlank())
+                    .map(s -> s.replaceFirst("^\\d+\\.\\s*", "").replaceFirst("^[-*]\\s*", ""))
+                    .limit(5)
+                    .toList();
+        } catch (Exception e) {
+            return List.of("如何写出爆款文章", "技术进阶路线分享", "独立开发者的经验谈");
+        }
+    }
+
+    public String generateText(String prompt, String context) {
+        if (!enabled || ("local".equalsIgnoreCase(provider) && !aiModelClient.supportsRemoteCall())) {
+            return "（这里是AI生成的文本，由于您当前使用的是本地环境，暂不支持大模型连网请求。您的请求是：" + prompt + "）";
+        }
+        try {
+            List<AiModelClient.ChatMessage> messages = new ArrayList<>();
+            messages.add(new AiModelClient.ChatMessage("SYSTEM", "你是CreatorSpace的专业AI写作助手。请根据用户的需求和当前文章上下文，直接输出符合要求的Markdown格式文本，不要附带多余的寒暄。"));
+            if (context != null && !context.isBlank()) {
+                messages.add(new AiModelClient.ChatMessage("USER", "这是我当前已写的内容作为上下文：\n" + context));
+            }
+            messages.add(new AiModelClient.ChatMessage("USER", "我的需求是：\n" + prompt));
+            return aiModelClient.complete(messages);
+        } catch (Exception e) {
+            return "对不起，AI服务当前不可用，请稍后再试。";
+        }
+    }
+
     public PageResponse<AiTaskVO> tasks(String status, long page, long pageSize) {
         String normalizedStatus = normalizeNullable(status);
         List<Object> params = new ArrayList<>();
