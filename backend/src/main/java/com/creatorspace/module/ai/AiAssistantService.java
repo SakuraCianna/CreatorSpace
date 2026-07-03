@@ -148,23 +148,124 @@ public class AiAssistantService {
         }
     }
 
-    public String generateText(String prompt, String context) {
-        if (!enabled || ("local".equalsIgnoreCase(provider) && !aiModelClient.supportsRemoteCall())) {
-            return "（这里是AI生成的文本，由于您当前使用的是本地环境，暂不支持大模型连网请求。您的请求是：" + prompt + "）";
+    public CreatorAiResponse generateCreatorText(CreatorAiRequest request) {
+        String mode = normalizeCreatorMode(request.mode());
+        String prompt = trimToNull(request.prompt());
+        String title = trimToNull(request.title());
+        String context = trimToNull(request.context());
+        String selection = trimToNull(request.selection());
+        if (prompt == null && title == null && context == null && selection == null) {
+            throw BusinessException.badRequest("请先输入标题、正文或 AI 创作要求");
         }
+
+        if (!enabled || !usesRemoteModel()) {
+            return new CreatorAiResponse(
+                    mode,
+                    localCreatorText(mode, prompt, title, context, selection),
+                    "当前使用本地规则生成，配置 AI_ENABLED=true 和模型参数后可调用远程模型。"
+            );
+        }
+
         try {
-            List<AiModelClient.ChatMessage> messages = new ArrayList<>();
-            messages.add(new AiModelClient.ChatMessage("SYSTEM", "你是CreatorSpace的专业AI写作助手。请根据用户的需求和当前文章上下文，直接输出符合要求的Markdown格式文本，不要附带多余的寒暄。"));
-            if (context != null && !context.isBlank()) {
-                messages.add(new AiModelClient.ChatMessage("USER", "这是我当前已写的内容作为上下文：\n" + context));
-            }
-            messages.add(new AiModelClient.ChatMessage("USER", "我的需求是：\n" + prompt));
-            return aiModelClient.complete(messages);
-        } catch (Exception e) {
-            return "对不起，AI服务当前不可用，请稍后再试。";
+            return new CreatorAiResponse(mode, aiModelClient.complete(buildCreatorMessages(mode, prompt, title, context, selection)), null);
+        } catch (Exception exception) {
+            return new CreatorAiResponse(
+                    mode,
+                    localCreatorText(mode, prompt, title, context, selection),
+                    "AI 服务暂时不可用，已改用本地规则生成。"
+            );
         }
     }
 
+    public String generateText(String prompt, String context) {
+        return generateCreatorText(new CreatorAiRequest("CUSTOM", null, prompt, context, null)).text();
+    }
+
+    private List<AiModelClient.ChatMessage> buildCreatorMessages(String mode, String prompt, String title, String context, String selection) {
+        List<AiModelClient.ChatMessage> messages = new ArrayList<>();
+        messages.add(new AiModelClient.ChatMessage("SYSTEM", "你是 CreatorSpace 普通用户创建博客时的 AI 创作助手。你只帮助作者构思、续写、润色、摘要和整理资料线索，不替用户发布、不承诺事实正确、不编造引用来源。输出必须简洁、可直接放进博客编辑器，优先使用 Markdown。"));
+        StringBuilder user = new StringBuilder();
+        user.append("任务模式：").append(mode).append('\n');
+        user.append("输出要求：").append(creatorModeInstruction(mode)).append("\n\n");
+        if (title != null) {
+            user.append("当前标题：\n").append(title).append("\n\n");
+        }
+        if (selection != null) {
+            user.append("用户当前选中的片段：\n").append(shorten(selection, 1800)).append("\n\n");
+        }
+        if (context != null) {
+            user.append("当前草稿上下文：\n").append(shorten(context, 6000)).append("\n\n");
+        }
+        if (prompt != null) {
+            user.append("用户补充要求：\n").append(prompt).append('\n');
+        }
+        messages.add(new AiModelClient.ChatMessage("USER", user.toString().trim()));
+        return messages;
+    }
+
+    private String creatorModeInstruction(String mode) {
+        return switch (mode) {
+            case "OUTLINE" -> "生成一份博客大纲，包含标题、导语方向、3 到 6 个二级标题和每节要点。";
+            case "CONTINUE" -> "基于当前草稿自然续写 2 到 4 段，不重复已有内容，保持作者原有语气。";
+            case "POLISH" -> "润色选中片段或全文片段，保留原意，改善表达、结构和可读性，只输出润色后的正文。";
+            case "SUMMARY" -> "生成 80 到 140 字文章摘要，适合作为发布设置中的摘要字段。";
+            case "TITLE" -> "生成 5 个可选博客标题，每行一个，不要解释。";
+            case "TAGS" -> "生成 5 到 8 个短标签，每行一个，不带 #，避免太宽泛。";
+            case "CODE" -> "按用户要求生成代码片段或技术示例，使用 Markdown 代码块，并补充必要说明。";
+            case "RESEARCH" -> "整理资料检索方向、关键词和需要核验的问题，不编造具体论文、链接或作者。";
+            default -> "按用户要求生成可直接放入博客编辑器的 Markdown 内容。";
+        };
+    }
+
+    private String localCreatorText(String mode, String prompt, String title, String context, String selection) {
+        String topic = firstNonBlank(title, prompt, "这篇博客");
+        String material = firstNonBlank(selection, context, prompt, topic);
+        String brief = shorten(material, 180);
+        return switch (mode) {
+            case "OUTLINE" -> "# " + topic + "\n\n## 开篇：为什么这个话题值得写\n- 交代问题背景和读者会获得什么。\n- 用一个具体场景引出正文。\n\n## 核心问题\n- 梳理目前遇到的关键挑战。\n- 点出容易被忽略的细节。\n\n## 解决思路\n- 拆成步骤、方法或经验清单。\n- 每一步配一个简短示例。\n\n## 实践复盘\n- 说明哪些做法有效，哪些需要调整。\n- 补充踩坑、权衡和后续计划。\n\n## 结尾\n- 总结最重要的收获。\n- 给读者一个可执行的下一步。";
+            case "CONTINUE" -> "接下来可以继续从一个更具体的场景切入：\n\n如果把上面的思路放到真实创作流程里，最重要的不是一次性写完，而是先把问题拆清楚。先确定读者是谁、他们卡在哪里，再决定用教程、复盘还是清单来组织内容。\n\n在写作过程中，可以把每一节都压成一个明确的小结论：这一段解决什么问题、用了什么方法、留下什么经验。这样文章不会只是材料堆叠，而会形成一条可以跟着走的路径。";
+            case "POLISH" -> "润色建议稿：\n\n" + brief + "\n\n可以进一步把表达压得更清楚：先说明背景，再给出判断，最后落到具体做法。句子尽量短一些，关键概念前后保持同一个称呼，让读者不用反复猜测上下文。";
+            case "SUMMARY" -> "本文围绕“" + topic + "”展开，结合当前创作内容梳理背景、关键问题和实践思路，帮助读者更清晰地理解方法、取舍与后续可执行的改进方向。";
+            case "TITLE" -> """
+                    %s：一次完整的实践复盘
+                    从问题到方案：%s 的写作记录
+                    %s 背后的关键思路
+                    写给创作者的 %s 入门指南
+                    如何把 %s 落到真实项目里
+                    """.formatted(topic, topic, topic, topic, topic).trim();
+            case "TAGS" -> "创作复盘\n实践记录\n经验总结\n方法论\n项目思考\n内容创作";
+            case "CODE" -> "```ts\n// 根据你的需求补充更具体的输入后，AI 可以生成完整示例。\nfunction draftIdea(title: string, context: string) {\n  return `${title}: ${context}`\n}\n```\n\n可以在提示里说明语言、框架、输入输出和边界条件，生成结果会更贴近正文。";
+            case "RESEARCH" -> "## 检索方向\n- 关键词：" + topic + "、实践复盘、案例分析、常见问题。\n- 优先核验：定义是否准确、数据是否有来源、案例是否可公开引用。\n- 可补充材料：官方文档、技术博客、项目 README、论文摘要或真实使用记录。\n\n## 写作提醒\n- 不确定的结论先写成观察或假设。\n- 引用外部资料时保留来源链接和访问时间。";
+            default -> "## " + topic + "\n\n" + brief + "\n\n可以从背景、问题、方法和复盘四个角度继续展开。先写清楚为什么要做，再说明怎么做，最后总结这次创作或实践带来的启发。";
+        };
+    }
+
+    private String normalizeCreatorMode(String value) {
+        String mode = normalizeNullable(value);
+        if (mode == null) {
+            return "CUSTOM";
+        }
+        return switch (mode) {
+            case "OUTLINE", "CONTINUE", "POLISH", "SUMMARY", "TITLE", "TAGS", "CODE", "RESEARCH", "CUSTOM" -> mode;
+            default -> "CUSTOM";
+        };
+    }
+
+    private String trimToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return "";
+    }
     public PageResponse<AiTaskVO> tasks(String status, long page, long pageSize) {
         String normalizedStatus = normalizeNullable(status);
         List<Object> params = new ArrayList<>();
@@ -792,6 +893,11 @@ public class AiAssistantService {
     private record WorkflowPrompt(String prompt, String context) {
     }
 
+    public record CreatorAiRequest(String mode, String title, String prompt, String context, String selection) {
+    }
+
+    public record CreatorAiResponse(String mode, String text, String notice) {
+    }
     public record AiTaskRequest(String taskType, String targetType, Long targetId, String prompt) {
     }
 

@@ -19,7 +19,7 @@
         </div>
         <span class="header-status" v-if="editingArticleId">编辑草稿</span>
       </div>
-      
+
       <div class="header-toolbar">
         <button class="tool-btn" title="撤销"><Undo :size="16" /><span>撤销</span></button>
         <button class="tool-btn" title="重做"><Redo :size="16" /><span>重做</span></button>
@@ -50,7 +50,7 @@
         </div>
       </div>
     </header>
-    
+
     <main class="editor-main">
       <!-- 左侧大纲 -->
       <aside class="editor-sidebar-left">
@@ -76,18 +76,18 @@
           <!-- 左侧输入栏 -->
           <div class="markdown-column">
             <div class="title-input-wrapper">
-              <input 
-                type="text" 
-                class="title-input" 
-                v-model="articleForm.title" 
+              <input
+                type="text"
+                class="title-input"
+                v-model="articleForm.title"
                 placeholder="请输入文章标题（5～100个字）"
                 maxlength="100"
               />
               <span class="title-counter" style="white-space: nowrap;">还需输入 {{ Math.max(0, 5 - articleForm.title.length) }} 个字</span>
             </div>
-            <textarea 
+            <textarea
               ref="textareaRef"
-              class="markdown-input" 
+              class="markdown-input"
               v-model="articleForm.contentMarkdown"
               placeholder="在这里开始您的专业创作...&#10;支持 Markdown 语法，左侧编写，右侧实时无缝预览。"
               @input="updateWordCount"
@@ -145,37 +145,68 @@
       <aside class="editor-sidebar-right" v-if="showAIAssistant">
         <div class="ai-assistant">
           <div class="ai-header">
-            <div class="ai-title">
-              <Sparkles :size="18" color="#6366f1" /> AI 助手
+            <div>
+              <div class="ai-title">
+                <Sparkles :size="18" color="#315bff" /> AI 创作助手
+              </div>
+              <div class="ai-subtitle">草稿协作 · Markdown 输出</div>
             </div>
             <X :size="16" class="close-icon" @click="showAIAssistant = false" style="cursor: pointer;" />
           </div>
-          
+
           <div class="ai-body">
             <div class="ai-section">
               <div class="ai-section-title">
-                <span>创作热点推荐</span>
-                <button class="btn-refresh" @click="fetchHotTopics"><RefreshCw :size="12" style="margin-right: 4px;" :class="{ 'spin': isLoadingTopics }" /> 换一换</button>
+                <span>灵感话题</span>
+                <button class="btn-refresh" @click="fetchHotTopics" :disabled="isLoadingTopics"><RefreshCw :size="12" style="margin-right: 4px;" :class="{ 'spin': isLoadingTopics }" /> 换一换</button>
               </div>
               <div class="ai-tags">
                 <span class="ai-tag" v-for="(topic, index) in hotTopics" :key="index" @click="insertTopic(topic)">{{ topic }}</span>
                 <span v-if="hotTopics.length === 0 && isLoadingTopics" class="ai-loading">加载中...</span>
               </div>
             </div>
-            
-            <div class="ai-chat-area">
-              <div class="ai-disclaimer">内容由AI生成，仅供参考</div>
-              
+
+            <div class="ai-section">
+              <div class="ai-section-title"><span>快捷生成</span></div>
               <div class="ai-quick-actions">
-                <button class="ai-action-btn"><ListTree :size="14" /> 大纲生成</button>
-                <button class="ai-action-btn"><CodeXml :size="14" /> 代码生成</button>
-                <button class="ai-action-btn"><BookOpenCheck :size="14" /> 学术搜索</button>
+                <button
+                  v-for="action in aiQuickActions"
+                  :key="action.mode"
+                  class="ai-action-btn"
+                  :class="{ active: activeAiMode === action.mode }"
+                  type="button"
+                  :disabled="isGeneratingAiText"
+                  @click="runQuickAction(action.mode)"
+                >
+                  <component :is="action.icon" :size="14" />
+                  <span>{{ action.label }}</span>
+                </button>
               </div>
-              
+            </div>
+
+            <div class="ai-result-panel" v-if="aiResult.text || isGeneratingAiText">
+              <div class="ai-result-head">
+                <span>{{ aiResultTitle }}</span>
+                <span class="ai-result-state" v-if="isGeneratingAiText">生成中</span>
+              </div>
+              <div class="ai-result-notice" v-if="aiResult.notice">{{ aiResult.notice }}</div>
+              <pre class="ai-result-text">{{ aiResult.text || '正在整理你的草稿...' }}</pre>
+              <div class="ai-result-actions" v-if="aiResult.text">
+                <button type="button" @click="insertAiResult"><Check :size="13" />插入正文</button>
+                <button type="button" @click="replaceSelectionWithAiResult" :disabled="!canReplaceSelection"><WandSparkles :size="13" />替换选区</button>
+                <button type="button" @click="fillSummaryFromAiResult"><FileText :size="13" />填入摘要</button>
+                <button type="button" v-if="aiResult.mode === 'TITLE'" @click="useAiResultAsTitle"><FileText :size="13" />设为标题</button>
+                <button type="button" @click="copyAiResult"><Copy :size="13" />复制</button>
+              </div>
+            </div>
+
+            <div class="ai-chat-area">
+              <div class="ai-disclaimer">内容由 AI 生成，采纳前请自行核对事实与来源</div>
+
               <div class="ai-input-box">
-                <Sparkles :size="16" color="#a1a1aa" class="ai-input-icon" />
-                <input type="text" placeholder="输入创作要求，AI帮你写" v-model="aiPrompt" @keydown.enter="generateAiText" />
-                <button class="btn-send" @click="generateAiText" :disabled="isGeneratingAiText">
+                <Sparkles :size="16" color="#71717a" class="ai-input-icon" />
+                <input type="text" placeholder="输入创作要求，AI 帮你写" v-model="aiPrompt" @keydown.enter="generateAiText()" />
+                <button class="btn-send" @click="generateAiText()" :disabled="isGeneratingAiText || !aiPrompt.trim()">
                   <RefreshCw :size="14" color="#fff" class="spin" v-if="isGeneratingAiText" />
                   <Send :size="14" color="#fff" v-else />
                 </button>
@@ -262,17 +293,17 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useSessionStore } from '../shared/sessionStore'
-import { 
-  createCreatorArticle, 
-  updateCreatorArticle, 
+import {
+  createCreatorArticle,
+  updateCreatorArticle,
   fetchCreatorArticle,
-  submitCreatorArticle 
+  submitCreatorArticle
 } from '../services/content'
 import { toUserMessage, requestJson } from '../services/http'
-import { 
-  ChevronLeft, ChevronDown, ChevronsLeftRight, Undo, Redo, Bold, Italic, Strikethrough, 
-  List, ListOrdered, Code, Quote, Image, Link, Sparkles, X, RefreshCw, 
-  ListTree, CodeXml, BookOpenCheck, Send, Table, Minus
+import {
+  ChevronLeft, ChevronDown, ChevronsLeftRight, Undo, Redo, Bold, Italic, Strikethrough,
+  List, ListOrdered, Code, Quote, Image, Link, Sparkles, X, RefreshCw,
+  ListTree, CodeXml, BookOpenCheck, Send, Table, Minus, Copy, Check, FileText, Tags, WandSparkles
 } from '@lucide/vue'
 import MarkdownIt from 'markdown-it'
 
@@ -340,7 +371,7 @@ function insertTable() {
   let { rows, cols } = tableConfig
   rows = Math.max(2, Math.min(20, rows))
   cols = Math.max(1, Math.min(10, cols))
-  
+
   let tableMd = '\n'
   // Header row
   tableMd += '|'
@@ -362,13 +393,60 @@ function insertTable() {
     tableMd += '\n'
   }
   tableMd += '\n'
-  
+
   insertText(tableMd, '', '')
   showTableModal.value = false
 }
 
+type AiMode = 'OUTLINE' | 'CONTINUE' | 'POLISH' | 'SUMMARY' | 'TITLE' | 'TAGS' | 'CODE' | 'RESEARCH' | 'CUSTOM'
+
+interface ApiEnvelope<T> {
+  success: boolean
+  data: T
+  message: string
+}
+
+interface CreatorAiResponse {
+  mode: AiMode
+  text: string
+  notice?: string | null
+}
+
 const hotTopics = ref<string[]>([])
 const isLoadingTopics = ref(false)
+const aiPrompt = ref('')
+const isGeneratingAiText = ref(false)
+const activeAiMode = ref<AiMode | null>(null)
+const aiResult = reactive<CreatorAiResponse>({ mode: 'CUSTOM', text: '', notice: '' })
+const aiSelectionRange = reactive({ start: 0, end: 0 })
+
+const aiQuickActions = [
+  { mode: 'OUTLINE' as const, label: '大纲', icon: ListTree },
+  { mode: 'CONTINUE' as const, label: '续写', icon: Sparkles },
+  { mode: 'POLISH' as const, label: '润色', icon: WandSparkles },
+  { mode: 'SUMMARY' as const, label: '摘要', icon: FileText },
+  { mode: 'TITLE' as const, label: '标题', icon: FileText },
+  { mode: 'TAGS' as const, label: '标签', icon: Tags },
+  { mode: 'CODE' as const, label: '代码', icon: CodeXml },
+  { mode: 'RESEARCH' as const, label: '资料', icon: BookOpenCheck },
+]
+
+const aiResultTitle = computed(() => {
+  const labels: Record<AiMode, string> = {
+    OUTLINE: '大纲候选',
+    CONTINUE: '续写候选',
+    POLISH: '润色候选',
+    SUMMARY: '摘要候选',
+    TITLE: '标题候选',
+    TAGS: '标签候选',
+    CODE: '代码候选',
+    RESEARCH: '资料建议',
+    CUSTOM: '自定义候选',
+  }
+  return labels[aiResult.mode] ?? 'AI 候选'
+})
+
+const canReplaceSelection = computed(() => aiSelectionRange.end > aiSelectionRange.start && Boolean(aiResult.text.trim()))
 
 async function fetchHotTopics() {
   if (isLoadingTopics.value) return
@@ -387,38 +465,170 @@ async function fetchHotTopics() {
 }
 
 function insertTopic(topic: string) {
-  insertText(topic + '\n', '', topic)
+  articleForm.title = articleForm.title || topic
+  insertMarkdown(`\n## ${topic}\n\n`)
 }
 
-const aiPrompt = ref('')
-const isGeneratingAiText = ref(false)
+function runQuickAction(mode: AiMode) {
+  const prompt = aiPrompt.value.trim() || defaultPromptForMode(mode)
+  generateAiText(mode, prompt)
+}
 
-async function generateAiText() {
-  if (!aiPrompt.value.trim() || isGeneratingAiText.value) return
+async function generateAiText(mode: AiMode = 'CUSTOM', promptOverride?: string) {
+  const prompt = (promptOverride ?? aiPrompt.value).trim()
+  if (isGeneratingAiText.value) return
+  if (mode === 'CUSTOM' && !prompt) {
+    showNotice('请输入 AI 创作要求')
+    return
+  }
+
+  const selection = readEditorSelection()
+  aiSelectionRange.start = selection.start
+  aiSelectionRange.end = selection.end
   isGeneratingAiText.value = true
+  activeAiMode.value = mode
+  aiResult.mode = mode
+  aiResult.text = ''
+  aiResult.notice = ''
+
   try {
-    const res = await fetch('/api/ai/write', {
+    const response = await requestJson<ApiEnvelope<CreatorAiResponse>>('/api/ai/write', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
       body: JSON.stringify({
-        prompt: aiPrompt.value,
-        context: articleForm.contentMarkdown
+        mode,
+        title: articleForm.title,
+        prompt,
+        context: articleForm.contentMarkdown,
+        selection: selection.text,
       })
     })
-    const text = await res.text()
-    if (res.ok) {
-      insertText('\n' + text + '\n', '', '')
+    aiResult.mode = response.data.mode
+    aiResult.text = response.data.text
+    aiResult.notice = response.data.notice ?? ''
+    if (mode === 'CUSTOM') {
       aiPrompt.value = ''
-    } else {
-      showNotice('AI 请求失败，请检查网络或后端。')
     }
-  } catch (err) {
-    showNotice('AI 异常，请稍后再试。')
+  } catch (error) {
+    showNotice(readError(error, 'AI 生成失败'))
   } finally {
     isGeneratingAiText.value = false
+    activeAiMode.value = null
   }
+}
+
+function defaultPromptForMode(mode: AiMode) {
+  const title = articleForm.title.trim() || '当前草稿'
+  const prompts: Record<AiMode, string> = {
+    OUTLINE: `围绕《${title}》生成一份适合博客的结构化大纲`,
+    CONTINUE: '根据当前草稿自然续写，保持上下文连贯',
+    POLISH: '润色当前选中内容；如果没有选中内容，就润色当前草稿的关键段落',
+    SUMMARY: '生成适合发布设置使用的文章摘要',
+    TITLE: '基于当前草稿生成多个博客标题',
+    TAGS: '基于当前草稿生成内容标签',
+    CODE: '根据当前草稿生成一个相关的代码示例',
+    RESEARCH: '整理这篇博客后续可以检索和核验的资料方向',
+    CUSTOM: '',
+  }
+  return prompts[mode]
+}
+
+function readEditorSelection() {
+  const textarea = textareaRef.value
+  if (!textarea) {
+    const end = articleForm.contentMarkdown.length
+    return { start: end, end, text: '' }
+  }
+  const start = textarea.selectionStart
+  const end = textarea.selectionEnd
+  return {
+    start,
+    end,
+    text: start === end ? '' : articleForm.contentMarkdown.slice(start, end),
+  }
+}
+
+function insertAiResult() {
+  if (!aiResult.text.trim()) return
+  insertMarkdown(aiResult.text)
+  showNotice('AI 内容已插入正文')
+}
+
+function replaceSelectionWithAiResult() {
+  if (!canReplaceSelection.value) {
+    showNotice('请先选中一段正文再替换')
+    return
+  }
+  replaceMarkdownRange(aiSelectionRange.start, aiSelectionRange.end, aiResult.text.trim())
+  showNotice('已用 AI 内容替换选区')
+}
+
+function fillSummaryFromAiResult() {
+  if (!aiResult.text.trim()) return
+  articleForm.summary = normalizePlainText(aiResult.text).slice(0, 180)
+  showNotice('摘要已填入发布设置')
+}
+
+function useAiResultAsTitle() {
+  const title = firstResultLine(aiResult.text)
+  if (!title) return
+  articleForm.title = title.slice(0, 100)
+  showNotice('标题已更新')
+}
+
+async function copyAiResult() {
+  if (!aiResult.text.trim()) return
+  try {
+    await navigator.clipboard.writeText(aiResult.text)
+    showNotice('AI 内容已复制')
+  } catch {
+    showNotice('复制失败，请手动选中复制')
+  }
+}
+
+function insertMarkdown(markdown: string) {
+  const value = formatAiInsertion(markdown)
+  const textarea = textareaRef.value
+  if (!textarea) {
+    articleForm.contentMarkdown = `${articleForm.contentMarkdown.trim()}${value}`.trimStart()
+    return
+  }
+  const position = textarea.selectionStart
+  replaceMarkdownRange(position, position, value)
+}
+
+function replaceMarkdownRange(start: number, end: number, value: string) {
+  const safeStart = Math.max(0, Math.min(start, articleForm.contentMarkdown.length))
+  const safeEnd = Math.max(safeStart, Math.min(end, articleForm.contentMarkdown.length))
+  articleForm.contentMarkdown = articleForm.contentMarkdown.slice(0, safeStart) + value + articleForm.contentMarkdown.slice(safeEnd)
+  setTimeout(() => {
+    const textarea = textareaRef.value
+    if (!textarea) return
+    const cursor = safeStart + value.length
+    textarea.focus()
+    textarea.setSelectionRange(cursor, cursor)
+  }, 0)
+}
+
+function formatAiInsertion(markdown: string) {
+  const text = markdown.trim()
+  if (!text) return ''
+  return articleForm.contentMarkdown.trim() ? `\n\n${text}\n` : text
+}
+
+function normalizePlainText(markdown: string) {
+  return markdown
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^[-*]\s+/gm, '')
+    .replace(/^\d+[.、]\s+/gm, '')
+    .replace(/[*_`>#]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function firstResultLine(markdown: string) {
+  const line = markdown.split(/\r?\n/).map((item) => normalizePlainText(item)).find(Boolean)
+  return line ?? ''
 }
 
 // 初始加载
@@ -468,18 +678,18 @@ function extractTOC(markdown: string) {
 function insertText(before: string, after: string, placeholder: string) {
   const textarea = textareaRef.value
   if (!textarea) return
-  
+
   const start = textarea.selectionStart
   const end = textarea.selectionEnd
   const selected = articleForm.contentMarkdown.slice(start, end) || placeholder
-  
-  const newValue = 
-    articleForm.contentMarkdown.slice(0, start) + 
-    before + selected + after + 
+
+  const newValue =
+    articleForm.contentMarkdown.slice(0, start) +
+    before + selected + after +
     articleForm.contentMarkdown.slice(end)
-    
+
   articleForm.contentMarkdown = newValue
-  
+
   // 恢复焦点并选中插入的文本
   setTimeout(() => {
     textarea.focus()
@@ -522,7 +732,7 @@ async function saveArticle() {
     // 自动生成 slug
     articleForm.slug = 'post-' + Date.now()
   }
-  
+
   try {
     if (editingArticleId.value) {
       await updateCreatorArticle(editingArticleId.value, { ...articleForm })
@@ -542,7 +752,7 @@ async function saveArticle() {
 async function publishArticle() {
   await saveArticle()
   if (!editingArticleId.value) return
-  
+
   try {
     await submitCreatorArticle(editingArticleId.value)
     showNotice('文章已发布并提交审核！')
@@ -1007,20 +1217,28 @@ function readError(error: unknown, fallback: string) {
   border-radius: 8px;
 }
 
-/* 右侧 AI 助手 (Distinctive, polished) */
+/* 右侧 AI 助手 */
 .editor-sidebar-right {
-  width: 320px;
-  background: #fafafa;
-  border-left: 1px solid rgba(0,0,0,0.06);
+  width: 360px;
+  background: #f8f8f5;
+  border-left: 1px solid rgba(24, 24, 27, 0.08);
   display: flex;
   flex-direction: column;
 }
 
-.ai-header {
-  padding: 20px 24px 16px;
+.ai-assistant {
+  height: 100%;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.ai-header {
+  padding: 18px 20px 14px;
+  display: flex;
+  align-items: flex-start;
   justify-content: space-between;
+  border-bottom: 1px solid rgba(24, 24, 27, 0.06);
 }
 
 .ai-title {
@@ -1028,8 +1246,14 @@ function readError(error: unknown, fallback: string) {
   align-items: center;
   gap: 8px;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   color: #18181b;
+}
+
+.ai-subtitle {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #71717a;
 }
 
 .ai-model {
@@ -1044,10 +1268,12 @@ function readError(error: unknown, fallback: string) {
 
 .ai-body {
   flex: 1;
-  padding: 0 24px 24px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px 18px 20px;
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 18px;
 }
 
 .ai-section-title {
@@ -1055,59 +1281,59 @@ function readError(error: unknown, fallback: string) {
   justify-content: space-between;
   align-items: center;
   font-size: 12px;
-  font-weight: 600;
-  color: #a1a1aa;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 16px;
+  font-weight: 700;
+  color: #52525b;
+  margin-bottom: 10px;
 }
+
 .btn-refresh {
   background: none;
   border: none;
   color: #71717a;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
-  text-transform: none;
-  letter-spacing: 0;
   transition: color 0.2s;
 }
-.btn-refresh:hover {
+.btn-refresh:hover:not(:disabled) {
   color: #18181b;
+}
+.btn-refresh:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .ai-tags {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 .ai-tag {
+  max-width: 100%;
   background: #ffffff;
-  border: 1px solid rgba(0,0,0,0.06);
-  padding: 12px 16px;
-  border-radius: 8px;
-  font-size: 13px;
+  border: 1px solid rgba(24, 24, 27, 0.08);
+  padding: 8px 10px;
+  border-radius: 7px;
+  font-size: 12px;
   color: #3f3f46;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.18s ease;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+  box-shadow: 0 1px 2px rgba(24, 24, 27, 0.03);
 }
 .ai-tag:hover {
-  color: #000;
-  border-color: rgba(0,0,0,0.15);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  color: #0f172a;
+  border-color: rgba(49, 91, 255, 0.28);
   transform: translateY(-1px);
 }
 .ai-loading {
   font-size: 12px;
   color: #a1a1aa;
-  text-align: center;
-  padding: 12px;
+  padding: 8px 0;
 }
 @keyframes spin {
   from { transform: rotate(0deg); }
@@ -1117,69 +1343,149 @@ function readError(error: unknown, fallback: string) {
   animation: spin 1s linear infinite;
 }
 
-.ai-chat-area {
-  margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  background: #ffffff;
-  padding: 16px;
-  border-radius: 12px;
-  border: 1px solid rgba(0,0,0,0.06);
-  box-shadow: 0 4px 24px rgba(0,0,0,0.02);
-}
-
-.ai-disclaimer {
-  font-size: 11px;
-  color: #a1a1aa;
-  text-align: center;
-}
-
 .ai-quick-actions {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
 .ai-action-btn {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  background: #fafafa;
-  border: 1px solid transparent;
-  color: #52525b;
-  padding: 10px 4px;
-  border-radius: 8px;
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.ai-action-btn:hover {
+  justify-content: flex-start;
+  gap: 7px;
+  min-width: 0;
   background: #ffffff;
+  border: 1px solid rgba(24, 24, 27, 0.08);
+  color: #3f3f46;
+  padding: 10px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.ai-action-btn span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ai-action-btn:hover:not(:disabled),
+.ai-action-btn.active {
+  color: #1436a8;
+  border-color: rgba(49, 91, 255, 0.35);
+  background: #f5f7ff;
+}
+.ai-action-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.ai-result-panel {
+  background: #ffffff;
+  border: 1px solid rgba(24, 24, 27, 0.09);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(24, 24, 27, 0.05);
+  overflow: hidden;
+}
+.ai-result-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 13px;
+  border-bottom: 1px solid rgba(24, 24, 27, 0.06);
+  font-size: 12px;
+  font-weight: 750;
   color: #18181b;
-  border-color: rgba(0,0,0,0.1);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.ai-result-state {
+  color: #315bff;
+  font-size: 11px;
+}
+.ai-result-notice {
+  margin: 10px 12px 0;
+  color: #725900;
+  background: #fff8db;
+  border: 1px solid #f3df95;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.ai-result-text {
+  margin: 0;
+  max-height: 260px;
+  overflow: auto;
+  padding: 12px 13px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 1.7;
+  color: #27272a;
+  background: #ffffff;
+}
+.ai-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid rgba(24, 24, 27, 0.06);
+}
+.ai-result-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid rgba(24, 24, 27, 0.1);
+  background: #f8f8f5;
+  color: #3f3f46;
+  border-radius: 6px;
+  padding: 7px 9px;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.ai-result-actions button:hover:not(:disabled) {
+  background: #18181b;
+  border-color: #18181b;
+  color: #ffffff;
+}
+.ai-result-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.ai-chat-area {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ai-disclaimer {
+  font-size: 11px;
+  color: #71717a;
+  line-height: 1.5;
 }
 
 .ai-input-box {
   display: flex;
   align-items: center;
-  background: #f4f4f5;
-  border-radius: 999px;
-  padding: 6px 6px 6px 14px;
-  border: 1px solid transparent;
-  transition: border-color 0.2s, background 0.2s;
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 7px 7px 7px 12px;
+  border: 1px solid rgba(24, 24, 27, 0.1);
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 .ai-input-box:focus-within {
-  background: #ffffff;
-  border-color: rgba(0,0,0,0.15);
-  box-shadow: 0 0 0 2px rgba(0,0,0,0.04);
+  border-color: rgba(49, 91, 255, 0.4);
+  box-shadow: 0 0 0 3px rgba(49, 91, 255, 0.08);
 }
 .ai-input-box input {
   flex: 1;
+  min-width: 0;
   border: none;
   outline: none;
   background: transparent;
@@ -1195,18 +1501,23 @@ function readError(error: unknown, fallback: string) {
   border: none;
   width: 32px;
   height: 32px;
-  border-radius: 50%;
+  border-radius: 7px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: background 0.2s, transform 0.1s;
+  flex: 0 0 auto;
 }
-.btn-send:hover {
-  background: #27272a;
+.btn-send:hover:not(:disabled) {
+  background: #315bff;
 }
-.btn-send:active {
-  transform: scale(0.95);
+.btn-send:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.btn-send:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 /* Modal styles */
