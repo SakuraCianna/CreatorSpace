@@ -527,6 +527,10 @@ function handleThemeUploadError(message: string) {
 
 async function saveBlogTheme() {
   if (!profile.value) return
+  if (blogThemeForm.value.canvasType === 'image' && !blogThemeForm.value.canvasImage) {
+    themeNotice.value = '请先上传画布图片'
+    return
+  }
   themeSaving.value = true
   themeNotice.value = ''
   try {
@@ -635,7 +639,13 @@ async function loadProfile() {
     }
     syncTabFromRoute(ownProfile)
     setBlogThemeForm(blogTheme)
-    await Promise.all([loadArticles(), loadFavorites(), loadLikes()])
+    if (ownProfile) {
+      await Promise.all([loadArticles(), loadFavorites(), loadLikes()])
+    } else {
+      favoriteRecords.value = []
+      likeRecords.value = []
+      await loadArticles()
+    }
   } catch (error) {
     profile.value = null
     notice.value = toUserMessage(error, '用户不存在')
