@@ -21,9 +21,11 @@
       </div>
 
       <div class="header-toolbar">
-        <button class="tool-btn" title="撤销"><Undo :size="16" /><span>撤销</span></button>
-        <button class="tool-btn" title="重做"><Redo :size="16" /><span>重做</span></button>
+        <button class="tool-btn" title="撤销" :disabled="!canUndo" @click="undoEdit"><Undo :size="16" /><span>撤销</span></button>
+        <button class="tool-btn" title="重做" :disabled="!canRedo" @click="redoEdit"><Redo :size="16" /><span>重做</span></button>
         <span class="tool-divider"></span>
+        <button class="tool-btn" title="一级标题" @click="insertText('# ', '', '一级标题')"><Heading1 :size="16" /><span>一级标题</span></button>
+        <button class="tool-btn" title="二级标题" @click="insertText('## ', '', '二级标题')"><Heading2 :size="16" /><span>二级标题</span></button>
         <button class="tool-btn" title="加粗" @click="insertText('**', '**', '粗体')"><Bold :size="16" /><span>加粗</span></button>
         <button class="tool-btn" title="斜体" @click="insertText('*', '*', '斜体')"><Italic :size="16" /><span>斜体</span></button>
         <button class="tool-btn" title="删除线" @click="insertText('~~', '~~', '删除线')"><Strikethrough :size="16" /><span>删除线</span></button>
@@ -36,9 +38,13 @@
         <button class="tool-btn" title="引用" @click="insertText('> ', '', '引用内容')"><Quote :size="16" /><span>引用</span></button>
         <button class="tool-btn" title="分割线" @click="insertText('\n---\n', '', '')"><Minus :size="16" /><span>分割线</span></button>
         <span class="tool-divider"></span>
-        <button class="tool-btn" title="图片" @click="insertText('![', '](url)', '图片描述')"><Image :size="16" /><span>图片</span></button>
-        <button class="tool-btn" title="链接" @click="insertText('[', '](url)', '链接描述')"><Link :size="16" /><span>链接</span></button>
+        <button class="tool-btn" title="图片" @click="insertImageMarkdown"><Image :size="16" /><span>图片</span></button>
+        <button class="tool-btn" title="链接" @click="insertLinkMarkdown"><Link :size="16" /><span>链接</span></button>
         <button class="tool-btn" title="AI助手" @click="showAIAssistant = !showAIAssistant" :class="{ 'active': showAIAssistant }"><Sparkles :size="16" /><span>AI助手</span></button>
+        <span class="tool-divider"></span>
+        <button class="tool-btn" title="分栏编辑" :class="{ active: editorMode === 'split' }" @click="editorMode = 'split'"><Columns2 :size="16" /><span>分栏</span></button>
+        <button class="tool-btn" title="只写作" :class="{ active: editorMode === 'write' }" @click="editorMode = 'write'"><PencilLine :size="16" /><span>写作</span></button>
+        <button class="tool-btn" title="只预览" :class="{ active: editorMode === 'preview' }" @click="editorMode = 'preview'"><Eye :size="16" /><span>预览</span></button>
       </div>
 
       <div class="header-right">
@@ -61,7 +67,7 @@
         <div class="toc-container">
           <ul class="toc-list" v-if="toc.length > 0">
             <li v-for="item in toc" :key="item.id" :style="{ paddingLeft: `${(item.level - 1) * 12}px` }" :class="`toc-level-${item.level}`">
-              <a :href="`#${item.id}`" class="toc-link">{{ item.text }}</a>
+              <a :href="`#${item.id}`" class="toc-link" @click.prevent="scrollToHeading(item.id)">{{ item.text }}</a>
             </li>
           </ul>
           <div class="toc-empty" v-else>
@@ -72,9 +78,9 @@
 
       <!-- 中间编辑器区域 -->
       <section class="editor-content" v-if="currentPostType === 'article'">
-        <div class="markdown-workspace">
+        <div class="markdown-workspace" :class="`markdown-workspace--${editorMode}`">
           <!-- 左侧输入栏 -->
-          <div class="markdown-column">
+          <div v-show="editorMode !== 'preview'" class="markdown-column">
             <div class="title-input-wrapper">
               <input
                 type="text"
@@ -90,11 +96,12 @@
               v-model="articleForm.contentMarkdown"
               placeholder="在这里开始您的专业创作...&#10;支持 Markdown 语法，左侧编写，右侧实时无缝预览。"
               @input="updateWordCount"
+              @keydown="handleEditorKeydown"
               @scroll="syncScroll"
             ></textarea>
           </div>
           <!-- 右侧预览栏 -->
-          <div class="markdown-column preview-column">
+          <div v-show="editorMode !== 'write'" class="markdown-column preview-column">
             <div class="preview-title-wrapper">
               <h1 class="preview-title" v-if="articleForm.title">{{ articleForm.title }}</h1>
             </div>
@@ -354,7 +361,8 @@ import { toUserMessage, requestJson } from '../services/http'
 import {
   ChevronLeft, ChevronDown, ChevronsLeftRight, Undo, Redo, Bold, Italic, Strikethrough,
   List, ListOrdered, Code, Quote, Image, Link, Sparkles, X, RefreshCw,
-  ListTree, CodeXml, BookOpenCheck, Send, Table, Minus, Copy, Check, FileText, Tags, WandSparkles
+  ListTree, CodeXml, BookOpenCheck, Send, Table, Minus, Copy, Check, FileText, Tags, WandSparkles,
+  Heading1, Heading2, Columns2, PencilLine, Eye
 } from '@lucide/vue'
 import MarkdownIt from 'markdown-it'
 import FileUpload from '../components/common/FileUpload.vue'
@@ -370,10 +378,26 @@ const textareaRef = ref<HTMLTextAreaElement | null>(null)
 const wordCount = ref(0)
 const toc = ref<{id: string, text: string, level: number}[]>([])
 const showAIAssistant = ref(true)
+const editorMode = ref<'split' | 'write' | 'preview'>('split')
 
-const md = new MarkdownIt({ html: true, breaks: true })
+const md = new MarkdownIt({ html: false, breaks: true, linkify: true })
 const renderedHtml = ref('')
 const previewRef = ref<HTMLDivElement | null>(null)
+let headingRenderIndex = 0
+
+md.renderer.rules.heading_open = (tokens, idx, options, _env, self) => {
+  const inlineToken = tokens[idx + 1]
+  const text = inlineToken?.type === 'inline' ? inlineToken.content : 'section'
+  tokens[idx].attrSet('id', headingId(text, headingRenderIndex++))
+  return self.renderToken(tokens, idx, options)
+}
+
+const historyStack = ref<string[]>([''])
+const redoStack = ref<string[]>([])
+const canUndo = computed(() => historyStack.value.length > 1)
+const canRedo = computed(() => redoStack.value.length > 0)
+let historyTimer: ReturnType<typeof setTimeout> | null = null
+let isApplyingHistory = false
 
 const showTypeDropdown = ref(false)
 const currentPostType = ref('article')
@@ -725,6 +749,8 @@ function firstResultLine(markdown: string) {
 // 初始加载
 onMounted(async () => {
   fetchHotTopics()
+  resetHistory(articleForm.contentMarkdown)
+  renderedHtml.value = renderMarkdown(articleForm.contentMarkdown)
   // 如果 URL 带有 id 参数，则加载已有草稿进行编辑
   const id = Number(route.query.id)
   if (id) {
@@ -736,6 +762,7 @@ onMounted(async () => {
 watch(() => articleForm.contentMarkdown, (newVal) => {
   updateWordCount()
   extractTOC(newVal)
+  queueHistorySnapshot(newVal)
 })
 
 let renderTimer: any
@@ -743,8 +770,13 @@ function updateWordCount() {
   wordCount.value = articleForm.contentMarkdown.trim().length
   if (renderTimer) clearTimeout(renderTimer)
   renderTimer = setTimeout(() => {
-    renderedHtml.value = md.render(articleForm.contentMarkdown)
+    renderedHtml.value = renderMarkdown(articleForm.contentMarkdown)
   }, 300)
+}
+
+function renderMarkdown(markdown: string) {
+  headingRenderIndex = 0
+  return md.render(markdown)
 }
 
 function extractTOC(markdown: string) {
@@ -757,13 +789,27 @@ function extractTOC(markdown: string) {
       const level = match[1].length
       const text = match[2].trim()
       newToc.push({
-        id: `heading-${idCounter++}`,
+        id: headingId(text, idCounter++),
         text,
         level
       })
     }
   }
   toc.value = newToc
+}
+
+function headingId(text: string, index: number) {
+  const slug = text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 36)
+  return `heading-${index}-${slug || 'section'}`
+}
+
+function scrollToHeading(id: string) {
+  const target = previewRef.value?.querySelector(`[id="${id.replace(/"/g, '\\"')}"]`)
+  target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 function insertText(before: string, after: string, placeholder: string) {
@@ -788,6 +834,86 @@ function insertText(before: string, after: string, placeholder: string) {
   }, 0)
 }
 
+function insertImageMarkdown() {
+  const url = window.prompt('图片 URL')
+  if (!url) return
+  insertText('![', `](${url.trim()})`, '图片描述')
+}
+
+function insertLinkMarkdown() {
+  const url = window.prompt('链接 URL')
+  if (!url) return
+  insertText('[', `](${url.trim()})`, '链接文字')
+}
+
+function handleEditorKeydown(event: KeyboardEvent) {
+  if (!(event.ctrlKey || event.metaKey)) return
+  const key = event.key.toLowerCase()
+  if (key === 's') {
+    event.preventDefault()
+    saveArticle()
+  } else if (key === 'b') {
+    event.preventDefault()
+    insertText('**', '**', '粗体')
+  } else if (key === 'i') {
+    event.preventDefault()
+    insertText('*', '*', '斜体')
+  } else if (key === 'z' && !event.shiftKey) {
+    event.preventDefault()
+    undoEdit()
+  } else if (key === 'y' || (key === 'z' && event.shiftKey)) {
+    event.preventDefault()
+    redoEdit()
+  }
+}
+
+function queueHistorySnapshot(value: string) {
+  if (isApplyingHistory) return
+  if (historyTimer) clearTimeout(historyTimer)
+  historyTimer = setTimeout(() => pushHistory(value), 350)
+}
+
+function pushHistory(value: string) {
+  const last = historyStack.value[historyStack.value.length - 1]
+  if (last === value) return
+  historyStack.value.push(value)
+  if (historyStack.value.length > 80) {
+    historyStack.value.shift()
+  }
+  redoStack.value = []
+}
+
+function resetHistory(value: string) {
+  historyStack.value = [value]
+  redoStack.value = []
+}
+
+function undoEdit() {
+  pushHistory(articleForm.contentMarkdown)
+  if (!canUndo.value) return
+  const current = historyStack.value.pop()
+  if (current != null) redoStack.value.push(current)
+  applyHistory(historyStack.value[historyStack.value.length - 1] ?? '')
+}
+
+function redoEdit() {
+  const next = redoStack.value.pop()
+  if (next == null) return
+  historyStack.value.push(next)
+  applyHistory(next)
+}
+
+function applyHistory(value: string) {
+  isApplyingHistory = true
+  articleForm.contentMarkdown = value
+  renderedHtml.value = renderMarkdown(value)
+  extractTOC(value)
+  updateWordCount()
+  requestAnimationFrame(() => {
+    isApplyingHistory = false
+  })
+}
+
 function syncScroll(e: Event) {
   const target = e.target as HTMLTextAreaElement
   const percentage = target.scrollTop / (target.scrollHeight - target.clientHeight)
@@ -808,7 +934,9 @@ async function loadArticle(id: number) {
     articleForm.categoryId = detail.category?.id ?? null
     articleForm.tagIds = detail.tags.map((t) => t.id)
     articleForm.privacyType = detail.privacyType
-    renderedHtml.value = md.render(articleForm.contentMarkdown)
+    renderedHtml.value = renderMarkdown(articleForm.contentMarkdown)
+    extractTOC(articleForm.contentMarkdown)
+    resetHistory(articleForm.contentMarkdown)
   } catch (err) {
     showNotice(readError(err, '读取文章失败'))
   }
@@ -1009,6 +1137,14 @@ function readError(error: unknown, fallback: string) {
   color: #6366f1;
   background: #eef2ff;
 }
+.tool-btn:disabled {
+  color: #d4d4d8;
+  cursor: not-allowed;
+}
+.tool-btn:disabled:hover {
+  background: transparent;
+  color: #d4d4d8;
+}
 .tool-btn:active {
   transform: scale(0.96);
 }
@@ -1166,6 +1302,16 @@ function readError(error: unknown, fallback: string) {
   gap: 24px;
   min-height: 0;
 }
+.markdown-workspace--write,
+.markdown-workspace--preview {
+  width: 100%;
+  max-width: 980px;
+  margin: 0 auto;
+}
+.markdown-workspace--write .markdown-column,
+.markdown-workspace--preview .markdown-column {
+  flex-basis: 100%;
+}
 
 .markdown-column {
   flex: 1;
@@ -1177,6 +1323,10 @@ function readError(error: unknown, fallback: string) {
 .preview-column {
   border-left: 1px solid rgba(0,0,0,0.06);
   padding-left: 24px;
+}
+.markdown-workspace--preview .preview-column {
+  border-left: 0;
+  padding-left: 0;
 }
 
 .title-input-wrapper {
@@ -1559,6 +1709,60 @@ function readError(error: unknown, fallback: string) {
   font-size: 11px;
   color: #71717a;
   line-height: 1.5;
+}
+
+.ai-result-card {
+  border: 1px solid rgba(99, 102, 241, 0.18);
+  border-radius: 10px;
+  background: #f8f8ff;
+  overflow: hidden;
+}
+
+.ai-result-header,
+.ai-result-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ai-result-header {
+  padding: 10px 12px;
+  color: #4f46e5;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ai-result-header button,
+.ai-result-actions button {
+  border: none;
+  background: transparent;
+  color: #6366f1;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ai-result-content {
+  max-height: 240px;
+  overflow: auto;
+  padding: 0 12px 12px;
+  color: #3f3f46;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.ai-result-content pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+}
+
+.ai-result-actions {
+  padding: 10px 12px;
+  border-top: 1px solid rgba(99, 102, 241, 0.14);
+  background: rgba(255, 255, 255, 0.58);
 }
 
 .ai-input-box {
