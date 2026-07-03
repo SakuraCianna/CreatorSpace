@@ -121,6 +121,55 @@ public class InspirationController {
             @AuthenticationPrincipal LoginUser loginUser,
             @Valid @RequestBody InspirationRequest request
     ) {
+        return ApiResponse.ok(createCard(request, loginUser.userId()));
+    }
+
+    // 登录创作者创建自己的灵感草稿或公开灵感。
+    @Transactional(rollbackFor = Exception.class)
+    @PostMapping("/api/creator/inspirations")
+    public ApiResponse<InspirationVO> createMine(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @Valid @RequestBody InspirationRequest request
+    ) {
+        return ApiResponse.ok(createCard(request, loginUser.userId()));
+    }
+
+    // 登录创作者更新自己的灵感草稿或公开灵感。
+    @Transactional(rollbackFor = Exception.class)
+    @PutMapping("/api/creator/inspirations/{id}")
+    public ApiResponse<InspirationVO> updateMine(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable Long id,
+            @Valid @RequestBody InspirationRequest request
+    ) {
+        ensureOwnInspiration(id, loginUser.userId());
+        return ApiResponse.ok(updateCard(id, request));
+    }
+
+    // 登录创作者将自己的灵感公开发布。
+    @Transactional(rollbackFor = Exception.class)
+    @PutMapping("/api/creator/inspirations/{id}/publish")
+    public ApiResponse<InspirationVO> publishMine(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable Long id
+    ) {
+        ensureOwnInspiration(id, loginUser.userId());
+        int affected = jdbcTemplate.update("""
+                        update inspiration_cards
+                        set is_public = true,
+                            updated_at = now()
+                        where id = ?
+                          and created_by = ?
+                        """,
+                id,
+                loginUser.userId());
+        if (affected == 0) {
+            throw BusinessException.notFound("灵感卡片不存在");
+        }
+        return ApiResponse.ok(getCard(id));
+    }
+
+    private InspirationVO createCard(InspirationRequest request, Long userId) {
         String cardType = normalizeCardType(request.cardType());
         validateTagIds(request.tagIds());
         String imageUrl = normalizeOptionalUrl(request.imageUrl(), "图片地址", true);
@@ -149,9 +198,9 @@ public class InspirationController {
                 blankToNull(request.color()),
                 request.isPublic() == null || request.isPublic(),
                 request.sortOrder() == null ? 0 : request.sortOrder(),
-                loginUser.userId());
+                userId);
         replaceTags(id, request.tagIds());
-        return ApiResponse.ok(getCard(id));
+        return getCard(id);
     }
 
     // 管理员更新灵感卡片。
@@ -161,6 +210,10 @@ public class InspirationController {
             @PathVariable Long id,
             @Valid @RequestBody InspirationRequest request
     ) {
+        return ApiResponse.ok(updateCard(id, request));
+    }
+
+    private InspirationVO updateCard(Long id, InspirationRequest request) {
         String cardType = normalizeCardType(request.cardType());
         validateTagIds(request.tagIds());
         int affected = jdbcTemplate.update("""
@@ -189,7 +242,7 @@ public class InspirationController {
             throw BusinessException.notFound("灵感卡片不存在");
         }
         replaceTags(id, request.tagIds());
-        return ApiResponse.ok(getCard(id));
+        return getCard(id);
     }
 
     // 管理员删除灵感卡片。
@@ -418,6 +471,22 @@ public class InspirationController {
                             """,
                     inspirationId,
                     tagId);
+        }
+    }
+
+    private void ensureOwnInspiration(Long id, Long userId) {
+        Long ownerId = jdbcTemplate.query("""
+                        select created_by
+                        from inspiration_cards
+                        where id = ?
+                        """,
+                rs -> rs.next() ? rs.getObject("created_by", Long.class) : null,
+                id);
+        if (ownerId == null) {
+            throw BusinessException.notFound("灵感卡片不存在");
+        }
+        if (!ownerId.equals(userId)) {
+            throw BusinessException.forbidden("只能操作自己的灵感");
         }
     }
 

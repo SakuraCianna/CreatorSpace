@@ -49,8 +49,8 @@
 
       <div class="header-right">
         <span class="word-count">共 {{ wordCount }} 字</span>
-        <button class="btn-draft" @click="saveArticle">保存草稿</button>
-        <button class="btn-publish" @click="openPublishModal">发布{{ currentPostType === 'article' ? '文章' : (currentPostType === 'project' ? '作品' : '灵感') }}</button>
+        <button class="btn-draft" @click="saveCurrentDraft">保存草稿</button>
+        <button class="btn-publish" @click="publishCurrent">发布{{ currentPostType === 'article' ? '文章' : (currentPostType === 'project' ? '作品' : '灵感') }}</button>
         <div class="avatar-wrap">
           <img :src="session.currentUser?.avatarUrl || 'https://api.dicebear.com/7.x/notionists/svg?seed=creator'" alt="avatar" class="avatar" />
         </div>
@@ -101,9 +101,18 @@
             ></textarea>
           </div>
           <!-- 右侧预览栏 -->
-          <div v-show="editorMode !== 'write'" class="markdown-column preview-column">
+          <div
+            v-show="editorMode !== 'write'"
+            class="markdown-column preview-column article-preview-surface"
+            :style="blogThemeStyle"
+            :data-blog-canvas="currentBlogTheme.canvasType"
+            :data-blog-layout="currentBlogTheme.layoutStyle"
+            :data-blog-block="currentBlogTheme.blockStyle"
+          >
             <div class="preview-title-wrapper">
+              <p class="preview-theme-kicker">{{ currentBlogTheme.displayName }}</p>
               <h1 class="preview-title" v-if="articleForm.title">{{ articleForm.title }}</h1>
+              <p class="preview-summary" v-if="articleForm.summary">{{ articleForm.summary }}</p>
             </div>
             <div class="markdown-preview" ref="previewRef" v-html="renderedHtml"></div>
           </div>
@@ -292,22 +301,38 @@
             <BaseSelect v-model="articleForm.categoryId" :options="categoryOptions" placeholder="请选择分类" />
           </div>
           <div class="form-group">
+            <label>可见性</label>
+            <BaseSelect v-model="articleForm.privacyType" :options="privacyOptions" placeholder="请选择可见性" />
+          </div>
+          <div class="form-group">
             <label>文章标签 (可多选)</label>
             <div class="tags-selector">
-              <label class="tag-checkbox"><input type="checkbox" :value="1" v-model="articleForm.tagIds" /> Vue.js</label>
-              <label class="tag-checkbox"><input type="checkbox" :value="2" v-model="articleForm.tagIds" /> Java</label>
-              <label class="tag-checkbox"><input type="checkbox" :value="3" v-model="articleForm.tagIds" /> Spring Boot</label>
-              <label class="tag-checkbox"><input type="checkbox" :value="4" v-model="articleForm.tagIds" /> AI</label>
+              <label v-for="tag in tagOptions" :key="tag.id" class="tag-checkbox">
+                <input type="checkbox" :value="tag.id" v-model="articleForm.tagIds" />
+                {{ tag.name }}
+              </label>
+              <span v-if="tagOptions.length === 0" class="form-empty-hint">暂无可用标签</span>
             </div>
           </div>
           <div class="form-group">
             <label>封面图片 (可选)</label>
-            <input type="text" v-model="articleForm.coverUrl" placeholder="输入封面图片 URL" class="form-input" />
+            <FileUpload v-model="articleForm.coverUrl" module="COVER" accept="image/*" hint="建议 16:9，最大 10MB" @error="showNotice" />
             <img v-if="articleForm.coverUrl" :src="articleForm.coverUrl" class="cover-preview" />
           </div>
           <div class="form-group">
             <label>文章摘要 (可选)</label>
             <textarea v-model="articleForm.summary" placeholder="输入文章摘要..." class="form-textarea" rows="3"></textarea>
+          </div>
+          <div class="form-group">
+            <label>博客外观</label>
+            <div class="theme-inherit-card" :style="blogThemeStyle">
+              <div>
+                <strong>{{ currentBlogTheme.displayName }}</strong>
+                <span>{{ blogThemeMeta }}</span>
+              </div>
+              <i :style="{ background: currentBlogTheme.accentColor }"></i>
+              <RouterLink :to="`/users/${session.currentUser?.id || ''}`">调整外观</RouterLink>
+            </div>
           </div>
         </div>
         <div class="modal-footer">
@@ -350,18 +375,28 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useSessionStore } from '../shared/sessionStore'
-import type { ArticlePrivacy } from '../shared/domain'
+import type { ArticlePrivacy, BlogThemeConfig, InspirationPayload, InspirationType, ProjectPayload, TagSummary } from '../shared/domain'
 import {
   createCreatorArticle,
+  createCreatorInspiration,
+  createCreatorProject,
+  publishCreatorInspiration,
   updateCreatorArticle,
+  updateCreatorInspiration,
+  updateCreatorProject,
   fetchCreatorArticle,
-  submitCreatorArticle
+  fetchCategories,
+  fetchTags,
+  fetchMyBlogTheme,
+  submitCreatorArticle,
+  submitCreatorProject
 } from '../services/content'
 import { toUserMessage, requestJson } from '../services/http'
+import { DEFAULT_BLOG_THEME, blogThemeToStyle, normalizeBlogTheme } from '../shared/blogTheme'
 import {
   ChevronLeft, ChevronDown, ChevronsLeftRight, Undo, Redo, Bold, Italic, Strikethrough,
   List, ListOrdered, Code, Quote, Image, Link, Sparkles, X, RefreshCw,
-  ListTree, CodeXml, BookOpenCheck, Send, Table, Minus, Copy, Check, FileText, Tags, WandSparkles,
+  ListTree, Send, Table, Minus, Copy, Check, FileText, WandSparkles,
   Heading1, Heading2, Columns2, PencilLine, Eye
 } from '@lucide/vue'
 import MarkdownIt from 'markdown-it'
@@ -374,11 +409,38 @@ const session = useSessionStore()
 
 const notice = ref('')
 const editingArticleId = ref<number | null>(null)
+const editingProjectId = ref<number | null>(null)
+const editingIdeaId = ref<number | null>(null)
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
 const wordCount = ref(0)
 const toc = ref<{id: string, text: string, level: number}[]>([])
 const showAIAssistant = ref(true)
 const editorMode = ref<'split' | 'write' | 'preview'>('split')
+const tagOptions = ref<TagSummary[]>([])
+const articleCategoryOptions = ref<{ label: string, value: number }[]>([])
+const blogTheme = ref<BlogThemeConfig>({ ...DEFAULT_BLOG_THEME })
+const currentBlogTheme = computed(() => normalizeBlogTheme(blogTheme.value))
+const blogThemeStyle = computed(() => blogThemeToStyle(currentBlogTheme.value))
+const blogThemeMeta = computed(() => {
+  const font = blogOptionLabel(currentBlogTheme.value.fontPreset, {
+    'literary-serif': '文学衬线',
+    'neo-grotesk': '现代无衬线',
+    'rounded-sans': '圆润日记',
+    'mono-editor': '编辑器等宽',
+  })
+  const canvas = blogOptionLabel(currentBlogTheme.value.canvasType, {
+    'soft-paper': '柔纸',
+    linen: '织纹',
+    gradient: '渐变',
+    image: '图片画布',
+  })
+  const layout = blogOptionLabel(currentBlogTheme.value.layoutStyle, {
+    editorial: '杂志版式',
+    notebook: '手账版式',
+    gallery: '画廊版式',
+  })
+  return `${font} / ${canvas} / ${layout}`
+})
 
 const md = new MarkdownIt({ html: false, breaks: true, linkify: true })
 const renderedHtml = ref('')
@@ -413,6 +475,13 @@ function setPostType(type: string) {
 }
 
 const showPublishModal = ref(false)
+const privacyOptions: Array<{ label: string, value: ArticlePrivacy }> = [
+  { label: '公开', value: 'PUBLIC' },
+  { label: '仅自己', value: 'SELF' },
+  { label: '仅好友', value: 'FRIENDS' },
+  { label: '指定好友', value: 'SELECTED_FRIENDS' },
+  { label: '排除指定好友', value: 'EXCLUDED_FRIENDS' },
+]
 
 function openPublishModal() {
   if (!articleForm.title.trim() || !articleForm.contentMarkdown.trim()) {
@@ -425,6 +494,30 @@ function openPublishModal() {
 async function confirmPublish() {
   showPublishModal.value = false
   await publishArticle()
+}
+
+async function saveCurrentDraft() {
+  if (currentPostType.value === 'project') {
+    await saveProjectDraft()
+    return
+  }
+  if (currentPostType.value === 'idea') {
+    await saveIdeaDraft()
+    return
+  }
+  await saveArticle()
+}
+
+async function publishCurrent() {
+  if (currentPostType.value === 'project') {
+    await publishProject()
+    return
+  }
+  if (currentPostType.value === 'idea') {
+    await publishIdea()
+    return
+  }
+  openPublishModal()
 }
 
 const articleForm = reactive({
@@ -440,6 +533,8 @@ const articleForm = reactive({
 
 const projectForm = reactive({
   title: '',
+  slug: '',
+  description: '',
   projectType: '',
   techStack: '',
   coverUrl: '',
@@ -453,7 +548,7 @@ const ideaForm = reactive({
   title: '',
   content: '',
   imageUrl: '',
-  cardType: 'TEXT',
+  cardType: 'TEXT' as InspirationType,
   sourceUrl: '',
   color: ''
 })
@@ -466,11 +561,7 @@ const projectTypeOptions = [
   { label: '其他', value: 'OTHER' }
 ]
 
-const categoryOptions = [
-  { label: '前端开发', value: 1 },
-  { label: '后端开发', value: 2 },
-  { label: '人工智能', value: 3 }
-]
+const categoryOptions = computed(() => articleCategoryOptions.value)
 
 const showTableModal = ref(false)
 const tableConfig = reactive({
@@ -746,9 +837,44 @@ function firstResultLine(markdown: string) {
   return line ?? ''
 }
 
+function blogOptionLabel<T extends string>(value: T, labels: Record<T, string>) {
+  return labels[value] ?? value
+}
+
+async function loadEditorMeta() {
+  const [categories, tags, theme] = await Promise.allSettled([
+    fetchCategories('ARTICLE'),
+    fetchTags(),
+    fetchMyBlogTheme(),
+  ])
+  const failures: string[] = []
+
+  if (categories.status === 'fulfilled') {
+    articleCategoryOptions.value = categories.value
+      .filter((category) => category.enabled !== false)
+      .map((category) => ({ label: category.name, value: category.id }))
+  } else {
+    failures.push('分类')
+  }
+  if (tags.status === 'fulfilled') {
+    tagOptions.value = tags.value
+  } else {
+    failures.push('标签')
+  }
+  if (theme.status === 'fulfilled') {
+    blogTheme.value = normalizeBlogTheme(theme.value)
+  } else {
+    failures.push('博客外观')
+  }
+  if (failures.length > 0) {
+    showNotice(`${failures.join('、')}加载失败，请刷新后再试`)
+  }
+}
+
 // 初始加载
 onMounted(async () => {
   fetchHotTopics()
+  loadEditorMeta().catch((error) => showNotice(readError(error, '读取创作配置失败')))
   resetHistory(articleForm.contentMarkdown)
   renderedHtml.value = renderMarkdown(articleForm.contentMarkdown)
   // 如果 URL 带有 id 参数，则加载已有草稿进行编辑
@@ -851,7 +977,7 @@ function handleEditorKeydown(event: KeyboardEvent) {
   const key = event.key.toLowerCase()
   if (key === 's') {
     event.preventDefault()
-    saveArticle()
+    saveCurrentDraft()
   } else if (key === 'b') {
     event.preventDefault()
     insertText('**', '**', '粗体')
@@ -942,14 +1068,14 @@ async function loadArticle(id: number) {
   }
 }
 
-async function saveArticle() {
+async function saveArticle(): Promise<boolean> {
   if (!articleForm.title.trim() || !articleForm.contentMarkdown.trim()) {
     showNotice('请填写标题和正文')
-    return
+    return false
   }
   if (!articleForm.slug) {
     // 自动生成 slug
-    articleForm.slug = 'post-' + Date.now()
+    articleForm.slug = slugFromTitle(articleForm.title, 'post')
   }
 
   try {
@@ -963,20 +1089,156 @@ async function saveArticle() {
       router.replace({ query: { id: res.id } })
       showNotice('草稿创建成功')
     }
+    return true
   } catch (error) {
     showNotice(readError(error, '保存失败'))
+    return false
+  }
+}
+
+function slugFromTitle(title: string, prefix: string) {
+  const normalized = title
+    .trim()
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80)
+  return normalized || `${prefix}-${Date.now()}`
+}
+
+function projectPayload(): ProjectPayload | null {
+  if (!projectForm.title.trim() || !projectForm.projectType.trim()) {
+    showNotice('请填写作品名称和作品类型')
+    return null
+  }
+  if (!projectForm.slug) {
+    projectForm.slug = slugFromTitle(projectForm.title, 'project')
+  }
+  const techStack = projectForm.techStack
+    .split(/[，,]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+  return {
+    title: projectForm.title.trim(),
+    slug: projectForm.slug,
+    description: projectForm.description || projectForm.contentMarkdown.slice(0, 160),
+    coverUrl: projectForm.coverUrl || null,
+    projectType: projectForm.projectType,
+    techStack,
+    githubUrl: projectForm.githubUrl || null,
+    demoUrl: projectForm.demoUrl || null,
+    videoUrl: projectForm.videoUrl || null,
+    contentMarkdown: projectForm.contentMarkdown || null,
+    tagIds: [],
+    recommended: false,
+  }
+}
+
+async function saveProjectDraft(): Promise<boolean> {
+  const payload = projectPayload()
+  if (!payload) return false
+  try {
+    if (editingProjectId.value) {
+      await updateCreatorProject(editingProjectId.value, payload)
+      showNotice('作品草稿已保存')
+    } else {
+      const created = await createCreatorProject(payload)
+      editingProjectId.value = created.id
+      showNotice('作品草稿已创建')
+    }
+    return true
+  } catch (error) {
+    showNotice(readError(error, '保存作品失败'))
+    return false
+  }
+}
+
+async function publishProject() {
+  const saved = await saveProjectDraft()
+  if (!saved) return
+  if (!editingProjectId.value) return
+  try {
+    await submitCreatorProject(editingProjectId.value)
+    showNotice('作品已提交审核')
+  } catch (error) {
+    showNotice(readError(error, '发布作品失败'))
+  }
+}
+
+function ideaPayload(isPublic: boolean): InspirationPayload | null {
+  if (!ideaForm.title.trim()) {
+    showNotice('请填写灵感标题')
+    return null
+  }
+  if (ideaForm.cardType === 'IMAGE' && !ideaForm.imageUrl.trim()) {
+    showNotice('请上传配图')
+    return null
+  }
+  if (ideaForm.cardType === 'LINK' && !ideaForm.sourceUrl.trim()) {
+    showNotice('请填写来源链接')
+    return null
+  }
+  return {
+    title: ideaForm.title.trim(),
+    content: ideaForm.content.trim() || null,
+    imageUrl: ideaForm.imageUrl || null,
+    cardType: ideaForm.cardType,
+    sourceUrl: ideaForm.sourceUrl || null,
+    color: ideaForm.color || null,
+    isPublic,
+    sortOrder: 0,
+    tagIds: [],
+  }
+}
+
+async function saveIdeaDraft(): Promise<boolean> {
+  const payload = ideaPayload(false)
+  if (!payload) return false
+  try {
+    if (editingIdeaId.value) {
+      await updateCreatorInspiration(editingIdeaId.value, payload)
+      showNotice('灵感草稿已保存')
+    } else {
+      const created = await createCreatorInspiration(payload)
+      editingIdeaId.value = created.id
+      showNotice('灵感草稿已创建')
+    }
+    return true
+  } catch (error) {
+    showNotice(readError(error, '保存灵感失败'))
+    return false
+  }
+}
+
+async function publishIdea() {
+  const payload = ideaPayload(true)
+  if (!payload) return
+  try {
+    if (editingIdeaId.value) {
+      await updateCreatorInspiration(editingIdeaId.value, payload)
+      await publishCreatorInspiration(editingIdeaId.value)
+    } else {
+      const created = await createCreatorInspiration(payload)
+      editingIdeaId.value = created.id
+    }
+    showNotice('灵感已发布')
+  } catch (error) {
+    showNotice(readError(error, '发布灵感失败'))
   }
 }
 
 async function publishArticle() {
-  await saveArticle()
+  const saved = await saveArticle()
+  if (!saved) return
   if (!editingArticleId.value) return
 
   try {
     await submitCreatorArticle(editingArticleId.value)
     showNotice('文章已发布并提交审核！')
     setTimeout(() => {
-      router.push('/user-profile')
+      router.push(`/users/${session.currentUser?.id || ''}`)
     }, 1500)
   } catch (error) {
     showNotice(readError(error, '发布失败'))
@@ -1458,6 +1720,68 @@ function readError(error: unknown, fallback: string) {
   border-radius: 8px;
 }
 
+.article-preview-surface {
+  border-left-color: color-mix(in srgb, var(--blog-accent, #2563eb) 18%, transparent);
+  padding: 20px 22px;
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--blog-paper, #ffffff) 95%, transparent), color-mix(in srgb, var(--blog-paper, #ffffff) 86%, transparent)),
+    var(--blog-canvas, #f8fafc);
+  color: var(--blog-body, #374151);
+  font-family: var(--blog-font, inherit);
+}
+.article-preview-surface[data-blog-canvas='linen'] {
+  background:
+    repeating-linear-gradient(0deg, rgba(17, 24, 39, 0.035) 0 1px, transparent 1px 9px),
+    var(--blog-paper, #ffffff);
+}
+.article-preview-surface[data-blog-canvas='gradient'] {
+  background:
+    radial-gradient(circle at 16% 0%, color-mix(in srgb, var(--blog-accent, #2563eb) 18%, transparent), transparent 32%),
+    linear-gradient(135deg, var(--blog-paper, #ffffff), var(--blog-canvas, #f8fafc));
+}
+.article-preview-surface[data-blog-canvas='image'] {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--blog-paper, #ffffff) 86%, transparent), color-mix(in srgb, var(--blog-paper, #ffffff) 92%, transparent)),
+    var(--blog-canvas-image),
+    var(--blog-paper, #ffffff);
+  background-size: cover;
+  background-position: center;
+}
+.preview-theme-kicker {
+  margin: 0 0 10px;
+  color: var(--blog-accent, #2563eb);
+  font-size: 12px;
+  font-weight: 760;
+}
+.article-preview-surface .preview-title {
+  color: var(--blog-title, #111827);
+  font-family: var(--blog-font, inherit);
+}
+.preview-summary {
+  max-width: 62ch;
+  margin: 10px 0 0;
+  color: var(--blog-body, #374151);
+  line-height: 1.7;
+}
+.article-preview-surface .markdown-preview {
+  color: var(--blog-body, #374151);
+  font-family: var(--blog-font, inherit);
+}
+.article-preview-surface .markdown-preview :deep(h1),
+.article-preview-surface .markdown-preview :deep(h2),
+.article-preview-surface .markdown-preview :deep(h3) {
+  color: var(--blog-title, #111827);
+}
+.article-preview-surface[data-blog-block='ink'] .markdown-preview :deep(blockquote) {
+  border-left-color: var(--blog-accent, #2563eb);
+}
+.article-preview-surface[data-blog-block='carded'] .markdown-preview :deep(pre),
+.article-preview-surface[data-blog-block='carded'] .markdown-preview :deep(blockquote) {
+  border: 1px solid color-mix(in srgb, var(--blog-accent, #2563eb) 18%, transparent);
+  border-radius: 8px;
+}
+
 /* 右侧 AI 助手 */
 .editor-sidebar-right {
   width: 360px;
@@ -1892,6 +2216,50 @@ function readError(error: unknown, fallback: string) {
   object-fit: cover;
   border-radius: 8px;
 }
+.form-empty-hint {
+  color: #a1a1aa;
+  font-size: 13px;
+}
+.theme-inherit-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18px auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--blog-accent, #2563eb) 18%, transparent);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--blog-paper, #ffffff) 94%, transparent), color-mix(in srgb, var(--blog-canvas, #f8fafc) 86%, transparent)),
+    #ffffff;
+  font-family: var(--blog-font, inherit);
+}
+.theme-inherit-card strong,
+.theme-inherit-card span {
+  display: block;
+  min-width: 0;
+}
+.theme-inherit-card strong {
+  color: var(--blog-title, #111827);
+  font-size: 13px;
+}
+.theme-inherit-card span {
+  margin-top: 3px;
+  color: var(--blog-body, #374151);
+  font-size: 12px;
+}
+.theme-inherit-card i {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.55);
+}
+.theme-inherit-card a {
+  color: var(--blog-accent, #2563eb);
+  font-size: 12px;
+  font-weight: 760;
+  text-decoration: none;
+  white-space: nowrap;
+}
 .modal-footer {
   padding: 16px 24px;
   border-top: 1px solid rgba(0,0,0,0.06);
@@ -1934,9 +2302,9 @@ function readError(error: unknown, fallback: string) {
 
 /* 额外表单样式 */
 .form-layout, .idea-layout {
-  padding: 48px;
-  align-items: center;
-  overflow-y: auto;
+  padding: 0;
+  align-items: stretch;
+  overflow: hidden;
 }
 .project-form, .idea-form {
   width: 100%;
@@ -2005,9 +2373,29 @@ function readError(error: unknown, fallback: string) {
 }/* Additional styles for Project and Idea layouts */
 .scroll-container {
   overflow-y: auto;
-  height: calc(100vh - 64px);
-  padding: 40px;
+  height: 100%;
+  max-height: 100%;
+  padding: 64px 40px 96px;
   width: 100%;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(17, 24, 39, 0.26) transparent;
+}
+.scroll-container::-webkit-scrollbar {
+  width: 8px;
+}
+.scroll-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scroll-container::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.22);
+  background-clip: padding-box;
+}
+.scroll-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(17, 24, 39, 0.36);
+  background-clip: padding-box;
 }
 
 .form-layout, .idea-layout {
@@ -2016,10 +2404,15 @@ function readError(error: unknown, fallback: string) {
   background-color: #fafafa;
 }
 
-.project-form, .idea-form {
+.project-form.scroll-container, .idea-form.scroll-container {
   width: 100%;
-  max-width: 800px;
+  max-width: none;
   margin: 0 auto;
+  align-items: center;
+}
+
+.project-form.scroll-container > *, .idea-form.scroll-container > * {
+  width: min(800px, 100%);
 }
 
 .form-page-title {

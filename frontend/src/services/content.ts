@@ -675,6 +675,32 @@ export async function createInspiration(payload: InspirationPayload): Promise<In
   return response.data
 }
 
+// 创作者创建自己的灵感草稿或公开灵感
+export async function createCreatorInspiration(payload: InspirationPayload): Promise<InspirationCard> {
+  const response = await requestJson<ApiEnvelope<InspirationCard>>('/api/creator/inspirations', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return response.data
+}
+
+// 创作者更新自己的灵感
+export async function updateCreatorInspiration(id: number, payload: InspirationPayload): Promise<InspirationCard> {
+  const response = await requestJson<ApiEnvelope<InspirationCard>>(`/api/creator/inspirations/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+  return response.data
+}
+
+// 创作者公开发布自己的灵感
+export async function publishCreatorInspiration(id: number): Promise<InspirationCard> {
+  const response = await requestJson<ApiEnvelope<InspirationCard>>(`/api/creator/inspirations/${id}/publish`, {
+    method: 'PUT',
+  })
+  return response.data
+}
+
 // 管理员更新灵感卡片
 export async function updateInspiration(id: number, payload: InspirationPayload): Promise<InspirationCard> {
   const response = await requestJson<ApiEnvelope<InspirationCard>>(`/api/admin/inspirations/${id}`, {
