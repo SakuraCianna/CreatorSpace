@@ -233,7 +233,8 @@
             <X :size="16" class="close-icon" @click="showAIAssistant = false" style="cursor: pointer;" />
           </div>
 
-          <div class="ai-body">
+          <div class="ai-body" :class="{ 'ai-body--chat': aiChatActive }">
+            <template v-if="!aiChatActive">
             <div class="ai-section">
               <div class="ai-section-title">
                 <span>灵感话题</span>
@@ -269,13 +270,37 @@
                 <span class="ai-result-state" v-if="isGeneratingAiText">生成中</span>
               </div>
               <div class="ai-result-notice" v-if="aiResult.notice">{{ aiResult.notice }}</div>
-              <pre class="ai-result-text" v-if="aiResult.text || isGeneratingAiText">{{ aiResult.text || '正在整理你的草稿...' }}</pre>
+              <div class="ai-result-text ai-markdown" v-if="aiResult.text || isGeneratingAiText" v-html="renderAiMarkdown(aiResult.text || '正在整理你的草稿...')"></div>
               <div class="ai-result-actions" v-if="aiResult.text">
                 <button type="button" @click="insertAiResult"><Check :size="13" />插入正文</button>
                 <button type="button" @click="replaceSelectionWithAiResult" :disabled="!canReplaceSelection"><WandSparkles :size="13" />替换选区</button>
                 <button type="button" @click="fillSummaryFromAiResult"><FileText :size="13" />填入摘要</button>
                 <button type="button" v-if="aiResult.mode === 'TITLE'" @click="useAiResultAsTitle"><FileText :size="13" />设为标题</button>
                 <button type="button" @click="copyAiResult"><Copy :size="13" />复制</button>
+              </div>
+            </div>
+            </template>
+
+            <div class="ai-chat-thread" v-else ref="aiThreadRef">
+              <div class="ai-chat-topline">
+                <span>对话中</span>
+                <button type="button" @click="resetAiChat" :disabled="isGeneratingAiText">新对话</button>
+              </div>
+              <div
+                v-for="message in aiChatMessages"
+                :key="message.id"
+                class="ai-message"
+                :class="`ai-message--${message.role}`"
+              >
+                <div class="ai-message-label">{{ message.role === 'user' ? '我' : 'AI' }}</div>
+                <div v-if="message.role === 'user'" class="ai-message-text">{{ message.content }}</div>
+                <div v-else class="ai-message-content">
+                  <div
+                    class="ai-message-markdown ai-markdown"
+                    v-html="renderAiMarkdown(message.content || (message.pending ? '正在思考...' : ''))"
+                  ></div>
+                  <div class="ai-result-notice" v-if="message.notice">{{ message.notice }}</div>
+                </div>
               </div>
             </div>
 
@@ -380,7 +405,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, nextTick, onMounted, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useSessionStore } from '../shared/sessionStore'
 import type { ArticlePrivacy, BlogThemeConfig, InspirationPayload, InspirationType, ProjectPayload, TagSummary } from '../shared/domain'
@@ -399,13 +424,16 @@ import {
   submitCreatorArticle,
   submitCreatorProject
 } from '../services/content'
+import { streamCreatorAiText } from '../services/content'
+import type { CreatorAiResponse } from '../services/content'
 import { toUserMessage, requestJson } from '../services/http'
 import { DEFAULT_BLOG_THEME, blogThemeToStyle, normalizeBlogTheme } from '../shared/blogTheme'
+import { renderSafeMarkdown } from '../shared/markdown'
 import {
   ChevronLeft, ChevronDown, ChevronsLeftRight, Undo, Redo, Bold, Italic, Strikethrough,
   List, ListOrdered, Code, Quote, Image, Link, Sparkles, X, RefreshCw,
   ListTree, Send, Table, Minus, Copy, Check, FileText, WandSparkles,
-  Heading1, Heading2, Columns2, PencilLine, Eye, Tags, BookOpenCheck
+  Heading1, Heading2, Columns2, PencilLine, Eye
 } from '@lucide/vue'
 import MarkdownIt from 'markdown-it'
 import FileUpload from '../components/common/FileUpload.vue'
@@ -611,16 +639,13 @@ function insertTable() {
 type AiMode = 'OUTLINE' | 'CONTINUE' | 'POLISH' | 'SUMMARY' | 'TITLE' | 'TAGS' | 'CODE' | 'RESEARCH' | 'CUSTOM'
 const AI_MODES = new Set<AiMode>(['OUTLINE', 'CONTINUE', 'POLISH', 'SUMMARY', 'TITLE', 'TAGS', 'CODE', 'RESEARCH', 'CUSTOM'])
 
-interface ApiEnvelope<T> {
-  success: boolean
-  data: T
-  message: string
-}
-
-interface CreatorAiResponse {
-  mode: AiMode
-  text: string
-  notice?: string | null
+interface AiChatMessage {
+  id: number
+  role: 'user' | 'assistant'
+  content: string
+  mode?: AiMode
+  notice?: string
+  pending?: boolean
 }
 
 const hotTopics = ref<string[]>([])
@@ -630,16 +655,16 @@ const isGeneratingAiText = ref(false)
 const activeAiMode = ref<AiMode | null>(null)
 const aiResult = reactive<CreatorAiResponse>({ mode: 'CUSTOM', text: '', notice: '' })
 const aiSelectionRange = reactive({ start: 0, end: 0 })
+const aiChatMessages = ref<AiChatMessage[]>([])
+const aiThreadRef = ref<HTMLDivElement | null>(null)
+const aiChatActive = computed(() => aiChatMessages.value.length > 0)
+let aiMessageId = 0
 
 const aiQuickActions = [
   { mode: 'OUTLINE' as const, label: '大纲', icon: ListTree },
   { mode: 'CONTINUE' as const, label: '续写', icon: Sparkles },
   { mode: 'POLISH' as const, label: '润色', icon: WandSparkles },
   { mode: 'SUMMARY' as const, label: '摘要', icon: FileText },
-  { mode: 'TITLE' as const, label: '标题', icon: Heading1 },
-  { mode: 'TAGS' as const, label: '标签', icon: Tags },
-  { mode: 'CODE' as const, label: '代码', icon: Code },
-  { mode: 'RESEARCH' as const, label: '资料', icon: BookOpenCheck },
 ]
 
 const aiResultTitle = computed(() => {
@@ -708,29 +733,122 @@ async function generateAiText(mode: AiMode = 'CUSTOM', promptOverride?: string) 
   aiResult.notice = ''
 
   try {
-    const response = await requestJson<ApiEnvelope<CreatorAiResponse>>('/api/ai/write', {
-      method: 'POST',
-      body: JSON.stringify({
-        mode: selectedMode,
-        title: articleForm.title,
-        prompt,
-        context: articleForm.contentMarkdown,
-        selection: selection.text,
-      })
-    })
-    aiResult.mode = response.data.mode
-    aiResult.text = response.data.text
-    aiResult.notice = response.data.notice ?? ''
     if (selectedMode === 'CUSTOM') {
+      await generateAiChatReply(prompt, selection.text)
       aiPrompt.value = ''
+    } else {
+      await generateQuickAiResult(selectedMode, prompt, selection.text)
     }
   } catch (error) {
-    aiResult.notice = readError(error, 'AI 生成失败')
-    showNotice(aiResult.notice)
+    const message = readError(error, 'AI 生成失败')
+    if (selectedMode === 'CUSTOM') {
+      updateLastAssistantMessage({ notice: message, pending: false })
+    } else {
+      aiResult.notice = message
+    }
+    showNotice(message)
   } finally {
     isGeneratingAiText.value = false
     activeAiMode.value = null
   }
+}
+
+async function generateQuickAiResult(mode: AiMode, prompt: string, selection: string) {
+  const response = await streamCreatorAiText(
+    {
+      mode,
+      title: articleForm.title,
+      prompt,
+      context: articleForm.contentMarkdown,
+      selection,
+    },
+    {
+      onDelta: (delta) => {
+        aiResult.text += delta
+      },
+      onDone: (result) => {
+        aiResult.mode = result.mode
+        aiResult.text = result.text
+        aiResult.notice = result.notice ?? ''
+      },
+      onError: (message) => {
+        aiResult.notice = message
+      },
+    }
+  )
+  aiResult.mode = response.mode
+  aiResult.text = response.text
+  aiResult.notice = response.notice ?? ''
+}
+
+async function generateAiChatReply(prompt: string, selection: string) {
+  aiChatMessages.value.push({ id: ++aiMessageId, role: 'user', content: prompt })
+  const assistantMessage: AiChatMessage = {
+    id: ++aiMessageId,
+    role: 'assistant',
+    content: '',
+    mode: 'CUSTOM',
+    pending: true,
+  }
+  aiChatMessages.value.push(assistantMessage)
+  scrollAiThreadToBottom()
+
+  const response = await streamCreatorAiText(
+    {
+      mode: 'CUSTOM',
+      title: articleForm.title,
+      prompt,
+      context: articleForm.contentMarkdown,
+      selection,
+    },
+    {
+      onDelta: (delta) => {
+        assistantMessage.content += delta
+        scrollAiThreadToBottom()
+      },
+      onDone: (result) => {
+        assistantMessage.mode = result.mode
+        assistantMessage.content = result.text
+        assistantMessage.notice = result.notice ?? ''
+        assistantMessage.pending = false
+        scrollAiThreadToBottom()
+      },
+      onError: (message) => {
+        assistantMessage.notice = message
+        assistantMessage.pending = false
+      },
+    }
+  )
+  assistantMessage.mode = response.mode
+  assistantMessage.content = response.text
+  assistantMessage.notice = response.notice ?? ''
+  assistantMessage.pending = false
+  scrollAiThreadToBottom()
+}
+
+function updateLastAssistantMessage(patch: Partial<AiChatMessage>) {
+  const message = [...aiChatMessages.value].reverse().find((item) => item.role === 'assistant')
+  if (message) {
+    Object.assign(message, patch)
+  }
+}
+
+function resetAiChat() {
+  if (isGeneratingAiText.value) return
+  aiChatMessages.value = []
+}
+
+function scrollAiThreadToBottom() {
+  nextTick(() => {
+    const thread = aiThreadRef.value
+    if (thread) {
+      thread.scrollTop = thread.scrollHeight
+    }
+  })
+}
+
+function renderAiMarkdown(value: string) {
+  return renderSafeMarkdown(value)
 }
 
 function defaultPromptForMode(mode: AiMode) {
@@ -1896,6 +2014,11 @@ function readError(error: unknown, fallback: string) {
   flex-direction: column;
   gap: 18px;
 }
+.ai-body--chat {
+  overflow: hidden;
+  gap: 12px;
+  padding-bottom: 16px;
+}
 
 .ai-section-title {
   display: flex;
@@ -2039,9 +2162,6 @@ function readError(error: unknown, fallback: string) {
   max-height: 260px;
   overflow: auto;
   padding: 12px 13px;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 12px;
   line-height: 1.7;
   color: #27272a;
@@ -2083,12 +2203,150 @@ function readError(error: unknown, fallback: string) {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  flex: 0 0 auto;
 }
 
 .ai-disclaimer {
   font-size: 11px;
   color: #71717a;
   line-height: 1.5;
+}
+
+.ai-chat-thread {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ai-chat-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #71717a;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.ai-chat-topline button {
+  border: 1px solid rgba(24, 24, 27, 0.1);
+  background: #ffffff;
+  color: #3f3f46;
+  border-radius: 999px;
+  padding: 5px 9px;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.ai-chat-topline button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.ai-message {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.ai-message-label {
+  color: #a1a1aa;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.ai-message--user {
+  align-items: flex-end;
+}
+
+.ai-message--assistant {
+  align-items: flex-start;
+}
+
+.ai-message-text,
+.ai-message-content {
+  max-width: 88%;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.7;
+  word-break: break-word;
+}
+
+.ai-message-text {
+  background: #18181b;
+  color: #ffffff;
+  border-bottom-right-radius: 4px;
+}
+
+.ai-message-content {
+  background: #ffffff;
+  color: #27272a;
+  border: 1px solid rgba(24, 24, 27, 0.08);
+  border-bottom-left-radius: 4px;
+  box-shadow: 0 6px 18px rgba(24, 24, 27, 0.04);
+}
+
+.ai-markdown {
+  overflow-wrap: anywhere;
+}
+
+.ai-markdown :deep(p) {
+  margin: 0 0 8px;
+}
+
+.ai-markdown :deep(p:last-child),
+.ai-markdown :deep(ul:last-child),
+.ai-markdown :deep(ol:last-child),
+.ai-markdown :deep(pre:last-child),
+.ai-markdown :deep(blockquote:last-child) {
+  margin-bottom: 0;
+}
+
+.ai-markdown :deep(ul),
+.ai-markdown :deep(ol) {
+  margin: 0 0 8px;
+  padding-left: 18px;
+}
+
+.ai-markdown :deep(li + li) {
+  margin-top: 3px;
+}
+
+.ai-markdown :deep(code) {
+  border-radius: 5px;
+  background: #f4f4f5;
+  padding: 1px 4px;
+  font-size: 0.92em;
+}
+
+.ai-markdown :deep(pre) {
+  margin: 8px 0;
+  max-width: 100%;
+  overflow-x: auto;
+  border-radius: 8px;
+  background: #111827;
+  color: #f8fafc;
+  padding: 10px;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.ai-markdown :deep(pre code) {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+
+.ai-markdown :deep(blockquote) {
+  margin: 8px 0;
+  padding-left: 10px;
+  border-left: 3px solid #315bff;
+  color: #52525b;
 }
 
 .ai-input-box {

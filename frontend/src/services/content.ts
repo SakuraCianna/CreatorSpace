@@ -1,4 +1,5 @@
-import { requestJson } from './http'
+import { appConfig } from '../app/config'
+import { ACCESS_TOKEN_KEY, requestJson } from './http'
 import type {
   AdminThemeConfig,
   AiSuggestionStatus,
@@ -52,6 +53,22 @@ interface ApiEnvelope<T> {
   success: boolean
   data: T
   message: string
+}
+
+export type CreatorAiMode = 'OUTLINE' | 'CONTINUE' | 'POLISH' | 'SUMMARY' | 'TITLE' | 'TAGS' | 'CODE' | 'RESEARCH' | 'CUSTOM'
+
+export interface CreatorAiPayload {
+  mode: CreatorAiMode
+  title?: string
+  prompt?: string
+  context?: string
+  selection?: string
+}
+
+export interface CreatorAiResponse {
+  mode: CreatorAiMode
+  text: string
+  notice?: string | null
 }
 
 type ArticleStatusFilter = ArticleSummary['status'] | 'ALL'
@@ -1080,7 +1097,13 @@ interface AiStreamHandlers {
   onError?: (message: string) => void
 }
 
-async function requestAiStream(path: string, body: unknown, handlers: AiStreamHandlers = {}): Promise<AiTaskSummary> {
+interface StreamHandlers<TDone> {
+  onDelta?: (delta: string) => void
+  onDone?: (data: TDone) => void
+  onError?: (message: string) => void
+}
+
+async function requestAiStream<TDone>(path: string, body: unknown, handlers: StreamHandlers<TDone> = {}): Promise<TDone> {
   const token = window.localStorage.getItem(ACCESS_TOKEN_KEY)
   const response = await fetch(`${appConfig.apiBaseUrl}${path}`, {
     method: 'POST',
@@ -1099,33 +1122,53 @@ async function requestAiStream(path: string, body: unknown, handlers: AiStreamHa
   const reader = response.body.getReader()
   const decoder = new TextDecoder('utf-8')
   let buffer = ''
-  let doneTask: AiTaskSummary | null = null
+  let doneData: TDone | null = null
 
   while (true) {
     const { value, done } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-    const events = buffer.split(/\r?\n\r?\n/)
-    buffer = events.pop() ?? ''
-    for (const eventText of events) {
-      const event = parseSseEvent(eventText)
-      if (!event.data) continue
-      if (event.event === 'delta') {
-        handlers.onDelta?.(event.data)
-      } else if (event.event === 'done') {
-        doneTask = JSON.parse(event.data) as AiTaskSummary
-        handlers.onDone?.(doneTask)
-      } else if (event.event === 'error') {
-        handlers.onError?.(event.data)
-        throw new Error(event.data)
-      }
+    if (done) {
+      buffer += decoder.decode()
+      break
     }
+    buffer += decoder.decode(value, { stream: true })
+    const result = consumeSseBuffer(buffer, handlers, doneData)
+    buffer = result.buffer
+    doneData = result.doneData
   }
 
-  if (!doneTask) {
-    throw new Error('AI 流式生成未返回完整任务')
+  if (buffer.trim()) {
+    const result = consumeSseBuffer(`${buffer}\n\n`, handlers, doneData)
+    doneData = result.doneData
   }
-  return doneTask
+
+  if (!doneData) {
+    throw new Error('AI 流式生成未返回完整结果')
+  }
+  return doneData
+}
+
+function consumeSseBuffer<TDone>(
+  buffer: string,
+  handlers: StreamHandlers<TDone>,
+  currentDoneData: TDone | null,
+): { buffer: string; doneData: TDone | null } {
+  const events = buffer.split(/\r?\n\r?\n/)
+  const rest = events.pop() ?? ''
+  let doneData = currentDoneData
+  for (const eventText of events) {
+    const event = parseSseEvent(eventText)
+    if (!event.data) continue
+    if (event.event === 'delta') {
+      handlers.onDelta?.(event.data)
+    } else if (event.event === 'done') {
+      doneData = JSON.parse(event.data) as TDone
+      handlers.onDone?.(doneData)
+    } else if (event.event === 'error') {
+      handlers.onError?.(event.data)
+      throw new Error(event.data)
+    }
+  }
+  return { buffer: rest, doneData }
 }
 
 function parseSseEvent(value: string): { event: string; data: string } {
@@ -1142,15 +1185,19 @@ function parseSseEvent(value: string): { event: string; data: string } {
 }
 
 export function streamAiTask(payload: AiTaskPayload, handlers?: AiStreamHandlers): Promise<AiTaskSummary> {
-  return requestAiStream('/api/admin/ai/tasks/stream', payload, handlers)
+  return requestAiStream<AiTaskSummary>('/api/admin/ai/tasks/stream', payload, handlers)
 }
 
 export function streamAiFollowUp(id: number, prompt: string, handlers?: AiStreamHandlers): Promise<AiTaskSummary> {
-  return requestAiStream(`/api/admin/ai/tasks/${id}/messages/stream`, { prompt }, handlers)
+  return requestAiStream<AiTaskSummary>(`/api/admin/ai/tasks/${id}/messages/stream`, { prompt }, handlers)
 }
 
 export function streamAiWorkflow(payload: AiWorkflowPayload, handlers?: AiStreamHandlers): Promise<AiTaskSummary> {
-  return requestAiStream('/api/admin/ai/workflows/stream', payload, handlers)
+  return requestAiStream<AiTaskSummary>('/api/admin/ai/workflows/stream', payload, handlers)
+}
+
+export function streamCreatorAiText(payload: CreatorAiPayload, handlers?: StreamHandlers<CreatorAiResponse>): Promise<CreatorAiResponse> {
+  return requestAiStream<CreatorAiResponse>('/api/ai/write/stream', payload, handlers)
 }
 // 查询后台 AI 助手最近任务
 export async function fetchAiTasks(options: {

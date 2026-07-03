@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
 public class AiAssistantService {
@@ -169,6 +170,34 @@ public class AiAssistantService {
         }
     }
 
+    public CreatorAiResponse generateCreatorTextStreaming(CreatorAiRequest request, Consumer<String> onDelta) {
+        String mode = normalizeCreatorMode(request.mode());
+        String prompt = trimToNull(request.prompt());
+        String title = trimToNull(request.title());
+        String context = trimToNull(request.context());
+        String selection = trimToNull(request.selection());
+        if (prompt == null && title == null && context == null && selection == null) {
+            throw BusinessException.badRequest("请先输入标题、正文或 AI 创作要求");
+        }
+
+        AtomicBoolean streamStarted = new AtomicBoolean(false);
+        Consumer<String> guardedDelta = delta -> {
+            streamStarted.set(true);
+            onDelta.accept(delta);
+        };
+        try {
+            String text = aiModelClient.completeStreaming(buildCreatorMessages(mode, prompt, title, context, selection), guardedDelta);
+            return new CreatorAiResponse(mode, text, null);
+        } catch (Exception exception) {
+            if (streamStarted.get()) {
+                throw exception;
+            }
+            String text = localCreatorText(mode, prompt, title, context, selection);
+            streamLocalText(text, onDelta);
+            return new CreatorAiResponse(mode, text, null);
+        }
+    }
+
     public String generateText(String prompt, String context) {
         return generateCreatorText(new CreatorAiRequest("CUSTOM", null, prompt, context, null)).text();
     }
@@ -230,6 +259,13 @@ public class AiAssistantService {
             case "RESEARCH" -> "## 检索方向\n- 关键词：" + topic + "、实践复盘、案例分析、常见问题。\n- 优先核验：定义是否准确、数据是否有来源、案例是否可公开引用。\n- 可补充材料：官方文档、技术博客、项目 README、论文摘要或真实使用记录。\n\n## 写作提醒\n- 不确定的结论先写成观察或假设。\n- 引用外部资料时保留来源链接和访问时间。";
             default -> "## " + topic + "\n\n" + brief + "\n\n可以从背景、问题、方法和复盘四个角度继续展开。先写清楚为什么要做，再说明怎么做，最后总结这次创作或实践带来的启发。";
         };
+    }
+
+    private void streamLocalText(String text, Consumer<String> onDelta) {
+        int chunkSize = 24;
+        for (int index = 0; index < text.length(); index += chunkSize) {
+            onDelta.accept(text.substring(index, Math.min(index + chunkSize, text.length())));
+        }
     }
 
     private String normalizeCreatorMode(String value) {
