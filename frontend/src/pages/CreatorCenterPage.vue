@@ -1028,7 +1028,7 @@ watch(() => articleForm.contentMarkdown, (newVal) => {
   queueHistorySnapshot(newVal)
 })
 
-let renderTimer: any
+let renderTimer: ReturnType<typeof setTimeout> | null = null
 function updateWordCount() {
   wordCount.value = articleForm.contentMarkdown.trim().length
   if (renderTimer) clearTimeout(renderTimer)
@@ -1382,7 +1382,7 @@ async function publishArticle() {
   }
 }
 
-let noticeTimer: any
+let noticeTimer: ReturnType<typeof setTimeout> | null = null
 function showNotice(msg: string) {
   notice.value = msg
   if (noticeTimer) clearTimeout(noticeTimer)
@@ -1476,7 +1476,7 @@ function readError(error: unknown, fallback: string) {
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--blog-paper, #ffffff) 92%, transparent), color-mix(in srgb, var(--blog-canvas, #f8fafc) 94%, transparent));
   color: var(--blog-title, #111827);
-  font-family: var(--blog-font, inherit);
+  font-family: var(--blog-font-body, var(--blog-font, inherit));
   font-size: 12px;
   font-weight: 750;
   line-height: 1;
@@ -1522,7 +1522,7 @@ function readError(error: unknown, fallback: string) {
   box-shadow: 0 4px 20px rgba(0,0,0,0.1);
   border: 1px solid rgba(0,0,0,0.06);
   min-width: 120px;
-  z-index: 100;
+  z-index: 3000;
   overflow: hidden;
 }
 .dropdown-item {
@@ -1785,7 +1785,7 @@ function readError(error: unknown, fallback: string) {
   font-weight: 700;
   color: #18181b;
   outline: none;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 .title-input::placeholder {
   color: #d4d4d8;
@@ -1834,28 +1834,30 @@ function readError(error: unknown, fallback: string) {
 .markdown-preview {
   flex: 1;
   overflow-y: auto;
-  font-size: 15px;
-  line-height: 1.8;
-  color: #27272a;
+  font-size: var(--blog-body-size, 15px);
+  line-height: var(--blog-body-line, 1.8);
+  color: var(--blog-body, #27272a);
 }
 .preview-title {
   font-size: 36px;
-  font-weight: 700;
-  color: #18181b;
+  font-weight: var(--blog-heading-weight, 700);
+  color: var(--blog-title, #18181b);
   margin: 0;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 .markdown-preview::-webkit-scrollbar {
-  width: 8px;
+  width: 7px;
 }
 .markdown-preview::-webkit-scrollbar-thumb {
-  background: rgba(0,0,0,0.1);
-  border-radius: 4px;
+  background: color-mix(in srgb, var(--blog-accent, #2563eb) 24%, transparent);
+  border-radius: 999px;
 }
 .markdown-preview :deep(h1), .markdown-preview :deep(h2), .markdown-preview :deep(h3) {
   margin-top: 1.2em;
   margin-bottom: 0.6em;
-  color: #18181b;
+  color: var(--blog-title, #18181b);
+  font-family: var(--blog-font-heading, inherit);
+  font-weight: var(--blog-heading-weight, 760);
 }
 .markdown-preview :deep(> *:first-child) {
   margin-top: 0;
@@ -1864,21 +1866,26 @@ function readError(error: unknown, fallback: string) {
   margin-bottom: 1em;
 }
 .markdown-preview :deep(pre) {
-  background: #f4f4f5;
+  background: var(--blog-code-bg, #f4f4f5);
+  color: var(--blog-code-text, inherit);
   padding: 16px;
-  border-radius: 8px;
+  border-radius: var(--blog-radius, 8px);
   overflow-x: auto;
 }
 .markdown-preview :deep(code) {
-  font-family: "Geist Mono", Consolas, monospace;
-  background: #f4f4f5;
+  font-family: var(--blog-font-mono, "Geist Mono", Consolas, monospace);
+  background: var(--blog-code-bg, #f4f4f5);
+  color: var(--blog-code-text, inherit);
   padding: 2px 4px;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 .markdown-preview :deep(blockquote) {
-  border-left: 4px solid #e4e4e7;
+  border: 1px solid var(--blog-block-border, transparent);
+  border-left: 4px solid var(--blog-accent, #e4e4e7);
   padding-left: 16px;
-  color: #71717a;
+  color: var(--blog-muted, #71717a);
+  background: var(--blog-block-bg, transparent);
+  box-shadow: var(--blog-block-shadow, none);
   margin: 1em 0;
 }
 .markdown-preview :deep(table) {
@@ -1887,32 +1894,34 @@ function readError(error: unknown, fallback: string) {
   margin: 1em 0;
 }
 .markdown-preview :deep(table th), .markdown-preview :deep(table td) {
-  border: 1px solid #e4e4e7;
+  border: 1px solid var(--blog-line, #e4e4e7);
   padding: 8px 12px;
   text-align: left;
 }
 .markdown-preview :deep(table th) {
-  background: #f4f4f5;
+  background: var(--blog-chip, #f4f4f5);
   font-weight: 600;
 }
 .markdown-preview :deep(img) {
   max-width: 100%;
-  border-radius: 8px;
+  border-radius: var(--blog-radius, 8px);
 }
 
 .article-preview-surface {
   border-left-color: color-mix(in srgb, var(--blog-accent, #2563eb) 18%, transparent);
-  padding: 20px 22px;
-  border-radius: 8px;
+  padding: 24px;
+  border-radius: var(--blog-radius-lg, 14px);
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--blog-paper, #ffffff) 95%, transparent), color-mix(in srgb, var(--blog-paper, #ffffff) 86%, transparent)),
+    radial-gradient(circle at 92% 0%, color-mix(in srgb, var(--blog-accent, #2563eb) 12%, transparent), transparent 28%),
+    linear-gradient(180deg, color-mix(in srgb, var(--blog-paper, #ffffff) 95%, transparent), color-mix(in srgb, var(--blog-card, #ffffff) 86%, transparent)),
     var(--blog-canvas, #f8fafc);
   color: var(--blog-body, #374151);
-  font-family: var(--blog-font, inherit);
+  font-family: var(--blog-font-body, var(--blog-font, inherit));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--blog-line, #e4e4e7) 70%, transparent);
 }
 .article-preview-surface[data-blog-canvas='linen'] {
   background:
-    repeating-linear-gradient(0deg, rgba(17, 24, 39, 0.035) 0 1px, transparent 1px 9px),
+    repeating-linear-gradient(0deg, color-mix(in srgb, var(--blog-title, #111827) 5%, transparent) 0 1px, transparent 1px 9px),
     var(--blog-paper, #ffffff);
 }
 .article-preview-surface[data-blog-canvas='gradient'] {
@@ -1930,7 +1939,8 @@ function readError(error: unknown, fallback: string) {
 }
 .article-preview-surface .preview-title {
   color: var(--blog-title, #111827);
-  font-family: var(--blog-font, inherit);
+  font-family: var(--blog-font-heading, var(--blog-font, inherit));
+  font-weight: var(--blog-heading-weight, 760);
 }
 .preview-summary {
   max-width: 62ch;
@@ -1940,20 +1950,21 @@ function readError(error: unknown, fallback: string) {
 }
 .article-preview-surface .markdown-preview {
   color: var(--blog-body, #374151);
-  font-family: var(--blog-font, inherit);
+  font-family: var(--blog-font-body, var(--blog-font, inherit));
 }
 .article-preview-surface .markdown-preview :deep(h1),
 .article-preview-surface .markdown-preview :deep(h2),
 .article-preview-surface .markdown-preview :deep(h3) {
   color: var(--blog-title, #111827);
+  font-family: var(--blog-font-heading, inherit);
 }
 .article-preview-surface[data-blog-block='ink'] .markdown-preview :deep(blockquote) {
   border-left-color: var(--blog-accent, #2563eb);
 }
 .article-preview-surface[data-blog-block='carded'] .markdown-preview :deep(pre),
 .article-preview-surface[data-blog-block='carded'] .markdown-preview :deep(blockquote) {
-  border: 1px solid color-mix(in srgb, var(--blog-accent, #2563eb) 18%, transparent);
-  border-radius: 8px;
+  border: 1px solid var(--blog-block-border, color-mix(in srgb, var(--blog-accent, #2563eb) 18%, transparent));
+  border-radius: var(--blog-radius, 8px);
 }
 
 /* 右侧 AI 助手 */
@@ -2487,11 +2498,11 @@ function readError(error: unknown, fallback: string) {
   gap: 12px;
   padding: 12px;
   border: 1px solid color-mix(in srgb, var(--blog-accent, #2563eb) 18%, transparent);
-  border-radius: 8px;
+  border-radius: var(--blog-radius, 8px);
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--blog-paper, #ffffff) 94%, transparent), color-mix(in srgb, var(--blog-canvas, #f8fafc) 86%, transparent)),
     #ffffff;
-  font-family: var(--blog-font, inherit);
+  font-family: var(--blog-font-body, var(--blog-font, inherit));
 }
 .theme-inherit-card strong,
 .theme-inherit-card span {
@@ -2639,7 +2650,7 @@ function readError(error: unknown, fallback: string) {
   width: 100%;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
-  scrollbar-color: rgba(17, 24, 39, 0.26) transparent;
+  scrollbar-color: rgba(17, 24, 39, 0.18) transparent;
 }
 .scroll-container::-webkit-scrollbar {
   width: 8px;
@@ -2650,11 +2661,11 @@ function readError(error: unknown, fallback: string) {
 .scroll-container::-webkit-scrollbar-thumb {
   border: 2px solid transparent;
   border-radius: 999px;
-  background: rgba(17, 24, 39, 0.22);
+  background: rgba(17, 24, 39, 0.16);
   background-clip: padding-box;
 }
 .scroll-container::-webkit-scrollbar-thumb:hover {
-  background: rgba(17, 24, 39, 0.36);
+  background: rgba(17, 24, 39, 0.28);
   background-clip: padding-box;
 }
 
