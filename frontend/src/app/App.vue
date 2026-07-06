@@ -1,9 +1,7 @@
 <template>
   <component :is="layout">
     <RouterView v-slot="{ Component, route }">
-      <transition name="page-fade" mode="out-in">
-        <component :is="Component" :key="route.path" />
-      </transition>
+      <component :is="Component" :key="route.fullPath" />
     </RouterView>
   </component>
 </template>

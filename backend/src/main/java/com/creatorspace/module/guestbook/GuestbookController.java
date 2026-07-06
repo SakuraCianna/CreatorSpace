@@ -57,14 +57,15 @@ public class GuestbookController {
                 Long.class);
         List<GuestbookVO> records = jdbcTemplate.query("""
                         select g.id,
-                               g.user_id,
-                               g.display_name,
-                               g.content,
-                               g.status,
-                               g.like_count,
-                               g.created_at
-                        from guestbook_entries g
-                        where g.status = 'APPROVED'
+                                g.user_id,
+                                g.display_name,
+                                g.content,
+                                g.content_original,
+                                g.status,
+                                g.like_count,
+                                g.created_at
+                         from guestbook_entries g
+                         where g.status = 'APPROVED'
                         order by g.created_at desc, g.id desc
                         limit ? offset ?
                         """,
@@ -73,6 +74,7 @@ public class GuestbookController {
                         rs.getObject("user_id") == null ? null : rs.getLong("user_id"),
                         rs.getString("display_name"),
                         rs.getString("content"),
+                        rs.getString("content_original"),
                         rs.getString("status"),
                         rs.getLong("like_count"),
                         rs.getObject("created_at", OffsetDateTime.class)
@@ -90,20 +92,21 @@ public class GuestbookController {
             @Valid @RequestBody GuestbookRequest request,
             HttpServletRequest servletRequest
     ) {
-        String content = ensureContentAllowed(request.content());
+        ContentCheckResult check = ensureContentAllowed(request.content());
         checkGuestbookSpam(loginUser.userId());
         Long id = jdbcTemplate.queryForObject("""
                         insert into guestbook_entries (
-                            user_id, display_name, content, status,
+                            user_id, display_name, content, content_original, status,
                             ip_address, user_agent
                         )
-                        values (?, ?, ?, 'PENDING', cast(? as inet), ?)
+                        values (?, ?, ?, ?, 'PENDING', cast(? as inet), ?)
                         returning id
                         """,
                 Long.class,
                 loginUser.userId(),
                 loginUser.username(),
-                content,
+                check.content(),
+                check.originalContent(),
                 servletRequest.getRemoteAddr(),
                 servletRequest.getHeader("User-Agent"));
         return ApiResponse.ok(getEntry(id));
@@ -143,13 +146,13 @@ public class GuestbookController {
         if (!"APPROVED".equals(status) && !"PENDING".equals(status)) {
             throw BusinessException.badRequest("当前状态不能编辑");
         }
-        String maskedContent = ensureContentAllowed(request.content());
+        ContentCheckResult check = ensureContentAllowed(request.content());
         jdbcTemplate.update("""
                         update guestbook_entries
-                        set content = ?, status = 'PENDING', updated_at = now()
+                        set content = ?, content_original = ?, status = 'PENDING', updated_at = now()
                         where id = ? and user_id = ?
                         """,
-                maskedContent, id, loginUser.userId());
+                check.content(), check.originalContent(), id, loginUser.userId());
         return ApiResponse.ok(getEntry(id));
     }
 
@@ -206,22 +209,24 @@ public class GuestbookController {
 
         List<GuestbookVO> records = jdbcTemplate.query("""
                         select g.id,
-                               g.user_id,
-                               g.display_name,
-                               g.content,
-                               g.status,
-                               g.like_count,
-                               g.created_at
-                        from guestbook_entries g
-                        %s
-                        order by g.created_at desc, g.id desc
-                        limit ? offset ?
-                        """.formatted(where),
+                                g.user_id,
+                                g.display_name,
+                                g.content,
+                                g.content_original,
+                                g.status,
+                                g.like_count,
+                                g.created_at
+                         from guestbook_entries g
+                         %s
+                         order by g.created_at desc, g.id desc
+                         limit ? offset ?
+                         """.formatted(where),
                 (rs, rowNum) -> new GuestbookVO(
                         rs.getLong("id"),
                         rs.getObject("user_id") == null ? null : rs.getLong("user_id"),
                         rs.getString("display_name"),
                         rs.getString("content"),
+                        rs.getString("content_original"),
                         rs.getString("status"),
                         rs.getLong("like_count"),
                         rs.getObject("created_at", OffsetDateTime.class)
@@ -258,8 +263,9 @@ public class GuestbookController {
         }
     }
 
-    private String ensureContentAllowed(String content) {
-        String result = content.trim();
+    private ContentCheckResult ensureContentAllowed(String content) {
+        String original = content.trim();
+        String result = original;
         List<String> words = jdbcTemplate.query("""
                         select word, match_type, severity
                         from sensitive_words
@@ -281,7 +287,8 @@ public class GuestbookController {
                 case "REVIEW" -> { /* PENDING status handles this */ }
             }
         }
-        return result;
+        boolean masked = !result.equals(original);
+        return new ContentCheckResult(result, masked ? original : null);
     }
 
     private boolean matchesSensitiveWord(String content, String word, String matchType) {
@@ -324,20 +331,22 @@ public class GuestbookController {
     private GuestbookVO getEntry(Long id) {
         return jdbcTemplate.query("""
                         select g.id,
-                               g.user_id,
-                               g.display_name,
-                               g.content,
-                               g.status,
-                               g.like_count,
-                               g.created_at
-                        from guestbook_entries g
-                        where g.id = ?
+                                g.user_id,
+                                g.display_name,
+                                g.content,
+                                g.content_original,
+                                g.status,
+                                g.like_count,
+                                g.created_at
+                         from guestbook_entries g
+                         where g.id = ?
                         """,
                 (rs, rowNum) -> new GuestbookVO(
                         rs.getLong("id"),
                         rs.getObject("user_id") == null ? null : rs.getLong("user_id"),
                         rs.getString("display_name"),
                         rs.getString("content"),
+                        rs.getString("content_original"),
                         rs.getString("status"),
                         rs.getLong("like_count"),
                         rs.getObject("created_at", OffsetDateTime.class)
@@ -360,6 +369,7 @@ public class GuestbookController {
             Long userId,
             String displayName,
             String content,
+            String contentOriginal,
             String status,
             Long likeCount,
             OffsetDateTime createdAt
@@ -369,5 +379,8 @@ public class GuestbookController {
     public record IdListRequest(
             @NotNull List<Long> ids
     ) {
+    }
+
+    private record ContentCheckResult(String content, String originalContent) {
     }
 }

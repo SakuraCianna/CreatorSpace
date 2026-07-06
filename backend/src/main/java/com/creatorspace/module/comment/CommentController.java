@@ -109,6 +109,7 @@ public class CommentController {
                                 c.user_id,
                                 u.username,
                                 c.content,
+                                c.content_original,
                                 c.status,
                                 c.depth,
                                 c.reply_count,
@@ -147,6 +148,7 @@ public class CommentController {
         checkSpam(loginUser.userId());
         String status = check.needsReview() ? "PENDING" : "APPROVED";
 
+        boolean contentMasked = !check.content().equals(check.originalContent());
         Long id = jdbcTemplate.queryForObject("""
                         insert into comments (
                             target_type,
@@ -156,12 +158,13 @@ public class CommentController {
                             user_id,
                             reply_to_user_id,
                             content,
+                            content_original,
                             status,
                             depth,
                             ip_address,
                             user_agent
                         )
-                        values (?, ?, ?, ?, ?, ?, ?, ?, ?, cast(? as inet), ?)
+                        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, cast(? as inet), ?)
                         returning id
                         """,
                 Long.class,
@@ -172,6 +175,7 @@ public class CommentController {
                 loginUser.userId(),
                 parent == null ? null : parent.userId(),
                 check.content(),
+                contentMasked ? check.originalContent() : null,
                 status,
                 parent == null ? 0 : parent.depth() + 1,
                 servletRequest.getRemoteAddr(),
@@ -250,12 +254,13 @@ public class CommentController {
         }
         CheckResult check = checkContent(request.content());
         String newStatus = check.needsReview() ? "PENDING" : "APPROVED";
+        boolean contentMasked = !check.content().equals(check.originalContent());
         jdbcTemplate.update("""
                         update comments
-                        set content = ?, status = ?, updated_at = now()
+                        set content = ?, content_original = ?, status = ?, updated_at = now()
                         where id = ? and user_id = ?
                         """,
-                check.content(), newStatus, id, loginUser.userId());
+                check.content(), contentMasked ? check.originalContent() : null, newStatus, id, loginUser.userId());
         return ApiResponse.ok(getComment(id));
     }
 
@@ -323,21 +328,22 @@ public class CommentController {
                                c.root_id,
                                c.user_id,
                                u.username,
-                               c.content,
-                               c.status,
-                               c.depth,
-                               c.reply_count,
-                               c.like_count,
-                               c.created_at,
-                               c.reply_to_user_id,
-                               ru.username as reply_username
-                        from comments c
-                        join users u on u.id = c.user_id
-                        left join users ru on ru.id = c.reply_to_user_id
-                        %s
-                        order by c.created_at desc, c.id desc
-                        limit ? offset ?
-                        """.formatted(where),
+                                c.content,
+                                c.content_original,
+                                c.status,
+                                c.depth,
+                                c.reply_count,
+                                c.like_count,
+                                c.created_at,
+                                c.reply_to_user_id,
+                                ru.username as reply_username
+                         from comments c
+                         join users u on u.id = c.user_id
+                         left join users ru on ru.id = c.reply_to_user_id
+                         %s
+                         order by c.created_at desc, c.id desc
+                         limit ? offset ?
+                         """.formatted(where),
                 (rs, rowNum) -> toComment(rs),
                 listParams.toArray());
         return ApiResponse.ok(new PageResponse<>(records, page, pageSize, total == null ? 0 : total));
@@ -368,27 +374,28 @@ public class CommentController {
         int offset = (page - 1) * size;
         List<CommentVO> list = jdbcTemplate.query("""
                         select c.id,
-                               c.target_type,
-                               c.target_id,
-                               c.parent_id,
-                               c.root_id,
-                               c.user_id,
-                               u.username,
-                               c.content,
-                               c.status,
-                               c.depth,
-                               c.reply_count,
-                               c.like_count,
-                               c.created_at,
-                               c.reply_to_user_id,
-                               ru.username as reply_username
-                        from comments c
-                        join users u on u.id = c.user_id
-                        left join users ru on ru.id = c.reply_to_user_id
-                        where c.user_id = ?
-                        order by c.created_at desc
-                        limit ? offset ?
-                        """,
+                                c.target_type,
+                                c.target_id,
+                                c.parent_id,
+                                c.root_id,
+                                c.user_id,
+                                u.username,
+                                c.content,
+                                c.content_original,
+                                c.status,
+                                c.depth,
+                                c.reply_count,
+                                c.like_count,
+                                c.created_at,
+                                c.reply_to_user_id,
+                                ru.username as reply_username
+                         from comments c
+                         join users u on u.id = c.user_id
+                         left join users ru on ru.id = c.reply_to_user_id
+                         where c.user_id = ?
+                         order by c.created_at desc
+                         limit ? offset ?
+                         """,
                 (rs, rowNum) -> toComment(rs),
                 loginUser.userId(), size, offset);
         Integer total = jdbcTemplate.queryForObject("""
@@ -407,8 +414,9 @@ public class CommentController {
                                c.root_id,
                                c.user_id,
                                u.username,
-                               c.content,
-                               c.status,
+                                c.content,
+                                c.content_original,
+                                c.status,
                                c.depth,
                                c.reply_count,
                                c.like_count,
@@ -517,7 +525,8 @@ public class CommentController {
     }
 
     private CheckResult checkContent(String content) {
-        String result = content.trim();
+        String original = content.trim();
+        String result = original;
         boolean hasReviewMatch = false;
         List<String> words = jdbcTemplate.query("""
                         select word, match_type, severity
@@ -540,10 +549,10 @@ public class CommentController {
                 case "REVIEW" -> hasReviewMatch = true;
             }
         }
-        return new CheckResult(result, hasReviewMatch);
+        return new CheckResult(result, original, hasReviewMatch);
     }
 
-    private record CheckResult(String content, boolean needsReview) {
+    private record CheckResult(String content, String originalContent, boolean needsReview) {
     }
 
     private String maskContent(String content, String word, String matchType) {
@@ -606,6 +615,7 @@ public class CommentController {
                 rs.getLong("user_id"),
                 rs.getString("username"),
                 rs.getString("content"),
+                rs.getString("content_original"),
                 rs.getString("status"),
                 rs.getInt("depth"),
                 rs.getLong("reply_count"),
@@ -643,6 +653,7 @@ public class CommentController {
             Long userId,
             String username,
             String content,
+            String contentOriginal,
             String status,
             Integer depth,
             Long replyCount,

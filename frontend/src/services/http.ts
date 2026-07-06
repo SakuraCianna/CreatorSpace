@@ -25,20 +25,12 @@ export function clearAuth(): void {
   window.dispatchEvent(new CustomEvent('auth:cleared'))
 }
 
-// 公开接口路径前缀列表——这些接口不需要 token，带上过期 token 反而可能被 Spring Security 误拦
+// 公开接口路径前缀列表——这些接口如果返回 401 不会触发自动刷新 Token
+// 注意 GET /api/articles 后端已配 permitAll，不会返回 401
 const PUBLIC_API_PREFIXES = [
   '/api/auth',
-  '/api/articles',
-  '/api/projects',
-  '/api/inspirations',
-  '/api/search',
-  '/api/comments',
-  '/api/site',
-  '/api/theme',
-  '/api/themes',
-  '/api/categories',
-  '/api/tags',
   '/api/health',
+  '/api/actuator',
 ]
 
 function isPublicApi(path: string): boolean {
@@ -84,7 +76,7 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
   const timeoutId = window.setTimeout(() => controller.abort(), appConfig.apiTimeoutMs)
   const requestPath = path.startsWith('/') ? path : `/${path}`
   const method = init?.method?.toUpperCase() ?? 'GET'
-  const token = isPublicApi(requestPath) ? null : window.localStorage.getItem(ACCESS_TOKEN_KEY)
+  const token = window.localStorage.getItem(ACCESS_TOKEN_KEY)
   const isFormData = init?.body instanceof FormData
 
   try {

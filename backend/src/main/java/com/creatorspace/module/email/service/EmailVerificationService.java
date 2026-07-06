@@ -3,6 +3,7 @@ package com.creatorspace.module.email.service;
 import com.creatorspace.common.exception.BusinessException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.util.concurrent.TimeUnit;
@@ -24,6 +25,7 @@ public class EmailVerificationService {
         this.emailService = emailService;
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public void sendCode(String email, String purpose) {
         if (!email.endsWith("@qq.com")) {
             throw BusinessException.badRequest("仅支持 QQ 邮箱注册");

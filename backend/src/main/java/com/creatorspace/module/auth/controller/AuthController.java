@@ -10,9 +10,13 @@ import com.creatorspace.module.auth.service.AuthService;
 import com.creatorspace.module.auth.vo.AuthTokenVO;
 import com.creatorspace.module.auth.vo.UserSummaryVO;
 import jakarta.validation.Valid;
+import org.springframework.core.env.Environment;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
 
 /**
  * 处理用户注册、用户登录和后台管理员登录接口。
@@ -21,9 +25,27 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final Environment environment;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, Environment environment) {
         this.authService = authService;
+        this.environment = environment;
+    }
+
+    @GetMapping("/api/auth/diagnose-mail")
+    public ApiResponse<Map<String, Object>> diagnoseMail() {
+        String host = environment.getProperty("spring.mail.host", "NOT FOUND");
+        String port = environment.getProperty("spring.mail.port", "NOT FOUND");
+        String username = environment.getProperty("spring.mail.username", "NOT FOUND");
+        String password = environment.getProperty("spring.mail.password", "");
+        boolean hasPassword = password != null && !password.isEmpty() && !password.equals("NOT FOUND");
+        return ApiResponse.ok(Map.of(
+            "host", host,
+            "port", port,
+            "username", username,
+            "passwordConfigured", hasPassword,
+            "passwordLength", hasPassword ? password.length() : 0
+        ));
     }
 
     @PostMapping("/api/auth/register")

@@ -245,8 +245,12 @@ public class ArticleController {
 
     // 按 URL 标识读取公开文章上一篇/下一篇导航。
     @GetMapping("/api/articles/slug/{slug}/neighbors")
-    public ApiResponse<ArticleNeighborsVO> getNeighborsBySlug(@PathVariable String slug) {
-        return ApiResponse.ok(articleService.getPublicNeighbors(slug));
+    public ApiResponse<ArticleNeighborsVO> getNeighborsBySlug(
+            @PathVariable String slug,
+            @AuthenticationPrincipal LoginUser loginUser
+    ) {
+        Long userId = loginUser == null ? null : loginUser.userId();
+        return ApiResponse.ok(articleService.getPublicNeighbors(slug, userId));
     }
 
     public record ReviewRequest(String reviewNote) {

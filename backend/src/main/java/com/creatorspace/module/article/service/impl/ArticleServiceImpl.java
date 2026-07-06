@@ -447,7 +447,7 @@ public class ArticleServiceImpl implements ArticleService {
     public ArticleVO getPublicBySlug(String slug, HttpServletRequest request, Long userId) {
         ArticleEntity article = articleMapper.selectOne(
                 new LambdaQueryWrapper<ArticleEntity>()
-                        .eq(ArticleEntity::getStatus, ContentConstants.STATUS_PUBLISHED)
+                        .in(ArticleEntity::getStatus, ContentConstants.STATUS_PUBLISHED, ContentConstants.STATUS_PRIVATE)
                         .eq(ArticleEntity::getSlug, normalizeSlug(slug)));
         if (article == null) {
             throw BusinessException.notFound("文章不存在或不可见");
@@ -465,8 +465,18 @@ public class ArticleServiceImpl implements ArticleService {
 
     // 按公开列表排序计算当前文章的上一篇和下一篇，不依赖前端分页窗口。
     @Override
-    public ArticleNeighborsVO getPublicNeighbors(String slug) {
+    public ArticleNeighborsVO getPublicNeighbors(String slug, Long userId) {
         String normalizedSlug = normalizeSlug(slug);
+        ArticleEntity article = articleMapper.selectOne(
+                new LambdaQueryWrapper<ArticleEntity>()
+                        .in(ArticleEntity::getStatus, ContentConstants.STATUS_PUBLISHED, ContentConstants.STATUS_PRIVATE)
+                        .eq(ArticleEntity::getSlug, normalizedSlug));
+        if (article == null) {
+            throw BusinessException.notFound("文章不存在或不可见");
+        }
+        if (!com.creatorspace.common.util.ArticlePermissionHelper.canAccess(jdbcTemplate, article.getId(), userId)) {
+            throw BusinessException.notFound("文章不存在或不可见");
+        }
         List<ArticleNeighborIds> ids = jdbcTemplate.query("""
                 select previous_id, next_id
                 from (
@@ -479,8 +489,7 @@ public class ArticleServiceImpl implements ArticleService {
                                order by is_top desc, publish_time desc nulls last, id desc
                            ) as next_id
                     from articles
-                    where status = ?
-                      and privacy_type = ?
+                    where status in (?, ?)
                 ) ranked_articles
                 where slug = ?
                 """,
@@ -488,15 +497,12 @@ public class ArticleServiceImpl implements ArticleService {
                         nullableLong(rs, "previous_id"),
                         nullableLong(rs, "next_id")),
                 ContentConstants.STATUS_PUBLISHED,
-                ContentConstants.PRIVACY_PUBLIC,
+                ContentConstants.STATUS_PRIVATE,
                 normalizedSlug);
-        if (ids.isEmpty()) {
-            throw BusinessException.notFound("文章不存在或不可见");
-        }
         ArticleNeighborIds neighborIds = ids.getFirst();
         return new ArticleNeighborsVO(
-                publicNeighborById(neighborIds.previousId()),
-                publicNeighborById(neighborIds.nextId()));
+                publicNeighborById(neighborIds.previousId(), userId),
+                publicNeighborById(neighborIds.nextId(), userId));
     }
 
     // 自增文章阅读量，同步更新 articles 表和 content_statistics 表。
@@ -515,12 +521,15 @@ public class ArticleServiceImpl implements ArticleService {
                 articleId);
     }
 
-    private ArticleVO publicNeighborById(Long id) {
+    private ArticleVO publicNeighborById(Long id, Long userId) {
         if (id == null) {
             return null;
         }
         ArticleEntity article = articleMapper.selectById(id);
         if (article == null) {
+            return null;
+        }
+        if (!com.creatorspace.common.util.ArticlePermissionHelper.canAccess(jdbcTemplate, article.getId(), userId)) {
             return null;
         }
         return toVO(article, false);

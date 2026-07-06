@@ -283,7 +283,7 @@
         </div>
         <article v-for="comment in comments" :key="comment.id" class="table-row table-row--rich">
           <div>
-            <strong>{{ comment.username }}: {{ comment.content }}</strong>
+            <strong>{{ comment.username }}: {{ comment.contentOriginal ?? comment.content }}</strong>
             <span>{{ targetTypeLabel(comment.targetType) }} #{{ comment.targetId }} · {{ formatDateTimeToSecond(comment.createdAt) }}</span>
           </div>
           <div class="row-actions">
@@ -317,7 +317,7 @@
         </div>
         <article v-for="entry in guestbookEntries" :key="entry.id" class="table-row table-row--rich">
           <div>
-            <strong>{{ entry.displayName }}: {{ entry.content }}</strong>
+            <strong>{{ entry.displayName }}: {{ entry.contentOriginal ?? entry.content }}</strong>
             <span>{{ formatDateTimeToSecond(entry.createdAt) }} · {{ entry.likeCount }} 赞</span>
           </div>
           <div class="row-actions">
@@ -839,7 +839,7 @@ const articleStatus = ref<ContentStatus | 'ALL'>('ALL')
 const projectStatus = ref<ProjectSummary['status'] | 'ALL'>('ALL')
 const commentStatus = ref<CommentSummary['status'] | 'ALL'>('PENDING')
 const commentTargetType = ref<CommentSummary['targetType'] | 'ALL'>('ALL')
-const guestbookEntries = ref<Array<{ id: number; userId?: number | null; displayName: string; content: string; status: string; likeCount: number; createdAt?: string | null }>>([])
+const guestbookEntries = ref<Array<{ id: number; userId?: number | null; displayName: string; content: string; contentOriginal?: string | null; status: string; likeCount: number; createdAt?: string | null }>>([])
 const guestbookStatus = ref('ALL')
 const fileModule = ref('OTHER')
 const selectedFile = ref<File | null>(null)

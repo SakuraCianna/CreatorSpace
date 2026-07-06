@@ -244,6 +244,7 @@ export interface CommentSummary {
   userId: number
   username: string
   content: string
+  contentOriginal?: string | null
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SPAM'
   depth: number
   replyCount: number
@@ -688,4 +689,22 @@ export interface FollowUser {
 export interface FollowStatus {
   following: boolean
   friend: boolean
+}
+
+export interface FriendVO {
+  id: number
+  friendId: number
+  username: string
+  nickname: string | null
+  avatarUrl: string | null
+  status: string
+  requestedAt: string | null
+  acceptedAt: string | null
+}
+
+export interface VisibilityUserVO {
+  userId: number
+  username: string
+  ruleType: 'ALLOW' | 'DENY'
+  createdAt: string | null
 }

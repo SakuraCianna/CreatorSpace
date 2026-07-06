@@ -53,7 +53,7 @@ public class PublicUserController {
         if (isOwner) {
             articleCountSql = "(select count(*) from articles a where a.created_by = u.id and a.status in ('PUBLISHED', 'PRIVATE')) as article_count";
         } else if (isFriend) {
-            articleCountSql = "(select count(*) from articles a where a.created_by = u.id and a.status = 'PUBLISHED' and a.privacy_type in ('PUBLIC', 'FRIENDS')) as article_count";
+            articleCountSql = "(select count(*) from articles a where a.created_by = u.id and a.status in ('PUBLISHED', 'PRIVATE') and a.privacy_type in ('PUBLIC', 'FRIENDS')) as article_count";
         } else {
             articleCountSql = "(select count(*) from articles a where a.created_by = u.id and a.status = 'PUBLISHED' and a.privacy_type = 'PUBLIC') as article_count";
         }
@@ -107,11 +107,11 @@ public class PublicUserController {
                     """;
             listParams = new Object[]{userId, pageSize, offset};
         } else if (isFriend) {
-            countSql = "select count(*) from articles where created_by = ? and status = 'PUBLISHED' and privacy_type in ('PUBLIC', 'FRIENDS')";
+            countSql = "select count(*) from articles where created_by = ? and status in ('PUBLISHED', 'PRIVATE') and privacy_type in ('PUBLIC', 'FRIENDS')";
             countParams = new Object[]{userId};
             listSql = """
                     select a.* from articles a
-                    where a.created_by = ? and a.status = 'PUBLISHED' and a.privacy_type in ('PUBLIC', 'FRIENDS')
+                    where a.created_by = ? and a.status in ('PUBLISHED', 'PRIVATE') and a.privacy_type in ('PUBLIC', 'FRIENDS')
                     order by a.is_top desc, a.publish_time desc, a.id desc
                     limit ? offset ?
                     """;

@@ -337,6 +337,46 @@
             <label>可见性</label>
             <BaseSelect v-model="articleForm.privacyType" :options="privacyOptions" placeholder="请选择可见性" />
           </div>
+          <div class="form-group" v-if="showFriendSelector">
+            <label>
+              {{ articleForm.privacyType === 'SELECTED_FRIENDS' ? '选择可见的好友' : '选择排除的好友' }}
+              <span class="selected-count">已选 {{ selectedVisibilityUserIds.size }} 人</span>
+            </label>
+            <div class="friend-selector">
+              <div class="friend-search">
+                <input
+                  type="text"
+                  v-model="friendSearchQuery"
+                  placeholder="搜索好友..."
+                  class="friend-search-input"
+                />
+              </div>
+              <div class="friend-list">
+                <div v-if="isLoadingFriends" class="friend-loading">加载好友中...</div>
+                <div v-else-if="myFriends.length === 0" class="friend-empty">暂无好友，请先添加好友</div>
+                <label
+                  v-for="friend in filteredFriends"
+                  :key="friend.friendId"
+                  class="friend-item"
+                  :class="{ 'is-selected': selectedVisibilityUserIds.has(friend.friendId) }"
+                >
+                  <input
+                    type="checkbox"
+                    :checked="selectedVisibilityUserIds.has(friend.friendId)"
+                    @change="toggleVisibilityUser(friend.friendId)"
+                    class="friend-checkbox"
+                  />
+                  <img
+                    :src="friend.avatarUrl || 'https://api.dicebear.com/7.x/notionists/svg?seed=' + friend.username"
+                    class="friend-avatar"
+                    alt=""
+                  />
+                  <span class="friend-name">{{ friend.nickname || friend.username }}</span>
+                </label>
+                <div v-if="filteredFriends.length === 0 && myFriends.length > 0" class="friend-empty">无匹配的好友</div>
+              </div>
+            </div>
+          </div>
           <div class="form-group">
             <label>文章标签 (可多选)</label>
             <div class="tags-selector">
@@ -408,7 +448,7 @@
 import { ref, reactive, computed, nextTick, onMounted, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useSessionStore } from '../shared/sessionStore'
-import type { ArticlePrivacy, BlogThemeConfig, InspirationPayload, InspirationType, ProjectPayload, TagSummary } from '../shared/domain'
+import type { ArticlePrivacy, BlogThemeConfig, FriendVO, InspirationPayload, InspirationType, ProjectPayload, TagSummary, VisibilityUserVO } from '../shared/domain'
 import {
   createCreatorArticle,
   createCreatorInspiration,
@@ -422,7 +462,11 @@ import {
   fetchTags,
   fetchMyBlogTheme,
   submitCreatorArticle,
-  submitCreatorProject
+  submitCreatorProject,
+  fetchMyFriends,
+  fetchArticleVisibilityUsers,
+  addArticleVisibilityUser,
+  removeArticleVisibilityUser
 } from '../services/content'
 import { streamCreatorAiText } from '../services/content'
 import type { CreatorAiResponse } from '../services/content'
@@ -529,7 +573,8 @@ function openPublishModal() {
 
 async function confirmPublish() {
   showPublishModal.value = false
-  await publishArticle()
+  const saved = await publishArticle()
+  return saved
 }
 
 async function saveCurrentDraft() {
@@ -566,6 +611,81 @@ const articleForm = reactive({
   tagIds: [] as number[],
   privacyType: 'PUBLIC' as ArticlePrivacy,
 })
+
+const myFriends = ref<FriendVO[]>([])
+const visibilityUsers = ref<VisibilityUserVO[]>([])
+const selectedVisibilityUserIds = ref<Set<number>>(new Set())
+const friendSearchQuery = ref('')
+const isLoadingFriends = ref(false)
+
+const showFriendSelector = computed(() =>
+  articleForm.privacyType === 'SELECTED_FRIENDS' || articleForm.privacyType === 'EXCLUDED_FRIENDS'
+)
+
+const filteredFriends = computed(() => {
+  const query = friendSearchQuery.value.trim().toLowerCase()
+  if (!query) return myFriends.value
+  return myFriends.value.filter(f => {
+    const name = (f.nickname || f.username).toLowerCase()
+    return name.includes(query)
+  })
+})
+
+async function loadFriends() {
+  if (myFriends.value.length > 0) return
+  isLoadingFriends.value = true
+  try {
+    const res = await fetchMyFriends({ pageSize: 100 })
+    myFriends.value = res.records
+  } catch (error) {
+    showNotice(readError(error, '加载好友列表失败'))
+  } finally {
+    isLoadingFriends.value = false
+  }
+}
+
+async function loadVisibilityUsers(articleId: number) {
+  try {
+    const users = await fetchArticleVisibilityUsers(articleId)
+    visibilityUsers.value = users
+    selectedVisibilityUserIds.value = new Set(users.map(u => u.userId))
+  } catch (error) {
+    showNotice(readError(error, '加载可见性规则失败'))
+  }
+}
+
+function toggleVisibilityUser(userId: number) {
+  const set = new Set(selectedVisibilityUserIds.value)
+  if (set.has(userId)) {
+    set.delete(userId)
+  } else {
+    set.add(userId)
+  }
+  selectedVisibilityUserIds.value = set
+}
+
+async function syncVisibilityUsers(articleId: number) {
+  const ruleType = articleForm.privacyType === 'SELECTED_FRIENDS' ? 'ALLOW' : 'DENY'
+  const currentIds = new Set(visibilityUsers.value.map(u => u.userId))
+  const desiredIds = selectedVisibilityUserIds.value
+
+  const toRemove = [...currentIds].filter(id => !desiredIds.has(id))
+  const toAdd = [...desiredIds].filter(id => !currentIds.has(id))
+
+  for (const userId of toRemove) {
+    try {
+      await removeArticleVisibilityUser(articleId, userId)
+    } catch { /* ignore */ }
+  }
+
+  for (const userId of toAdd) {
+    try {
+      await addArticleVisibilityUser(articleId, userId, ruleType)
+    } catch (error) {
+      showNotice(readError(error, `添加用户可见性规则失败`))
+    }
+  }
+}
 
 const projectForm = reactive({
   title: '',
@@ -1028,6 +1148,19 @@ watch(() => articleForm.contentMarkdown, (newVal) => {
   queueHistorySnapshot(newVal)
 })
 
+// 当可见性切换为指定好友/排除好友时，加载好友列表和现有规则
+watch(() => articleForm.privacyType, async (privacy) => {
+  if (privacy === 'SELECTED_FRIENDS' || privacy === 'EXCLUDED_FRIENDS') {
+    await loadFriends()
+    if (editingArticleId.value) {
+      await loadVisibilityUsers(editingArticleId.value)
+    }
+  } else {
+    selectedVisibilityUserIds.value = new Set()
+    friendSearchQuery.value = ''
+  }
+})
+
 let renderTimer: any
 function updateWordCount() {
   wordCount.value = articleForm.contentMarkdown.trim().length
@@ -1200,6 +1333,9 @@ async function loadArticle(id: number) {
     renderedHtml.value = renderMarkdown(articleForm.contentMarkdown)
     extractTOC(articleForm.contentMarkdown)
     resetHistory(articleForm.contentMarkdown)
+    if (detail.privacyType === 'SELECTED_FRIENDS' || detail.privacyType === 'EXCLUDED_FRIENDS') {
+      await Promise.all([loadFriends(), loadVisibilityUsers(id)])
+    }
   } catch (err) {
     showNotice(readError(err, '读取文章失败'))
   }
@@ -1368,17 +1504,22 @@ async function publishIdea() {
 
 async function publishArticle() {
   const saved = await saveArticle()
-  if (!saved) return
-  if (!editingArticleId.value) return
+  if (!saved) return false
+  if (!editingArticleId.value) return false
 
   try {
+    if (showFriendSelector.value) {
+      await syncVisibilityUsers(editingArticleId.value)
+    }
     await submitCreatorArticle(editingArticleId.value)
     showNotice('文章已发布并提交审核！')
     setTimeout(() => {
       router.push(`/users/${session.currentUser?.id || ''}`)
     }, 1500)
+    return true
   } catch (error) {
     showNotice(readError(error, '发布失败'))
+    return false
   }
 }
 
@@ -2767,6 +2908,97 @@ function readError(error: unknown, fallback: string) {
   color: #ef4444;
   cursor: pointer;
   font-size: 14px;
+}
+
+.selected-count {
+  font-size: 12px;
+  color: #71717a;
+  font-weight: 400;
+  margin-left: 8px;
+}
+
+.friend-selector {
+  border: 1px solid rgba(0,0,0,0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.friend-search {
+  padding: 8px;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+
+.friend-search-input {
+  width: 100%;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 13px;
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.friend-search-input:focus {
+  border-color: #18181b;
+}
+
+.friend-list {
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.friend-loading,
+.friend-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: #a1a1aa;
+  font-size: 13px;
+}
+
+.friend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.friend-item:hover {
+  background: #f4f4f5;
+}
+
+.friend-item.is-selected {
+  background: #f0f4ff;
+}
+
+.friend-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: #315bff;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.friend-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: #f4f4f5;
+}
+
+.friend-name {
+  font-size: 13px;
+  color: #3f3f46;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 </style>

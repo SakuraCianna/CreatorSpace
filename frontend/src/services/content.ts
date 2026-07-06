@@ -23,6 +23,7 @@ import type {
   FileResource,
   FollowStatus,
   FollowUser,
+  FriendVO,
   InteractionRecord,
   InspirationCard,
   InspirationPayload,
@@ -40,15 +41,16 @@ import type {
   SearchParams,
   SearchResult,
   SensitiveWordSummary,
-  SiteStatisticsSummary,
   SiteSettings,
   SiteSettingsPayload,
+  SiteStatisticsSummary,
   TagSummary,
   TagPayload,
   ThemeConfig,
   ThemePayload,
   UserProfile,
   UserSummary,
+  VisibilityUserVO,
 } from '../shared/domain'
 
 interface ApiEnvelope<T> {
@@ -1303,7 +1305,7 @@ export async function fetchAdminGuestbook(options: {
   status?: string
   page?: number
   pageSize?: number
-} = {}): Promise<PageResponse<{ id: number; userId?: number | null; displayName: string; content: string; status: string; likeCount: number; createdAt?: string | null }>> {
+} = {}): Promise<PageResponse<{ id: number; userId?: number | null; displayName: string; content: string; contentOriginal?: string | null; status: string; likeCount: number; createdAt?: string | null }>> {
   const params = new URLSearchParams()
   if (options.status && options.status !== 'ALL') params.set('status', options.status)
   if (options.page) params.set('page', String(options.page))
@@ -1527,6 +1529,40 @@ export async function unfollowUser(userId: number): Promise<void> {
 export async function fetchFollowStatus(userId: number): Promise<FollowStatus> {
   const response = await requestJson<ApiEnvelope<FollowStatus>>(`/api/me/follow/status/${userId}`)
   return response.data
+}
+
+// 获取当前登录用户的好友列表
+export async function fetchMyFriends(options: { page?: number; pageSize?: number } = {}): Promise<PageResponse<FriendVO>> {
+  const params = new URLSearchParams()
+  if (options.page) params.set('page', String(options.page))
+  if (options.pageSize) params.set('pageSize', String(options.pageSize))
+  const query = params.toString()
+  const response = await requestJson<ApiEnvelope<PageResponse<FriendVO>>>(
+    query ? `/api/me/friends?${query}` : '/api/me/friends',
+  )
+  return response.data
+}
+
+// 获取文章的可见性用户列表
+export async function fetchArticleVisibilityUsers(articleId: number): Promise<VisibilityUserVO[]> {
+  const response = await requestJson<ApiEnvelope<VisibilityUserVO[]>>(`/api/creator/articles/${articleId}/visibility-users`)
+  return response.data
+}
+
+// 添加文章可见性用户
+export async function addArticleVisibilityUser(articleId: number, userId: number, ruleType: string): Promise<VisibilityUserVO> {
+  const response = await requestJson<ApiEnvelope<VisibilityUserVO>>(`/api/creator/articles/${articleId}/visibility-users`, {
+    method: 'POST',
+    body: JSON.stringify({ userId, ruleType }),
+  })
+  return response.data
+}
+
+// 移除文章可见性用户
+export async function removeArticleVisibilityUser(articleId: number, userId: number): Promise<void> {
+  await requestJson<ApiEnvelope<null>>(`/api/creator/articles/${articleId}/visibility-users/${userId}`, {
+    method: 'DELETE',
+  })
 }
 
 // 获取当前登录用户的完整个人资料

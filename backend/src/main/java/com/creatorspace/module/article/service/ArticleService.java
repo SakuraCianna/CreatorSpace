@@ -77,5 +77,5 @@ public interface ArticleService {
     ArticleVO getPublicBySlug(String slug, HttpServletRequest request, Long userId);
 
     // 查询公开文章详情页相邻文章。
-    ArticleNeighborsVO getPublicNeighbors(String slug);
+    ArticleNeighborsVO getPublicNeighbors(String slug, Long userId);
 }

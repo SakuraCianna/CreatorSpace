@@ -53,7 +53,7 @@ public class FriendshipController {
         List<FriendVO> records = jdbcTemplate.query("""
                         select f.id,
                                case when f.requester_id = ? then f.addressee_id else f.requester_id end as friend_id,
-                               u.username,
+                               u.username, u.nickname, u.avatar_url,
                                f.status,
                                f.requested_at,
                                f.accepted_at
@@ -206,14 +206,14 @@ public class FriendshipController {
                 "select count(*) from user_friendships f where " + where,
                 Long.class, userId);
         String otherAlias = "addressee".equals(role) ? "f.requester_id" : "f.addressee_id";
-        List<FriendVO> records = jdbcTemplate.query("""
-                        select f.id, %s as friend_id, u.username, f.status, f.requested_at, f.accepted_at
-                        from user_friendships f
-                        join users u on u.id = %s
-                        where %s
-                        order by f.requested_at desc, f.id desc
-                        limit ? offset ?
-                        """.formatted(otherAlias, otherAlias, where),
+            List<FriendVO> records = jdbcTemplate.query("""
+                            select f.id, %s as friend_id, u.username, u.nickname, u.avatar_url, f.status, f.requested_at, f.accepted_at
+                            from user_friendships f
+                            join users u on u.id = %s
+                            where %s
+                            order by f.requested_at desc, f.id desc
+                            limit ? offset ?
+                            """.formatted(otherAlias, otherAlias, where),
                 (rs, rowNum) -> toFriend(rs),
                 userId, pageSize, offset);
         return ApiResponse.ok(new PageResponse<>(records, page, pageSize, total == null ? 0 : total));
@@ -223,7 +223,7 @@ public class FriendshipController {
         return jdbcTemplate.query("""
                         select f.id,
                                case when f.requester_id = ? then f.addressee_id else f.requester_id end as friend_id,
-                               u.username,
+                               u.username, u.nickname, u.avatar_url,
                                f.status,
                                f.requested_at,
                                f.accepted_at
@@ -349,6 +349,8 @@ public class FriendshipController {
                 rs.getLong("id"),
                 rs.getLong("friend_id"),
                 rs.getString("username"),
+                rs.getString("nickname"),
+                rs.getString("avatar_url"),
                 rs.getString("status"),
                 rs.getObject("requested_at", OffsetDateTime.class),
                 rs.getObject("accepted_at", OffsetDateTime.class)
@@ -364,6 +366,8 @@ public class FriendshipController {
             Long id,
             Long friendId,
             String username,
+            String nickname,
+            String avatarUrl,
             String status,
             OffsetDateTime requestedAt,
             OffsetDateTime acceptedAt
