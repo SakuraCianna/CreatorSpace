@@ -61,7 +61,7 @@
             </button>
           </div>
           <div v-if="activeTab === 'visual'" class="theme-visual-panel">
-            <p class="page-kicker">{{ computedThemeConfig?.themeName }} ({{ selectedVersion }})</p>
+            <p class="page-kicker">{{ computedThemeConfig?.themeName }}</p>
             <h2>{{ computedThemeConfig?.displayName }}</h2>
             <p>{{ selectedMood }}</p>
             
@@ -86,10 +86,6 @@
                 <label>
                   圆角卡片
                   <BaseSelect v-model="selectedCardStyle" :options="cardStyles" />
-                </label>
-                <label>
-                  历史版本
-                  <BaseSelect v-model="selectedVersion" :options="mockVersions" />
                 </label>
               </div>
             </div>
@@ -149,7 +145,7 @@ interface ColorToken {
   color: string
 }
 // 页面挂载的根 DOM 节点引用
-// 初始化主题沙盒的相关色彩变量、字体族及调试用版本、布局密度变体快照配置
+// 初始化主题沙盒的相关色彩变量、字体族和布局密度预览配置
 const root = ref<HTMLElement | null>(null)
 // 公开的主题列表数据
 const themes = ref<PublicThemeConfig[]>([])
@@ -171,8 +167,6 @@ const selectedDensity = ref<'comfortable' | 'compact' | 'spacious'>('comfortable
 const selectedMotion = ref<'dynamic' | 'subtle' | 'static'>('dynamic')
 // 当前预览选中的卡片圆角配置
 const selectedCardStyle = ref<string>('default')
-// 当前预览选中的模拟历史版本号
-const selectedVersion = ref<string>('v1.2.0')
 // 复制配置按钮的即时文案
 const copyBtnText = ref('复制 JSON')
 // 间距配置可选项数组
@@ -194,68 +188,36 @@ const cardStyles = [
   { value: 'glass', label: '拟物玻璃 (10px)' },
   { value: 'rounded', label: '极致圆润 (18px)' },
 ]
-// 版本配置可选项数组
-const mockVersions = [
-  { value: 'v1.2.0', label: 'v1.2.0 (当前活动)' },
-  { value: 'v1.1.0', label: 'v1.1.0 (微调版)' },
-  { value: 'v1.0.0', label: 'v1.0.0 (初始发布)' },
-]
 // 注册页面元素渐显缓动效果
 usePageReveal(root)
-// 监听选中的主题变化, 自动重置并初始化对应的变体与版本配置
+// 监听选中的主题变化, 自动重置并初始化对应的预览配置
 watch(selectedTheme, (newTheme) => {
   if (newTheme) {
     selectedDensity.value = (newTheme.config?.density as any) || 'comfortable'
     selectedMotion.value = (newTheme.config?.motion as any) || 'dynamic'
     selectedCardStyle.value = newTheme.cardStyle || 'default'
-    selectedVersion.value = 'v1.2.0'
   }
 })
-// 根据选中的变体与历史版本, 动态计算输出并构建合并的主题配置树
+// 根据选中的预览控件, 动态计算输出并构建合并的主题配置树
 const computedThemeConfig = computed<ThemeConfig | null>(() => {
   if (!selectedTheme.value) return null
   
-  let primary = selectedTheme.value.primaryColor
-  let configObj = { ...selectedTheme.value.config }
-  
-  if (selectedVersion.value === 'v1.1.0') {
-    primary = shiftColor(primary, 15)
-    if (configObj.accentColor) {
-      configObj.accentColor = shiftColor(configObj.accentColor as string, -10)
-    }
-  } else if (selectedVersion.value === 'v1.0.0') {
-    primary = shiftColor(primary, -30)
-    if (configObj.accentColor) {
-      configObj.accentColor = shiftColor(configObj.accentColor as string, 20)
-    }
-  }
   return {
     themeName: selectedTheme.value.themeName,
     displayName: selectedTheme.value.displayName,
-    primaryColor: primary,
+    primaryColor: selectedTheme.value.primaryColor,
     backgroundType: selectedTheme.value.backgroundType,
     backgroundImage: selectedTheme.value.backgroundImage,
     fontFamily: selectedTheme.value.fontFamily,
     cardStyle: selectedCardStyle.value,
     layoutType: selectedTheme.value.layoutType,
     config: {
-      ...configObj,
+      ...selectedTheme.value.config,
       density: selectedDensity.value,
       motion: selectedMotion.value,
     }
   }
 })
-// 对十六进制色值按增量做微调计算以模拟历史版本的细微色差
-function shiftColor(hex: string, amount: number): string {
-  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return hex
-  let r = parseInt(hex.slice(1, 3), 16) + amount
-  let g = parseInt(hex.slice(3, 5), 16) + amount
-  let b = parseInt(hex.slice(5, 7), 16) + amount
-  r = Math.min(255, Math.max(0, r))
-  g = Math.min(255, Math.max(0, g))
-  b = Math.min(255, Math.max(0, b))
-  return `#${r.toString(16).padStart(2, '0').slice(-2)}${g.toString(16).padStart(2, '0').slice(-2)}${b.toString(16).padStart(2, '0').slice(-2)}`
-}
 // 读取恢复主题, 优先使用当前已保存活动主题或公开列表默认项
 const restoreTheme = computed<ThemeConfig | null>(() => currentTheme.value ?? themes.value.find((theme) => theme.active) ?? null)
 // 动态获取预览或活动主题的显示名称
