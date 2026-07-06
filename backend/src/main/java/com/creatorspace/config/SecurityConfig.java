@@ -53,7 +53,16 @@ public class SecurityConfig {
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/api/health", "/actuator/health").permitAll()
                         .requestMatchers("/uploads/**").permitAll()
-                        .requestMatchers("/api/auth/register", "/api/auth/login", "/api/admin/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
+                        .requestMatchers(
+                                "/api/auth/register",
+                                "/api/auth/login",
+                                "/api/admin/auth/login",
+                                "/api/auth/refresh",
+                                "/api/auth/logout",
+                                "/api/auth/send-code",
+                                "/api/auth/forgot-password",
+                                "/api/auth/reset-password"
+                        ).permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/api/articles/**",
                                 "/api/projects/**"

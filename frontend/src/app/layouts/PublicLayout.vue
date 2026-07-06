@@ -178,7 +178,7 @@ onMounted(async () => {
   } catch {
     navItems.value = withRequiredPublicEntries([])
   }
-  if (session.isAuthenticated) {
+  if (session.isAuthenticated && !isAuthRoute()) {
     try {
       const myProfile = await fetchMyProfile()
       profileAvatar.value = myProfile.avatarUrl ?? ''
@@ -322,6 +322,9 @@ function handleLogout() {
   session.logout()
   navOpen.value = false
   router.push('/')
+}
+function isAuthRoute() {
+  return route.name === 'login' || route.name === 'register' || route.name === 'forgot-password'
 }
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)

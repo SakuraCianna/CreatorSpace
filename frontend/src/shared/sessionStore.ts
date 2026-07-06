@@ -10,7 +10,7 @@ export const useSessionStore = defineStore('session', () => {
   const accessToken = ref(window.localStorage.getItem(ACCESS_TOKEN_KEY) ?? '')
   const refreshToken = ref(window.localStorage.getItem(REFRESH_TOKEN_KEY) ?? '')
 
-  const isAuthenticated = computed(() => currentUser.value !== null)
+  const isAuthenticated = computed(() => currentUser.value !== null && Boolean(accessToken.value))
   const isAdmin = computed(() => currentUser.value?.roles.includes('ADMIN') ?? false)
 
   // 保存登录态, 供后台接口自动携带 JWT

@@ -55,43 +55,51 @@ let hoverCtx: gsap.Context | null = null
 
 onMounted(() => {
   ambientCtx = gsap.context(() => {
-    gsap.to(circle1.value, {
-      y: 'random(-15, 15)',
-      x: 'random(-15, 15)',
-      scale: 'random(0.9, 1.1)',
-      duration: 3,
-      repeat: -1,
-      yoyo: true,
-      ease: 'sine.inOut'
-    })
-    gsap.to(circle2.value, {
-      y: 'random(-25, 25)',
-      x: 'random(-25, 25)',
-      scale: 'random(0.85, 1.15)',
-      duration: 4,
-      repeat: -1,
-      yoyo: true,
-      ease: 'sine.inOut',
-      delay: 1
-    })
+    if (circle1.value) {
+      gsap.to(circle1.value, {
+        y: 'random(-15, 15)',
+        x: 'random(-15, 15)',
+        scale: 'random(0.9, 1.1)',
+        duration: 3,
+        repeat: -1,
+        yoyo: true,
+        ease: 'sine.inOut'
+      })
+    }
+    if (circle2.value) {
+      gsap.to(circle2.value, {
+        y: 'random(-25, 25)',
+        x: 'random(-25, 25)',
+        scale: 'random(0.85, 1.15)',
+        duration: 4,
+        repeat: -1,
+        yoyo: true,
+        ease: 'sine.inOut',
+        delay: 1
+      })
+    }
 
-    gsap.from(headerRef.value, {
-      y: 12,
-      opacity: 0,
-      duration: 0.8,
-      ease: 'power3.out'
-    })
+    if (headerRef.value) {
+      gsap.from(headerRef.value, {
+        y: 12,
+        opacity: 0,
+        duration: 0.8,
+        ease: 'power3.out'
+      })
+    }
     
     if (contentRef.value) {
       const children = contentRef.value.querySelectorAll('.page-kicker, .page-title, .page-description, .header-actions')
-      gsap.from(children, {
-        y: 10,
-        opacity: 0,
-        duration: 0.6,
-        stagger: 0.08,
-        ease: 'power2.out',
-        delay: 0.1
-      })
+      if (children.length > 0) {
+        gsap.from(children, {
+          y: 10,
+          opacity: 0,
+          duration: 0.6,
+          stagger: 0.08,
+          ease: 'power2.out',
+          delay: 0.1
+        })
+      }
     }
   }, headerRef.value)
 })
@@ -102,6 +110,9 @@ onBeforeUnmount(() => {
 })
 
 const onHover = () => {
+  if (!headerRef.value) {
+    return
+  }
   if (hoverCtx) hoverCtx.revert()
   hoverCtx = gsap.context(() => {
     gsap.to(headerRef.value, {
@@ -109,14 +120,19 @@ const onHover = () => {
       duration: 0.4,
       ease: 'power2.out'
     })
-    gsap.to(borderGlow.value, {
-      opacity: 1,
-      duration: 0.4
-    })
+    if (borderGlow.value) {
+      gsap.to(borderGlow.value, {
+        opacity: 1,
+        duration: 0.4
+      })
+    }
   }, headerRef.value)
 }
 
 const onLeave = () => {
+  if (!headerRef.value) {
+    return
+  }
   if (hoverCtx) hoverCtx.revert()
   hoverCtx = gsap.context(() => {
     gsap.to(headerRef.value, {
@@ -124,10 +140,12 @@ const onLeave = () => {
       duration: 0.4,
       ease: 'power2.out'
     })
-    gsap.to(borderGlow.value, {
-      opacity: 0,
-      duration: 0.4
-    })
+    if (borderGlow.value) {
+      gsap.to(borderGlow.value, {
+        opacity: 0,
+        duration: 0.4
+      })
+    }
   }, headerRef.value)
 }
 </script>

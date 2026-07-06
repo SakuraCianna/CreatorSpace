@@ -956,18 +956,21 @@ const MarqueeManifesto = defineComponent({
 
     useGsapContext(root, ({ reduced }) => {
       if (!reduced) {
-        gsap.from('.cs-mani__word', {
-          opacity: 0.12,
-          duration: 0.6,
-          ease: 'none',
-          stagger: 0.04,
-          scrollTrigger: {
-            trigger: '.cs-mani',
-            start: 'top 80%',
-            end: 'top 30%',
-            scrub: true,
-          },
-        })
+        const words = gsap.utils.toArray<HTMLElement>('.cs-mani__word')
+        if (words.length > 0) {
+          gsap.from(words, {
+            opacity: 0.12,
+            duration: 0.6,
+            ease: 'none',
+            stagger: 0.04,
+            scrollTrigger: {
+              trigger: root.value as Element,
+              start: 'top 80%',
+              end: 'top 30%',
+              scrub: true,
+            },
+          })
+        }
       }
 
       const rows = gsap.utils.toArray<HTMLElement>('.cs-marquee__row')
@@ -2080,13 +2083,16 @@ const FinalCTA = defineComponent({
       if (reduced) {
         return
       }
-      gsap.from('.cs-cta__line', {
-        y: 16,
-        opacity: 0,
-        duration: 0.8,
-        ease: 'expo.out',
-        scrollTrigger: { trigger: root.value as Element, start: 'top 75%' },
-      })
+      const lines = gsap.utils.toArray<HTMLElement>('.cs-cta__line')
+      if (lines.length > 0) {
+        gsap.from(lines, {
+          y: 16,
+          opacity: 0,
+          duration: 0.8,
+          ease: 'expo.out',
+          scrollTrigger: { trigger: root.value as Element, start: 'top 75%' },
+        })
+      }
       if (glow.value) {
         glowX = gsap.quickTo(glow.value, 'x', { duration: 0.8, ease: 'power3.out' })
         glowY = gsap.quickTo(glow.value, 'y', { duration: 0.8, ease: 'power3.out' })
