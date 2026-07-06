@@ -86,7 +86,9 @@ class AiAssistantControllerTests {
                 status,
                 null,
                 null,
-                OffsetDateTime.now()
+                OffsetDateTime.now(),
+                true,
+                null
         );
     }
 }

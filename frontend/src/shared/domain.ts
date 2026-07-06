@@ -602,6 +602,8 @@ export interface AiSuggestionSummary {
   adoptedBy?: number | null
   adoptedAt?: string | null
   createdAt: string
+  adoptable?: boolean | null
+  adoptionRestriction?: string | null
 }
 
 export interface AiTaskSummary {

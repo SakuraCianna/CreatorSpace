@@ -186,6 +186,7 @@
             <span class="suggestion-type">{{ suggestionTypeLabel(item.suggestionType) }}</span>
             <strong>{{ targetText(item.targetType, item.targetId) }}</strong>
             <p>{{ item.content }}</p>
+            <small v-if="!isSuggestionAdoptable(item) && item.status === 'PENDING'" class="adoption-limit">{{ item.adoptionRestriction || '该建议暂不支持自动写回业务对象' }}</small>
             <small>{{ formatDateTime(item.createdAt) }}</small>
           </div>
           <div class="suggestion-actions">
@@ -194,7 +195,7 @@
               <X :size="16" />
               忽略
             </button>
-            <button class="button button-filled" type="button" :disabled="item.status !== 'PENDING'" @click="handleSuggestion(item.id, 'adopt')">
+            <button class="button button-filled" type="button" :disabled="item.status !== 'PENDING' || !isSuggestionAdoptable(item)" :title="suggestionAdoptTitle(item)" @click="handleSuggestion(item.id, 'adopt')">
               <Check :size="16" />
               采纳
             </button>
@@ -647,9 +648,19 @@ async function handleSuggestion(id: number, action: 'adopt' | 'ignore') {
   try {
     await updateAiSuggestionStatus(id, action)
     await loadSuggestions(suggestions.value.page)
+    notice.value = action === 'adopt' ? 'AI 建议已采纳并写回业务对象' : 'AI 建议已忽略'
   } catch (error) {
-    notice.value = toUserMessage(error, 'AI 建议状态更新失败')
+    notice.value = toUserMessage(error, action === 'adopt' ? 'AI 建议采纳失败' : 'AI 建议状态更新失败')
   }
+}
+
+function isSuggestionAdoptable(item: AiSuggestionSummary) {
+  return item.adoptable !== false
+}
+
+function suggestionAdoptTitle(item: AiSuggestionSummary) {
+  if (item.status !== 'PENDING') return '该建议已处理'
+  return isSuggestionAdoptable(item) ? '采纳并写回业务对象' : (item.adoptionRestriction || '该建议暂不支持自动写回业务对象')
 }
 
 function taskLabel(type: string) {
@@ -1145,6 +1156,11 @@ function formatDateTime(value: string) {
 
 .suggestion-main small {
   color: var(--admin-muted);
+}
+
+.suggestion-main .adoption-limit {
+  color: var(--admin-danger);
+  font-weight: 760;
 }
 
 .suggestion-actions {

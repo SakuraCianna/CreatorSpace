@@ -1,6 +1,7 @@
 package com.creatorspace.module.ai;
 
 import com.creatorspace.common.exception.BusinessException;
+import com.creatorspace.module.audit.OperationLogService;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -22,9 +23,11 @@ class AiAssistantServiceTests {
 
     private final JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
     private final AiModelClient aiModelClient = mock(AiModelClient.class);
+    private final OperationLogService operationLogService = mock(OperationLogService.class);
     private final AiAssistantService service = new AiAssistantService(
             jdbcTemplate,
             aiModelClient,
+            operationLogService,
             true,
             "zhipu",
             "glm-test"

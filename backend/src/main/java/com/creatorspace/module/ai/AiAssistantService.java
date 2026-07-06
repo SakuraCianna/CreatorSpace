@@ -2,6 +2,7 @@ package com.creatorspace.module.ai;
 
 import com.creatorspace.common.exception.BusinessException;
 import com.creatorspace.common.result.PageResponse;
+import com.creatorspace.module.audit.OperationLogService;
 import com.creatorspace.security.LoginUser;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -14,8 +15,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -39,6 +43,7 @@ public class AiAssistantService {
 
     private final JdbcTemplate jdbcTemplate;
     private final AiModelClient aiModelClient;
+    private final OperationLogService operationLogService;
     private final boolean enabled;
     private final String provider;
     private final String modelName;
@@ -46,12 +51,14 @@ public class AiAssistantService {
     public AiAssistantService(
             JdbcTemplate jdbcTemplate,
             AiModelClient aiModelClient,
+            OperationLogService operationLogService,
             @Value("${app.ai.enabled:false}") boolean enabled,
             @Value("${app.ai.provider:local}") String provider,
             @Value("${app.ai.zhipu-model:local-rule-assistant}") String modelName
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.aiModelClient = aiModelClient;
+        this.operationLogService = operationLogService;
         this.enabled = enabled;
         this.provider = provider == null || provider.isBlank() ? "local" : provider.trim();
         this.modelName = modelName == null || modelName.isBlank() ? "local-rule-assistant" : modelName.trim();
@@ -344,7 +351,35 @@ public class AiAssistantService {
 
     @Transactional
     public AiSuggestionVO adopt(Long id) {
-        return changeSuggestionStatus(id, "ADOPTED");
+        AiSuggestionVO current = suggestionByIdForUpdate(id);
+        if (!"PENDING".equals(current.status())) {
+            throw BusinessException.conflict("AI 建议已处理，不能重复操作");
+        }
+        String restriction = adoptionRestriction(current.targetType(), current.targetId(), current.suggestionType(), current.content());
+        if (restriction != null) {
+            throw BusinessException.badRequest(restriction);
+        }
+        Long operatorId = currentUserId();
+        String beforeSnapshot = targetSnapshot(current.targetType(), current.targetId());
+        insertAuditSnapshot(current, "BEFORE", beforeSnapshot, operatorId);
+        applySuggestion(current, operatorId);
+        String afterSnapshot = targetSnapshot(current.targetType(), current.targetId());
+        insertAuditSnapshot(current, "AFTER", afterSnapshot, operatorId);
+        jdbcTemplate.update("""
+                        update ai_suggestions
+                        set status = 'ADOPTED', adopted_by = ?, adopted_at = now()
+                        where id = ?
+                        """,
+                operatorId,
+                id);
+        operationLogService.record(operatorId, "采纳AI建议并写回业务对象", "AI", current.targetType(), current.targetId(), Map.of(
+                "suggestionId", id,
+                "suggestionType", current.suggestionType(),
+                "taskId", current.taskId() == null ? "" : current.taskId(),
+                "targetType", current.targetType() == null ? "" : current.targetType(),
+                "targetId", current.targetId() == null ? "" : current.targetId()
+        ));
+        return suggestionById(id);
     }
 
     @Transactional
@@ -719,6 +754,339 @@ public class AiAssistantService {
         return suggestion;
     }
 
+    private AiSuggestionVO suggestionByIdForUpdate(Long id) {
+        AiSuggestionVO suggestion = jdbcTemplate.query("""
+                        select id, task_id, target_type, target_id, suggestion_type, content, status, adopted_by, adopted_at, created_at
+                        from ai_suggestions
+                        where id = ?
+                        for update
+                        """,
+                rs -> rs.next() ? toSuggestion(rs) : null,
+                id);
+        if (suggestion == null) {
+            throw BusinessException.notFound("AI 建议不存在");
+        }
+        return suggestion;
+    }
+
+    private void applySuggestion(AiSuggestionVO suggestion, Long operatorId) {
+        switch (suggestion.suggestionType()) {
+            case "SUMMARY" -> applySummarySuggestion(suggestion, operatorId);
+            case "TAG" -> applyTagSuggestion(suggestion, operatorId);
+            case "REVIEW_NOTE" -> applyReviewNoteSuggestion(suggestion, operatorId);
+            default -> throw BusinessException.badRequest("该 AI 建议当前不能自动写回业务对象");
+        }
+    }
+
+    private void applySummarySuggestion(AiSuggestionVO suggestion, Long operatorId) {
+        String content = cleanSuggestionText(suggestion.content(), "摘要", 1000);
+        int affected = switch (suggestion.targetType()) {
+            case "ARTICLE" -> jdbcTemplate.update("""
+                            update articles
+                            set summary = ?, updated_by = ?, updated_at = now()
+                            where id = ?
+                            """,
+                    shorten(content, 600),
+                    operatorId,
+                    suggestion.targetId());
+            case "PROJECT" -> jdbcTemplate.update("""
+                            update portfolio_projects
+                            set description = ?, updated_by = ?, updated_at = now()
+                            where id = ?
+                            """,
+                    content,
+                    operatorId,
+                    suggestion.targetId());
+            default -> 0;
+        };
+        ensureTargetUpdated(affected, suggestion.targetType());
+    }
+
+    private void applyReviewNoteSuggestion(AiSuggestionVO suggestion, Long operatorId) {
+        String content = cleanSuggestionText(suggestion.content(), "审核", 1200);
+        int affected = switch (suggestion.targetType()) {
+            case "ARTICLE" -> jdbcTemplate.update("""
+                            update articles
+                            set review_note = ?, updated_by = ?, updated_at = now()
+                            where id = ?
+                            """,
+                    content,
+                    operatorId,
+                    suggestion.targetId());
+            case "PROJECT" -> jdbcTemplate.update("""
+                            update portfolio_projects
+                            set review_note = ?, updated_by = ?, updated_at = now()
+                            where id = ?
+                            """,
+                    content,
+                    operatorId,
+                    suggestion.targetId());
+            default -> 0;
+        };
+        ensureTargetUpdated(affected, suggestion.targetType());
+    }
+
+    private void applyTagSuggestion(AiSuggestionVO suggestion, Long operatorId) {
+        List<String> tagNames = extractTagNames(suggestion.content());
+        if (tagNames.isEmpty()) {
+            throw BusinessException.badRequest("未识别到可写回的标签，请先让 AI 输出明确的标签列表");
+        }
+        ensureTargetExists(suggestion.targetType(), suggestion.targetId());
+        for (String tagName : tagNames) {
+            Long tagId = ensureTag(tagName);
+            if ("ARTICLE".equals(suggestion.targetType())) {
+                jdbcTemplate.update("""
+                                insert into article_tags (article_id, tag_id)
+                                values (?, ?)
+                                on conflict (article_id, tag_id) do nothing
+                                """,
+                        suggestion.targetId(),
+                        tagId);
+            } else {
+                jdbcTemplate.update("""
+                                insert into project_tags (project_id, tag_id)
+                                values (?, ?)
+                                on conflict (project_id, tag_id) do nothing
+                                """,
+                        suggestion.targetId(),
+                        tagId);
+            }
+        }
+        String table = "ARTICLE".equals(suggestion.targetType()) ? "articles" : "portfolio_projects";
+        jdbcTemplate.update("update " + table + " set updated_by = ?, updated_at = now() where id = ?", operatorId, suggestion.targetId());
+    }
+
+    private void ensureTargetUpdated(int affected, String targetType) {
+        if (affected == 0) {
+            throw BusinessException.notFound(targetLabel(targetType) + "不存在");
+        }
+    }
+
+    private void ensureTargetExists(String targetType, Long targetId) {
+        String table = switch (targetType) {
+            case "ARTICLE" -> "articles";
+            case "PROJECT" -> "portfolio_projects";
+            default -> throw BusinessException.badRequest("该目标类型暂不支持自动写回标签");
+        };
+        Long count = jdbcTemplate.queryForObject("select count(*) from " + table + " where id = ?", Long.class, targetId);
+        if (count == null || count == 0) {
+            throw BusinessException.notFound(targetLabel(targetType) + "不存在");
+        }
+    }
+
+    private Long ensureTag(String tagName) {
+        List<Long> existing = jdbcTemplate.query("""
+                        select id
+                        from tags
+                        where lower(name) = lower(?)
+                        order by id
+                        limit 1
+                        """,
+                (rs, rowNum) -> rs.getLong("id"),
+                tagName);
+        if (!existing.isEmpty()) {
+            return existing.getFirst();
+        }
+        String slug = uniqueTagSlug(tagName);
+        Long tagId = jdbcTemplate.queryForObject("""
+                        insert into tags (name, slug, color, weight)
+                        values (?, ?, ?, ?)
+                        returning id
+                        """,
+                Long.class,
+                tagName,
+                slug,
+                "#a855f7",
+                0);
+        if (tagId == null) {
+            throw BusinessException.badRequest("标签写入失败");
+        }
+        return tagId;
+    }
+
+    private String uniqueTagSlug(String tagName) {
+        String base = slugBase(tagName);
+        String slug = base;
+        for (int index = 2; index <= 50; index += 1) {
+            Long count = jdbcTemplate.queryForObject("select count(*) from tags where slug = ?", Long.class, slug);
+            if (count == null || count == 0) {
+                return slug;
+            }
+            slug = base + "-" + index;
+            if (slug.length() > 120) {
+                slug = base.substring(0, Math.min(base.length(), 116)) + "-" + index;
+            }
+        }
+        return "ai-" + Integer.toUnsignedString(tagName.hashCode(), 36) + "-" + System.nanoTime();
+    }
+
+    private String slugBase(String value) {
+        String ascii = value.toLowerCase(Locale.ROOT)
+                .replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("(^-+|-+$)", "");
+        if (ascii.isBlank()) {
+            ascii = "ai-" + Integer.toUnsignedString(value.hashCode(), 36);
+        }
+        if (ascii.length() > 100) {
+            ascii = ascii.substring(0, 100).replaceAll("-+$", "");
+        }
+        return ascii.isBlank() ? "ai-tag" : ascii;
+    }
+
+    private String targetSnapshot(String targetType, Long targetId) {
+        if (targetType == null || targetId == null) {
+            return "{}";
+        }
+        String sql = switch (targetType) {
+            case "ARTICLE" -> """
+                    select row_to_json(snapshot)::text
+                    from (
+                        select a.id,
+                               a.title,
+                               a.summary,
+                               a.review_note,
+                               a.updated_by,
+                               a.updated_at,
+                               coalesce(array_agg(t.name order by t.name) filter (where t.id is not null), '{}') as tags
+                        from articles a
+                        left join article_tags at on at.article_id = a.id
+                        left join tags t on t.id = at.tag_id
+                        where a.id = ?
+                        group by a.id
+                    ) snapshot
+                    """;
+            case "PROJECT" -> """
+                    select row_to_json(snapshot)::text
+                    from (
+                        select p.id,
+                               p.title,
+                               p.description,
+                               p.review_note,
+                               p.updated_by,
+                               p.updated_at,
+                               coalesce(array_agg(t.name order by t.name) filter (where t.id is not null), '{}') as tags
+                        from portfolio_projects p
+                        left join project_tags pt on pt.project_id = p.id
+                        left join tags t on t.id = pt.tag_id
+                        where p.id = ?
+                        group by p.id
+                    ) snapshot
+                    """;
+            default -> null;
+        };
+        if (sql == null) {
+            return "{}";
+        }
+        return jdbcTemplate.query(sql, (rs, rowNum) -> rs.getString(1), targetId)
+                .stream()
+                .findFirst()
+                .orElseThrow(() -> BusinessException.notFound(targetLabel(targetType) + "不存在"));
+    }
+
+    private void insertAuditSnapshot(AiSuggestionVO suggestion, String stage, String snapshotJson, Long operatorId) {
+        jdbcTemplate.update("""
+                        insert into admin_audit_snapshots (target_type, target_id, snapshot_json, created_by)
+                        values (
+                            ?,
+                            ?,
+                            jsonb_build_object(
+                                'source', 'AI_SUGGESTION_ADOPTION',
+                                'stage', ?,
+                                'suggestionId', ?,
+                                'suggestionType', ?,
+                                'suggestionContent', ?,
+                                'snapshot', cast(? as jsonb)
+                            ),
+                            ?
+                        )
+                        """,
+                suggestion.targetType(),
+                suggestion.targetId(),
+                stage,
+                suggestion.id(),
+                suggestion.suggestionType(),
+                suggestion.content(),
+                snapshotJson == null || snapshotJson.isBlank() ? "{}" : snapshotJson,
+                operatorId);
+    }
+
+    private String adoptionRestriction(String targetType, Long targetId, String suggestionType, String content) {
+        if (targetType == null || targetId == null) {
+            return "该建议未绑定文章或作品，不能自动写回业务对象";
+        }
+        return switch (suggestionType) {
+            case "SUMMARY" -> Set.of("ARTICLE", "PROJECT").contains(targetType)
+                    ? null
+                    : "摘要建议仅支持写回文章摘要或作品描述";
+            case "TAG" -> {
+                if (!Set.of("ARTICLE", "PROJECT").contains(targetType)) {
+                    yield "标签建议仅支持写回文章或作品标签";
+                }
+                yield extractTagNames(content).isEmpty() ? "未识别到可写回的标签，请先让 AI 输出明确的标签列表" : null;
+            }
+            case "REVIEW_NOTE" -> Set.of("ARTICLE", "PROJECT").contains(targetType)
+                    ? null
+                    : "审核意见仅支持写回文章或作品的审核备注，评论暂未提供审核意见字段";
+            case "OPERATION_IDEA", "TOPIC_IDEA", "HOMEPAGE_RECOMMENDATION", "RISK_HINT", "WORKFLOW_STEP", "GENERAL" ->
+                    "该类建议需要管理员人工判断，当前不会自动修改业务对象";
+            default -> "该 AI 建议类型暂不支持自动写回业务对象";
+        };
+    }
+
+    private String cleanSuggestionText(String content, String label, int maxLength) {
+        String normalized = content == null ? "" : content.replaceAll("\\s+", " ").trim();
+        normalized = normalized.replaceFirst("^建议?" + label + "[：:]", "").trim();
+        normalized = normalized.replaceFirst("^" + label + "建议[：:]", "").trim();
+        normalized = normalized.replaceFirst("^建议[：:]", "").trim();
+        if (normalized.startsWith("\"") && normalized.endsWith("\"") && normalized.length() > 1) {
+            normalized = normalized.substring(1, normalized.length() - 1).trim();
+        }
+        if (normalized.isBlank()) {
+            throw BusinessException.badRequest(label + "建议内容不能为空");
+        }
+        return shorten(normalized, maxLength);
+    }
+
+    private List<String> extractTagNames(String content) {
+        String normalized = content == null ? "" : content.trim();
+        normalized = normalized.replaceFirst("^建议?标签[：:]", "").trim();
+        normalized = normalized.replaceFirst("^标签建议[：:]", "").trim();
+        int instructionIndex = firstInstructionIndex(normalized);
+        if (instructionIndex >= 0) {
+            normalized = normalized.substring(0, instructionIndex);
+        }
+        LinkedHashSet<String> names = new LinkedHashSet<>();
+        for (String item : normalized.split("[、,，;；/\\n\\r#]+")) {
+            String tagName = item.replaceAll("^[\\-\\d.、\\s]+", "")
+                    .replaceAll("[。.!！?？]+$", "")
+                    .trim();
+            if (tagName.length() >= 1 && tagName.length() <= 30 && !tagName.contains("：") && !tagName.contains(":")) {
+                names.add(tagName);
+            }
+        }
+        return names.stream().limit(8).toList();
+    }
+
+    private int firstInstructionIndex(String value) {
+        int result = -1;
+        for (String marker : List.of("。请", "请由", "需", "需要", "建议由", "管理员")) {
+            int index = value.indexOf(marker);
+            if (index >= 0 && (result == -1 || index < result)) {
+                result = index;
+            }
+        }
+        return result;
+    }
+
+    private String targetLabel(String targetType) {
+        return switch (targetType == null ? "" : targetType) {
+            case "ARTICLE" -> "文章";
+            case "PROJECT" -> "作品";
+            case "COMMENT" -> "评论";
+            default -> "目标对象";
+        };
+    }
+
     private void insertMessage(Long taskId, String role, String content) {
         jdbcTemplate.update("""
                         insert into ai_agent_messages (task_id, role, content, token_count)
@@ -862,17 +1230,24 @@ public class AiAssistantService {
     }
 
     private AiSuggestionVO toSuggestion(ResultSet rs) throws SQLException {
+        String targetType = rs.getString("target_type");
+        Long targetId = nullableLong(rs, "target_id");
+        String suggestionType = rs.getString("suggestion_type");
+        String content = rs.getString("content");
+        String restriction = adoptionRestriction(targetType, targetId, suggestionType, content);
         return new AiSuggestionVO(
                 rs.getLong("id"),
                 nullableLong(rs, "task_id"),
-                rs.getString("target_type"),
-                nullableLong(rs, "target_id"),
-                rs.getString("suggestion_type"),
-                rs.getString("content"),
+                targetType,
+                targetId,
+                suggestionType,
+                content,
                 rs.getString("status"),
                 nullableLong(rs, "adopted_by"),
                 rs.getObject("adopted_at", OffsetDateTime.class),
-                rs.getObject("created_at", OffsetDateTime.class)
+                rs.getObject("created_at", OffsetDateTime.class),
+                restriction == null,
+                restriction
         );
     }
 
@@ -966,7 +1341,9 @@ public class AiAssistantService {
             String status,
             Long adoptedBy,
             OffsetDateTime adoptedAt,
-            OffsetDateTime createdAt
+            OffsetDateTime createdAt,
+            Boolean adoptable,
+            String adoptionRestriction
     ) {
     }
 }
