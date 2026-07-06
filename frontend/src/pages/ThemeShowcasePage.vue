@@ -87,8 +87,13 @@
                   圆角卡片
                   <BaseSelect v-model="selectedCardStyle" :options="cardStyles" />
                 </label>
+                <label v-if="versionOptions.length > 1">
+                  历史版本
+                  <BaseSelect v-model="selectedVersionId" :options="versionOptions" />
+                </label>
               </div>
             </div>
+            <p v-if="versionNotice" class="version-notice">{{ versionNotice }}</p>
             <div class="theme-preview__cards">
               <article>
                 <strong>文章卡片</strong>
@@ -133,22 +138,25 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import PublicPageHeader from '../components/common/PublicPageHeader.vue'
 import { CheckCircle, Copy, Download, LoaderCircle, Palette, RotateCcw, WandSparkles } from '@lucide/vue'
-import { fetchCurrentTheme, fetchThemes } from '../services/content'
+import { fetchCurrentTheme, fetchThemes, fetchThemeVersions } from '../services/content'
 import { toUserMessage } from '../services/http'
 import { usePageReveal } from '../shared/composables/usePageReveal'
 import { toCssImageUrl } from '../shared/cssImage'
-import type { PublicThemeConfig, ThemeConfig } from '../shared/domain'
+import type { PublicThemeConfig, ThemeConfig, ThemeVersionSummary } from '../shared/domain'
 import { applyThemeConfig } from '../shared/theme'
 import BaseSelect from '../shared/components/BaseSelect.vue'
 interface ColorToken {
   label: string
   color: string
 }
+const CURRENT_VERSION_VALUE = 'current'
 // 页面挂载的根 DOM 节点引用
 // 初始化主题沙盒的相关色彩变量、字体族和布局密度预览配置
 const root = ref<HTMLElement | null>(null)
 // 公开的主题列表数据
 const themes = ref<PublicThemeConfig[]>([])
+// 当前选中主题的真实历史版本快照
+const themeVersions = ref<ThemeVersionSummary[]>([])
 // 当前选中的主题配置数据
 const selectedTheme = ref<PublicThemeConfig | null>(null)
 // 当前全站活动的主题配置数据
@@ -161,6 +169,8 @@ const notice = ref('')
 const hasAppliedPreview = ref(false)
 // 当前处于激活状态的控制面板标签页, visual - 视觉呈现, json - 变量树
 const activeTab = ref<'visual' | 'json'>('visual')
+// 当前预览选中的真实历史版本记录, current 表示使用主题实时配置
+const selectedVersionId = ref(CURRENT_VERSION_VALUE)
 // 当前预览选中的排版间距配置
 const selectedDensity = ref<'comfortable' | 'compact' | 'spacious'>('comfortable')
 // 当前预览选中的动画过渡配置
@@ -169,6 +179,8 @@ const selectedMotion = ref<'dynamic' | 'subtle' | 'static'>('dynamic')
 const selectedCardStyle = ref<string>('default')
 // 复制配置按钮的即时文案
 const copyBtnText = ref('复制 JSON')
+// 主题版本读取提示文案
+const versionNotice = ref('')
 // 间距配置可选项数组
 const densities = [
   { value: 'comfortable', label: '舒适 (Comfortable)' },
@@ -192,27 +204,54 @@ const cardStyles = [
 usePageReveal(root)
 // 监听选中的主题变化, 自动重置并初始化对应的预览配置
 watch(selectedTheme, (newTheme) => {
-  if (newTheme) {
-    selectedDensity.value = (newTheme.config?.density as any) || 'comfortable'
-    selectedMotion.value = (newTheme.config?.motion as any) || 'dynamic'
-    selectedCardStyle.value = newTheme.cardStyle || 'default'
+  selectedVersionId.value = CURRENT_VERSION_VALUE
+  themeVersions.value = []
+  versionNotice.value = ''
+  if (!newTheme) {
+    return
+  }
+  applyPreviewControls(newTheme)
+  loadThemeVersions(newTheme.themeName)
+})
+// 切换历史版本时，用真实快照重置预览控件。
+watch(selectedVersionId, () => {
+  const baseTheme = selectedVersionId.value === CURRENT_VERSION_VALUE
+    ? selectedTheme.value
+    : selectedVersion.value?.snapshot
+  if (baseTheme) {
+    applyPreviewControls(baseTheme)
   }
 })
+// 当前历史版本下拉选项，默认项为实时配置，其余来自后端版本表。
+const versionOptions = computed(() => [
+  { value: CURRENT_VERSION_VALUE, label: '当前配置' },
+  ...themeVersions.value
+    .filter((version) => version.snapshot)
+    .map((version) => ({
+      value: String(version.id),
+      label: `${version.baseline ? '基线版本' : '版本'} ${version.versionNo}${version.createdAt ? ` · ${version.createdAt}` : ''}`,
+    })),
+])
+// 当前选中的真实历史版本记录。
+const selectedVersion = computed(() => themeVersions.value.find((version) => String(version.id) === selectedVersionId.value) ?? null)
+// 当前预览底座：实时主题或历史版本快照。
+const previewBaseTheme = computed<ThemeConfig | PublicThemeConfig | null>(() => selectedVersion.value?.snapshot ?? selectedTheme.value)
 // 根据选中的预览控件, 动态计算输出并构建合并的主题配置树
 const computedThemeConfig = computed<ThemeConfig | null>(() => {
-  if (!selectedTheme.value) return null
+  const baseTheme = previewBaseTheme.value
+  if (!baseTheme) return null
   
   return {
-    themeName: selectedTheme.value.themeName,
-    displayName: selectedTheme.value.displayName,
-    primaryColor: selectedTheme.value.primaryColor,
-    backgroundType: selectedTheme.value.backgroundType,
-    backgroundImage: selectedTheme.value.backgroundImage,
-    fontFamily: selectedTheme.value.fontFamily,
+    themeName: baseTheme.themeName,
+    displayName: baseTheme.displayName,
+    primaryColor: baseTheme.primaryColor,
+    backgroundType: baseTheme.backgroundType,
+    backgroundImage: baseTheme.backgroundImage,
+    fontFamily: baseTheme.fontFamily,
     cardStyle: selectedCardStyle.value,
-    layoutType: selectedTheme.value.layoutType,
+    layoutType: baseTheme.layoutType,
     config: {
-      ...selectedTheme.value.config,
+      ...baseTheme.config,
       density: selectedDensity.value,
       motion: selectedMotion.value,
     }
@@ -229,7 +268,7 @@ const activeThemeMood = computed(() => {
   return readString(config.mood) || theme?.layoutType || '当前公开主题'
 })
 // 动态获取当前选中主题底座配置项
-const selectedConfig = computed(() => readRecord(selectedTheme.value?.config))
+const selectedConfig = computed(() => readRecord(previewBaseTheme.value?.config))
 // 动态获取当前选中主题的设计气质文案
 const selectedMood = computed(() => readString(selectedConfig.value.mood) || readString(selectedConfig.value.tagline) || '主题预览')
 // 动态提取计算后主题的核心配色变量数组
@@ -306,6 +345,30 @@ async function loadThemes() {
     isLoading.value = false
   }
 }
+// 读取当前主题的真实版本快照；失败时保留实时配置，不展示误导性的历史选项。
+async function loadThemeVersions(themeName: string) {
+  try {
+    const versions = await fetchThemeVersions(themeName)
+    if (selectedTheme.value?.themeName !== themeName) {
+      return
+    }
+    themeVersions.value = versions.filter((version) => version.snapshot)
+    versionNotice.value = themeVersions.value.length === 0 ? '当前主题还没有可预览的历史版本记录。' : ''
+  } catch (error) {
+    if (selectedTheme.value?.themeName !== themeName) {
+      return
+    }
+    themeVersions.value = []
+    versionNotice.value = toUserMessage(error, '历史版本暂不可用，当前显示主题实时配置')
+  }
+}
+// 根据主题快照初始化可编辑预览控件。
+function applyPreviewControls(theme: ThemeConfig | PublicThemeConfig) {
+  const config = readRecord(theme.config)
+  selectedDensity.value = readDensity(config.density)
+  selectedMotion.value = readMotion(config.motion)
+  selectedCardStyle.value = theme.cardStyle || 'default'
+}
 // 将当前定制预览的主题变量写入本地缓存, 并派发全局主题更新事件监听器
 function previewSelectedTheme() {
   if (!computedThemeConfig.value) {
@@ -334,6 +397,14 @@ function readRecord(value: unknown): Record<string, unknown> {
 // 安全读取并格式化字符串
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
+}
+// 安全读取布局密度枚举
+function readDensity(value: unknown): 'comfortable' | 'compact' | 'spacious' {
+  return value === 'compact' || value === 'spacious' ? value : 'comfortable'
+}
+// 安全读取动效强度枚举
+function readMotion(value: unknown): 'dynamic' | 'subtle' | 'static' {
+  return value === 'subtle' || value === 'static' ? value : 'dynamic'
 }
 // 安全解析并校验 Hex 或 RGBA 配色
 function safeColor(value: string | undefined | null, fallback: string): string {
@@ -684,6 +755,12 @@ onBeforeUnmount(() => {
 }
 .theme-preview__cards article:hover {
   transform: translateY(-2px);
+}
+.version-notice {
+  margin: -4px 0 0;
+  color: color-mix(in srgb, var(--preview-ink) 58%, transparent);
+  font-size: 12px;
+  line-height: 1.5;
 }
 .theme-preview__cards strong {
   color: var(--preview-ink);

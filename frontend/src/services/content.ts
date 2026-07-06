@@ -48,6 +48,7 @@ import type {
   TagPayload,
   ThemeConfig,
   ThemePayload,
+  ThemeVersionSummary,
   UserProfile,
   UserSummary,
   VisibilityUserVO,
@@ -1343,6 +1344,14 @@ export async function fetchCurrentTheme(): Promise<ThemeConfig | null> {
 // 读取公开主题列表, 供前台主题展示区使用
 export async function fetchThemes(): Promise<PublicThemeConfig[]> {
   const response = await requestJson<ApiEnvelope<PublicThemeConfig[]>>('/api/themes')
+  return response.data
+}
+
+// 读取指定公开主题的真实历史版本快照
+export async function fetchThemeVersions(themeName: string): Promise<ThemeVersionSummary[]> {
+  const response = await requestJson<ApiEnvelope<ThemeVersionSummary[]>>(
+    `/api/themes/${encodeURIComponent(themeName)}/versions`,
+  )
   return response.data
 }
 

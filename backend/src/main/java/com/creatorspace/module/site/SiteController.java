@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.LinkedHashMap;
@@ -110,6 +111,12 @@ public class SiteController {
         return ApiResponse.ok(themes);
     }
 
+    // 返回指定主题的真实历史版本快照，主题展厅用于对照旧配置预览。
+    @GetMapping("/api/themes/{themeName}/versions")
+    public ApiResponse<List<ThemeVersionVO>> themeVersions(@PathVariable String themeName) {
+        return ApiResponse.ok(loadThemeVersions(themeName));
+    }
+
     private Map<String, Object> loadConfig() {
         Map<String, Object> configs = new LinkedHashMap<>();
         jdbcTemplate.query("""
@@ -188,6 +195,30 @@ public class SiteController {
                 ));
     }
 
+    private List<ThemeVersionVO> loadThemeVersions(String themeName) {
+        return jdbcTemplate.query("""
+                        select version.id,
+                               theme.theme_name,
+                               version.version_no,
+                               version.snapshot_json::text,
+                               version.snapshot_json ->> 'source' as source,
+                               to_char(version.created_at, 'YYYY-MM-DD HH24:MI:SS') as created_at
+                        from theme_versions version
+                        join theme_configs theme on theme.id = version.theme_id
+                        where theme.theme_name = ?
+                        order by version.version_no desc
+                        """,
+                (rs, rowNum) -> new ThemeVersionVO(
+                        rs.getLong("id"),
+                        rs.getString("theme_name"),
+                        rs.getInt("version_no"),
+                        publicThemeSnapshot(readJson(rs.getString("snapshot_json"))),
+                        "MIGRATION_BASELINE".equals(rs.getString("source")),
+                        rs.getString("created_at")
+                ),
+                themeName);
+    }
+
     // 安全解析 JSONB 文本。
     private Object readJson(String value) {
         try {
@@ -213,6 +244,40 @@ public class SiteController {
             }
         });
         return config;
+    }
+
+    private ThemeConfigVO publicThemeSnapshot(Object value) {
+        if (!(value instanceof Map<?, ?> source)) {
+            return null;
+        }
+        String themeName = readString(source.get("themeName"));
+        String displayName = readString(source.get("displayName"));
+        String primaryColor = readString(source.get("primaryColor"));
+        String backgroundType = readString(source.get("backgroundType"));
+        String cardStyle = readString(source.get("cardStyle"));
+        String layoutType = readString(source.get("layoutType"));
+        if (themeName == null || displayName == null || primaryColor == null
+                || backgroundType == null || cardStyle == null || layoutType == null) {
+            return null;
+        }
+        return new ThemeConfigVO(
+                themeName,
+                displayName,
+                primaryColor,
+                backgroundType,
+                readString(source.get("backgroundImage")),
+                readString(source.get("fontFamily")),
+                cardStyle,
+                layoutType,
+                publicThemeConfig(source.get("config"))
+        );
+    }
+
+    private String readString(Object value) {
+        if (value instanceof String text && !text.isBlank()) {
+            return text;
+        }
+        return null;
     }
 
     private Map<String, Object> publicProfileJson(Object value) {
@@ -387,6 +452,16 @@ public class SiteController {
             String layoutType,
             boolean active,
             Object config
+    ) {
+    }
+
+    public record ThemeVersionVO(
+            Long id,
+            String themeName,
+            Integer versionNo,
+            ThemeConfigVO snapshot,
+            boolean baseline,
+            String createdAt
     ) {
     }
 

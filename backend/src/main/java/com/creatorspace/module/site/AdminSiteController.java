@@ -85,6 +85,7 @@ public class AdminSiteController {
                 json(request.config()),
                 id
         );
+        insertThemeVersionSnapshot(id, loginUser == null ? null : loginUser.userId());
         evictAfterCommit(siteCacheService::evictThemes);
         return ApiResponse.ok(themeById(id));
     }
@@ -512,6 +513,45 @@ public class AdminSiteController {
         if (!exists("theme_configs", id)) {
             throw BusinessException.notFound("主题不存在");
         }
+    }
+
+    // 保存更新后的完整主题快照，供主题展厅和审计追溯读取真实历史版本。
+    private void insertThemeVersionSnapshot(Long themeId, Long createdBy) {
+        jdbcTemplate.queryForObject("select id from theme_configs where id = ? for update", Long.class, themeId);
+        Integer nextVersionNo = jdbcTemplate.queryForObject("""
+                        select coalesce(max(version_no), 0) + 1
+                        from theme_versions
+                        where theme_id = ?
+                        """,
+                Integer.class,
+                themeId);
+        jdbcTemplate.update("""
+                        insert into theme_versions (
+                            theme_id,
+                            version_no,
+                            snapshot_json,
+                            created_by
+                        )
+                        select id,
+                               ?,
+                               jsonb_build_object(
+                                   'themeName', theme_name,
+                                   'displayName', display_name,
+                                   'primaryColor', primary_color,
+                                   'backgroundType', background_type,
+                                   'backgroundImage', background_image,
+                                   'fontFamily', font_family,
+                                   'cardStyle', card_style,
+                                   'layoutType', layout_type,
+                                   'config', config_json
+                               ),
+                               ?
+                        from theme_configs
+                        where id = ?
+                        """,
+                nextVersionNo == null ? 1 : nextVersionNo,
+                createdBy,
+                themeId);
     }
 
     private void ensureThemeNameAvailable(Long id, String themeName) {

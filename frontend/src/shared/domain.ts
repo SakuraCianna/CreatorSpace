@@ -394,6 +394,15 @@ export interface PublicThemeConfig extends ThemeConfig {
   active: boolean
 }
 
+export interface ThemeVersionSummary {
+  id: number
+  themeName: string
+  versionNo: number
+  snapshot: ThemeConfig | null
+  baseline?: boolean | null
+  createdAt?: string | null
+}
+
 export interface ThemePayload {
   themeName: string
   displayName: string
