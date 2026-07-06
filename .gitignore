@@ -1,1 +1,25 @@
 .opencode
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Build outputs
+target/
+dist/
+build/
+
+# Logs and temporary runtime files
+*.log
+*.tmp
+*.temp
+
+# IDE and OS metadata
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
