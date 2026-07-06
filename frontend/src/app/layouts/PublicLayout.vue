@@ -66,6 +66,15 @@
         <RouterLink
           v-if="session.isAuthenticated"
           class="mobile-auth-action mobile-auth-action--tonal"
+          to="/my-messages"
+          @click="navOpen = false"
+        >
+          <MessageCircle :size="16" />
+          私信
+        </RouterLink>
+        <RouterLink
+          v-if="session.isAuthenticated"
+          class="mobile-auth-action mobile-auth-action--tonal"
           :to="profileRoute"
           @click="navOpen = false"
         >
@@ -89,6 +98,13 @@
           </RouterLink>
           <RouterLink v-else class="notification-bell" to="/my-notifications" title="通知">
             <Bell :size="17" />
+          </RouterLink>
+          <RouterLink v-if="unreadMessageCount > 0" class="notification-bell" to="/my-messages" :title="`${unreadMessageCount} 条未读私信`">
+            <MessageCircle :size="17" />
+            <span class="notification-badge">{{ unreadMessageCount > 99 ? '99+' : unreadMessageCount }}</span>
+          </RouterLink>
+          <RouterLink v-else class="notification-bell" to="/my-messages" title="私信">
+            <MessageCircle :size="17" />
           </RouterLink>
           <RouterLink class="profile-trigger" :to="profileRoute">
             <span class="profile-trigger__avatar">
@@ -122,7 +138,7 @@ import { BookOpen, Bell, Home, Images, Info, Lightbulb, Menu, MessageCircle, Pal
 
 import ThemeHUD from '../../shared/components/ThemeHUD.vue'
 
-import { fetchMyProfile, fetchSiteConfig, fetchUnreadNotificationCount } from '../../services/content'
+import { fetchMyProfile, fetchSiteConfig, fetchUnreadMessageCount, fetchUnreadNotificationCount } from '../../services/content'
 import { prefersReducedMotion } from '../../shared/composables/useReducedMotion'
 import { useSessionStore } from '../../shared/sessionStore'
 import { syncSiteIdentityFromConfig, useSiteIdentity } from '../../shared/siteIdentity'
@@ -135,6 +151,7 @@ const router = useRouter()
 const session = useSessionStore()
 const profileAvatar = ref('')
 const unreadCount = ref(0)
+const unreadMessageCount = ref(0)
 const profileRoute = computed(() => `/users/${session.currentUser?.id ?? ''}`)
 let disposeScene: (() => void) | null = null
 let setScenePaused: ((paused: boolean) => void) | null = null
@@ -188,6 +205,12 @@ onMounted(async () => {
     try {
       const result = await fetchUnreadNotificationCount()
       unreadCount.value = result.count
+    } catch {
+      // 静默忽略
+    }
+    try {
+      const result = await fetchUnreadMessageCount()
+      unreadMessageCount.value = result.count
     } catch {
       // 静默忽略
     }

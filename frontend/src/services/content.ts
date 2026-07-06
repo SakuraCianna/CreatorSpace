@@ -31,6 +31,8 @@ import type {
   OperationLogQuery,
   OperationLogSummary,
   PageResponse,
+  PrivateConversationMessages,
+  PrivateConversationSummary,
   ProjectFilterRecommendations,
   ProjectPayload,
   ProjectSummary,
@@ -1575,6 +1577,47 @@ export async function markAllNotificationsRead(): Promise<void> {
 // 删除一条通知
 export async function deleteNotification(id: number): Promise<void> {
   await requestJson<ApiEnvelope<null>>(`/api/me/notifications/${id}`, { method: 'DELETE' })
+}
+
+// ====== 私信相关 API ======
+
+export async function fetchMessageConversations(options: { page?: number; pageSize?: number } = {}): Promise<PageResponse<PrivateConversationSummary>> {
+  const params = new URLSearchParams()
+  if (options.page) params.set('page', String(options.page))
+  if (options.pageSize) params.set('pageSize', String(options.pageSize))
+  const query = params.toString()
+  const response = await requestJson<ApiEnvelope<PageResponse<PrivateConversationSummary>>>(
+    query ? `/api/me/messages/conversations?${query}` : '/api/me/messages/conversations',
+  )
+  return response.data
+}
+
+export async function fetchMessageConversation(id: number, options: { page?: number; pageSize?: number } = {}): Promise<PrivateConversationMessages> {
+  const params = new URLSearchParams()
+  if (options.page) params.set('page', String(options.page))
+  if (options.pageSize) params.set('pageSize', String(options.pageSize))
+  const query = params.toString()
+  const response = await requestJson<ApiEnvelope<PrivateConversationMessages>>(
+    query ? `/api/me/messages/conversations/${id}?${query}` : `/api/me/messages/conversations/${id}`,
+  )
+  return response.data
+}
+
+export async function sendPrivateMessage(receiverId: number, content: string): Promise<PrivateConversationMessages> {
+  const response = await requestJson<ApiEnvelope<PrivateConversationMessages>>('/api/me/messages', {
+    method: 'POST',
+    body: JSON.stringify({ receiverId, content }),
+  })
+  return response.data
+}
+
+export async function markMessageConversationRead(id: number): Promise<void> {
+  await requestJson<ApiEnvelope<null>>(`/api/me/messages/conversations/${id}/read`, { method: 'PUT' })
+}
+
+export async function fetchUnreadMessageCount(): Promise<{ count: number }> {
+  const response = await requestJson<ApiEnvelope<{ count: number }>>('/api/me/messages/unread-count')
+  return response.data
 }
 
 // 管理员获取待审核概览

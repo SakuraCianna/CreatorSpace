@@ -80,6 +80,12 @@ const router = createRouter({
       meta: { layout: "public", requiresAuth: true },
     },
     {
+      path: "/my-messages",
+      name: "my-messages",
+      component: () => import("../pages/MyMessagesPage.vue"),
+      meta: { layout: "public", requiresAuth: true },
+    },
+    {
       path: "/users/:userId",
       name: "user-profile",
       component: () => import("../pages/UserProfilePage.vue"),

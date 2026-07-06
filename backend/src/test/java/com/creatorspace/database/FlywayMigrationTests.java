@@ -73,7 +73,9 @@ class FlywayMigrationTests extends PostgresIntegrationTestSupport {
                     "operation_logs",
                     "ai_agent_tasks",
                     "ai_agent_messages",
-                    "ai_suggestions"
+                    "ai_suggestions",
+                    "message_conversations",
+                    "private_messages"
             );
             assertThat(extensionNames(connection)).contains("pg_trgm", "pgcrypto", "vector");
             assertThat(columnNames(connection, "users")).contains("email");

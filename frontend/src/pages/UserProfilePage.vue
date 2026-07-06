@@ -89,6 +89,14 @@
                 >
                   {{ isFriend ? '互相关注' : following ? '已关注' : '关注' }}
                 </button>
+                <RouterLink
+                  v-if="!isOwnProfile && session.isAuthenticated"
+                  class="btn-outline w-full profile-message-link"
+                  :to="{ name: 'my-messages', query: { to: profile.id } }"
+                >
+                  <MessageCircle :size="16" />
+                  私信
+                </RouterLink>
               </div>
             </template>
           </div>
@@ -347,7 +355,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
-import { LoaderCircle, UserRound, Camera } from '@lucide/vue'
+import { LoaderCircle, UserRound, Camera, MessageCircle } from '@lucide/vue'
 import { uploadFile } from '../services/file'
 import FileUpload from '../components/common/FileUpload.vue'
 import BaseSelect from '../shared/components/BaseSelect.vue'
@@ -907,7 +915,17 @@ onMounted(loadProfile)
 }
 
 .profile-actions {
+  display: grid;
+  gap: 10px;
   padding-top: 16px;
+}
+
+.profile-message-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-decoration: none;
 }
 
 .w-full {

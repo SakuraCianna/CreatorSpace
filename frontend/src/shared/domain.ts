@@ -323,6 +323,33 @@ export interface NotificationRecord {
   createdAt?: string | null
 }
 
+export interface PrivateConversationSummary {
+  id: number
+  peerId: number
+  peerUsername: string
+  peerNickname?: string | null
+  peerAvatarUrl?: string | null
+  lastMessageContent?: string | null
+  lastMessageAt?: string | null
+  lastSenderId?: number | null
+  unreadCount: number
+}
+
+export interface PrivateMessageRecord {
+  id: number
+  conversationId: number
+  senderId: number
+  receiverId: number
+  content: string
+  isRead: boolean
+  createdAt?: string | null
+}
+
+export interface PrivateConversationMessages {
+  conversation: PrivateConversationSummary
+  messages: PageResponse<PrivateMessageRecord>
+}
+
 export type SearchResultType = 'ARTICLE' | 'PROJECT' | 'INSPIRATION' | 'TAG' | 'CATEGORY' | 'PAGE'
 export type SearchSortType = 'relevance' | 'latest' | 'popular'
 
