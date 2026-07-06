@@ -87,8 +87,10 @@ class FlywayMigrationTests extends PostgresIntegrationTestSupport {
             assertThat(columnNames(connection, "portfolio_projects"))
                     .contains("submitted_at", "reviewed_by", "reviewed_at", "review_note");
             assertThat(columnNames(connection, "comments"))
-                    .contains("root_id", "reply_to_user_id", "depth", "reply_count")
+                    .contains("root_id", "reply_to_user_id", "depth", "reply_count", "content_original")
                     .doesNotContain("nickname", "email");
+            assertThat(columnNames(connection, "guestbook_entries"))
+                    .contains("content_original");
             assertThat(columnNames(connection, "like_records")).doesNotContain("guest_key");
             assertThat(primaryKeyColumns(connection, "article_visibility_users"))
                     .containsExactlyInAnyOrder("article_id", "user_id");
