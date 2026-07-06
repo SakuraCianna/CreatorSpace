@@ -141,6 +141,66 @@ public class PrivateMessageController {
         }
         ensureActiveUser(receiverId);
 
+        // 校验接收方的私信权限设置
+        String messageSetting = jdbcTemplate.queryForObject(
+                "select private_message_setting from users where id = ?",
+                String.class,
+                receiverId);
+        if (messageSetting == null) {
+            messageSetting = "ALL";
+        }
+
+        if ("NONE".equals(messageSetting)) {
+            throw BusinessException.badRequest("对方已关闭私信功能");
+        }
+
+        // 查询关注状态
+        boolean senderFollowsReceiver = Boolean.TRUE.equals(jdbcTemplate.queryForObject(
+                "select count(*) > 0 from user_follows where follower_id = ? and followee_id = ?",
+                Boolean.class,
+                senderId, receiverId));
+        boolean receiverFollowsSender = Boolean.TRUE.equals(jdbcTemplate.queryForObject(
+                "select count(*) > 0 from user_follows where follower_id = ? and followee_id = ?",
+                Boolean.class,
+                receiverId, senderId));
+
+        if ("MUTUAL".equals(messageSetting)) {
+            if (!senderFollowsReceiver || !receiverFollowsSender) {
+                throw BusinessException.badRequest("对方设置了仅互相关注的用户可以发送私信");
+            }
+        } else if ("FOLLOW".equals(messageSetting)) {
+            if (!senderFollowsReceiver) {
+                throw BusinessException.badRequest("对方设置了仅粉丝可以发送私信，请先关注对方");
+            }
+            // "并且只能发送一条信息" - 如果接收方没有回复，且发送方已经发送过消息，则不能再发
+            if (!receiverFollowsSender) {
+                long first = Math.min(senderId, receiverId);
+                long second = Math.max(senderId, receiverId);
+                List<Long> existingConv = jdbcTemplate.query(
+                        "select id from message_conversations where participant_one_id = ? and participant_two_id = ?",
+                        (rs, rowNum) -> rs.getLong("id"),
+                        first, second);
+                if (!existingConv.isEmpty()) {
+                    Long convId = existingConv.getFirst();
+                    // 检查接收方是否回复过
+                    Long replyCount = jdbcTemplate.queryForObject(
+                            "select count(*) from private_messages where conversation_id = ? and sender_id = ?",
+                            Long.class,
+                            convId, receiverId);
+                    if (replyCount == null || replyCount == 0) {
+                        // 检查发送方是否已经发过消息
+                        Long sentCount = jdbcTemplate.queryForObject(
+                                "select count(*) from private_messages where conversation_id = ? and sender_id = ?",
+                                Long.class,
+                                convId, senderId);
+                        if (sentCount != null && sentCount >= 1) {
+                            throw BusinessException.badRequest("对方回复前您只能发送一条私信");
+                        }
+                    }
+                }
+            }
+        }
+
         Long conversationId = findOrCreateConversation(senderId, receiverId);
         String content = request.content().trim();
         Long messageId = insertMessage(conversationId, senderId, receiverId, content);

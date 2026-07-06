@@ -374,6 +374,11 @@ onMounted(() => {
   font-size: 13px;
   font-weight: 720;
 }
+.metric-row span svg,
+.mini-stats span svg {
+  flex-shrink: 0;
+  display: block;
+}
 .showcase-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

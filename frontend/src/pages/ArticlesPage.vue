@@ -659,6 +659,11 @@ onBeforeUnmount(() => {
   object-fit: cover;
 }
 
+.author-badge__avatar svg,
+.author-badge__avatar img {
+  display: block;
+}
+
 .article-meta-row {
   display: flex;
   flex-wrap: wrap;

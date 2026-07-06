@@ -655,6 +655,7 @@ export interface UserProfile {
   followerCount: number
   followingCount: number
   friendCount: number
+  privateMessageSetting?: string
 }
 
 export type BlogFontPreset = 'literary-serif' | 'neo-grotesk' | 'rounded-sans' | 'mono-editor'

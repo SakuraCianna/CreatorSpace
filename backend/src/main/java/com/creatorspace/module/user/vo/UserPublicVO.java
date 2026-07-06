@@ -13,6 +13,7 @@ public record UserPublicVO(
         long articleCount,
         long followerCount,
         long followingCount,
-        long friendCount
+        long friendCount,
+        String privateMessageSetting
 ) {
 }

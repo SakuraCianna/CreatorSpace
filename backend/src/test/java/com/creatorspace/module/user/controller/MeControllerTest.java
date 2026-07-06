@@ -31,6 +31,7 @@ class MeControllerTest {
             when(rs.getString("nickname")).thenReturn("Creator");
             when(rs.getString("avatar_url")).thenReturn("/avatar.png");
             when(rs.getString("bio")).thenReturn("bio");
+            when(rs.getString("private_message_setting")).thenReturn("ALL");
             when(rs.getLong("article_count")).thenReturn(3L);
             when(rs.getLong("follower_count")).thenReturn(4L);
             when(rs.getLong("following_count")).thenReturn(5L);
@@ -53,12 +54,13 @@ class MeControllerTest {
             RowMapper mapper = invocation.getArgument(1);
             ResultSet rs = mock(ResultSet.class);
             when(rs.getObject("id", Long.class)).thenReturn(9L);
+            when(rs.getString("private_message_setting")).thenReturn("MUTUAL");
             return List.of(mapper.mapRow(rs, 0));
         });
 
-        controller.updateMyProfile(loginUser, new MeController.UpdateProfileRequest("Nick", "/a.png", "bio"));
+        controller.updateMyProfile(loginUser, new MeController.UpdateProfileRequest("Nick", "/a.png", "bio", "MUTUAL"));
 
-        verify(jdbcTemplate).update(contains("update users set nickname"), eq("Nick"), eq("/a.png"), eq("bio"), eq(9L));
+        verify(jdbcTemplate).update(contains("update users set nickname"), eq("Nick"), eq("/a.png"), eq("bio"), eq("MUTUAL"), eq(9L));
     }
 
     @Test

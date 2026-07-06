@@ -35,6 +35,7 @@ public class MeController {
     public ApiResponse<UserPublicVO> getMyProfile(@AuthenticationPrincipal LoginUser loginUser) {
         var profiles = jdbcTemplate.query("""
                         select u.id, u.username, u.nickname, u.avatar_url, u.bio,
+                               u.private_message_setting,
                                (select count(*) from articles a where a.created_by = u.id and a.status = 'PUBLISHED' and a.privacy_type = 'PUBLIC') as article_count,
                                (select count(*) from user_follows f where f.followee_id = u.id) as follower_count,
                                (select count(*) from user_follows f where f.follower_id = u.id) as following_count,
@@ -59,7 +60,8 @@ public class MeController {
                             rs.getLong("article_count"),
                             rs.getLong("follower_count"),
                             rs.getLong("following_count"),
-                            rs.getLong("friend_count")
+                            rs.getLong("friend_count"),
+                            rs.getString("private_message_setting")
                     );
                 },
                 loginUser.userId());
@@ -136,11 +138,16 @@ public class MeController {
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestBody UpdateProfileRequest request
     ) {
+        String setting = request.privateMessageSetting();
+        if (setting == null || !Set.of("ALL", "FOLLOW", "MUTUAL", "NONE").contains(setting)) {
+            setting = "ALL";
+        }
         jdbcTemplate.update(
-                "update users set nickname = ?, avatar_url = ?, bio = ?, updated_at = now() where id = ?",
+                "update users set nickname = ?, avatar_url = ?, bio = ?, private_message_setting = ?, updated_at = now() where id = ?",
                 request.nickname(),
                 request.avatarUrl(),
                 request.bio(),
+                setting,
                 loginUser.userId()
         );
         return getMyProfile(loginUser);
@@ -172,7 +179,8 @@ public class MeController {
     public record UpdateProfileRequest(
             String nickname,
             String avatarUrl,
-            String bio
+            String bio,
+            String privateMessageSetting
     ) {
     }
 

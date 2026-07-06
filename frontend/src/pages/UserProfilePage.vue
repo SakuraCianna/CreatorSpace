@@ -42,6 +42,15 @@
                 </div>
                 <input v-model="editForm.nickname" class="edit-input edit-input--title" placeholder="昵称" />
                 <textarea v-model="editForm.bio" class="edit-input edit-input--textarea" placeholder="个人简介" rows="3" />
+                <div class="setting-group">
+                  <label class="setting-label">私信权限设置</label>
+                  <select v-model="editForm.privateMessageSetting" class="edit-input edit-select">
+                    <option value="ALL">所有人都可以私信我</option>
+                    <option value="FOLLOW">关注我才可私信我（只能发送一条）</option>
+                    <option value="MUTUAL">仅互相关注可私信</option>
+                    <option value="NONE">关闭私信功能</option>
+                  </select>
+                </div>
                 <div class="password-section">
                   <input v-model="passwordForm.oldPassword" type="password" class="edit-input" placeholder="原密码 (留空不改)" />
                   <input v-model="passwordForm.newPassword" type="password" class="edit-input" placeholder="新密码" />
@@ -477,7 +486,7 @@ const editing = ref(false)
 const saving = ref(false)
 const avatarUploading = ref(false)
 const avatarInput = ref<HTMLInputElement | null>(null)
-const editForm = ref({ nickname: '', avatarUrl: '', bio: '' })
+const editForm = ref({ nickname: '', avatarUrl: '', bio: '', privateMessageSetting: 'ALL' })
 const passwordForm = ref({ oldPassword: '', newPassword: '' })
 const themeSaving = ref(false)
 const themeNotice = ref('')
@@ -493,6 +502,7 @@ function startEditing() {
     nickname: profile.value.nickname ?? '',
     avatarUrl: profile.value.avatarUrl ?? '',
     bio: profile.value.bio ?? '',
+    privateMessageSetting: profile.value.privateMessageSetting ?? 'ALL',
   }
   passwordForm.value = { oldPassword: '', newPassword: '' }
   editing.value = true
@@ -535,6 +545,7 @@ async function saveProfile() {
       nickname: editForm.value.nickname || null,
       avatarUrl: editForm.value.avatarUrl || null,
       bio: editForm.value.bio || null,
+      privateMessageSetting: editForm.value.privateMessageSetting || 'ALL',
     })
     
     if (passwordForm.value.oldPassword && passwordForm.value.newPassword) {
@@ -1886,5 +1897,29 @@ onMounted(loadProfile)
     grid-template-columns: 1fr;
     min-height: 0;
   }
+}
+
+.setting-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.setting-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--blog-muted, #71717a);
+  text-align: left;
+}
+
+.edit-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+  padding-right: 40px;
+  cursor: pointer;
 }
 </style>

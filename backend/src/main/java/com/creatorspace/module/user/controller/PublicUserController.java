@@ -59,6 +59,7 @@ public class PublicUserController {
         }
         List<UserPublicVO> profiles = jdbcTemplate.query("""
                         select u.id, u.username, u.nickname, u.avatar_url, u.bio,
+                               u.private_message_setting,
                                %s,
                                (select count(*) from user_follows f where f.followee_id = u.id) as follower_count,
                                (select count(*) from user_follows f where f.follower_id = u.id) as following_count,
@@ -233,7 +234,8 @@ public class PublicUserController {
                 rs.getLong("article_count"),
                 rs.getLong("follower_count"),
                 rs.getLong("following_count"),
-                rs.getLong("friend_count")
+                rs.getLong("friend_count"),
+                rs.getString("private_message_setting")
         );
     }
 

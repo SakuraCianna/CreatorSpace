@@ -724,6 +724,11 @@ watch(slug, loadProject)
   font-size: 13px;
   font-weight: 740;
 }
+.detail-meta span svg,
+.stats-strip span svg {
+  flex-shrink: 0;
+  display: block;
+}
 .detail-meta span {
   border: 1px solid rgba(255, 255, 255, 0.16);
   background: rgba(6, 8, 18, 0.42);
