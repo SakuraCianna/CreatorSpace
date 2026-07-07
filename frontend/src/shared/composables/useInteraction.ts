@@ -47,8 +47,8 @@ export function useInteraction(targetType: 'ARTICLE' | 'PROJECT' | 'COMMENT' | '
         await likeTarget(targetType, targetId)
         liked.value = true
       }
-    } catch (e) {
-      console.error('toggleLike error:', e)
+    } catch {
+      await loadStatus(targetId)
     }
   }
 
@@ -62,8 +62,8 @@ export function useInteraction(targetType: 'ARTICLE' | 'PROJECT' | 'COMMENT' | '
         await favoriteTarget(targetType, targetId)
         favorited.value = true
       }
-    } catch (e) {
-      console.error('toggleFavorite error:', e)
+    } catch {
+      await loadStatus(targetId)
     }
   }
 

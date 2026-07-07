@@ -78,13 +78,15 @@ public class SecurityConfig {
                                 "/api/site/config",
                                 "/api/site/statistics/summary",
                                 "/api/theme/current",
-                                "/api/themes"
+                                "/api/themes",
+                                "/api/themes/**"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/api/categories",
                                 "/api/tags",
                                 "/api/tags/recommended"
                         ).permitAll()
+                        .requestMatchers("/api/auth/diagnose-mail").hasRole("ADMIN")
                         .requestMatchers("/api/creator/**", "/api/me/**").hasAnyRole("USER", "ADMIN")
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()

@@ -27,14 +27,6 @@
         <p class="my-comment-content">{{ item.content }}</p>
         <footer class="my-comment-item-footer">
           <span>{{ formatDate(item.createdAt) }}</span>
-          <button
-            v-if="item.status === 'PENDING'"
-            class="button button-tonal button-compact"
-            type="button"
-            @click="editComment(item)"
-          >
-            编辑
-          </button>
         </footer>
       </article>
     </div>
@@ -108,10 +100,6 @@ async function loadMyComments(page: number) {
 function goPage(page: number) {
   if (page < 1 || (totalPages.value > 0 && page > totalPages.value)) return
   loadMyComments(page)
-}
-
-function editComment(item: CommentSummary) {
-  // TODO: navigate to the target article/project page
 }
 
 onMounted(() => {

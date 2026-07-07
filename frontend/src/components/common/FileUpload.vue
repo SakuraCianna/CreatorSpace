@@ -25,6 +25,7 @@
 import { ref } from 'vue'
 import { UploadCloud, LoaderCircle, CheckCircle2 } from '@lucide/vue'
 import { uploadFile } from '../../services/file'
+import { toUserMessage } from '../../services/http'
 import { useSessionStore } from '../../shared/sessionStore'
 
 const props = defineProps<{
@@ -59,8 +60,8 @@ async function handleFile(file: File) {
     const res = await uploadFile(file, props.module, isAdmin.value)
     emit('update:modelValue', res.publicUrl)
     emit('success', res.publicUrl)
-  } catch (err: any) {
-    emit('error', err.message || '上传失败')
+  } catch (error) {
+    emit('error', toUserMessage(error, '上传失败'))
   } finally {
     isUploading.value = false
     isDragging.value = false

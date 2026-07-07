@@ -1455,7 +1455,7 @@ const SiteStructureShowcase = defineComponent({
       svgW.value = rect.width
       svgH.value = rect.height
       const cards = Array.from(stageEl.querySelectorAll<HTMLElement>('.cs-agent'))
-      const y = rect.height / 2
+      const y = rect.height * 0.58
       const xs = cards.map((card) => {
         const cr = card.getBoundingClientRect()
         return cr.left - rect.left + cr.width / 2
@@ -3172,8 +3172,8 @@ function renderFooter() {
 
 .cs-home :deep(.cs-agents) {
   --section-ink: #f8fbff;
-  --section-muted: rgba(232, 239, 255, 0.82);
-  --section-faint: rgba(206, 216, 245, 0.62);
+  --section-muted: rgba(238, 244, 255, 0.9);
+  --section-faint: rgba(219, 227, 251, 0.76);
   --section-line: rgba(150, 171, 230, 0.18);
   --section-accent: #54e6c8;
   position: relative;
@@ -3194,6 +3194,7 @@ function renderFooter() {
   z-index: 0;
   width: 100%;
   height: 100%;
+  opacity: 0.54;
   pointer-events: none;
   overflow: visible;
 }
@@ -3206,7 +3207,8 @@ function renderFooter() {
 
 .cs-home :deep(.cs-wire--live) {
   stroke: url(#cs-flow-gradient);
-  filter: drop-shadow(0 0 8px rgba(110, 168, 255, 0.7));
+  stroke-width: 1.25;
+  filter: drop-shadow(0 0 6px rgba(110, 168, 255, 0.5));
 }
 
 .cs-home :deep(.cs-wire__pulse) {
@@ -3222,12 +3224,17 @@ function renderFooter() {
   padding: 28px;
   border: 1px solid var(--cs-line);
   border-radius: 22px;
-  background: linear-gradient(180deg, var(--cs-bg-raise), rgba(11, 13, 24, 0.6));
-  transition: border-color 0.4s ease, transform 0.4s ease;
+  background:
+    linear-gradient(180deg, rgba(16, 21, 38, 0.96), rgba(9, 12, 24, 0.92)),
+    var(--cs-bg-raise);
+  box-shadow: 0 22px 58px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(14px);
+  transition: border-color 0.4s ease, transform 0.4s ease, box-shadow 0.4s ease;
 }
 
 .cs-home :deep(.cs-agent:hover) {
   border-color: color-mix(in srgb, var(--cs-agent-accent) 60%, transparent);
+  box-shadow: 0 26px 68px rgba(0, 0, 0, 0.34), 0 0 34px color-mix(in srgb, var(--cs-agent-accent) 16%, transparent);
   transform: translateY(-4px);
 }
 
@@ -3261,22 +3268,24 @@ function renderFooter() {
   font-size: 11px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--cs-ink-faint);
+  color: rgba(225, 233, 255, 0.78);
 }
 
 .cs-home :deep(.cs-agent__name) {
   margin: 20px 0 0;
+  color: #f9fbff;
   font-family: var(--cs-font-display);
   font-weight: 600;
   font-size: 23px;
   letter-spacing: -0.01em;
+  text-shadow: 0 10px 24px rgba(0, 0, 0, 0.42);
 }
 
 .cs-home :deep(.cs-agent__summary) {
   margin: 12px 0 0;
   font-size: 14px;
   line-height: 1.62;
-  color: var(--cs-ink-dim);
+  color: rgba(235, 241, 255, 0.88);
 }
 
 
@@ -3315,7 +3324,7 @@ function renderFooter() {
   font-family: var(--cs-font-mono);
   font-size: 10px;
   letter-spacing: 0.06em;
-  color: var(--cs-ink-faint);
+  color: rgba(216, 225, 249, 0.68);
   transition: color 0.3s ease;
 }
 
@@ -3341,7 +3350,7 @@ function renderFooter() {
   border-radius: 999px;
   border: 1px solid var(--cs-line);
   font-size: 12px;
-  color: var(--cs-ink-dim);
+  color: rgba(233, 240, 255, 0.86);
 }
 
 @media (max-width: 900px) {

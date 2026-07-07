@@ -161,7 +161,7 @@ public class MeController {
             org.springframework.security.crypto.password.PasswordEncoder passwordEncoder
     ) {
         String currentEncoded = jdbcTemplate.queryForObject(
-                "select password from users where id = ?",
+                "select password_hash from users where id = ?",
                 String.class,
                 loginUser.userId()
         );
@@ -169,7 +169,7 @@ public class MeController {
             throw BusinessException.badRequest("原密码不正确");
         }
         jdbcTemplate.update(
-                "update users set password = ?, updated_at = now() where id = ?",
+                "update users set password_hash = ?, updated_at = now() where id = ?",
                 passwordEncoder.encode(request.newPassword()),
                 loginUser.userId()
         );

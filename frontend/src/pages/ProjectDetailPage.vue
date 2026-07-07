@@ -411,8 +411,8 @@ async function toggleCommentLike(comment: CommentSummary) {
     }
     const flat = comments.value.find(c => c.id === comment.id)
     if (flat) flat.likeCount = comment.likeCount
-  } catch (e) {
-    console.error('toggleCommentLike error:', e)
+  } catch {
+    await loadCommentLikes()
   }
 }
 

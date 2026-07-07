@@ -38,7 +38,7 @@
               <label>验证码</label>
               <div class="input-with-button">
                 <input v-model="form.verificationCode" type="text" placeholder="6位验证码" maxlength="6" />
-                <button type="button" class="send-code-btn" :disabled="isSendingCode || countdown > 0 || !hcaptchaToken || !form.email" @click="sendCode">
+                <button type="button" class="send-code-btn" :disabled="isSendingCode || countdown > 0 || (hcaptchaEnabled && !hcaptchaToken) || !form.email" @click="sendCode">
                   <LoaderCircle v-if="isSendingCode" class="spin" :size="16" />
                   <span v-else-if="countdown > 0">{{ countdown }}s 后重试</span>
                   <span v-else>发送验证码</span>
@@ -53,7 +53,7 @@
               </div>
             </div>
 
-            <div class="hcaptcha-wrapper">
+            <div v-if="hcaptchaEnabled" class="hcaptcha-wrapper">
               <VueHcaptcha ref="hcaptchaRef" :sitekey="hcaptchaSiteKey" @verify="onVerify" @expired="onExpired" @error="onError" />
             </div>
 
@@ -113,6 +113,7 @@ const loginRoute = computed(() => ({
 const hcaptchaToken = ref('')
 const hcaptchaRef = ref<any>(null)
 const hcaptchaSiteKey = import.meta.env.VITE_HCAPTCHA_SITE_KEY
+const hcaptchaEnabled = Boolean(hcaptchaSiteKey)
 
 function onVerify(token: string) {
   hcaptchaToken.value = token
@@ -135,7 +136,7 @@ async function sendCode() {
     isSuccess.value = false
     return
   }
-  if (!hcaptchaToken.value) {
+  if (hcaptchaEnabled && !hcaptchaToken.value) {
     message.value = '请先完成人机验证'
     isSuccess.value = false
     return

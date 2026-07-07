@@ -43,11 +43,11 @@
               </div>
             </div>
 
-            <div class="hcaptcha-wrapper">
+            <div v-if="hcaptchaEnabled" class="hcaptcha-wrapper">
               <VueHcaptcha ref="hcaptchaRef" :sitekey="hcaptchaSiteKey" @verify="onVerify" @expired="onExpired" @error="onError" />
             </div>
 
-            <button class="submit-btn" :disabled="isSubmitting || !hcaptchaToken" type="submit">
+            <button class="submit-btn" :disabled="isSubmitting || (hcaptchaEnabled && !hcaptchaToken)" type="submit">
               <LoaderCircle v-if="isSubmitting" class="spin" :size="18" />
               <span v-else>{{ loginMode === 'ADMIN' ? '登录后台' : '登录账号' }}</span>
             </button>
@@ -100,6 +100,7 @@ const registerRoute = computed(() => ({
 const hcaptchaToken = ref('')
 const hcaptchaRef = ref<any>(null)
 const hcaptchaSiteKey = import.meta.env.VITE_HCAPTCHA_SITE_KEY
+const hcaptchaEnabled = Boolean(hcaptchaSiteKey)
 
 function onVerify(token: string) {
   hcaptchaToken.value = token
@@ -121,7 +122,7 @@ async function submitLogin() {
     message.value = '请输入账号和密码'
     return
   }
-  if (!hcaptchaToken.value) {
+  if (hcaptchaEnabled && !hcaptchaToken.value) {
     message.value = '请完成人机验证'
     return
   }

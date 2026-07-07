@@ -364,8 +364,9 @@ async function loadAuthorProfile(authorId: number) {
     authorArticles.value = (articlesPage.records || [])
       .filter((item) => item.id !== article.value?.id)
       .slice(0, 5)
-  } catch (e) {
-    console.error('Failed to load author profile details:', e)
+  } catch {
+    authorProfile.value = null
+    authorArticles.value = []
   }
 }
 // 向后端异步获取针对本文章审核通过的已公开评论反馈列表
@@ -438,8 +439,8 @@ async function toggleCommentLike(comment: CommentSummary) {
     }
     const flat = comments.value.find(c => c.id === comment.id)
     if (flat) flat.likeCount = comment.likeCount
-  } catch (e) {
-    console.error('toggleCommentLike error:', e)
+  } catch {
+    await loadCommentLikes()
   }
 }
 async function loadCommentLikes() {

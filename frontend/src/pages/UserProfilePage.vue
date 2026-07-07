@@ -319,7 +319,7 @@
                   </div>
                   <div class="journal-card__content">
                     <div class="article-meta-row">
-                      <span class="favorite-type-badge">{{ fav.targetType === 'ARTICLE' ? '文章' : '作品' }}</span>
+                      <span class="favorite-type-badge">{{ favoriteTypeLabel(fav.targetType) }}</span>
                       <span class="article-date">{{ formatDate(fav.createdAt) }}</span>
                     </div>
                     <h2>{{ fav.title || '未命名' }}</h2>
@@ -350,7 +350,7 @@
                   </div>
                   <div class="journal-card__content">
                     <div class="article-meta-row">
-                      <span class="favorite-type-badge">{{ like.targetType === 'ARTICLE' ? '文章' : like.targetType }}</span>
+                      <span class="favorite-type-badge">{{ interactionTypeLabel(like.targetType) }}</span>
                       <span class="article-date">{{ formatDate(like.createdAt) }}</span>
                     </div>
                     <h2>{{ like.title || `${like.targetType} #${like.targetId}` }}</h2>
@@ -649,7 +649,24 @@ function favoriteRoute(item: FavoriteRecord) {
   if (item.targetType === 'ARTICLE') {
     return { name: 'article-detail', params: { slug: item.slug } }
   }
-  return { name: 'project-detail', params: { slug: item.slug } }
+  if (item.targetType === 'PROJECT') {
+    return { name: 'project-detail', params: { slug: item.slug } }
+  }
+  return { name: 'inspirations' }
+}
+
+function favoriteTypeLabel(type: FavoriteRecord['targetType']): string {
+  if (type === 'ARTICLE') return '文章'
+  if (type === 'PROJECT') return '作品'
+  return '灵感'
+}
+
+function interactionTypeLabel(type: InteractionRecord['targetType']): string {
+  if (type === 'ARTICLE') return '文章'
+  if (type === 'PROJECT') return '作品'
+  if (type === 'INSPIRATION') return '灵感'
+  if (type === 'MESSAGE') return '留言'
+  return '评论'
 }
 
 function coverStyle(index: number) {
@@ -680,7 +697,13 @@ function likeRoute(like: InteractionRecord) {
   if (like.targetType === 'ARTICLE' && like.slug) {
     return { name: 'article-detail', params: { slug: like.slug } }
   }
-  return ''
+  if (like.targetType === 'PROJECT' && like.slug) {
+    return { name: 'project-detail', params: { slug: like.slug } }
+  }
+  if (like.targetType === 'INSPIRATION') {
+    return { name: 'inspirations' }
+  }
+  return { name: 'guestbook' }
 }
 
 async function loadProfile() {
@@ -733,8 +756,7 @@ async function loadArticles() {
   try {
     const page = await fetchUserArticles(profile.value.id)
     articles.value = page.records
-  } catch (e) {
-    console.error('Failed to load articles:', e)
+  } catch {
     articles.value = []
   } finally {
     articlesLoading.value = false

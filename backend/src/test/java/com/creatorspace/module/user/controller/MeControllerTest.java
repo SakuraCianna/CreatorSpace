@@ -69,7 +69,7 @@ class MeControllerTest {
         assertThrows(BusinessException.class, () -> controller.getMyProfile(loginUser));
 
         PasswordEncoder encoder = mock(PasswordEncoder.class);
-        when(jdbcTemplate.queryForObject("select password from users where id = ?", String.class, 9L)).thenReturn("encoded");
+        when(jdbcTemplate.queryForObject("select password_hash from users where id = ?", String.class, 9L)).thenReturn("encoded");
         when(encoder.matches("old", "encoded")).thenReturn(false);
         assertThrows(BusinessException.class,
                 () -> controller.updateMyPassword(loginUser, new MeController.UpdatePasswordRequest("old", "new"), encoder));
@@ -77,6 +77,6 @@ class MeControllerTest {
         when(encoder.matches("old", "encoded")).thenReturn(true);
         when(encoder.encode("new")).thenReturn("new-encoded");
         controller.updateMyPassword(loginUser, new MeController.UpdatePasswordRequest("old", "new"), encoder);
-        verify(jdbcTemplate).update(contains("update users set password"), eq("new-encoded"), eq(9L));
+        verify(jdbcTemplate).update(contains("update users set password_hash"), eq("new-encoded"), eq(9L));
     }
 }

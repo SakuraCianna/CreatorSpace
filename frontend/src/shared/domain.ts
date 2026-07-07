@@ -293,7 +293,7 @@ export interface FileResource {
 
 export interface InteractionRecord {
   id: number
-  targetType: 'ARTICLE' | 'PROJECT' | 'COMMENT' | 'INSPIRATION'
+  targetType: 'ARTICLE' | 'PROJECT' | 'COMMENT' | 'INSPIRATION' | 'MESSAGE'
   targetId: number
   createdAt?: string | null
   title?: string | null

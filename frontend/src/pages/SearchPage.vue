@@ -151,8 +151,8 @@ async function loadLatestArticles() {
   try {
     const page = await fetchArticles('', undefined, { pageSize: 6 })
     latestArticles.value = page.records
-  } catch (e) {
-    console.error('Failed to load latest articles', e)
+  } catch {
+    latestArticles.value = []
   }
 }
 

@@ -43,8 +43,7 @@ public class AuthController {
             "host", host,
             "port", port,
             "username", username,
-            "passwordConfigured", hasPassword,
-            "passwordLength", hasPassword ? password.length() : 0
+            "passwordConfigured", hasPassword
         ));
     }
 

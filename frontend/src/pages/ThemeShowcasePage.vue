@@ -277,11 +277,18 @@ const selectedTokens = computed<ColorToken[]>(() => {
   if (!theme) {
     return []
   }
+  const surface = safeColor(
+    readString(theme.config.surfaceColor),
+    safeColor(readString(theme.config.backgroundColor), '#ffffff'),
+  )
+  const ink = readableTextColor(safeColor(readString(theme.config.inkColor), '#14151d'), surface)
+  const muted = readableTextColor(safeColor(readString(theme.config.mutedColor), ink), surface, 3.6)
   return [
     { label: 'Primary', color: safeColor(theme.primaryColor, '#315bff') },
     { label: 'Accent', color: safeColor(readString(theme.config.accentColor), theme.primaryColor) },
-    { label: 'Surface', color: safeColor(readString(theme.config.surfaceColor), '#ffffff') },
-    { label: 'Ink', color: safeColor(readString(theme.config.inkColor), '#14151d') },
+    { label: 'Surface', color: surface },
+    { label: 'Ink', color: ink },
+    { label: 'Muted', color: muted },
   ]
 })
 // 构建注入预览区域的实时 CSS 自定义属性对象
@@ -290,6 +297,12 @@ const previewStyle = computed(() => ({
   '--preview-accent': selectedTokens.value[1]?.color ?? '#0f766e',
   '--preview-surface': selectedTokens.value[2]?.color ?? '#ffffff',
   '--preview-ink': selectedTokens.value[3]?.color ?? '#14151d',
+  '--preview-muted': selectedTokens.value[4]?.color ?? '#5e6472',
+  '--tone-primary': selectedTokens.value[0]?.color ?? '#315bff',
+  '--tone-panel-solid': selectedTokens.value[2]?.color ?? '#ffffff',
+  '--tone-ink': selectedTokens.value[3]?.color ?? '#14151d',
+  '--tone-muted': selectedTokens.value[4]?.color ?? '#5e6472',
+  '--tone-line-strong': `color-mix(in srgb, ${selectedTokens.value[3]?.color ?? '#14151d'} 18%, transparent)`,
   '--preview-bg': toCssImageUrl(computedThemeConfig.value?.backgroundImage),
 }))
 // 构建排版好的主题 JSON 变量字符串
@@ -416,6 +429,51 @@ function safeColor(value: string | undefined | null, fallback: string): string {
     return color
   }
   return fallback
+}
+
+// 主题配置来自后台，颜色可能组合成低对比；预览区兜底保证答辩投屏可读。
+function readableTextColor(candidate: string, surface: string, minRatio = 4.5): string {
+  const surfaceRgb = parseHexColor(surface)
+  const candidateRgb = parseHexColor(candidate)
+  if (!surfaceRgb || !candidateRgb || contrastRatio(candidateRgb, surfaceRgb) >= minRatio) {
+    return candidate
+  }
+  const light = parseHexColor('#fff7ed')!
+  const dark = parseHexColor('#14151d')!
+  return contrastRatio(light, surfaceRgb) >= contrastRatio(dark, surfaceRgb) ? '#fff7ed' : '#14151d'
+}
+
+function parseHexColor(value: string): [number, number, number] | null {
+  const hex = value.trim()
+  const match = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.exec(hex)
+  if (!match) {
+    return null
+  }
+  const raw = match[1]
+  const full = raw.length === 3
+    ? raw.split('').map((char) => `${char}${char}`).join('')
+    : raw
+  return [
+    Number.parseInt(full.slice(0, 2), 16),
+    Number.parseInt(full.slice(2, 4), 16),
+    Number.parseInt(full.slice(4, 6), 16),
+  ]
+}
+
+function contrastRatio(a: [number, number, number], b: [number, number, number]): number {
+  const la = relativeLuminance(a)
+  const lb = relativeLuminance(b)
+  const lighter = Math.max(la, lb)
+  const darker = Math.min(la, lb)
+  return (lighter + 0.05) / (darker + 0.05)
+}
+
+function relativeLuminance(rgb: [number, number, number]): number {
+  const [r, g, b] = rgb.map((channel) => {
+    const value = channel / 255
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+  })
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
 }
 // 挂载组件时自动加载主题列表
 onMounted(loadThemes)
@@ -591,7 +649,7 @@ onBeforeUnmount(() => {
 .theme-preview__content p:not(.page-kicker) {
   max-width: 620px;
   margin: 0;
-  color: color-mix(in srgb, var(--preview-ink) 72%, transparent);
+  color: var(--preview-muted);
   line-height: 1.6;
 }
 .theme-preview__tabs {
@@ -605,7 +663,7 @@ onBeforeUnmount(() => {
   border-bottom: 2px solid transparent;
   padding: 12px 0;
   background: transparent;
-  color: color-mix(in srgb, var(--preview-ink) 50%, transparent);
+  color: var(--preview-muted);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -631,7 +689,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  color: color-mix(in srgb, var(--preview-ink) 70%, transparent);
+  color: var(--preview-muted);
   font-size: 12px;
   font-weight: 600;
 }
@@ -726,7 +784,7 @@ onBeforeUnmount(() => {
   border: 1px solid color-mix(in srgb, var(--preview-ink) 12%, transparent);
   border-radius: 999px;
   background: color-mix(in srgb, var(--preview-surface) 90%, transparent);
-  color: color-mix(in srgb, var(--preview-ink) 80%, transparent);
+  color: var(--preview-muted);
   font-size: 13px;
   font-weight: 600;
 }
@@ -758,7 +816,7 @@ onBeforeUnmount(() => {
 }
 .version-notice {
   margin: -4px 0 0;
-  color: color-mix(in srgb, var(--preview-ink) 58%, transparent);
+  color: var(--preview-muted);
   font-size: 12px;
   line-height: 1.5;
 }
@@ -767,7 +825,7 @@ onBeforeUnmount(() => {
   font-size: 15px;
 }
 .theme-preview__cards span {
-  color: color-mix(in srgb, var(--preview-ink) 60%, transparent);
+  color: var(--preview-muted);
   font-size: 13px;
 }
 .theme-actions {

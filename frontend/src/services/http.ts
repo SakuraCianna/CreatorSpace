@@ -31,6 +31,9 @@ const PUBLIC_API_PREFIXES = [
   '/api/auth',
   '/api/health',
   '/api/actuator',
+  '/api/site',
+  '/api/theme',
+  '/api/themes',
 ]
 
 function isPublicApi(path: string): boolean {
@@ -82,12 +85,7 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
   try {
     const response = await fetch(`${appConfig.apiBaseUrl}${requestPath}`, {
       ...init,
-      headers: {
-        Accept: 'application/json',
-        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...init?.headers,
-      },
+      headers: buildRequestHeaders(init?.headers, token, isFormData),
       signal: init?.signal ?? controller.signal,
     })
 
@@ -97,10 +95,7 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
         if (newAccess) {
           const retryInit = {
             ...init,
-            headers: {
-              ...init?.headers,
-              Authorization: `Bearer ${newAccess}`
-            }
+            headers: buildRequestHeaders(init?.headers, newAccess, isFormData),
           }
           const retryResponse = await fetch(`${appConfig.apiBaseUrl}${requestPath}`, {
             ...retryInit,
@@ -164,6 +159,21 @@ function buildHttpErrorMessage(status: number, requestPath: string, method: stri
   const reason = backendMessage.trim() || statusMessage(status)
   const hint = statusHint(status, requestPath)
   return `${method} ${requestPath} 返回 ${status}：${reason}${hint ? `。${hint}` : ''}`
+}
+
+function buildRequestHeaders(initHeaders: HeadersInit | undefined, token: string | null, isFormData: boolean): Headers {
+  const headers = new Headers()
+  headers.set('Accept', 'application/json')
+  if (!isFormData) {
+    headers.set('Content-Type', 'application/json')
+  }
+  if (initHeaders) {
+    new Headers(initHeaders).forEach((value, key) => headers.set(key, value))
+  }
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`)
+  }
+  return headers
 }
 
 function statusMessage(status: number): string {

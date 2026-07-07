@@ -25,7 +25,7 @@
               placeholder="yourname@qq.com"
             />
           </label>
-          <button class="button button-filled" :disabled="sending || !isValidEmail" type="submit">
+          <button class="button button-filled" :disabled="sending || !isValidEmail || (hcaptchaEnabled && !hcaptchaToken)" type="submit">
             <LoaderCircle v-if="sending" class="spin" :size="16" />
             发送验证码
           </button>
@@ -48,7 +48,7 @@
             <button
               class="button button-tonal code-send-btn"
               type="button"
-              :disabled="codeCountdown > 0"
+              :disabled="codeCountdown > 0 || (hcaptchaEnabled && !hcaptchaToken)"
               @click="resendCode"
             >
               {{ codeCountdown > 0 ? `重新发送(${codeCountdown}s)` : '重新发送验证码' }}
@@ -70,6 +70,9 @@
             重置密码
           </button>
         </template>
+        <div v-if="hcaptchaEnabled" class="hcaptcha-wrapper">
+          <VueHcaptcha ref="hcaptchaRef" :sitekey="hcaptchaSiteKey" @verify="onVerify" @expired="onExpired" @error="onError" />
+        </div>
         <RouterLink class="auth-switch" :to="{ name: 'login' }">返回登录</RouterLink>
         <p v-if="message" class="form-message" :class="`form-message--${messageType}`">{{ message }}</p>
       </div>
@@ -81,6 +84,7 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { LoaderCircle, ShieldCheck } from '@lucide/vue'
+import VueHcaptcha from '@hcaptcha/vue3-hcaptcha'
 
 import { sendForgotPasswordCode, resetPassword } from '../services/content'
 import { toUserMessage } from '../services/http'
@@ -98,6 +102,10 @@ const messageType = ref<'idle' | 'success' | 'error'>('idle')
 const sending = ref(false)
 const resetting = ref(false)
 const codeCountdown = ref(0)
+const hcaptchaToken = ref('')
+const hcaptchaRef = ref<{ reset: () => void } | null>(null)
+const hcaptchaSiteKey = import.meta.env.VITE_HCAPTCHA_SITE_KEY
+const hcaptchaEnabled = Boolean(hcaptchaSiteKey)
 let codeTimer: number | undefined
 
 const isValidEmail = computed(() => /^[^\s@]+@qq\.com$/.test(email.value))
@@ -116,28 +124,56 @@ async function sendCode() {
     setMessage('请输入有效的 QQ 邮箱', 'error')
     return
   }
+  if (hcaptchaEnabled && !hcaptchaToken.value) {
+    setMessage('请先完成人机验证', 'error')
+    return
+  }
   sending.value = true
   clearMessage()
   try {
-    await sendForgotPasswordCode(email.value)
+    await sendForgotPasswordCode(email.value, hcaptchaToken.value)
     startCountdown()
     step.value = 'reset'
     setMessage('验证码已发送，请查收邮件', 'success')
   } catch (e) {
     setMessage(toUserMessage(e, '发送失败'), 'error')
   } finally {
+    resetCaptcha()
     sending.value = false
   }
 }
 
 async function resendCode() {
+  if (hcaptchaEnabled && !hcaptchaToken.value) {
+    setMessage('请先完成人机验证', 'error')
+    return
+  }
   try {
-    await sendForgotPasswordCode(email.value)
+    await sendForgotPasswordCode(email.value, hcaptchaToken.value)
     startCountdown()
     setMessage('验证码已重新发送', 'success')
   } catch (e) {
     setMessage(toUserMessage(e, '发送失败'), 'error')
+  } finally {
+    resetCaptcha()
   }
+}
+
+function onVerify(token: string) {
+  hcaptchaToken.value = token
+}
+
+function onExpired() {
+  hcaptchaToken.value = ''
+}
+
+function onError() {
+  hcaptchaToken.value = ''
+}
+
+function resetCaptcha() {
+  hcaptchaRef.value?.reset()
+  hcaptchaToken.value = ''
 }
 
 function startCountdown() {
@@ -223,6 +259,11 @@ function clearMessage() {
   align-content: center;
   gap: 18px;
   padding: clamp(28px, 4vw, 48px);
+}
+
+.hcaptcha-wrapper {
+  display: flex;
+  justify-content: center;
 }
 
 .auth-card__visual {

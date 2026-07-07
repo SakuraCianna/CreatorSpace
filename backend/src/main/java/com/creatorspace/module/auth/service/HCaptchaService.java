@@ -9,9 +9,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
 @Service
@@ -42,7 +44,7 @@ public class HCaptchaService {
      */
     public boolean verify(String token) {
         if (!StringUtils.hasText(secretKey)) {
-            log.warn("HCAPTCHA_SECRET_KEY is not configured, skipping verification.");
+            log.debug("HCAPTCHA_SECRET_KEY is not configured, skipping verification.");
             return true; // 如果未配置密钥，默认放行方便本地调试
         }
 
@@ -52,7 +54,8 @@ public class HCaptchaService {
         }
 
         try {
-            String formData = "secret=" + secretKey + "&response=" + token;
+            String formData = "secret=" + URLEncoder.encode(secretKey, StandardCharsets.UTF_8)
+                    + "&response=" + URLEncoder.encode(token, StandardCharsets.UTF_8);
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(VERIFY_URL))

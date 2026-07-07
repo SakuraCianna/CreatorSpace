@@ -154,8 +154,8 @@
               <FileUpload v-model="projectForm.coverUrl" module="OTHER" accept="image/*" hint="建议尺寸 16:9，不超过 5MB" />
             </div>
             <div class="form-group-large">
-              <label>截图或Demo上传 (限 50MB)</label>
-              <FileUpload v-model="projectForm.demoUrl" module="OTHER" accept=".zip,.rar,.png,.jpg,.jpeg,.pdf" hint="支持压缩包等，超过限制请填写云盘链接" />
+              <label>Demo URL</label>
+              <input type="text" class="form-input-large" v-model="projectForm.demoUrl" placeholder="https://demo.example.com" />
             </div>
           </div>
           

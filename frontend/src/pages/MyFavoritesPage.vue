@@ -32,7 +32,7 @@
         </div>
         <div>
           <div class="article-meta-row">
-            <span class="favorite-type-badge">{{ item.targetType === 'ARTICLE' ? '文章' : '作品' }}</span>
+            <span class="favorite-type-badge">{{ favoriteTypeLabel(item.targetType) }}</span>
             <span class="article-date">{{ formatDate(item.createdAt) }}</span>
           </div>
           <h2>{{ item.title || '未命名' }}</h2>
@@ -122,7 +122,16 @@ function favoriteRoute(item: FavoriteRecord) {
   if (item.targetType === 'ARTICLE') {
     return { name: 'article-detail', params: { slug: item.slug } }
   }
-  return { name: 'project-detail', params: { slug: item.slug } }
+  if (item.targetType === 'PROJECT') {
+    return { name: 'project-detail', params: { slug: item.slug } }
+  }
+  return { name: 'inspirations' }
+}
+
+function favoriteTypeLabel(type: FavoriteRecord['targetType']): string {
+  if (type === 'ARTICLE') return '文章'
+  if (type === 'PROJECT') return '作品'
+  return '灵感'
 }
 
 function coverStyle(index: number) {

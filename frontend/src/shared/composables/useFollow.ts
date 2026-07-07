@@ -37,8 +37,8 @@ export function useFollow() {
         await followUser(userId)
         following.value = true
       }
-    } catch (e) {
-      console.error('toggleFollow error:', e)
+    } catch {
+      await loadStatus(userId)
     }
   }
 

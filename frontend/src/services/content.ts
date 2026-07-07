@@ -93,6 +93,11 @@ interface LoginPayload {
   password: string
 }
 
+interface UpdatePasswordPayload {
+  oldPassword: string
+  newPassword: string
+}
+
 // 调用注册接口创建用户
 export async function registerUser(payload: RegisterPayload): Promise<UserSummary> {
   const response = await requestJson<ApiEnvelope<UserSummary>>('/api/auth/register', {
@@ -111,10 +116,10 @@ export async function sendRegisterCode(email: string, hcaptchaToken: string): Pr
 }
 
 // 发送找回密码验证码
-export async function sendForgotPasswordCode(email: string): Promise<void> {
+export async function sendForgotPasswordCode(email: string, hcaptchaToken = ''): Promise<void> {
   await requestJson<ApiEnvelope<void>>('/api/auth/forgot-password', {
     method: 'POST',
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email, hcaptchaToken }),
   })
 }
 
@@ -611,9 +616,9 @@ export async function fetchRecommendedTags(limit = 28): Promise<TagSummary[]> {
   return response.data
 }
 
-// 创作者/管理员创建标签。
+// 管理员创建标签。
 export async function createTag(payload: TagPayload): Promise<TagSummary> {
-  const response = await requestJson<ApiEnvelope<TagSummary>>('/api/tags', {
+  const response = await requestJson<ApiEnvelope<TagSummary>>('/api/admin/tags', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
@@ -909,7 +914,7 @@ export async function fetchLikeStatus(targetType: InteractionTargetType, targetI
 }
 
 // 登录用户查询是否已收藏
-export async function fetchFavoriteStatus(targetType: Exclude<InteractionTargetType, 'COMMENT'>, targetId: number): Promise<boolean> {
+export async function fetchFavoriteStatus(targetType: Exclude<InteractionTargetType, 'COMMENT' | 'MESSAGE'>, targetId: number): Promise<boolean> {
   const params = new URLSearchParams({ targetType, targetId: String(targetId) })
   const response = await requestJson<ApiEnvelope<{ status: boolean }>>(`/api/me/favorites/status?${params.toString()}`)
   return response.data.status
@@ -931,7 +936,7 @@ export async function unlikeTarget(targetType: InteractionTargetType, targetId: 
 }
 
 // 登录用户收藏公开内容
-export async function favoriteTarget(targetType: Exclude<InteractionTargetType, 'COMMENT'>, targetId: number): Promise<InteractionRecord> {
+export async function favoriteTarget(targetType: Exclude<InteractionTargetType, 'COMMENT' | 'MESSAGE'>, targetId: number): Promise<InteractionRecord> {
   const response = await requestJson<ApiEnvelope<InteractionRecord>>('/api/me/favorites', {
     method: 'POST',
     body: JSON.stringify({ targetType, targetId }),
@@ -940,7 +945,7 @@ export async function favoriteTarget(targetType: Exclude<InteractionTargetType, 
 }
 
 // 登录用户取消收藏
-export async function unfavoriteTarget(targetType: Exclude<InteractionTargetType, 'COMMENT'>, targetId: number): Promise<void> {
+export async function unfavoriteTarget(targetType: Exclude<InteractionTargetType, 'COMMENT' | 'MESSAGE'>, targetId: number): Promise<void> {
   const params = new URLSearchParams({ targetType, targetId: String(targetId) })
   await requestJson<ApiEnvelope<null>>(`/api/me/favorites?${params.toString()}`, { method: 'DELETE' })
 }
@@ -1670,4 +1675,9 @@ export async function fetchPendingReview(): Promise<{ pendingComments: number; p
   const response = await requestJson<ApiEnvelope<{ pendingComments: number; pendingGuestbook: number; pendingArticles: number; pendingProjects: number; total: number }>>('/api/admin/pending-review')
   return response.data
 }
-export async function updateMyPassword(payload: any): Promise<void> { await requestJson('/api/me/password', { method: 'PUT', body: JSON.stringify(payload) }) }
+export async function updateMyPassword(payload: UpdatePasswordPayload): Promise<void> {
+  await requestJson<ApiEnvelope<void>>('/api/me/password', {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+}

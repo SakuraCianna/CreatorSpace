@@ -213,7 +213,9 @@ router.beforeEach((to) => {
   }
 
   if ((requiresAdmin || requiresAuth) && !hasToken) {
-    return { name: "login", query: { redirect: to.fullPath } };
+    return requiresAdmin
+      ? { name: "login", query: { redirect: to.fullPath, mode: "admin" } }
+      : { name: "login", query: { redirect: to.fullPath } };
   }
 
   if (requiresAdmin && !roles.includes("ADMIN")) {

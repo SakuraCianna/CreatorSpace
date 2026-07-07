@@ -180,15 +180,8 @@ public class CommentController {
                 parent == null ? 0 : parent.depth() + 1,
                 servletRequest.getRemoteAddr(),
                 servletRequest.getHeader("User-Agent"));
-        if ("ARTICLE".equals(type) && parent == null) {
-            jdbcTemplate.update("""
-                            update articles
-                            set comment_count = comment_count + 1, updated_at = now()
-                            where id = ?
-                            """,
-                    request.targetId());
-        }
         if ("APPROVED".equals(status)) {
+            adjustVisibleCommentCounters(type, request.targetId(), parent == null ? null : parent.id(), 1);
             if (parent != null) {
                 long parentUserId = parent.userId();
                 if (parentUserId != loginUser.userId()) {
@@ -219,12 +212,14 @@ public class CommentController {
             @AuthenticationPrincipal LoginUser loginUser,
             @PathVariable Long id
     ) {
+        CommentStatus current = lockComment(id, loginUser.userId());
         int affected = jdbcTemplate.update(
                 "update comments set status = 'DELETED', updated_at = now() where id = ? and user_id = ?",
                 id, loginUser.userId());
         if (affected == 0) {
             throw BusinessException.notFound("评论不存在或无权删除");
         }
+        adjustVisibleCommentCounters(current, "DELETED");
         return ApiResponse.ok(null);
     }
 
@@ -236,19 +231,7 @@ public class CommentController {
             @PathVariable Long id,
             @Valid @RequestBody CommentUpdateRequest request
     ) {
-        CommentStatus current = jdbcTemplate.query("""
-                        select id, status
-                        from comments
-                        where id = ? and user_id = ?
-                        for update
-                        """,
-                (rs, rowNum) -> new CommentStatus(
-                        rs.getLong("id"),
-                        null,
-                        rs.getString("status")
-                ),
-                id, loginUser.userId()).stream().findFirst()
-                .orElseThrow(() -> BusinessException.notFound("评论不存在或无权编辑"));
+        CommentStatus current = lockComment(id, loginUser.userId());
         if (!"APPROVED".equals(current.status()) && !"PENDING".equals(current.status())) {
             throw BusinessException.badRequest("当前状态不能编辑");
         }
@@ -261,6 +244,7 @@ public class CommentController {
                         where id = ? and user_id = ?
                         """,
                 check.content(), contentMasked ? check.originalContent() : null, newStatus, id, loginUser.userId());
+        adjustVisibleCommentCounters(current, newStatus);
         return ApiResponse.ok(getComment(id));
     }
 
@@ -433,36 +417,84 @@ public class CommentController {
     }
 
     private void updateReviewStatus(Long id, String status) {
-        CommentStatus current = jdbcTemplate.query("""
-                        select id, parent_id, status
-                        from comments
-                        where id = ?
-                        for update
-                        """,
-                (rs, rowNum) -> new CommentStatus(
-                        rs.getLong("id"),
-                        rs.getObject("parent_id") == null ? null : rs.getLong("parent_id"),
-                        rs.getString("status")
-                ),
-                id).stream().findFirst().orElseThrow(() -> BusinessException.notFound("评论不存在"));
-
+        CommentStatus current = lockComment(id, null);
         int affected = jdbcTemplate.update("update comments set status = ?, updated_at = now() where id = ?", status, id);
         if (affected == 0) {
             throw BusinessException.notFound("评论不存在");
         }
-        if (current.parentId() == null || current.status().equals(status)) {
+        adjustVisibleCommentCounters(current, status);
+    }
+
+    private CommentStatus lockComment(Long id, Long userId) {
+        String ownerClause = userId == null ? "" : " and user_id = ?";
+        List<Object> params = new java.util.ArrayList<>();
+        params.add(id);
+        if (userId != null) {
+            params.add(userId);
+        }
+        return jdbcTemplate.query("""
+                        select id, target_type, target_id, parent_id, status
+                        from comments
+                        where id = ?%s
+                        for update
+                        """.formatted(ownerClause),
+                (rs, rowNum) -> new CommentStatus(
+                        rs.getLong("id"),
+                        rs.getString("target_type"),
+                        rs.getLong("target_id"),
+                        rs.getObject("parent_id") == null ? null : rs.getLong("parent_id"),
+                        rs.getString("status")
+                ),
+                params.toArray()).stream().findFirst()
+                .orElseThrow(() -> BusinessException.notFound("评论不存在或无权操作"));
+    }
+
+    private void adjustVisibleCommentCounters(CommentStatus current, String nextStatus) {
+        if (current.status().equals(nextStatus)) {
             return;
         }
-        if ("APPROVED".equals(status)) {
-            jdbcTemplate.update("update comments set reply_count = reply_count + 1, updated_at = now() where id = ?", current.parentId());
-        } else if ("APPROVED".equals(current.status())) {
+        if ("APPROVED".equals(current.status())) {
+            adjustVisibleCommentCounters(current.targetType(), current.targetId(), current.parentId(), -1);
+        }
+        if ("APPROVED".equals(nextStatus)) {
+            adjustVisibleCommentCounters(current.targetType(), current.targetId(), current.parentId(), 1);
+        }
+    }
+
+    private void adjustVisibleCommentCounters(String targetType, Long targetId, Long parentId, int delta) {
+        if (parentId != null) {
             jdbcTemplate.update("""
                             update comments
-                            set reply_count = greatest(reply_count - 1, 0),
+                            set reply_count = greatest(reply_count + ?, 0),
                                 updated_at = now()
                             where id = ?
                             """,
-                    current.parentId());
+                    delta,
+                    parentId);
+            return;
+        }
+        if ("ARTICLE".equals(targetType)) {
+            jdbcTemplate.update("""
+                            update articles
+                            set comment_count = greatest(comment_count + ?, 0),
+                                updated_at = now()
+                            where id = ?
+                            """,
+                    delta,
+                    targetId);
+            return;
+        }
+        if ("PROJECT".equals(targetType)) {
+            jdbcTemplate.update("""
+                            insert into content_statistics (target_type, target_id, comment_count, updated_at)
+                            values ('PROJECT', ?, greatest(?, 0), now())
+                            on conflict (target_type, target_id) do update
+                            set comment_count = greatest(content_statistics.comment_count + ?, 0),
+                                updated_at = now()
+                            """,
+                    targetId,
+                    delta,
+                    delta);
         }
     }
 
@@ -667,6 +699,6 @@ public class CommentController {
     private record ParentComment(Long id, Long rootId, Long userId, Integer depth) {
     }
 
-    private record CommentStatus(Long id, Long parentId, String status) {
+    private record CommentStatus(Long id, String targetType, Long targetId, Long parentId, String status) {
     }
 }

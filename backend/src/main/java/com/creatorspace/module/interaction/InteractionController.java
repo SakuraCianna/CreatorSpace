@@ -210,12 +210,13 @@ public class InteractionController {
         params.add((page - 1) * pageSize);
         List<FavoriteVO> records = jdbcTemplate.query("""
                         select fr.id, fr.target_type, fr.target_id, fr.created_at,
-                               coalesce(a.title, p.title) as title,
+                               coalesce(a.title, p.title, i.title) as title,
                                coalesce(a.slug, p.slug) as slug,
-                               coalesce(a.cover_url, p.cover_url) as cover_url
+                               coalesce(a.cover_url, p.cover_url, i.image_url) as cover_url
                         from favorite_records fr
                         left join articles a on a.id = fr.target_id and fr.target_type = 'ARTICLE'
                         left join portfolio_projects p on p.id = fr.target_id and fr.target_type = 'PROJECT'
+                        left join inspiration_cards i on i.id = fr.target_id and fr.target_type = 'INSPIRATION'
                         %s
                         order by fr.created_at desc, fr.id desc
                         limit ? offset ?
@@ -393,9 +394,14 @@ public class InteractionController {
         params.add((page - 1) * pageSize);
         List<InteractionVO> records = jdbcTemplate.query("""
                         select r.id, r.target_type, r.target_id, r.created_at,
-                               a.title as title, a.slug as slug, a.cover_url as cover_url
+                               coalesce(a.title, p.title, i.title,
+                                        case when r.target_type = 'MESSAGE' then '留言 #' || r.target_id end) as title,
+                               coalesce(a.slug, p.slug) as slug,
+                               coalesce(a.cover_url, p.cover_url, i.image_url) as cover_url
                         from %s r
                         left join articles a on r.target_type = 'ARTICLE' and r.target_id = a.id
+                        left join portfolio_projects p on r.target_type = 'PROJECT' and r.target_id = p.id
+                        left join inspiration_cards i on r.target_type = 'INSPIRATION' and r.target_id = i.id
                         %s
                         order by r.created_at desc, r.id desc
                         limit ? offset ?
@@ -416,9 +422,14 @@ public class InteractionController {
     private InteractionVO getInteraction(String tableName, String targetType, Long targetId, Long userId) {
         return jdbcTemplate.query("""
                         select r.id, r.target_type, r.target_id, r.created_at,
-                               a.title as title, a.slug as slug, a.cover_url as cover_url
+                               coalesce(a.title, p.title, i.title,
+                                        case when r.target_type = 'MESSAGE' then '留言 #' || r.target_id end) as title,
+                               coalesce(a.slug, p.slug) as slug,
+                               coalesce(a.cover_url, p.cover_url, i.image_url) as cover_url
                         from %s r
                         left join articles a on r.target_type = 'ARTICLE' and r.target_id = a.id
+                        left join portfolio_projects p on r.target_type = 'PROJECT' and r.target_id = p.id
+                        left join inspiration_cards i on r.target_type = 'INSPIRATION' and r.target_id = i.id
                         where r.target_type = ?
                           and r.target_id = ?
                           and r.user_id = ?

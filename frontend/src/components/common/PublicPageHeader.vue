@@ -80,25 +80,33 @@ onMounted(() => {
     }
 
     if (headerRef.value) {
-      gsap.from(headerRef.value, {
-        y: 12,
-        opacity: 0,
-        duration: 0.8,
-        ease: 'power3.out'
-      })
+      gsap.fromTo(
+        headerRef.value,
+        { y: 12 },
+        {
+          y: 0,
+          duration: 0.8,
+          ease: 'power3.out',
+          clearProps: 'transform',
+        },
+      )
     }
     
     if (contentRef.value) {
       const children = contentRef.value.querySelectorAll('.page-kicker, .page-title, .page-description, .header-actions')
       if (children.length > 0) {
-        gsap.from(children, {
-          y: 10,
-          opacity: 0,
-          duration: 0.6,
-          stagger: 0.08,
-          ease: 'power2.out',
-          delay: 0.1
-        })
+        gsap.fromTo(
+          children,
+          { y: 10 },
+          {
+            y: 0,
+            duration: 0.6,
+            stagger: 0.08,
+            ease: 'power2.out',
+            delay: 0.1,
+            clearProps: 'transform',
+          },
+        )
       }
     }
   }, headerRef.value)
