@@ -106,6 +106,9 @@ public class SecurityConfig {
     @Bean
     AuthenticationEntryPoint authenticationEntryPoint(ObjectMapper objectMapper) {
         return (request, response, authException) -> {
+            if (response.isCommitted()) {
+                return;
+            }
             response.setStatus(HttpStatus.UNAUTHORIZED.value());
             response.setContentType("application/json;charset=UTF-8");
             objectMapper.writeValue(
@@ -119,6 +122,9 @@ public class SecurityConfig {
     @Bean
     AccessDeniedHandler accessDeniedHandler(ObjectMapper objectMapper) {
         return (request, response, accessDeniedException) -> {
+            if (response.isCommitted()) {
+                return;
+            }
             response.setStatus(HttpStatus.FORBIDDEN.value());
             response.setContentType("application/json;charset=UTF-8");
             objectMapper.writeValue(
