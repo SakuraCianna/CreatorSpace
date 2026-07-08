@@ -2050,33 +2050,24 @@ function readError(error: unknown, fallback: string) {
 
 .article-preview-surface {
   border-left-color: color-mix(in srgb, var(--blog-accent, #2563eb) 18%, transparent);
-  padding: 24px;
-  border-radius: var(--blog-radius-lg, 14px);
-  background:
-    radial-gradient(circle at 92% 0%, color-mix(in srgb, var(--blog-accent, #2563eb) 12%, transparent), transparent 28%),
-    linear-gradient(180deg, color-mix(in srgb, var(--blog-paper, #ffffff) 95%, transparent), color-mix(in srgb, var(--blog-card, #ffffff) 86%, transparent)),
-    var(--blog-canvas, #f8fafc);
+  padding: 0 0 0 32px;
+  border-radius: 0;
+  background: #ffffff;
   color: var(--blog-body, #374151);
   font-family: var(--blog-font-body, var(--blog-font, inherit));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--blog-line, #e4e4e7) 70%, transparent);
+  box-shadow: none;
+}
+.markdown-workspace--preview .article-preview-surface {
+  padding-left: 0;
 }
 .article-preview-surface[data-blog-canvas='linen'] {
-  background:
-    repeating-linear-gradient(0deg, color-mix(in srgb, var(--blog-title, #111827) 5%, transparent) 0 1px, transparent 1px 9px),
-    var(--blog-paper, #ffffff);
+  background: #ffffff;
 }
 .article-preview-surface[data-blog-canvas='gradient'] {
-  background:
-    radial-gradient(circle at 16% 0%, color-mix(in srgb, var(--blog-accent, #2563eb) 18%, transparent), transparent 32%),
-    linear-gradient(135deg, var(--blog-paper, #ffffff), var(--blog-canvas, #f8fafc));
+  background: #ffffff;
 }
 .article-preview-surface[data-blog-canvas='image'] {
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--blog-paper, #ffffff) 86%, transparent), color-mix(in srgb, var(--blog-paper, #ffffff) 92%, transparent)),
-    var(--blog-canvas-image),
-    var(--blog-paper, #ffffff);
-  background-size: cover;
-  background-position: center;
+  background: #ffffff;
 }
 .article-preview-surface .preview-title {
   color: var(--blog-title, #111827);
