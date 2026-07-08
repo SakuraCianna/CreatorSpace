@@ -17,6 +17,7 @@ build/
 *.log
 *.tmp
 *.temp
+storage/
 
 # IDE and OS metadata
 .idea/

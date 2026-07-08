@@ -47,7 +47,16 @@
         <button class="tool-btn" title="引用" @click="insertText('> ', '', '引用内容')"><Quote :size="16" /><span>引用</span></button>
         <button class="tool-btn" title="分割线" @click="insertText('\n---\n', '', '')"><Minus :size="16" /><span>分割线</span></button>
         <span class="tool-divider"></span>
-        <button class="tool-btn" title="图片" @click="insertImageMarkdown"><Image :size="16" /><span>图片</span></button>
+        <button class="tool-btn" title="图片" :disabled="isUploadingArticleImage" @click="insertImageMarkdown">
+          <Image :size="16" /><span>{{ isUploadingArticleImage ? '上传中' : '图片' }}</span>
+        </button>
+        <input
+          ref="articleImageInputRef"
+          class="hidden-image-input"
+          type="file"
+          accept="image/*"
+          @change="handleArticleImageSelected"
+        />
         <button class="tool-btn" title="链接" @click="insertLinkMarkdown"><Link :size="16" /><span>链接</span></button>
         <button class="tool-btn" title="AI助手" @click="showAIAssistant = !showAIAssistant" :class="{ 'active': showAIAssistant }"><Sparkles :size="16" /><span>AI助手</span></button>
         <span class="tool-divider"></span>
@@ -471,6 +480,7 @@ import {
 import { streamCreatorAiText } from '../services/content'
 import type { CreatorAiResponse } from '../services/content'
 import { toUserMessage, requestJson } from '../services/http'
+import { uploadFile } from '../services/file'
 import { DEFAULT_BLOG_THEME, blogThemeToStyle, normalizeBlogTheme } from '../shared/blogTheme'
 import { renderSafeMarkdown } from '../shared/markdown'
 import {
@@ -492,10 +502,13 @@ const editingArticleId = ref<number | null>(null)
 const editingProjectId = ref<number | null>(null)
 const editingIdeaId = ref<number | null>(null)
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
+const articleImageInputRef = ref<HTMLInputElement | null>(null)
 const wordCount = ref(0)
 const toc = ref<{id: string, text: string, level: number}[]>([])
 const showAIAssistant = ref(true)
 const editorMode = ref<'split' | 'write' | 'preview'>('split')
+const isUploadingArticleImage = ref(false)
+const pendingImageSelection = ref<{ start: number, end: number } | null>(null)
 const tagOptions = ref<TagSummary[]>([])
 const articleCategoryOptions = ref<{ label: string, value: number }[]>([])
 const blogTheme = ref<BlogThemeConfig>({ ...DEFAULT_BLOG_THEME })
@@ -1231,9 +1244,42 @@ function insertText(before: string, after: string, placeholder: string) {
 }
 
 function insertImageMarkdown() {
-  const url = window.prompt('图片 URL')
-  if (!url) return
-  insertText('![', `](${url.trim()})`, '图片描述')
+  const textarea = textareaRef.value
+  pendingImageSelection.value = textarea
+    ? { start: textarea.selectionStart, end: textarea.selectionEnd }
+    : null
+  articleImageInputRef.value?.click()
+}
+
+async function handleArticleImageSelected(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  if (!file.type.startsWith('image/')) {
+    showNotice('请选择图片文件')
+    input.value = ''
+    return
+  }
+
+  isUploadingArticleImage.value = true
+  try {
+    const resource = await uploadFile(file, 'ARTICLE', session.isAdmin)
+    const textarea = textareaRef.value
+    const selection = pendingImageSelection.value
+    if (textarea && selection) {
+      textarea.focus()
+      textarea.setSelectionRange(selection.start, selection.end)
+    }
+    const altText = file.name.replace(/\.[^.]+$/, '').trim() || '图片描述'
+    insertText('![', `](${resource.publicUrl})`, altText)
+    showNotice('图片已上传并插入正文')
+  } catch (error) {
+    showNotice(readError(error, '图片上传失败'))
+  } finally {
+    isUploadingArticleImage.value = false
+    pendingImageSelection.value = null
+    input.value = ''
+  }
 }
 
 function insertLinkMarkdown() {
@@ -1730,6 +1776,10 @@ function readError(error: unknown, fallback: string) {
 }
 .tool-btn:active {
   transform: scale(0.96);
+}
+
+.hidden-image-input {
+  display: none;
 }
 
 .tool-divider {
@@ -2552,17 +2602,21 @@ function readError(error: unknown, fallback: string) {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 24px;
 }
 .publish-modal {
   background: white;
-  width: 500px;
+  width: min(560px, 100%);
+  max-height: calc(100vh - 48px);
   border-radius: 16px;
   box-shadow: 0 10px 40px rgba(0,0,0,0.1);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 .modal-header {
-  padding: 20px 24px;
+  flex: 0 0 auto;
+  padding: 16px 24px;
   border-bottom: 1px solid rgba(0,0,0,0.06);
   display: flex;
   justify-content: space-between;
@@ -2573,10 +2627,13 @@ function readError(error: unknown, fallback: string) {
   font-size: 16px;
 }
 .modal-body {
-  padding: 24px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px 24px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 .form-group {
   display: flex;
@@ -2664,11 +2721,13 @@ function readError(error: unknown, fallback: string) {
   white-space: nowrap;
 }
 .modal-footer {
-  padding: 16px 24px;
+  flex: 0 0 auto;
+  padding: 14px 24px;
   border-top: 1px solid rgba(0,0,0,0.06);
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+  background: #ffffff;
 }
 .btn-cancel {
   background: white;
